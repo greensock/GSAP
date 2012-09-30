@@ -1,6 +1,6 @@
 /*!
- * VERSION: beta 1.53
- * DATE: 2012-09-19
+ * VERSION: beta 1.54
+ * DATE: 2012-09-30
  * JavaScript 
  * UPDATES AND DOCS AT: http://www.greensock.com
  *
@@ -34,7 +34,7 @@
 			_opacityValExp = /opacity:([^;]*)/,
 			_capsExp = /([A-Z])/g,
 			_camelExp = /-([a-z])/gi,
-			_camelFunc = function(s, g) { return g.toUpperCase() },
+			_camelFunc = function(s, g) { return g.toUpperCase(); },
 			_horizExp = /(Left|Right|Width)/i,
 			_ieGetMatrixExp = /(M11|M12|M21|M22)=[\d\-\.e]+/gi,
 			_ieSetMatrixExp = /progid\:DXImageTransform\.Microsoft\.Matrix\(.+?\)/i,
@@ -335,7 +335,14 @@
 							pink:[255,192,203],
 							cyan:[0,255,255],
 							transparent:[255,255,255,0]};
-							
+					
+		//there's a bug in some versions of iOS Safari (like 6) that causes the screen not to redraw properly for a while (several seconds usually) if the WebkitTransform value is read from the computed style (of any element) when the page first loads UNLESS we change something in the DOM that would normally cause a redraw, so we add an empty div and then after one refresh, we remove it. We must wait for a redraw to happen before we remove it, otherwise it won't work. 
+		if (_isSafari) {
+			_tempDiv.style.cssText = "width:0px;height:0px";
+			_doc.body.appendChild(_tempDiv);
+			TweenLite.delayedCall(0.001, function(){_doc.body.removeChild(_tempDiv);});
+		}
+		
 		
 		//gets called when the tween renders for the first time. This kicks everything off, recording start/end values, etc. 
 		p._onInitTween = function(target, value, tween) {
@@ -364,7 +371,7 @@
 				s.cssText = copy + ";" + value;
 				v = _cssDif(start, _getStyles(target));
 				if (!_supportsOpacity && _opacityValExp.test(value)) {
-					val.opacity = parseFloat( RegExp.$1 );
+					v.opacity = parseFloat( RegExp.$1 );
 				}
 				value = v;
 				s.cssText = copy;
