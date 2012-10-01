@@ -1,6 +1,6 @@
 /*!
- * VERSION: beta 1.54
- * DATE: 2012-09-30
+ * VERSION: beta 1.541
+ * DATE: 2012-10-01
  * JavaScript 
  * UPDATES AND DOCS AT: http://www.greensock.com
  *
@@ -336,11 +336,12 @@
 							cyan:[0,255,255],
 							transparent:[255,255,255,0]};
 					
-		//there's a bug in some versions of iOS Safari (like 6) that causes the screen not to redraw properly for a while (several seconds usually) if the WebkitTransform value is read from the computed style (of any element) when the page first loads UNLESS we change something in the DOM that would normally cause a redraw, so we add an empty div and then after one refresh, we remove it. We must wait for a redraw to happen before we remove it, otherwise it won't work. 
+		//there's a bug in some versions of iOS Safari (like 6) that causes the screen not to redraw properly for a while (several seconds usually) if the WebkitTransform value is read from the computed style (of any element) when the page first loads UNLESS we change something in the DOM that would normally cause a redraw, so we add an empty style element. 
 		if (_isSafari) {
-			_tempDiv.style.cssText = "width:0px;height:0px";
-			_doc.body.appendChild(_tempDiv);
-			TweenLite.delayedCall(0.001, function(){_doc.body.removeChild(_tempDiv);});
+			var s = _doc.createElement("style");
+			if (s.styleSheet) {
+				_doc.getElementsByTagName("head")[0].appendChild(s);
+			}
 		}
 		
 		

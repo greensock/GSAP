@@ -1,6 +1,10 @@
 CHANGE LOG : GREENSOCK ANIMATION PLATFORM (GSAP)
 ------------------------------------------------
 
+2012-10-01:
+---------------------------------------------
+	- Fixed a bug that was introduced yesterday in Safari related to iOS 6
+
 2012-09-30:
 ---------------------------------------------
 	- Worked around a Safari bug in iOS 6 that prevents the screen from redrawing properly for a few seconds upon initial page load. This wasn't a bug in the tweening engine - it is an issue with Safari and getting the WebkitTransform from the computed style of any element when the page is initially loaded. 
