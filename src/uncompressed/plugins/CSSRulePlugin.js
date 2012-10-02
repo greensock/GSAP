@@ -1,6 +1,6 @@
 /*!
- * VERSION: beta 0.42
- * DATE: 2012-09-19
+ * VERSION: beta 0.43
+ * DATE: 2012-10-01
  * JavaScript 
  * UPDATES AND DOCS AT: http://www.greensock.com
  *
@@ -109,16 +109,16 @@
 			_prefix = "", //camelCase vendor prefix like "O", "ms", "Webkit", or "Moz".
 			//feed in a camelCase property name like "transform" and it will check to see if it is valid as-is or if it needs a vendor prefix. It returns the corrected camelCase property name (i.e. "WebkitTransform" or "MozTransform" or "transform" or null if no such property is found, like if the browser is IE8 or before, "transform" won't be found at all)
 			_checkPropPrefix = function(p, e) {
-				e = e || _doc.body || _doc.documentElement;
-				var cs = _getComputedStyle(e, ""), 
+				e = e || _tempDiv;
+				var s = e.style,
 					a, i;
-				if (_getStyle(e, p)) {
+				if (s[p] !== undefined) {
 					return p;
 				}
 				p = p.substr(0,1).toUpperCase() + p.substr(1);
 				a = ["O","Moz","ms","Ms","Webkit"];
 				i = 5;
-				while ( --i > -1 && !_getStyle(e, a[i]+p, cs)) { }
+				while (--i > -1 && s[a[i]+p] === undefined) { }
 				if (i >= 0) {
 					_prefix = (i === 3) ? "ms" : a[i];
 					_prefixCSS = "-" + _prefix.toLowerCase() + "-";

@@ -1,5 +1,5 @@
 /*!
- * VERSION: beta 1.541
+ * VERSION: beta 1.542
  * DATE: 2012-10-01
  * JavaScript 
  * UPDATES AND DOCS AT: http://www.greensock.com
@@ -168,16 +168,16 @@
 			_prefix = "", //camelCase vendor prefix like "O", "ms", "Webkit", or "Moz".
 			//feed in a camelCase property name like "transform" and it will check to see if it is valid as-is or if it needs a vendor prefix. It returns the corrected camelCase property name (i.e. "WebkitTransform" or "MozTransform" or "transform" or null if no such property is found, like if the browser is IE8 or before, "transform" won't be found at all)
 			_checkPropPrefix = function(p, e) {
-				e = e || _doc.body || _doc.documentElement;
-				var cs = _getComputedStyle(e, ""), 
+				e = e || _tempDiv;
+				var s = e.style,
 					a, i;
-				if (_getStyle(e, p)) {
+				if (s[p] !== undefined) {
 					return p;
 				}
 				p = p.substr(0,1).toUpperCase() + p.substr(1);
 				a = ["O","Moz","ms","Ms","Webkit"];
 				i = 5;
-				while ( --i > -1 && !_getStyle(e, a[i]+p, cs)) { }
+				while (--i > -1 && s[a[i]+p] === undefined) { }
 				if (i >= 0) {
 					_prefix = (i === 3) ? "ms" : a[i];
 					_prefixCSS = "-" + _prefix.toLowerCase() + "-";
@@ -335,14 +335,8 @@
 							pink:[255,192,203],
 							cyan:[0,255,255],
 							transparent:[255,255,255,0]};
-					
-		//there's a bug in some versions of iOS Safari (like 6) that causes the screen not to redraw properly for a while (several seconds usually) if the WebkitTransform value is read from the computed style (of any element) when the page first loads UNLESS we change something in the DOM that would normally cause a redraw, so we add an empty style element. 
-		if (_isSafari) {
-			var s = _doc.createElement("style");
-			if (s.styleSheet) {
-				_doc.getElementsByTagName("head")[0].appendChild(s);
-			}
-		}
+
+
 		
 		
 		//gets called when the tween renders for the first time. This kicks everything off, recording start/end values, etc. 
