@@ -1,6 +1,6 @@
 /**
- * VERSION: beta 1.30
- * DATE: 2012-07-25
+ * VERSION: beta 1.41
+ * DATE: 2012-10-12
  * JavaScript
  * UPDATES AND DOCS AT: http://www.greensock.com
  *
@@ -19,25 +19,23 @@
 				this._overwriteProps.pop();
 			},
 			p = ScrollToPlugin.prototype = new TweenPlugin("scrollTo"),
-			_getX = function() {
-				return (window.pageXOffset != null) ? window.pageXOffset : (document.documentElement.scrollLeft != null) ? document.documentElement.scrollLeft : document.body.scrollLeft;
-			}, 
-			_getY = function() {
-				return (window.pageYOffset != null) ? window.pageYOffset : (document.documentElement.scrollTop != null) ? document.documentElement.scrollTop : document.body.scrollTop;
-			},
+			_doc = document.documentElement,
+			_window = window,
 			_setRatio = TweenPlugin.prototype.setRatio; //speed optimization (quicker lookup)
 		
 		p.constructor = ScrollToPlugin;
 		ScrollToPlugin.API = 2;
 		
 		p._onInitTween = function(target, value, tween) {
-			this._wdw = (target == window);
+			this._wdw = (target === _window);
 			this._target = target;
+			this._tween = tween;
 			if (typeof(value) !== "object") {
 				value = {y:Number(value)}; //if we don't receive an object as the parameter, assume the user intends "y".
 			}
-			this.x = this._wdw ? _getX() : target.scrollLeft;
-			this.y = this._wdw ? _getY() : target.scrollTop;
+			this._autoKill = value.autoKill;
+			this.x = this.xPrev = this.getX();
+			this.y = this.yPrev = this.getY();
 			if (value.x != null) {
 				this._addTween(this, "x", this.x, value.x, "scrollTo_x", true);
 			} else {
@@ -50,6 +48,14 @@
 			}
 			return true;
 		};
+
+		p.getX = function() {
+			return (!this._wdw) ? this._target.scrollLeft : (_window.pageXOffset != null) ? _window.pageXOffset : (_doc.scrollLeft != null) ? _doc.scrollLeft : document.body.scrollLeft;
+		};
+
+		p.getY = function() {
+			return (!this._wdw) ? this._target.scrollTop : (_window.pageYOffset != null) ? _window.pageYOffset : (_doc.scrollTop != null) ? _doc.scrollTop : document.body.scrollTop;
+		}
 		
 		p._kill = function(lookup) {
 			if (lookup.scrollTo_x) {
@@ -59,12 +65,30 @@
 				this.skipY = true;
 			}
 			return TweenPlugin.prototype._kill.call(this, lookup);
-		}
+		};
+
+		p._checkAutoKill = function() {
+			if (this._autoKill && this.skipX && this.skipY) {
+				this._tween.kill();
+			}
+		};
 		
 		p.setRatio = function(v) {
 			_setRatio.call(this, v);
+
+			var x = this.getX(),
+				y = this.getY();
+
+			if (!this.skipX && x !== this.xPrev) {
+				this.skipX = true; //if the user scrolls separately, we should stop tweening!
+				this._checkAutoKill();
+			}
+			if (!this.skipY && y !== this.yPrev) {
+				this.skipY = true; //if the user scrolls separately, we should stop tweening!
+				this._checkAutoKill();
+			}
 			if (this._wdw) {
-				window.scrollTo((!this.skipX) ? this.x : _getX(), (!this.skipY) ? this.y : _getY());
+				_window.scrollTo((!this.skipX) ? this.x : x, (!this.skipY) ? this.y : y);
 			} else {
 				if (!this.skipY) {
 					this._target.scrollTop = this.y;
@@ -73,6 +97,8 @@
 					this._target.scrollLeft = this.x;
 				}
 			}
+			this.xPrev = this.x;
+			this.yPrev = this.y;
 		};
 		
 		TweenPlugin.activate([ScrollToPlugin]);

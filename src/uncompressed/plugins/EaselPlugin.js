@@ -1,6 +1,6 @@
 /**
- * VERSION: beta 0.1
- * DATE: 2012-06-08
+ * VERSION: beta 0.11
+ * DATE: 2012-10-26
  * JavaScript
  * UPDATES AND DOCS AT: http://www.greensock.com
  *
@@ -20,24 +20,28 @@
 			},
 			p = EaselPlugin.prototype = new TweenPlugin("easel", -1),
 			_numExp = /(\d|\.)+/g,
+			_ColorFilter;
 			
 			_colorProps = ["redMultiplier","greenMultiplier","blueMultiplier","alphaMultiplier","redOffset","greenOffset","blueOffset","alphaOffset"],
 			
 			_parseColorFilter = function(t, v, pg) {
-				if (!window.ColorFilter) {
-					throw("EaselPlugin error: The EaselJS ColorFilter JavaScript file wasn't loaded.");
+				if (!_ColorFilter) {
+					_ColorFilter = (window.ColorFilter || window.createjs.ColorFilter);
+					if (!_ColorFilter) {
+						throw("EaselPlugin error: The EaselJS ColorFilter JavaScript file wasn't loaded.");
+					}
 				}
 				var filters = t.filters || [],
 					i = filters.length, 
 					c, s, e, a, p;
 				while (--i > -1) {
-					if (filters[i] instanceof ColorFilter) {
+					if (filters[i] instanceof _ColorFilter) {
 						s = filters[i];
 						break;
 					}
 				}
 				if (!s) {
-					s = new ColorFilter();
+					s = new _ColorFilter();
 					filters.push(s);
 					t.filters = filters;
 				}
