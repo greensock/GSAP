@@ -1,6 +1,6 @@
 /*!
- * VERSION: beta 1.5
- * DATE: 2012-9-04
+ * VERSION: beta 1.51
+ * DATE: 2012-11-13
  * JavaScript (ActionScript 3 and 2 also available)
  * UPDATES AND DOCS AT: http://www.greensock.com
  *
@@ -137,10 +137,11 @@
  * EventDispatcher
  * ----------------------------------------------------------------
  */
-		p = _class("events.EventDispatcher", function(target) {
+		var EventDispatcher = _class("events.EventDispatcher", function(target) {
 			this._listeners = {};
 			this._eventTarget = target || this;
-		}).prototype;
+		});
+		p = EventDispatcher.prototype;
 		
 		p.addEventListener = function(type, callback, scope, useParam, priority) {
 			priority = priority || 0;
@@ -208,33 +209,44 @@
 			_reqAnimFrame = window[a[i] + "RequestAnimationFrame"];
 			_cancelAnimFrame = window[a[i] + "CancelAnimationFrame"] || window[a[i] + "CancelRequestAnimationFrame"];
 		}
-		if (!_cancelAnimFrame) {
-			_cancelAnimFrame = function(id) {
-				window.clearTimeout(id);
-			}
-		}
 		
 		_class("Ticker", function(fps, useRAF) {
-			this.time = 0;
-			this.frame = 0;
 			var _self = this,
 				_startTime = _getTime(),
-				_useRAF = (useRAF !== false),
-				_fps, _req, _id, _gap, _nextTime;
-			
-			this.tick = function() {
-				_self.time = (_getTime() - _startTime) / 1000;
-				if (!_fps || _self.time >= _nextTime) {
-					_self.frame++;
-					_nextTime = _self.time + _gap - (_self.time - _nextTime) - 0.0005;
-					if (_nextTime <= _self.time) {
-						_nextTime = _self.time + 0.001;
+				_useRAF = (useRAF !== false && _reqAnimFrame),
+				_fps, _req, _id, _gap, _nextTime,
+				_cancelReq = function() {
+					if (_id == null) {
+						return;
 					}
-					_self.dispatchEvent("tick");
-				}
-				_id = _req( _self.tick );
+					if (!_useRAF || !_cancelAnimFrame) {
+						window.clearTimeout(_id);
+					} else {
+						_cancelAnimFrame(_id);
+					}
+					_id = null;
+				},
+				_tick = function(manual) {
+					_self.time = (_getTime() - _startTime) / 1000;
+					if (!_fps || _self.time >= _nextTime || manual) {
+						_self.frame++;
+						_nextTime = (_self.time > _nextTime) ? _self.time + _gap - (_self.time - _nextTime) : _self.time + _gap - 0.001;
+						if (_nextTime < _self.time + 0.001) {
+							_nextTime = _self.time + 0.001;
+						}
+						_self.dispatchEvent("tick");
+					}
+					if (manual !== true) {
+						_id = _req(_tick);
+					}
+				};
+
+			EventDispatcher.call(_self);
+			this.time = this.frame = 0;
+			this.tick = function() {
+				_tick(true);
 			};
-			
+
 			this.fps = function(value) {
 				if (!arguments.length) {
 					return _fps;
@@ -242,20 +254,27 @@
 				_fps = value;
 				_gap = 1 / (_fps || 60);
 				_nextTime = this.time + _gap;
-				_req = (_fps === 0) ? function(f){} : (!_useRAF || !_reqAnimFrame) ? function(f) { return window.setTimeout( f, (((_nextTime - _self.time) * 1000 + 1) >> 0) || 1);	} : _reqAnimFrame;
-				_cancelAnimFrame(_id);
-				_id = _req( _self.tick );
+				_req = (_fps === 0) ? function(f){} : (!_useRAF || !_reqAnimFrame) ? function(f) { return window.setTimeout( f, (((_nextTime - _self.time) * 1000 + 1) >> 0) || 1); } : _reqAnimFrame;
+				_cancelReq();
+				_id = _req(_tick);
 			};
-			
+
 			this.useRAF = function(value) {
 				if (!arguments.length) {
-					return _useRAF
+					return _useRAF;
 				}
+				_cancelReq();
 				_useRAF = value;
-				this.fps(_fps);
+				_self.fps(_fps);
 			};
-			
-			this.fps(fps);
+			_self.fps(fps);
+
+			//a bug in iOS 6 Safari occasionally prevents the requestAnimationFrame from working initially, so we use a 1-second timeout that automatically falls back to setTimeout() if it senses this condition.
+			window.setTimeout(function() {
+				if (_useRAF && !_id) {
+					_self.useRAF(false);
+				}
+			}, 1000);
 		});
 		
 		p = gs.Ticker.prototype = new gs.events.EventDispatcher();

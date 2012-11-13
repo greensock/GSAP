@@ -1,6 +1,6 @@
 /**
- * VERSION: beta 1.542
- * DATE: 2012-10-01
+ * VERSION: beta 1.5421
+ * DATE: 2012-11-13
  * JavaScript (ActionScript 3 and 2 also available)
  * UPDATES AND DOCS AT: http://www.greensock.com
  * 
@@ -2186,7 +2186,7 @@
 				m.scaleY = Math.sqrt(d * d + c * c);
 				m.rotation = (a || b) ? Math.atan2(b, a) : m.rotation || 0; //note: if scaleX is 0, we cannot accurately measure rotation. Same for skewX with a scaleY of 0. Therefore, we default to the previously recorded value (or zero if that doesn't exist).
 				m.skewX = (c || d) ? Math.atan2(c, d) + m.rotation : m.skewX || 0;
-				if (Math.abs(m.skewX) > Math.PI / 2) {
+				if (Math.abs(m.skewX) > Math.PI / 2 && Math.abs(m.skewX) < Math.PI * 1.5) {
 					if (invX) {
 						m.scaleX *= -1;
 						m.skewX += (m.rotation <= 0) ? Math.PI : -Math.PI;
@@ -3447,10 +3447,11 @@
  * EventDispatcher
  * ----------------------------------------------------------------
  */
-		p = _class("events.EventDispatcher", function(target) {
+		var EventDispatcher = _class("events.EventDispatcher", function(target) {
 			this._listeners = {};
 			this._eventTarget = target || this;
-		}).prototype;
+		});
+		p = EventDispatcher.prototype;
 		
 		p.addEventListener = function(type, callback, scope, useParam, priority) {
 			priority = priority || 0;
@@ -3518,33 +3519,44 @@
 			_reqAnimFrame = window[a[i] + "RequestAnimationFrame"];
 			_cancelAnimFrame = window[a[i] + "CancelAnimationFrame"] || window[a[i] + "CancelRequestAnimationFrame"];
 		}
-		if (!_cancelAnimFrame) {
-			_cancelAnimFrame = function(id) {
-				window.clearTimeout(id);
-			}
-		}
 		
 		_class("Ticker", function(fps, useRAF) {
-			this.time = 0;
-			this.frame = 0;
 			var _self = this,
 				_startTime = _getTime(),
-				_useRAF = (useRAF !== false),
-				_fps, _req, _id, _gap, _nextTime;
-			
-			this.tick = function() {
-				_self.time = (_getTime() - _startTime) / 1000;
-				if (!_fps || _self.time >= _nextTime) {
-					_self.frame++;
-					_nextTime = _self.time + _gap - (_self.time - _nextTime) - 0.0005;
-					if (_nextTime <= _self.time) {
-						_nextTime = _self.time + 0.001;
+				_useRAF = (useRAF !== false && _reqAnimFrame),
+				_fps, _req, _id, _gap, _nextTime,
+				_cancelReq = function() {
+					if (_id == null) {
+						return;
 					}
-					_self.dispatchEvent("tick");
-				}
-				_id = _req( _self.tick );
+					if (!_useRAF || !_cancelAnimFrame) {
+						window.clearTimeout(_id);
+					} else {
+						_cancelAnimFrame(_id);
+					}
+					_id = null;
+				},
+				_tick = function(manual) {
+					_self.time = (_getTime() - _startTime) / 1000;
+					if (!_fps || _self.time >= _nextTime || manual) {
+						_self.frame++;
+						_nextTime = (_self.time > _nextTime) ? _self.time + _gap - (_self.time - _nextTime) : _self.time + _gap - 0.001;
+						if (_nextTime < _self.time + 0.001) {
+							_nextTime = _self.time + 0.001;
+						}
+						_self.dispatchEvent("tick");
+					}
+					if (manual !== true) {
+						_id = _req(_tick);
+					}
+				};
+
+			EventDispatcher.call(_self);
+			this.time = this.frame = 0;
+			this.tick = function() {
+				_tick(true);
 			};
-			
+
 			this.fps = function(value) {
 				if (!arguments.length) {
 					return _fps;
@@ -3552,20 +3564,27 @@
 				_fps = value;
 				_gap = 1 / (_fps || 60);
 				_nextTime = this.time + _gap;
-				_req = (_fps === 0) ? function(f){} : (!_useRAF || !_reqAnimFrame) ? function(f) { return window.setTimeout( f, (((_nextTime - _self.time) * 1000 + 1) >> 0) || 1);	} : _reqAnimFrame;
-				_cancelAnimFrame(_id);
-				_id = _req( _self.tick );
+				_req = (_fps === 0) ? function(f){} : (!_useRAF || !_reqAnimFrame) ? function(f) { return window.setTimeout( f, (((_nextTime - _self.time) * 1000 + 1) >> 0) || 1); } : _reqAnimFrame;
+				_cancelReq();
+				_id = _req(_tick);
 			};
-			
+
 			this.useRAF = function(value) {
 				if (!arguments.length) {
-					return _useRAF
+					return _useRAF;
 				}
+				_cancelReq();
 				_useRAF = value;
-				this.fps(_fps);
+				_self.fps(_fps);
 			};
-			
-			this.fps(fps);
+			_self.fps(fps);
+
+			//a bug in iOS 6 Safari occasionally prevents the requestAnimationFrame from working initially, so we use a 1-second timeout that automatically falls back to setTimeout() if it senses this condition.
+			window.setTimeout(function() {
+				if (_useRAF && !_id) {
+					_self.useRAF(false);
+				}
+			}, 1000);
 		});
 		
 		p = gs.Ticker.prototype = new gs.events.EventDispatcher();
@@ -4155,7 +4174,6 @@
 			if (this.vars.ease instanceof Ease) {
 				this._ease = (this.vars.easeParams instanceof Array) ? this.vars.ease.config.apply(this.vars.ease, this.vars.easeParams) : this.vars.ease;
 			} else if (typeof(this.vars.ease) === "function") {
-
 				this._ease = new Ease(this.vars.ease, this.vars.easeParams);
 			} else {
 				this._ease = TweenLite.defaultEase;
@@ -4194,7 +4212,7 @@
 		};
 		
 		p._initProps = function(target, propLookup, siblings, overwrittenProps) {
-			var p, i, initPlugins, plugin, a, pt;
+			var p, i, initPlugins, plugin, a, pt, v;
 			if (target == null) {
 				return false;
 			}
@@ -4235,7 +4253,8 @@
 				} else {
 					this._firstPT = propLookup[p] = pt = {_next:this._firstPT, t:target, p:p, f:(typeof(target[p]) === "function"), n:p, pg:false, pr:0};
 					pt.s = (!pt.f) ? parseFloat(target[p]) : target[ ((p.indexOf("set") || typeof(target["get" + p.substr(3)]) !== "function") ? p : "get" + p.substr(3)) ]();
-					pt.c = (typeof(this.vars[p]) === "number") ? this.vars[p] - pt.s : (typeof(this.vars[p]) === "string") ? parseFloat(this.vars[p].split("=").join("")) : 0;
+					v = this.vars[p];
+					pt.c = (typeof(v) === "number") ? v - pt.s : (typeof(v) === "string" && v.charAt(1) === "=") ? parseInt(v.charAt(0)+"1") * Number(v.substr(2)) : Number(v) || 0; //previously, we used Number(v.split("=").join("")) but that wouldn't adequately handle a value like "+=-500" or "-=-500".
 				}
 				if (pt) if (pt._next) {
 					pt._next._prev = pt;
@@ -4554,11 +4573,11 @@
 		p._firstPT = null;		
 			
 		p._addTween = function(target, prop, start, end, overwriteProp, round) {
-			var c;
-			if (end != null && (c = (typeof(end) === "number" || end.charAt(1) !== "=") ? Number(end) - start : Number(end.split("=").join("")))) {
-				this._firstPT = {_next:this._firstPT, t:target, p:prop, s:start, c:c, f:(typeof(target[prop]) === "function"), n:overwriteProp || prop, r:round};
-				if (this._firstPT._next) {
-					this._firstPT._next._prev = this._firstPT;
+			var c, pt;
+			if (end != null && (c = (typeof(end) === "number" || end.charAt(1) !== "=") ? Number(end) - start : parseInt(end.charAt(0)+"1") * Number(end.substr(2)))) {
+				this._firstPT = pt = {_next:this._firstPT, t:target, p:prop, s:start, c:c, f:(typeof(target[prop]) === "function"), n:overwriteProp || prop, r:round};
+				if (pt._next) {
+					pt._next._prev = pt;
 				}
 			}
 		}

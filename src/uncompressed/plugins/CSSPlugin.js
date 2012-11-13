@@ -1,6 +1,6 @@
 /*!
- * VERSION: beta 1.542
- * DATE: 2012-10-01
+ * VERSION: beta 1.5421
+ * DATE: 2012-11-13
  * JavaScript 
  * UPDATES AND DOCS AT: http://www.greensock.com
  *
@@ -214,7 +214,7 @@
 				m.scaleY = Math.sqrt(d * d + c * c);
 				m.rotation = (a || b) ? Math.atan2(b, a) : m.rotation || 0; //note: if scaleX is 0, we cannot accurately measure rotation. Same for skewX with a scaleY of 0. Therefore, we default to the previously recorded value (or zero if that doesn't exist).
 				m.skewX = (c || d) ? Math.atan2(c, d) + m.rotation : m.skewX || 0;
-				if (Math.abs(m.skewX) > Math.PI / 2) {
+				if (Math.abs(m.skewX) > Math.PI / 2 && Math.abs(m.skewX) < Math.PI * 1.5) {
 					if (invX) {
 						m.scaleX *= -1;
 						m.skewX += (m.rotation <= 0) ? Math.PI : -Math.PI;
