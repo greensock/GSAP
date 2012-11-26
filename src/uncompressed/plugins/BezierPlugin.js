@@ -1,6 +1,6 @@
 /**
- * VERSION: beta 1.11
- * DATE: 2012-07-26
+ * VERSION: beta 1.13
+ * DATE: 2012-11-14
  * JavaScript (also available in AS3 and AS2)
  * UPDATES AND DOCS AT: http://www.greensock.com
  *
@@ -39,7 +39,7 @@
 			bezierThrough = BezierPlugin.bezierThrough = function(values, curviness, quadratic, basic, correlate, prepend) {
 				var obj = {},
 					props = [],
-					i, p;
+					i, p, a, j, r, l;
 				correlate = (typeof(correlate) === "string") ? ","+correlate+"," : _correlate;
 				if (curviness == null) {
 					curviness = 1;
@@ -180,7 +180,7 @@
 					m2 += mm;
 					
 					seg.c = cp2 = m1; 
-					if (i != 0) {
+					if (i !== 0) {
 						seg.b = cp1;
 					} else {
 						seg.b = cp1 = seg.a + (seg.c - seg.a) * 0.6; //instead of placing b on a exactly, we move it inline with c so that if the user specifies an ease like Back.easeIn or Elastic.easeIn which goes BEYOND the beginning, it will do so smoothly.
@@ -287,6 +287,59 @@
 		
 		p.constructor = BezierPlugin;
 		BezierPlugin.API = 2;
+
+		BezierPlugin._cssRegister = function() {
+			var CSSPlugin = window.com.greensock.plugins.CSSPlugin;
+			if (!CSSPlugin) {
+				return;
+			}
+			var _internals = CSSPlugin._internals,
+				_parseToProxy = _internals._parseToProxy,
+				_setPluginRatio = _internals._setPluginRatio,
+				_specialProps = _internals._specialProps,
+				CSSPropTween = _internals.CSSPropTween;
+			_internals._registerComplexSpecialProp("bezier", null, function(t, e, prop, cssp, pt, plugin) {
+				if (e instanceof Array) {
+					e = {values:e};
+				}
+				plugin = new BezierPlugin();
+				var values = e.values,
+					l = values.length - 1,
+					pluginValues = [],
+					v = {},
+					i, p, data;
+				if (l < 0) {
+					return pt;
+				}
+				for (i = 0; i <= l; i++) {
+					data = _parseToProxy(t, values[i], cssp, pt, plugin, (l !== i));
+					pluginValues[i] = data.end;
+				}
+				for (p in e) {
+					v[p] = e[p]; //duplicate the vars object because we need to alter some things which would cause problems if the user plans to reuse the same vars object for another tween.
+				}
+				v.values = pluginValues;
+				pt = new CSSPropTween(t, "bezier", 0, 0, data.pt, 2);
+				pt.data = data;
+				pt.plugin = plugin;
+				pt.setRatio = _setPluginRatio;
+				if (v.autoRotate === 0) {
+					v.autoRotate = true;
+				}
+				if (v.autoRotate) if (!(v.autoRotate instanceof Array)) {
+					i = (v.autoRotate === true) ? 0 : Number(v.autoRotate) * _DEG2RAD;
+					v.autoRotate = (data.end.left != null) ? [["left","top","rotation",i,true]] : (data.end.x != null) ? [["x","y","rotation",i,true]] : false;
+				}
+				if (v.autoRotate) {
+					if (!cssp._transform) {
+						pt = _specialProps.rotation.parse(t, 0, p, cssp, pt, plugin, {}); //just to create a CSSPropTween that will force the transforms to render since there isn't one that exists.
+					}
+					data.autoRotate = cssp._transform;
+				}
+				plugin._onInitTween(data.proxy, v, cssp._tween);
+				return pt;
+			});
+		};
 		
 		
 		p._onInitTween = function(target, vars, tween) {
@@ -310,6 +363,7 @@
 			i = this._props.length;
 			while (--i > -1) {
 				p = this._props[i];
+
 				this._overwriteProps.push(p);
 				isFunc = this._func[p] = (typeof(target[p]) === "function");
 				first[p] = (!isFunc) ? parseFloat(target[p]) : target[ ((p.indexOf("set") || typeof(target["get" + p.substr(3)]) !== "function") ? p : "get" + p.substr(3)) ]();
@@ -413,6 +467,7 @@
 				if (this._round[p]) {
 					val = (val + ((val > 0) ? 0.5 : -0.5)) >> 0;
 				}
+				//console.log(p+": "+val);
 				if (func[p]) {
 					target[p](val);
 				} else {
@@ -427,7 +482,7 @@
 				while (--i > -1) {
 					p = ar[i][2];
 					add = ar[i][3] || 0;
-					conv = (ar[i][4] == true) ? 1 : _RAD2DEG;
+					conv = (ar[i][4] === true) ? 1 : _RAD2DEG;
 					b = this._beziers[ar[i][0]][curIndex];
 					b2 = this._beziers[ar[i][1]][curIndex];
 					
@@ -465,7 +520,7 @@
 		p._kill = function(lookup) {
 			var a = this._props, 
 				p, i;
-			for (p in _beziers) {
+			for (p in this._beziers) {
 				if (p in lookup) {
 					delete this._beziers[p];
 					delete this._func[p];

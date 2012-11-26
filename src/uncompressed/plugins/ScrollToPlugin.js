@@ -1,6 +1,6 @@
 /**
- * VERSION: beta 1.41
- * DATE: 2012-10-12
+ * VERSION: beta 1.5
+ * DATE: 2012-11-16
  * JavaScript
  * UPDATES AND DOCS AT: http://www.greensock.com
  *
@@ -21,28 +21,36 @@
 			p = ScrollToPlugin.prototype = new TweenPlugin("scrollTo"),
 			_doc = document.documentElement,
 			_window = window,
+			_max = ScrollToPlugin.max = function(element, axis) {
+				var dim = (axis === "x") ? "Width" : "Height",
+					scroll = "scroll" + dim,
+					client = "client" + dim,
+					body = document.body;
+				return (element === _window || element === _doc || element === body) ? Math.max(_doc[scroll], body[scroll]) - Math.max(_doc[client], body[client]) : element[scroll] - element["offset" + dim];
+			},
 			_setRatio = TweenPlugin.prototype.setRatio; //speed optimization (quicker lookup)
 		
 		p.constructor = ScrollToPlugin;
 		ScrollToPlugin.API = 2;
-		
+
 		p._onInitTween = function(target, value, tween) {
+			var val;
 			this._wdw = (target === _window);
 			this._target = target;
 			this._tween = tween;
 			if (typeof(value) !== "object") {
-				value = {y:Number(value)}; //if we don't receive an object as the parameter, assume the user intends "y".
+				value = {y:value}; //if we don't receive an object as the parameter, assume the user intends "y".
 			}
 			this._autoKill = value.autoKill;
 			this.x = this.xPrev = this.getX();
 			this.y = this.yPrev = this.getY();
 			if (value.x != null) {
-				this._addTween(this, "x", this.x, value.x, "scrollTo_x", true);
+				this._addTween(this, "x", this.x, (value.x === "max") ? _max(target, "x") : value.x, "scrollTo_x", true);
 			} else {
 				this.skipX = true;
 			}
 			if (value.y != null) {
-				this._addTween(this, "y", this.y, value.y, "scrollTo_y", true);
+				this._addTween(this, "y", this.y, (value.y === "max") ? _max(target, "y") : value.y, "scrollTo_y", true);
 			} else {
 				this.skipY = true;
 			}
@@ -55,7 +63,7 @@
 
 		p.getY = function() {
 			return (!this._wdw) ? this._target.scrollTop : (_window.pageYOffset != null) ? _window.pageYOffset : (_doc.scrollTop != null) ? _doc.scrollTop : document.body.scrollTop;
-		}
+		};
 		
 		p._kill = function(lookup) {
 			if (lookup.scrollTo_x) {

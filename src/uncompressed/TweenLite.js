@@ -1,6 +1,6 @@
 /*!
- * VERSION: beta 1.51
- * DATE: 2012-11-13
+ * VERSION: beta 1.642
+ * DATE: 2012-11-11
  * JavaScript (ActionScript 3 and 2 also available)
  * UPDATES AND DOCS AT: http://www.greensock.com
  *
@@ -70,7 +70,8 @@
 			},
 			//a quick way to create a class that doesn't have any dependencies. Returns the class, but first registers it in the GreenSock namespace so that other classes can grab it (other classes might be dependent on the class).
 			_class = gs._class = function(ns, f, g) {
-				new _DepClass(ns, [], function(){ return f; }, g);
+				f = f || function() {};
+				var c = new _DepClass(ns, [], function(){ return f; }, g);
 				return f;
 			};
 		
@@ -122,8 +123,8 @@
 		a = ["Linear","Quad","Cubic","Quart","Quint"];
 		i = a.length;
 		while(--i > -1) {
-			e = _class("easing." + a[i], function(){}, true);
-			e2 = _class("easing.Power" + i, function(){}, true);
+			e = _class("easing." + a[i], null, true);
+			e2 = _class("easing.Power" + i, null, true);
 			e.easeOut = e2.easeOut = new Ease(null, null, 1, i);
 			e.easeIn = e2.easeIn = new Ease(null, null, 2, i);
 			e.easeInOut = e2.easeInOut = new Ease(null, null, 3, i);
@@ -142,7 +143,7 @@
 			this._eventTarget = target || this;
 		});
 		p = EventDispatcher.prototype;
-		
+
 		p.addEventListener = function(type, callback, scope, useParam, priority) {
 			priority = priority || 0;
 			var list = this._listeners[type],
@@ -164,9 +165,9 @@
 		};
 		
 		p.removeEventListener = function(type, callback) {
-			var list = this._listeners[type];
+			var list = this._listeners[type], i;
 			if (list) {
-				var i = list.length;
+				i = list.length;
 				while (--i > -1) {
 					if (list[i].c === callback) {
 						list.splice(i, 1);
@@ -179,8 +180,9 @@
 		p.dispatchEvent = function(type) {
 			var list = this._listeners[type];
 			if (list) {
-				var i = list.length, listener,
-					t = this._eventTarget;
+				var i = list.length,
+					t = this._eventTarget,
+					listener;
 				while (--i > -1) {
 					listener = list[i];
 					if (listener.up) {
@@ -291,9 +293,9 @@
 				this._duration = this._totalDuration = duration || 0;
 				this._delay = Number(this.vars.delay) || 0;
 				this._timeScale = 1;
-				this._active = (this.vars.immediateRender == true);
+				this._active = (this.vars.immediateRender === true);
 				this.data = this.vars.data;
-				this._reversed = (this.vars.reversed == true);
+				this._reversed = (this.vars.reversed === true);
 				
 				if (!_rootTimeline) {
 					return;
@@ -302,7 +304,7 @@
 					_ticker.tick(); //the first time an animation (tween or timeline) is created, we should refresh the time in order to avoid a gap. The Ticker's initial time that it records might be very early in the load process and the user may have loaded several other large scripts in the mean time, but we want tweens to act as though they started when the page's onload was fired. Also remember that the requestAnimationFrame likely won't be called until the first screen redraw.
 					_gsInit = true;
 				}
-				
+
 				var tl = this.vars.useFrames ? _rootFramesTimeline : _rootTimeline;
 				tl.insert(this, tl._time);
 				
@@ -348,7 +350,7 @@
 		p.restart = function(includeDelay, suppressEvents) {
 			this.reversed(false);
 			this.paused(false);
-			return this.totalTime((includeDelay) ? -this._delay : 0, (suppressEvents != false));
+			return this.totalTime((includeDelay) ? -this._delay : 0, (suppressEvents !== false));
 		};
 		
 		p.reverse = function(from, suppressEvents) {
@@ -370,7 +372,7 @@
 		p._enabled = function (enabled, ignoreTimeline) {
 			this._gc = !enabled; 
 			this._active = (enabled && !this._paused && this._totalTime > 0 && this._totalTime < this._totalDuration);
-			if (ignoreTimeline != true) {
+			if (ignoreTimeline !== true) {
 				if (enabled && this.timeline == null) {
 					this._timeline.insert(this, this._startTime - this._delay);
 				} else if (!enabled && this.timeline != null) {
@@ -429,7 +431,7 @@
 				}
 			}
 			return this;
-		}
+		};
 		
 		p.delay = function(value) {
 			if (!arguments.length) {
@@ -449,7 +451,7 @@
 			}
 			this._duration = this._totalDuration = value;
 			this._uncache(true); //true in case it's a TweenMax or TimelineMax that has a repeat - we'll need to refresh the totalDuration. 
-			if (this._timeline.smoothChildTiming) if (this._active) if (value != 0) {
+			if (this._timeline.smoothChildTiming) if (this._time > 0) if (this._time < this._duration) if (value !== 0) {
 				this.totalTime(this._totalTime * (value / this._duration), true);
 			}
 			return this;
@@ -504,7 +506,7 @@
 				if (this._gc) {
 					this._enabled(true, false);
 				}
-				if (this._totalTime != time) {
+				if (this._totalTime !== time) {
 					this.render(time, suppressEvents, false);
 				}
 			}
@@ -530,7 +532,7 @@
 			}
 			value = value || 0.000001; //can't allow zero because it'll throw the math off
 			if (this._timeline && this._timeline.smoothChildTiming) {
-				var t = (this._pauseTime || this._pauseTime == 0) ? this._pauseTime : this._timeline._totalTime;
+				var t = (this._pauseTime || this._pauseTime === 0) ? this._pauseTime : this._timeline._totalTime;
 				this._startTime = t - ((t - this._startTime) * this._timeScale / value);
 			}
 			this._timeScale = value;
@@ -541,7 +543,7 @@
 			if (!arguments.length) {
 				return this._reversed;
 			}
-			if (value != this._reversed) {
+			if (value !== this._reversed) {
 				this._reversed = value;
 				this.totalTime(this._totalTime, true);
 			}
@@ -552,7 +554,7 @@
 			if (!arguments.length) {
 				return this._paused;
 			}
-			if (value != this._paused) if (this._timeline) {
+			if (value !== this._paused) if (this._timeline) {
 				if (!value && this._timeline.smoothChildTiming) {
 					this._startTime += this._timeline.rawTime() - this._pauseTime;
 					this._uncache(false);
@@ -713,7 +715,7 @@
 					}
 				}
 				
-				if (this.vars.immediateRender || (duration === 0 && this._delay === 0 && this.vars.immediateRender != false)) {
+				if (this.vars.immediateRender || (duration === 0 && this._delay === 0 && this.vars.immediateRender !== false)) {
 					this.render(-this._delay, false, true);
 				}
 			}, true);
@@ -728,7 +730,7 @@
 		p._firstPT = p._targets = p._overwrittenProps = null;
 		p._notifyPluginsOfEnabled = false;
 		
-		TweenLite.version = 12;
+		TweenLite.version = 1.642;
 		TweenLite.defaultEase = p._ease = new Ease(null, null, 1, 1);
 		TweenLite.defaultOverwrite = "auto";
 		TweenLite.ticker = _ticker;
@@ -804,18 +806,19 @@
 				//NOTE: Add 0.0000000001 to overcome floating point errors that can cause the startTime to be VERY slightly off (when a tween's time() is set for example)
 				var startTime = tween._startTime + 0.0000000001, 
 					overlaps = [], 
-					oCount = 0, 
+					oCount = 0,
+					zeroDur = (tween._duration === 0),
 					globalStart;
 				i = siblings.length;
 				while (--i > -1) {
 					if ((curTween = siblings[i]) === tween || curTween._gc || curTween._paused) {
 						//ignore
 					} else if (curTween._timeline !== tween._timeline) {
-						globalStart = globalStart || _checkOverlap(tween, 0);
-						if (_checkOverlap(curTween, globalStart) === 0) {
+						globalStart = globalStart || _checkOverlap(tween, 0, zeroDur);
+						if (_checkOverlap(curTween, globalStart, zeroDur) === 0) {
 							overlaps[oCount++] = curTween;
 						}
-					} else if (curTween._startTime <= startTime) if (curTween._startTime + curTween.totalDuration() / curTween._timeScale + 0.0000000001 > startTime) if (!((tween._duration === 0 || !curTween._initted) && startTime - curTween._startTime <= 0.0000000002)) {
+					} else if (curTween._startTime <= startTime) if (curTween._startTime + curTween.totalDuration() / curTween._timeScale + 0.0000000001 > startTime) if (!((zeroDur || !curTween._initted) && startTime - curTween._startTime <= 0.0000000002)) {
 						overlaps[oCount++] = curTween;
 					}
 				}
@@ -835,7 +838,7 @@
 				return changed;
 			},
 			
-			_checkOverlap = function(tween, reference) {
+			_checkOverlap = function(tween, reference, zeroDur) {
 				var tl = tween._timeline, 
 					ts = tl._timeScale, 
 					t = tween._startTime;
@@ -848,7 +851,7 @@
 					tl = tl._timeline;
 				}
 				t /= ts;
-				return (t > reference) ? t - reference : (!tween._initted && t - reference < 0.0000000002) ? 0.0000000001 : ((t = t + tween.totalDuration() / tween._timeScale / ts) > reference) ? 0 : t - reference - 0.0000000001;
+				return (t > reference) ? t - reference : ((zeroDur && t === reference) || (!tween._initted && t - reference < 0.0000000002)) ? 0.0000000001 : ((t = t + tween.totalDuration() / tween._timeScale / ts) > reference) ? 0 : t - reference - 0.0000000001;
 			};
 
 	
@@ -1033,7 +1036,7 @@
 				}
 				
 			}
-			
+
 			if (this._time === prevTime && !force) {
 				return;
 			} else if (!this._initted) {

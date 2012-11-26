@@ -1,6 +1,6 @@
 /*!
- * VERSION: beta 1.486
- * DATE: 2012-08-31
+ * VERSION: beta 1.641
+ * DATE: 2012-11-08
  * JavaScript (ActionScript 3 and 2 also available)
  * UPDATES AND DOCS AT: http://www.greensock.com
  *
@@ -51,23 +51,24 @@
 				return copy;
 			},
 			p = TimelineLite.prototype = new SimpleTimeline();
-			
+
+		TimelineLite.version = 1.641;
 		p.constructor = TimelineLite;
 		p.kill()._gc = false;
 		
-		p.to = function(target, duration, vars, offset, baseTimeOrLabel) {
-			return this.insert( new TweenLite(target, duration, vars), this._parseTimeOrLabel(baseTimeOrLabel) + (offset || 0)); 
-		}
+		p.to = function(target, duration, vars, offsetOrLabel, baseTimeOrLabel) {
+			return this.insert( new TweenLite(target, duration, vars), this._parseTimeOrLabel(baseTimeOrLabel, offsetOrLabel, true));
+		};
 		
-		p.from = function(target, duration, vars, offset, baseTimeOrLabel) {
-			return this.insert( TweenLite.from(target, duration, vars), this._parseTimeOrLabel(baseTimeOrLabel) + (offset || 0));
-		}
+		p.from = function(target, duration, vars, offsetOrLabel, baseTimeOrLabel) {
+			return this.insert( TweenLite.from(target, duration, vars), this._parseTimeOrLabel(baseTimeOrLabel, offsetOrLabel, true));
+		};
 		
-		p.fromTo = function(target, duration, fromVars, toVars, offset, baseTimeOrLabel) {
-			return this.insert( TweenLite.fromTo(target, duration, fromVars, toVars), this._parseTimeOrLabel(baseTimeOrLabel) + (offset || 0));
-		}
+		p.fromTo = function(target, duration, fromVars, toVars, offsetOrLabel, baseTimeOrLabel) {
+			return this.insert( TweenLite.fromTo(target, duration, fromVars, toVars), this._parseTimeOrLabel(baseTimeOrLabel, offsetOrLabel, true));
+		};
 		
-		p.staggerTo = function(targets, duration, vars, stagger, offset, baseTimeOrLabel, onCompleteAll, onCompleteAllParams, onCompleteAllScope) {
+		p.staggerTo = function(targets, duration, vars, stagger, offsetOrLabel, baseTimeOrLabel, onCompleteAll, onCompleteAllParams, onCompleteAllScope) {
 			var tl = new TimelineLite({onComplete:onCompleteAll, onCompleteParams:onCompleteAllParams, onCompleteScope:onCompleteAllScope});
 			stagger = stagger || 0;
 			for (var i = 0; i < targets.length; i++) {
@@ -76,33 +77,33 @@
 				}
 				tl.insert( new TweenLite(targets[i], duration, _copy(vars)), i * stagger);
 			}
-			return this.insert(tl, this._parseTimeOrLabel(baseTimeOrLabel) + (offset || 0));
-		}
+			return this.insert(tl, this._parseTimeOrLabel(baseTimeOrLabel, offsetOrLabel, true));
+		};
 		
-		p.staggerFrom = function(targets, duration, vars, stagger, offset, baseTimeOrLabel, onCompleteAll, onCompleteAllParams, onCompleteAllScope) {
+		p.staggerFrom = function(targets, duration, vars, stagger, offsetOrLabel, baseTimeOrLabel, onCompleteAll, onCompleteAllParams, onCompleteAllScope) {
 			if (vars.immediateRender == null) {
 				vars.immediateRender = true;
 			}
 			vars.runBackwards = true;
-			return this.staggerTo(targets, duration, vars, stagger, offset, baseTimeOrLabel, onCompleteAll, onCompleteAllParams, onCompleteAllScope);
-		}
+			return this.staggerTo(targets, duration, vars, stagger, offsetOrLabel, baseTimeOrLabel, onCompleteAll, onCompleteAllParams, onCompleteAllScope);
+		};
 		
-		p.staggerFromTo = function(targets, duration, fromVars, toVars, stagger, offset, baseTimeOrLabel, onCompleteAll, onCompleteAllParams, onCompleteAllScope) {
+		p.staggerFromTo = function(targets, duration, fromVars, toVars, stagger, offsetOrLabel, baseTimeOrLabel, onCompleteAll, onCompleteAllParams, onCompleteAllScope) {
 			toVars.startAt = fromVars;
 			if (fromVars.immediateRender) {
 				toVars.immediateRender = true;
 			}
-			return this.staggerTo(targets, duration, toVars, stagger, offset, baseTimeOrLabel, onCompleteAll, onCompleteAllParams, onCompleteAllScope);
-		}
+			return this.staggerTo(targets, duration, toVars, stagger, offsetOrLabel, baseTimeOrLabel, onCompleteAll, onCompleteAllParams, onCompleteAllScope);
+		};
 		
-		p.call = function(callback, params, scope, offset, baseTimeOrLabel) {
-			return this.insert( TweenLite.delayedCall(0, callback, params, scope), this._parseTimeOrLabel(baseTimeOrLabel) + (offset || 0));
-		}
+		p.call = function(callback, params, scope, offsetOrLabel, baseTimeOrLabel) {
+			return this.insert( TweenLite.delayedCall(0, callback, params, scope), this._parseTimeOrLabel(baseTimeOrLabel, offsetOrLabel, true));
+		};
 		
-		p.set = function(target, vars, offset, baseTimeOrLabel) {
+		p.set = function(target, vars, offsetOrLabel, baseTimeOrLabel) {
 			vars.immediateRender = false;
-			return this.insert( new TweenLite(target, 0, vars), this._parseTimeOrLabel(baseTimeOrLabel) + (offset || 0));
-		}
+			return this.insert( new TweenLite(target, 0, vars), this._parseTimeOrLabel(baseTimeOrLabel, offsetOrLabel, true));
+		};
 		
 		TimelineLite.exportRoot = function(vars, ignoreDelayedCalls) {
 			vars = vars || {};
@@ -120,14 +121,14 @@
 			var tween = root._first, next;
 			while (tween) {
 				next = tween._next;
-				if (!ignoreDelayedCalls || !(tween instanceof TweenLite && tween.target == tween.vars.onComplete)) {
+				if (!ignoreDelayedCalls || !(tween instanceof TweenLite && tween.target === tween.vars.onComplete)) {
 					tl.insert(tween, tween._startTime - tween._delay);
 				}
 				tween = next;
 			}
 			root.insert(tl, 0);
 			return tl;
-		}
+		};
 		
 		p.insert = function(value, timeOrLabel) {
 			if (value instanceof Animation) {
@@ -135,7 +136,7 @@
 			} else if (value instanceof Array) {
 				return this.insertMultiple(value, timeOrLabel);
 			} else if (typeof(value) === "string") {
-				return this.addLabel(value, this._parseTimeOrLabel(timeOrLabel || 0, true));
+				return this.addLabel(value, this._parseTimeOrLabel(timeOrLabel || 0, 0, true));
 			} else if (typeof(value) === "function") {
 				value = TweenLite.delayedCall(0, value);
 			} else {
@@ -143,7 +144,7 @@
 				return this;
 			}
 			
-			SimpleTimeline.prototype.insert.call(this, value, this._parseTimeOrLabel(timeOrLabel || 0, true));
+			SimpleTimeline.prototype.insert.call(this, value, this._parseTimeOrLabel(timeOrLabel || 0, 0, true));
 			
 			//if the timeline has already ended but the inserted tween/timeline extends the duration, we should enable this timeline again so that it renders properly.  
 			if (this._gc) if (!this._paused) if (this._time === this._duration) if (this._time < this.duration()) {
@@ -159,7 +160,7 @@
 				}
 			}
 			return this;
-		}
+		};
 		
 		p.remove = function(value) {
 			if (value instanceof Animation) {
@@ -174,16 +175,16 @@
 				return this.removeLabel(value);
 			}
 			return this.kill(null, value);
-		}
+		};
 		
-		p.append = function(value, offset) {
-			return this.insert(value, this.duration() + (offset || 0));
-		}
+		p.append = function(value, offsetOrLabel) {
+			return this.insert(value, this._parseTimeOrLabel(null, offsetOrLabel, true));
+		};
 		
 		p.insertMultiple = function(tweens, timeOrLabel, align, stagger) {
 			align = align || "normal";
 			stagger = stagger || 0;
-			var i, tween, curTime = this._parseTimeOrLabel(timeOrLabel || 0, true), l = tweens.length;
+			var i, tween, curTime = this._parseTimeOrLabel(timeOrLabel || 0, 0, true), l = tweens.length;
 			for (i = 0; i < l; i++) {
 				if ((tween = tweens[i]) instanceof Array) {
 					tween = new TimelineLite({tweens:tween});
@@ -199,53 +200,57 @@
 				curTime += stagger;
 			}
 			return this._uncache(true);
-		}
+		};
 		
-		p.appendMultiple = function(tweens, offset, align, stagger) {
-			return this.insertMultiple(tweens, this.duration() + (offset || 0), align, stagger);
-		}
+		p.appendMultiple = function(tweens, offsetOrLabel, align, stagger) {
+			return this.insertMultiple(tweens, this._parseTimeOrLabel(null, offsetOrLabel, true), align, stagger);
+		};
 		
 		p.addLabel = function(label, time) {
 			this._labels[label] = time;
 			return this;
-		}
+		};
 	
 		p.removeLabel = function(label) {
 			delete this._labels[label];
 			return this;
-		}
+		};
 		
 		p.getLabelTime = function(label) {
 			return (this._labels[label] != null) ? this._labels[label] : -1;
-		}
+		};
 		
-		p._parseTimeOrLabel = function(timeOrLabel, appendIfAbsent) {
+		p._parseTimeOrLabel = function(timeOrLabel, offsetOrLabel, appendIfAbsent) {
+			if (typeof(offsetOrLabel) === "string") {
+				return this._parseTimeOrLabel(offsetOrLabel, ((appendIfAbsent && typeof(timeOrLabel) === "number" && this._labels[offsetOrLabel] == null) ? timeOrLabel - this.duration() : 0), appendIfAbsent);
+			}
+			offsetOrLabel = offsetOrLabel || 0;
 			if (timeOrLabel == null) {
-				return this.duration();
+				return this.duration() + offsetOrLabel;
 			} else if (typeof(timeOrLabel) === "string" && isNaN(timeOrLabel)) {
 				if (this._labels[timeOrLabel] == null) {
-					return (appendIfAbsent) ? (this._labels[timeOrLabel] = this.duration()) : 0;
+					return (appendIfAbsent) ? (this._labels[timeOrLabel] = this.duration() + offsetOrLabel) : offsetOrLabel;
 				}
-				return this._labels[timeOrLabel];
+				return this._labels[timeOrLabel] + offsetOrLabel;
 			}
-			return Number(timeOrLabel);
-		}
+			return Number(timeOrLabel) + offsetOrLabel;
+		};
 		
 		p.seek = function(timeOrLabel, suppressEvents) {
-			return this.totalTime(this._parseTimeOrLabel(timeOrLabel, false), (suppressEvents != false));
+			return this.totalTime(this._parseTimeOrLabel(timeOrLabel), (suppressEvents != false));
 		}
 		
 		p.stop = function() {
 			return this.paused(true);
-		}
+		};
 	
 		p.gotoAndPlay = function(timeOrLabel, suppressEvents) {
 			return SimpleTimeline.prototype.play.call(this, timeOrLabel, suppressEvents);
-		}
+		};
 		
 		p.gotoAndStop = function(timeOrLabel, suppressEvents) {
 			return this.pause(timeOrLabel, suppressEvents);
-		}
+		};
 		
 		p.render = function(time, suppressEvents, force) {
 			if (this._gc) {
@@ -268,7 +273,7 @@
 					}
 				}
 				this._rawPrevTime = time;
-				time = totalDur + 0.000001; //to avoid occassional floating point rounding errors - sometimes child tweens/timelines were not being fully completed (their progress might be 0.999999999999998 instead of 1 because when _time - tween._startTime is performed, floating point errors would return a value that was SLIGHTLY off)
+				time = totalDur + 0.000001; //to avoid occasional floating point rounding errors - sometimes child tweens/timelines were not being fully completed (their progress might be 0.999999999999998 instead of 1 because when _time - tween._startTime is performed, floating point errors would return a value that was SLIGHTLY off)
 
 			} else if (time <= 0) {
 				this._totalTime = this._time = 0;
@@ -285,7 +290,7 @@
 					force = true;
 				}
 				this._rawPrevTime = time;
-				time = -0.000001; //to avoid occassional floating point rounding errors in Flash - sometimes child tweens/timelines were not being rendered at the very beginning (their progress might be 0.000000000001 instead of 0 because when Flash performed _time - tween._startTime, floating point errors would return a value that was SLIGHTLY off)
+				time = -0.000001; //to avoid occasional floating point rounding errors in Flash - sometimes child tweens/timelines were not being rendered at the very beginning (their progress might be 0.000000000001 instead of 0 because when Flash performed _time - tween._startTime, floating point errors would return a value that was SLIGHTLY off)
 				
 			} else {
 				this._totalTime = this._time = this._rawPrevTime = time;
@@ -351,8 +356,7 @@
 					this.vars[callback].apply(this.vars[callback + "Scope"] || this, this.vars[callback + "Params"] || _blankArray);
 				}
 			}
-			
-		}
+		};
 		
 		p._hasPausedChild = function() {
 			var tween = this._first;
@@ -363,7 +367,7 @@
 				tween = tween._next;
 			}
 			return false;
-		}
+		};
 		
 		p.getChildren = function(nested, tweens, timelines, ignoreBeforeTime) {
 			ignoreBeforeTime = ignoreBeforeTime || -9999999999;
@@ -389,7 +393,7 @@
 				tween = tween._next;
 			}
 			return a;
-		}
+		};
 		
 		p.getTweensOf = function(target, nested) {
 			var tweens = TweenLite.getTweensOf(target), 
@@ -402,7 +406,7 @@
 				}
 			}
 			return a;
-		}
+		};
 		
 		p._contains = function(tween) {
 			var tl = tween.timeline;
@@ -413,7 +417,7 @@
 				tl = tl.timeline;
 			}
 			return false;
-		}
+		};
 		
 		p.shiftChildren = function(amount, adjustLabels, ignoreBeforeTime) {
 			ignoreBeforeTime = ignoreBeforeTime || 0;
@@ -432,7 +436,7 @@
 				}
 			}
 			return this._uncache(true);
-		}
+		};
 		
 		p._kill = function(vars, target) {
 			if (vars == null) if (target == null) {
@@ -447,7 +451,7 @@
 				}
 			}
 			return changed;
-		}
+		};
 		
 		p.clear = function(labels) {
 			var tweens = this.getChildren(false, true, true),
@@ -460,7 +464,7 @@
 				this._labels = {};
 			}
 			return this._uncache(true);
-		}
+		};
 		
 		p.invalidate = function() {
 			var tween = this._first;
@@ -469,10 +473,10 @@
 				tween = tween._next;
 			}
 			return this;
-		}
+		};
 		
 		p._enabled = function(enabled, ignoreTimeline) {
-			if (enabled == this._gc) {
+			if (enabled === this._gc) {
 				var tween = this._first;
 				while (tween) {
 					tween._enabled(enabled, true);
@@ -480,11 +484,11 @@
 				}
 			}
 			return SimpleTimeline.prototype._enabled.call(this, enabled, ignoreTimeline);
-		}
+		};
 		
 		p.progress = function(value) {
 			return (!arguments.length) ? this._time / this.duration() : this.totalTime(this.duration() * value, false);
-		}
+		};
 		
 		p.duration = function(value) {
 			if (!arguments.length) {
@@ -497,7 +501,7 @@
 				this.timeScale(this._duration / value);
 			}
 			return this;
-		}
+		};
 		
 		p.totalDuration = function(value) {
 			if (!arguments.length) {
@@ -534,7 +538,7 @@
 				this.timeScale(this._totalDuration / value);
 			}
 			return this;
-		}
+		};
 		
 		p.usesFrames = function() {
 			var tl = this._timeline;
@@ -542,11 +546,11 @@
 				tl = tl._timeline;
 			}
 			return (tl === Animation._rootFramesTimeline);
-		}
+		};
 		
 		p.rawTime = function() {
 			return (this._paused || (this._totalTime !== 0 && this._totalTime !== this._totalDuration)) ? this._totalTime : (this._timeline.rawTime() - this._startTime) * this._timeScale;
-		}
+		};
 		
 		return TimelineLite;
 		

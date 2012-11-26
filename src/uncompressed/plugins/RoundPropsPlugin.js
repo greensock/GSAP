@@ -1,6 +1,6 @@
 /**
- * VERSION: beta 1.3
- * DATE: 2012-08-29
+ * VERSION: beta 1.31
+ * DATE: 2012-11-19
  * JavaScript (ActionScript 3 and 2 also available)
  * UPDATES AND DOCS AT: http://www.greensock.com
  *
@@ -26,7 +26,7 @@
 		p._onInitTween = function(target, value, tween) {
 			this._tween = tween;
 			return true;
-		}
+		};
 		
 		p._onInitAllProps = function() {
 			var tween = this._tween,
@@ -54,7 +54,7 @@
 						}
 						if (pt._prev) {
 							pt._prev._next = next;
-						} else if (_tween._firstPT === pt) {
+						} else if (tween._firstPT === pt) {
 							tween._firstPT = next;
 						}
 						pt._next = pt._prev = null;
@@ -64,12 +64,12 @@
 				}
 			}
 			return false;
-		}
+		};
 				
 		p._add = function(target, p, s, c) {
 			this._addTween(target, p, s, s + c, p, true);
 			this._overwriteProps.push(p);
-		}
+		};
 		
 		TweenPlugin.activate([RoundPropsPlugin]);
 		
