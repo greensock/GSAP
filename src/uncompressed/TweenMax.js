@@ -1,6 +1,6 @@
 /**
- * VERSION: beta 1.648
- * DATE: 2012-11-23
+ * VERSION: beta 1.65
+ * DATE: 2012-11-30
  * JavaScript (ActionScript 3 and 2 also available)
  * UPDATES AND DOCS AT: http://www.greensock.com
  * 
@@ -33,7 +33,7 @@
 			p = TweenMax.prototype = TweenLite.to({}, 0.1, {}),
 			_blankArray = [];
 
-		TweenMax.version = 1.648;
+		TweenMax.version = 1.65;
 		p.constructor = TweenMax;
 		p.kill()._gc = false;
 		TweenMax.killTweensOf = TweenMax.killDelayedCallsTo = TweenLite.killTweensOf;
@@ -2064,7 +2064,7 @@
 			p = CSSPlugin.prototype = new TweenPlugin("css");
 
 		p.constructor = CSSPlugin;
-		CSSPlugin.version = 1.648;
+		CSSPlugin.version = 1.65;
 		CSSPlugin.API = 2;
 		CSSPlugin.defaultTransformPerspective = 0;
 		p = "px"; //we'll reuse the "p" variable to keep file size down
@@ -3372,7 +3372,7 @@
 				}
 			}
 
-			has3D = (m1.z || m1.rotationX || m1.rotationY || m2.z || m2.rotationX || m2.rotationY);
+			has3D = (m1.z || m1.rotationX || m1.rotationY || m2.z || m2.rotationX || m2.rotationY || m2.perspective);
 			if (!has3D && m2.scale != null) {
 				m2.scaleZ = 1; //no need to tween scaleZ.
 			}
