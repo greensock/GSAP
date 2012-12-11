@@ -1,6 +1,6 @@
 /*!
- * VERSION: beta 1.65
- * DATE: 2012-11-30
+ * VERSION: beta 1.651
+ * DATE: 2012-12-10
  * JavaScript 
  * UPDATES AND DOCS AT: http://www.greensock.com
  *
@@ -29,7 +29,7 @@
 			p = CSSPlugin.prototype = new TweenPlugin("css");
 
 		p.constructor = CSSPlugin;
-		CSSPlugin.version = 1.65;
+		CSSPlugin.version = 1.651;
 		CSSPlugin.API = 2;
 		CSSPlugin.defaultTransformPerspective = 0;
 		p = "px"; //we'll reuse the "p" variable to keep file size down
@@ -61,6 +61,7 @@
 			_reqSafariFix, //we won't apply the Safari transform fix until we actually come across a tween that affects a transform property (to maintain best performance).
 
 			_isSafari,
+			_isMozilla, //Mozilla (Firefox) has a bug that causes 3D transformed elements to randomly disappear unless a repaint is forced after each update on each element.
 			_isSafariLT6, //Safari (and Android 4 which uses a flavor of Safari) has a bug that prevents changes to "top" and "left" properties from rendering properly if changed on the same frame as a transform UNLESS we set the element's WebkitBackfaceVisibility to hidden (weird, I know). Doing this for Android 3 and earlier seems to actually cause other problems, though (fun!)
 			_ieVers,
 			_supportsOpacity = (function() { //we set _isSafari, _ieVers, and _supportsOpacity all in one function here to reduce file size slightly, especially in the minified version.
@@ -69,6 +70,7 @@
 
 				_isSafari = (_agent.indexOf("Safari") !== -1 && _agent.indexOf("Chrome") === -1 && (i === -1 || Number(_agent.substr(i+8, 1)) > 3));
 				_isSafariLT6 = (_isSafari && (Number(_agent.substr(_agent.indexOf("Version/")+8, 1)) < 6));
+				_isMozilla = (_agent.indexOf("Mozilla") !== -1);
 
 				(/MSIE ([0-9]{1,}[\.0-9]{0,})/).exec(_agent);
 				_ieVers = parseFloat( RegExp.$1 );
@@ -835,8 +837,9 @@
 				}
 			},
 			//creates a placeholder special prop for a plugin so that the property gets caught the first time a tween of it is attempted, and at that time it makes the plugin register itself, thus taking over for all future tweens of that property. This allows us to not mandate that things load in a particular order and it also allows us to log() an error that informs the user when they attempt to tween an external plugin-related property without loading its .js file.
-			_registerPluginProp = function(p, pluginName) {
+			_registerPluginProp = function(p) {
 				if (!_specialProps[p]) {
+					var pluginName = p.charAt(0).toUpperCase() + p.substr(1) + "Plugin";
 					_registerComplexSpecialProp(p, null, function(t, e, p, cssp, pt, plugin, vars) {
 						var pluginClass = window.com.greensock.plugins[pluginName];
 						if (!pluginClass) {
@@ -1094,7 +1097,7 @@
 				}
 				return tm;
 			},
-		//for setting 2D transforms in IE6, IE7, and IE8 (must use a "filter" to emulate the behavior of modern day browser transforms)
+			//for setting 2D transforms in IE6, IE7, and IE8 (must use a "filter" to emulate the behavior of modern day browser transforms)
 			_setIETransformRatio = function(v) {
 				var t = this.data, //refers to the element's _gsTransform object
 					ang = -t.rotation,
@@ -1219,6 +1222,7 @@
 					a41 = 0, a42 = 0, a43 = (perspective) ? -1 / perspective : 0,
 					min = 0.000001, angle = t.rotation,
 					zOrigin = t.zOrigin,
+					style = this.t.style,
 					delimiter = ",",
 					cos, sin, t1, t2, t3, t4;
 
@@ -1280,7 +1284,15 @@
 					a34 = 0;
 				}
 
-				this.t.style[_transformProp] = "matrix3d(" + ((a11 < min && a11 > -min) ? 0 : a11) + delimiter + ((a21 < min && a21 > -min) ? 0 : a21) + delimiter + ((a31 < min && a31 > -min) ? 0 : a31) + delimiter + ((a41 < min && a41 > -min) ? 0 : a41) + delimiter	+ ((a12 < min && a12 > -min) ? 0 : a12) + delimiter	+ ((a22 < min && a22 > -min) ? 0 : a22) + delimiter	+ ((a32 < min && a32 > -min) ? 0 : a32) + delimiter	+ ((a42 < min && a42 > -min) ? 0 : a42) + delimiter	+ ((a13 < min && a13 > -min) ? 0 : a13) + delimiter	+ ((a23 < min && a23 > -min) ? 0 : a23) + delimiter	+ ((a33 < min && a33 > -min) ? 0 : a33) + delimiter	+ ((a43 < min && a43 > -min) ? 0 : a43) + delimiter	+ ((a14 < min && a14 > -min) ? 0 : a14) + delimiter + ((a24 < min && a24 > -min) ? 0 : a24) + delimiter + a34 + delimiter + (perspective ? (1 + (-a34 / perspective)) : 1) + ")";
+				style[_transformProp] = "matrix3d(" + ((a11 < min && a11 > -min) ? 0 : a11) + delimiter + ((a21 < min && a21 > -min) ? 0 : a21) + delimiter + ((a31 < min && a31 > -min) ? 0 : a31) + delimiter + ((a41 < min && a41 > -min) ? 0 : a41) + delimiter	+ ((a12 < min && a12 > -min) ? 0 : a12) + delimiter	+ ((a22 < min && a22 > -min) ? 0 : a22) + delimiter	+ ((a32 < min && a32 > -min) ? 0 : a32) + delimiter	+ ((a42 < min && a42 > -min) ? 0 : a42) + delimiter	+ ((a13 < min && a13 > -min) ? 0 : a13) + delimiter	+ ((a23 < min && a23 > -min) ? 0 : a23) + delimiter	+ ((a33 < min && a33 > -min) ? 0 : a33) + delimiter	+ ((a43 < min && a43 > -min) ? 0 : a43) + delimiter	+ ((a14 < min && a14 > -min) ? 0 : a14) + delimiter + ((a24 < min && a24 > -min) ? 0 : a24) + delimiter + a34 + delimiter + (perspective ? (1 + (-a34 / perspective)) : 1) + ")";
+
+				if (_isMozilla) { //Firefox (Mozilla) has a bug that causes 3D elements to randomly disappear during animation unless a repaint is forced. One way is to change the display to "none", read the offsetWidth, and then revert the display. Another option is to change a property like "top" by at least about 0.05 pixels, but we can't just immediately revert that, so we'd have to vibrate back and forth (+/-0.05) which would be visibly imperceptible but could cause small issues with accurately reading the value elsewhere, so we opt for the cleanest approach here...
+					t1 = style.display;
+					style.display = "none";
+					t2 = this.t.offsetWidth;
+					style.display = t1;
+					return t2; //we only return a value to prevent the t2 assignment from being stripped out during minification, but there's no real purpose for this function returning the value.
+				}
 			},
 			_set2DTransformRatio = function(v) {
 				var t = this.data; //refers to the element's _gsTransform object
@@ -1646,8 +1658,11 @@
 			return pt;
 		});
 
-		_registerPluginProp("bezier", "BezierPlugin");
-		_registerPluginProp("throwProps", "ThrowPropsPlugin");
+		p = "bezier,throwProps,physicsProps,physics2D".split(",");
+		i = p.length;
+		while (i--) {
+			_registerPluginProp(p[i]);
+		}
 
 
 
@@ -1847,7 +1862,6 @@
 					}
 					if (!pt.type) {
 						pt.t[pt.p] = val + pt.xs0;
-
 					} else if (pt.type === 1) { //complex value (one that typically has multiple numbers inside a string, like "rect(5px,10px,20px,25px)"
 						i = pt.l;
 						if (i === 2) {
@@ -1886,7 +1900,7 @@
 					pt = pt._next;
 				}
 			}
-		}
+		};
 
 		p._linkCSSP = function(pt, next, prev) {
 			if (pt) {
@@ -1908,7 +1922,7 @@
 				pt._prev = prev;
 			}
 			return pt;
-		}
+		};
 		
 		//we need to make sure that if alpha or autoAlpha is killed, opacity is too. And autoAlpha affects the "visibility" property.
 		p._kill = function(lookup) {
@@ -1940,7 +1954,7 @@
 				changed = true;
 			}
 			return TweenPlugin.prototype._kill.call(this, copy) || changed;
-		}
+		};
 		
 		
 		TweenPlugin.activate([CSSPlugin]);

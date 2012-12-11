@@ -1,6 +1,6 @@
 /*!
- * VERSION: beta 1.642
- * DATE: 2012-11-11
+ * VERSION: beta 1.651
+ * DATE: 2012-12-10
  * JavaScript (ActionScript 3 and 2 also available)
  * UPDATES AND DOCS AT: http://www.greensock.com
  *
@@ -230,7 +230,7 @@
 				},
 				_tick = function(manual) {
 					_self.time = (_getTime() - _startTime) / 1000;
-					if (!_fps || _self.time >= _nextTime || manual) {
+					if (!_fps || _self.time >= _nextTime || (manual === true)) {
 						_self.frame++;
 						_nextTime = (_self.time > _nextTime) ? _self.time + _gap - (_self.time - _nextTime) : _self.time + _gap - 0.001;
 						if (_nextTime < _self.time + 0.001) {
@@ -730,7 +730,7 @@
 		p._firstPT = p._targets = p._overwrittenProps = null;
 		p._notifyPluginsOfEnabled = false;
 		
-		TweenLite.version = 1.642;
+		TweenLite.version = 1.651;
 		TweenLite.defaultEase = p._ease = new Ease(null, null, 1, 1);
 		TweenLite.defaultOverwrite = "auto";
 		TweenLite.ticker = _ticker;

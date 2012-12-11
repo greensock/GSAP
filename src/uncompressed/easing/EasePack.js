@@ -1,6 +1,6 @@
 /*!
- * VERSION: beta 1.26
- * DATE: 2012-05-24
+ * VERSION: beta 1.3
+ * DATE: 2012-12-03
  * JavaScript (ActionScript 3 and 2 also available)
  * UPDATES AND DOCS AT: http://www.greensock.com
  *
@@ -26,17 +26,17 @@
 			
 			//BACK
 			_createBack = function(n, f) {
-				var c = _class("easing." + n, function(overshoot) {
+				var C = _class("easing." + n, function(overshoot) {
 						this._p1 = (overshoot || overshoot === 0) ? overshoot : 1.70158;
 						this._p2 = this._p1 * 1.525;
 					}, true), 
-					p = c.prototype = new Ease();
-				p.constructor = c;
+					p = C.prototype = new Ease();
+				p.constructor = C;
 				p.getRatio = f;
 				p.config = function(overshoot) {
-					return new c(overshoot);
+					return new C(overshoot);
 				};
-				return c;
+				return C;
 			}, 
 			BackOut = _createBack("BackOut", function(p) {
 				return ((p = p - 1) * p * ((this._p1 + 1) * p + this._p1) + 1);
@@ -81,11 +81,11 @@
 				if (p < 1 / 2.75) {
 					p = 7.5625 * p * p;
 				} else if (p < 2 / 2.75) {
-					p = 7.5625 * (p -= 1.5 / 2.75) * p + .75;
+					p = 7.5625 * (p -= 1.5 / 2.75) * p + 0.75;
 				} else if (p < 2.5 / 2.75) {
-					p = 7.5625 * (p -= 2.25 / 2.75) * p + .9375;
+					p = 7.5625 * (p -= 2.25 / 2.75) * p + 0.9375;
 				} else {
-					p = 7.5625 * (p -= 2.625 / 2.75) * p + .984375;
+					p = 7.5625 * (p -= 2.625 / 2.75) * p + 0.984375;
 				}
 				return invert ? (1 - p) * 0.5 : p * 0.5 + 0.5;
 			}),
@@ -104,18 +104,18 @@
 			//ELASTIC
 			_2PI = Math.PI * 2,
 			_createElastic = function(n, f, def) {
-				var c = _class("easing." + n, function(amplitude, period) {
+				var C = _class("easing." + n, function(amplitude, period) {
 						this._p1 = amplitude || 1;
 						this._p2 = period || def;
 						this._p3 = this._p2 / _2PI * (Math.asin(1 / this._p1) || 0);
 					}, true), 
-					p = c.prototype = new Ease();
-				p.constructor = c;
+					p = C.prototype = new Ease();
+				p.constructor = C;
 				p.getRatio = f;
 				p.config = function(amplitude, period) {
-					return new c(amplitude, period);
+					return new C(amplitude, period);
 				};
-				return c;
+				return C;
 			}, 
 			ElasticOut = _createElastic("ElasticOut", function(p) {
 				return this._p1 * Math.pow(2, -10 * p) * Math.sin( (p - this._p3) * _2PI / this._p2 ) + 1;
@@ -124,7 +124,7 @@
 				return -(this._p1 * Math.pow(2, 10 * (p -= 1)) * Math.sin( (p - this._p3) * _2PI / this._p2 ));
 			}, 0.3), 
 			ElasticInOut = _createElastic("ElasticInOut", function(p) {
-				return ((p *= 2) < 1) ? -.5 * (this._p1 * Math.pow(2, 10 * (p -= 1)) * Math.sin( (p - this._p3) * _2PI / this._p2)) : this._p1 * Math.pow(2, -10 *(p -= 1)) * Math.sin( (p - this._p3) * _2PI / this._p2 ) *.5 + 1;
+				return ((p *= 2) < 1) ? -0.5 * (this._p1 * Math.pow(2, 10 * (p -= 1)) * Math.sin( (p - this._p3) * _2PI / this._p2)) : this._p1 * Math.pow(2, -10 *(p -= 1)) * Math.sin( (p - this._p3) * _2PI / this._p2 ) *0.5 + 1;
 			}, 0.45),
 			
 			//Expo
@@ -158,7 +158,7 @@
 				} else if (linearRatio > 1) {
 					linearRatio = 1;
 				}
-				this._p = (linearRatio != 1) ? power : 0;
+				this._p = (linearRatio !== 1) ? power : 0;
 				this._p1 = (1 - linearRatio) / 2;
 				this._p2 = linearRatio;
 				this._p3 = this._p1 + this._p2;
