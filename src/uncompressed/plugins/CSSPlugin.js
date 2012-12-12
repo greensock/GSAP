@@ -1,6 +1,6 @@
 /*!
- * VERSION: beta 1.651
- * DATE: 2012-12-10
+ * VERSION: beta 1.652
+ * DATE: 2012-12-11
  * JavaScript 
  * UPDATES AND DOCS AT: http://www.greensock.com
  *
@@ -29,7 +29,7 @@
 			p = CSSPlugin.prototype = new TweenPlugin("css");
 
 		p.constructor = CSSPlugin;
-		CSSPlugin.version = 1.651;
+		CSSPlugin.version = 1.652;
 		CSSPlugin.API = 2;
 		CSSPlugin.defaultTransformPerspective = 0;
 		p = "px"; //we'll reuse the "p" variable to keep file size down
@@ -64,7 +64,7 @@
 			_isMozilla, //Mozilla (Firefox) has a bug that causes 3D transformed elements to randomly disappear unless a repaint is forced after each update on each element.
 			_isSafariLT6, //Safari (and Android 4 which uses a flavor of Safari) has a bug that prevents changes to "top" and "left" properties from rendering properly if changed on the same frame as a transform UNLESS we set the element's WebkitBackfaceVisibility to hidden (weird, I know). Doing this for Android 3 and earlier seems to actually cause other problems, though (fun!)
 			_ieVers,
-			_supportsOpacity = (function() { //we set _isSafari, _ieVers, and _supportsOpacity all in one function here to reduce file size slightly, especially in the minified version.
+			_supportsOpacity = (function() { //we set _isSafari, _ieVers, _isMozilla, and _supportsOpacity all in one function here to reduce file size slightly, especially in the minified version.
 				var i = _agent.indexOf("Android"),
 					d = _doc.createElement("div"), a;
 
@@ -1511,6 +1511,11 @@
 					props[i] = _checkPropPrefix(props[i]);
 				}
 				bs = bs2 = _getStyle(t, props[i], _cs, false, "0px");
+				if (bs.indexOf(" ") !== -1) {
+					bs2 = bs.split(" ");
+					bs = bs2[0];
+					bs2 = bs2[1];
+				}
 				es = es2 = ea1[i];
 				bn = parseFloat(bs);
 				bsfx = bs.substr((bn + "").length);
@@ -1527,7 +1532,6 @@
 				if (esfx === "") {
 					esfx = _suffixMap[p] || bsfx;
 				}
-
 				if (esfx !== bsfx) {
 					hn = _convertToPixels(t, "borderLeft", bn, bsfx); //horizontal number (we use a bogus "borderLeft" property just because the _convertToPixels() method searches for the keywords "Left", "Right", "Top", and "Bottom" to determine of it's a horizontal or vertical property, and we need "border" in the name so that it knows it should measure relative to the element itself, not its parent.
 					vn = _convertToPixels(t, "borderTop", bn, bsfx); //vertical number
