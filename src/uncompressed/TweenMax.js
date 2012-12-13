@@ -1,6 +1,6 @@
 /**
- * VERSION: beta 1.652
- * DATE: 2012-12-11
+ * VERSION: beta 1.653
+ * DATE: 2012-12-13
  * JavaScript (ActionScript 3 and 2 also available)
  * UPDATES AND DOCS AT: http://www.greensock.com
  * 
@@ -33,7 +33,7 @@
 			p = TweenMax.prototype = TweenLite.to({}, 0.1, {}),
 			_blankArray = [];
 
-		TweenMax.version = 1.652;
+		TweenMax.version = 1.653;
 		p.constructor = TweenMax;
 		p.kill()._gc = false;
 		TweenMax.killTweensOf = TweenMax.killDelayedCallsTo = TweenLite.killTweensOf;
@@ -2064,7 +2064,7 @@
 			p = CSSPlugin.prototype = new TweenPlugin("css");
 
 		p.constructor = CSSPlugin;
-		CSSPlugin.version = 1.652;
+		CSSPlugin.version = 1.653;
 		CSSPlugin.API = 2;
 		CSSPlugin.defaultTransformPerspective = 0;
 		p = "px"; //we'll reuse the "p" variable to keep file size down
@@ -2081,6 +2081,7 @@
 			_opacityValExp = /opacity:([^;]*)/,
 			_capsExp = /([A-Z])/g,
 			_camelExp = /-([a-z])/gi,
+			_urlExp = /(^(?:url\(\"|url\())|(?:(\"\))$|\)$)/gi, //for pulling out urls from url(...) or url("...") strings (some browsers wrap urls in quotes, some don't when reporting things like backgroundImage)
 			_camelFunc = function(s, g) { return g.toUpperCase(); },
 			_horizExp = /(?:Left|Right|Width)/i,
 			_ieGetMatrixExp = /(M11|M12|M21|M22)=[\d\-\.e]+/gi,
@@ -2090,6 +2091,7 @@
 			_forcePT = {},
 			_doc = document,
 			_tempDiv = _doc.createElement("div"),
+			_tempImg = _doc.createElement("img"),
 			_internals = CSSPlugin._internals = {_specialProps:_specialProps}, //provides a hook to a few internal methods that we need to access from inside other plugins
 			_agent = navigator.userAgent,
 			_autoRound,
@@ -2170,10 +2172,7 @@
 					rv = (t || cs.length) ? t : cs[p]; //Opera behaves VERY strangely - length is usually 0 and cs[p] is the only way to get accurate results EXCEPT when checking for -o-transform which only works with cs.getPropertyValue()!
 				} else if (t.currentStyle) {
 					cs = t.currentStyle;
-					rv = cs[p]; //reuse "calc" variable to reduce minification size and improve speed slightly compared to creating a new variable.
-					if (!rv && p === "backgroundPosition") { //IE doesn't report backgroundPosition accurately (before version 9) - instead, it only reports backgroundPositionX and backgroundPositionY, so we need to combine them manually.
-						rv = cs[p + "X"] + " " + cs[p + "Y"];
-					}
+					rv = cs[p];
 				}
 				return (dflt != null && (!rv || rv === "none" || rv === "auto" || rv === "auto auto")) ? dflt : rv;
 			},
@@ -3524,7 +3523,29 @@
 			}
 			return pt;
 		}, true, false, _getFormatter("0px 0px 0px 0px", false, true));
-		_registerComplexSpecialProp("backgroundPosition", "0 0", null, false, false, _parsePosition);
+		_registerComplexSpecialProp("backgroundPosition", "0 0", function(t, e, p, cssp, pt, plugin) {
+			var bp = "background-position",
+				cs = (_cs || _getComputedStyle(t, null)),
+				bs = this.format( ((cs) ? _ieVers ? cs.getPropertyValue(bp + "-x") + " " + cs.getPropertyValue(bp + "-y") : cs.getPropertyValue(bp) : t.currentStyle.backgroundPositionX + " " + t.currentStyle.backgroundPositionY) || "0 0"), //Internet Explorer doesn't report background-position correctly - we must query background-position-x and background-position-y and combine them (even in IE10). Before IE9, we must do the same with the currentStyle object and use camelCase
+				es = this.format(e),
+				ba, ea, i, pct, overlap;
+			if ((bs.indexOf("%") !== -1) !== (es.indexOf("%") !== -1)) {
+				ba = bs.split(" ");
+				ea = es.split(" ");
+				_tempImg.setAttribute("src", _getStyle(t, "backgroundImage").replace(_urlExp, "")); //set the temp <img>'s src to the background-image so that we can measure its width/height
+				i = 2;
+				while (--i > -1) {
+					bs = ba[i];
+					pct = (bs.indexOf("%") !== -1);
+					if (pct !== (ea[i].indexOf("%") !== -1)) {
+						overlap = (i === 0) ? t.offsetWidth - _tempImg.width : t.offsetHeight - _tempImg.height;
+						ba[i] = pct ? (parseFloat(bs) / 100 * overlap) + "px" : (parseFloat(bs) / overlap * 100) + "%";
+					}
+				}
+				bs = ba.join(" ");
+			}
+			return this.parseComplex(t.style, bs, es, pt, plugin);
+		}, false, false, _parsePosition); //note: backgroundPosition doesn't support interpreting between px and % (start and end values should use the same units) because doing so would require determining the size of the image itself and that can't be done quickly.
 		_registerComplexSpecialProp("backgroundSize", "0 0", null, false, false, _parsePosition);
 		_registerComplexSpecialProp("perspective", "0px", null, true);
 		_registerComplexSpecialProp("perspectiveOrigin", "50% 50%", null, true);
