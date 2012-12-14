@@ -1,5 +1,5 @@
 /*!
- * VERSION: beta 1.66
+ * VERSION: beta 1.661
  * DATE: 2012-12-14
  * JavaScript 
  * UPDATES AND DOCS AT: http://www.greensock.com
@@ -29,7 +29,7 @@
 			p = CSSPlugin.prototype = new TweenPlugin("css");
 
 		p.constructor = CSSPlugin;
-		CSSPlugin.version = 1.66;
+		CSSPlugin.version = 1.661;
 		CSSPlugin.API = 2;
 		CSSPlugin.defaultTransformPerspective = 0;
 		p = "px"; //we'll reuse the "p" variable to keep file size down
@@ -319,7 +319,7 @@
 			 * @return {number} Parsed value
 			 */
 			_parseVal = function(v, d) {
-				return (v == null) ? d : (typeof(v) === "string" && v.charAt(1) === "=") ? parseInt(v.charAt(0) + "1") * Number(v.substr(2)) + d : Number(v);
+				return (v == null) ? d : (typeof(v) === "string" && v.charAt(1) === "=") ? parseInt(v.charAt(0) + "1") * Number(v.substr(2)) + d : parseFloat(v);
 			},
 
 			/**
@@ -501,7 +501,6 @@
 					mpt = mpt._next;
 				}
 				if (d.autoRotate) {
-					//_log("set rotation to "+(proxy.rotation*_RAD2DEG));
 					d.autoRotate.rotation = proxy.rotation;
 				}
 				//at the end, we must set the CSSPropTween's "e" (end) value dynamically here because that's what is used in the final setRatio() method.
@@ -1363,6 +1362,7 @@
 						m2.rotationY = 0;
 					}
 				}
+				m2.skewX = (v.skewX == null) ? m1.skewX : (typeof(v.skewX) === "number") ? v.skewX * _DEG2RAD : _parseAngle(v.skewX, m1.skewX);
 
 				//note: for performance reasons, we combine all skewing into the skewX and rotation values, ignoring skewY but we must still record it so that we can discern how much of the overall skew is attributed to skewX vs. skewY. Otherwise, if the skewY would always act relative (tween skewY to 10deg, for example, multiple times and if we always combine things into skewX, we can't remember that skewY was 10 from last time). Remember, a skewY of 10 degrees looks the same as a rotation of 10 degrees plus a skewX of -10 degrees.
 				m2.skewY = (v.skewY == null) ? m1.skewY : (typeof(v.skewY) === "number") ? v.skewY * _DEG2RAD : _parseAngle(v.skewY, m1.skewY);
@@ -1387,7 +1387,7 @@
 				m2.scaleZ = 1; //no need to tween scaleZ.
 			}
 
-			pt = cssp._enableTransforms(has3D, pt, plugin);
+			cssp._transformType = has3D ? 3 : 2; //quicker than calling cssp._enableTransforms();
 
 			while (--i > -1) {
 				p = _transformProps[i];
@@ -1426,7 +1426,7 @@
 				}
 			}
 
-			if (pt.t === t) { //if no tweenable properties are found, remove the "transform" CSSPropTween from the linked list and return the original one that was passed in.
+			if (pt && pt.t === t) { //if no tweenable properties are found, remove the "transform" CSSPropTween from the linked list and return the original one that was passed in.
 				if (pt._next) {
 					pt._next._prev = null;
 				}
@@ -1692,7 +1692,7 @@
 			_cs = _getComputedStyle(target, "");
 			_overwriteProps = this._overwriteProps;
 			var style = target.style,
-				v, pt, pt2, first, last, next;
+				v, pt, pt2, first, last, next, zIndex, tpt, threeD;
 			
 			if (_reqSafariFix) if (style.zIndex === "") {
 				v = _getStyle(target, "zIndex", _cs);
@@ -1714,6 +1714,39 @@
 				style.cssText = first;
 			}
 			this._firstPT = pt = this.parse(target, vars, null);
+
+			if (this._transformType) {
+				threeD = (this._transformType === 3);
+				if (!_transformProp) {
+					style.zoom = 1; //helps correct an IE issue.
+				} else if (_isSafari) {
+					_reqSafariFix = true;
+					//if zIndex isn't set, iOS Safari doesn't repaint things correctly sometimes (seemingly at random).
+					if (style.zIndex === "") {
+						zIndex = _getStyle(target, "zIndex", _cs);
+						if (zIndex === "auto" || zIndex === "") {
+							style.zIndex = 0;
+						}
+					}
+					//Setting WebkitBackfaceVisibility corrects 3 bugs:
+					// 1) [non-Android] Safari skips rendering changes to "top" and "left" that are made on the same frame/render as a transform update.
+					// 2) iOS Safari sometimes neglects to repaint elements in their new positions. Setting "WebkitPerspective" to a non-zero value worked too except that on iOS Safari things would flicker randomly.
+					// 3) Safari sometimes displayed odd artifacts when tweening the transform (or WebkitTransform) property, like ghosts of the edges of the element remained. Definitely a browser bug.
+					//Note: we allow the user to override the auto-setting by defining WebkitBackfaceVisibility in the vars of the tween.
+					if (_isSafariLT6) {
+						style.WebkitBackfaceVisibility = this._vars.WebkitBackfaceVisibility || (threeD ? "visible" : "hidden");
+					}
+				}
+				pt2 = pt;
+				while (pt2 && pt2._next) {
+					pt2 = pt2._next;
+				}
+				tpt = new CSSPropTween(target, "transform", 0, 0, null, 2);
+				this._linkCSSP(tpt, null, pt2);
+				tpt.setRatio = (threeD && _supports3D) ? _set3DTransformRatio : _transformProp ? _set2DTransformRatio : _setIETransformRatio;
+				tpt.data = this._transform || _getTransform(target, _cs, true);
+				_overwriteProps.pop(); //we don't want to force the overwrite of all "transform" tweens of the target - we only care about individual transform properties like scaleX, rotation, etc. The CSSPropTween constructor automatically adds the property to _overwriteProps which is why we need to pop() here.
+			}
 
 			if (_hasPriority) {
 				//reorders the linked list in order of pr (priority)
@@ -1910,58 +1943,20 @@
 		/**
 		 * @private
 		 * Forces rendering of the target's transforms (rotation, scale, etc.) whenever the CSSPlugin's setRatio() is called.
-		 * Basically, this creates a CSSPropTween (type 2) that calls the appropriate (3D or 2D) function. We separate this into
-		 * its own method so that we can call it from other plugins like BezierPlugin if, for example, it needs to apply an autoRotation
-		 * and this CSSPlugin doesn't have any transform-related properties of its own. You can call this method as many times as you
+		 * Basically, this tells the CSSPlugin to create a CSSPropTween (type 2) after instantiation that runs last in the linked
+		 * list and calls the appropriate (3D or 2D) rendering function. We separate this into its own method so that we can call
+		 * it from other plugins like BezierPlugin if, for example, it needs to apply an autoRotation and this CSSPlugin
+		 * doesn't have any transform-related properties of its own. You can call this method as many times as you
 		 * want and it won't create duplicate CSSPropTweens.
 		 *
 		 * @param {boolean} threeD if true, it should apply 3D tweens (otherwise, just 2D ones are fine and typically faster)
-		 * @param {CSSPropTween=} pt the next CSSPropTween in the linked list
-		 * @param {TweenPlugin=} plugin if another TweenPlugin is handling this transform, pass a reference of the instance here.
-		 * @return {CSSPropTween}
 		 */
-		p._enableTransforms = function(threeD, pt, plugin) {
-			var tpt = this._transformPT,
-				t = this._target,
-				style = t.style,
-				zIndex;
-
-			if (!tpt) {
-				if (!_transformProp) {
-					style.zoom = 1; //helps correct an IE issue.
-				} else if (_isSafari) {
-					_reqSafariFix = true;
-					//if zIndex isn't set, iOS Safari doesn't repaint things correctly sometimes (seemingly at random).
-					if (style.zIndex === "") {
-						zIndex = _getStyle(t, "zIndex", _cs);
-						if (zIndex === "auto" || zIndex === "") {
-							style.zIndex = 0;
-						}
-					}
-
-					//Setting WebkitBackfaceVisibility corrects 3 bugs:
-					// 1) [non-Android] Safari skips rendering changes to "top" and "left" that are made on the same frame/render as a transform update.
-					// 2) iOS Safari sometimes neglects to repaint elements in their new positions. Setting "WebkitPerspective" to a non-zero value worked too except that on iOS Safari things would flicker randomly.
-					// 3) Safari sometimes displayed odd artifacts when tweening the transform (or WebkitTransform) property, like ghosts of the edges of the element remained. Definitely a browser bug.
-					//Note: we allow the user to override the auto-setting by defining WebkitBackfaceVisibility in the vars of the tween.
-					if (_isSafariLT6) {
-						style.WebkitBackfaceVisibility = this._vars.WebkitBackfaceVisibility || (threeD ? "visible" : "hidden");
-					}
-				}
-
-				this._transformPT = pt = new CSSPropTween(t, "transform", 0, 0, pt, 2);
-				pt.setRatio = (threeD && _supports3D) ? _set3DTransformRatio : _transformProp ? _set2DTransformRatio : _setIETransformRatio;
-				pt.plugin = plugin;
-				pt.data = this._transform || _getTransform(t, _cs, true);
-				_overwriteProps.pop(); //we don't want to force the overwrite of all "transform" tweens of the target - we only care about individual transform properties like scaleX, rotation, etc. The CSSPropTween constructor automatically adds the property to _overwriteProps which is why we need to pop() here.
-			} else if (threeD && _supports3D) {
-				tpt.setRatio = _set3DTransformRatio;
-			}
-			return pt;
+		p._enableTransforms = function(threeD) {
+			this._transformType = (threeD || this._transformType === 3) ? 3 : 2;
 		};
 
 		/** @private **/
-		p._linkCSSP = function(pt, next, prev) {
+		p._linkCSSP = function(pt, next, prev, remove) {
 			if (pt) {
 				if (next) {
 					next._prev = pt;
@@ -1971,6 +1966,8 @@
 				}
 				if (prev) {
 					prev._next = pt;
+				} else if (!remove && this._firstPT === null) {
+					this._firstPT = pt;
 				}
 				if (pt._prev) {
 					pt._prev._next = pt._next;

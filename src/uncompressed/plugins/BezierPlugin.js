@@ -1,5 +1,5 @@
 /**
- * VERSION: beta 1.14
+ * VERSION: beta 1.15
  * DATE: 2012-12-14
  * JavaScript (also available in AS3 and AS2)
  * UPDATES AND DOCS AT: http://www.greensock.com
@@ -332,11 +332,7 @@
 				}
 				if (v.autoRotate) {
 					if (!cssp._transform) {
-						transPT = cssp._enableTransforms(false, pt, plugin);
-						transPT._next = pt._next; //flip-flop the order because we need the autoRotation to get set first before the rotation transform is applied to the css.
-						transPT._prev = pt;
-						pt._next = transPT;
-						pt._prev = null;
+						cssp._enableTransforms(false);
 					}
 					data.autoRotate = cssp._target._gsTransform;
 				}
@@ -403,7 +399,7 @@
 				}
 			}
 			return true;
-		}
+		};
 		
 		//gets called every time the tween updates, passing the new ratio (typically a value between 0 and 1, but not always (for example, if an Elastic.easeOut is used, the value can jump above 1 mid-tween). It will always start and 0 and end at 1.
 		p.setRatio = function(v) {
@@ -471,7 +467,6 @@
 				if (this._round[p]) {
 					val = (val + ((val > 0) ? 0.5 : -0.5)) >> 0;
 				}
-				//console.log(p+": "+val);
 				if (func[p]) {
 					target[p](val);
 				} else {
@@ -509,7 +504,7 @@
 					}
 				}
 			}
-		}
+		};
 		
 		p._roundProps = function(lookup, value) {
 			var op = this._overwriteProps,
@@ -519,7 +514,7 @@
 					this._round[op[i]] = value;
 				}
 			}
-		}
+		};
 		
 		p._kill = function(lookup) {
 			var a = this._props, 
@@ -537,7 +532,7 @@
 				}
 			}
 			return TweenPlugin.prototype._kill.call(this, lookup);
-		}
+		};
 		
 		TweenPlugin.activate([BezierPlugin]);
 		return BezierPlugin;

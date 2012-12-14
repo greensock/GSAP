@@ -1,5 +1,5 @@
 /**
- * VERSION: beta 1.66
+ * VERSION: beta 1.661
  * DATE: 2012-12-14
  * JavaScript (ActionScript 3 and 2 also available)
  * UPDATES AND DOCS AT: http://www.greensock.com
@@ -33,7 +33,7 @@
 			p = TweenMax.prototype = TweenLite.to({}, 0.1, {}),
 			_blankArray = [];
 
-		TweenMax.version = 1.66;
+		TweenMax.version = 1.661;
 		p.constructor = TweenMax;
 		p.kill()._gc = false;
 		TweenMax.killTweensOf = TweenMax.killDelayedCallsTo = TweenLite.killTweensOf;
@@ -1821,11 +1821,7 @@
 				}
 				if (v.autoRotate) {
 					if (!cssp._transform) {
-						transPT = cssp._enableTransforms(false, pt, plugin);
-						transPT._next = pt._next; //flip-flop the order because we need the autoRotation to get set first before the rotation transform is applied to the css.
-						transPT._prev = pt;
-						pt._next = transPT;
-						pt._prev = null;
+						cssp._enableTransforms(false);
 					}
 					data.autoRotate = cssp._target._gsTransform;
 				}
@@ -1892,7 +1888,7 @@
 				}
 			}
 			return true;
-		}
+		};
 
 		//gets called every time the tween updates, passing the new ratio (typically a value between 0 and 1, but not always (for example, if an Elastic.easeOut is used, the value can jump above 1 mid-tween). It will always start and 0 and end at 1.
 		p.setRatio = function(v) {
@@ -1960,7 +1956,6 @@
 				if (this._round[p]) {
 					val = (val + ((val > 0) ? 0.5 : -0.5)) >> 0;
 				}
-				//console.log(p+": "+val);
 				if (func[p]) {
 					target[p](val);
 				} else {
@@ -1998,7 +1993,7 @@
 					}
 				}
 			}
-		}
+		};
 
 		p._roundProps = function(lookup, value) {
 			var op = this._overwriteProps,
@@ -2008,7 +2003,7 @@
 					this._round[op[i]] = value;
 				}
 			}
-		}
+		};
 
 		p._kill = function(lookup) {
 			var a = this._props,
@@ -2026,7 +2021,7 @@
 				}
 			}
 			return TweenPlugin.prototype._kill.call(this, lookup);
-		}
+		};
 
 		TweenPlugin.activate([BezierPlugin]);
 		return BezierPlugin;
@@ -2068,7 +2063,7 @@
 			p = CSSPlugin.prototype = new TweenPlugin("css");
 
 		p.constructor = CSSPlugin;
-		CSSPlugin.version = 1.66;
+		CSSPlugin.version = 1.661;
 		CSSPlugin.API = 2;
 		CSSPlugin.defaultTransformPerspective = 0;
 		p = "px"; //we'll reuse the "p" variable to keep file size down
@@ -2078,7 +2073,7 @@
 		var _numExp = /(?:\d|\-\d|\.\d|\-\.\d)+/g,
 			_relNumExp = /(?:\d|\-\d|\.\d|\-\.\d|\+=\d|\-=\d|\+=.\d|\-=\.\d)+/g,
 			_valuesExp = /(?:\+=|\-=|\-|\b)[\d\-\.]+[a-zA-Z0-9]*(?:%|\b)/gi, //finds all the values that begin with numbers or += or -= and then a number. Includes suffixes. We use this to split complex values apart like "1px 5px 20px rgb(255,102,51)"
-		//_clrNumExp = /(?:\b(?:(?:rgb|rgba)\(.+?\))|\B#.+?\b)/, //only finds rgb(), rgba(), and # (hexadecimal) values but NOT color names like red, blue, etc.
+			//_clrNumExp = /(?:\b(?:(?:rgb|rgba)\(.+?\))|\B#.+?\b)/, //only finds rgb(), rgba(), and # (hexadecimal) values but NOT color names like red, blue, etc.
 			_NaNExp = /[^\d\-\.]/g,
 			_suffixExp = /(?:\d|\-|\+|=|#|\.)*/g,
 			_opacityExp = /opacity *= *([^)]*)/,
@@ -2131,7 +2126,7 @@
 			_prefixCSS = "", //the non-camelCase vendor prefix like "-o-", "-moz-", "-ms-", or "-webkit-"
 			_prefix = "", //camelCase vendor prefix like "O", "ms", "Webkit", or "Moz".
 
-		//@private feed in a camelCase property name like "transform" and it will check to see if it is valid as-is or if it needs a vendor prefix. It returns the corrected camelCase property name (i.e. "WebkitTransform" or "MozTransform" or "transform" or null if no such property is found, like if the browser is IE8 or before, "transform" won't be found at all)
+			//@private feed in a camelCase property name like "transform" and it will check to see if it is valid as-is or if it needs a vendor prefix. It returns the corrected camelCase property name (i.e. "WebkitTransform" or "MozTransform" or "transform" or null if no such property is found, like if the browser is IE8 or before, "transform" won't be found at all)
 			_checkPropPrefix = function(p, e) {
 				e = e || _tempDiv;
 				var s = e.style,
@@ -2164,7 +2159,7 @@
 			 * @param {string=} dflt Default value that should be returned in the place of null, "none", "auto" or "auto auto".
 			 * @return {?string} The current property value
 			 */
-				_getStyle = CSSPlugin.getStyle = function(t, p, cs, calc, dflt) {
+			_getStyle = CSSPlugin.getStyle = function(t, p, cs, calc, dflt) {
 				var rv;
 				if (!_supportsOpacity) if (p === "opacity") { //several versions of IE don't use the standard "opacity" property - they use things like filter:alpha(opacity=50), so we parse that here.
 					return _getIEOpacity(t);
@@ -2181,7 +2176,7 @@
 				return (dflt != null && (!rv || rv === "none" || rv === "auto" || rv === "auto auto")) ? dflt : rv;
 			},
 
-		//@private returns at object containing ALL of the style properties in camelCase and their associated values.
+			//@private returns at object containing ALL of the style properties in camelCase and their associated values.
 			_getAllStyles = function(t, cs, keepOverwritten) {
 				var s = {},
 					pt = t._gsOverwrittenClassNamePT,
@@ -2230,7 +2225,7 @@
 				return s;
 			},
 
-		//@private analyzes two style objects (as returned by _getAllStyles()) and only looks for differences between them that contain tweenable values (like a number or color). It returns an object a "difs" property which refers to an object containing only those isolated properties and values for tweening, and a "firstMPT" property which refers to the first MiniPropTween instance in a linked list that recorded all the starting values of the different properties so that we can revert to them at the end or beginning of the tween - we don't want the cascading to get messed up
+			//@private analyzes two style objects (as returned by _getAllStyles()) and only looks for differences between them that contain tweenable values (like a number or color). It returns an object a "difs" property which refers to an object containing only those isolated properties and values for tweening, and a "firstMPT" property which refers to the first MiniPropTween instance in a linked list that recorded all the starting values of the different properties so that we can revert to them at the end or beginning of the tween - we don't want the cascading to get messed up
 			_cssDif = function(t, s1, s2, vars) {
 				var difs = {},
 					style = t.style,
@@ -2262,7 +2257,7 @@
 			 * @param {Object=} cs Computed style object (if one exists). Just a speed optimization.
 			 * @return {number} Dimension (in pixels)
 			 */
-				_getDimension = function(t, p, cs) {
+			_getDimension = function(t, p, cs) {
 				var v = parseFloat((p === "width") ? t.offsetWidth : t.offsetHeight),
 					a = _dimensions[p],
 					i = a.length;
@@ -2283,7 +2278,7 @@
 			 * @param {boolean=} recurse If true, the call is a recursive one. In some browsers (like IE7/8), occasionally the value isn't accurately reported initially, but if we run the function again it will take effect.
 			 * @return {number} value in pixels
 			 */
-				_convertToPixels = function(t, p, v, sfx, recurse) {
+			_convertToPixels = function(t, p, v, sfx, recurse) {
 				if (sfx === "px" || !sfx) { return v; }
 				if (sfx === "auto" || !v) { return 0; }
 				var horiz = _horizExp.test(p),
@@ -2314,7 +2309,7 @@
 				return neg ? -pix : pix;
 			},
 
-		//@private Parses position-related complex strings like "top left" or "50px 10px" or "70% 20%", etc. which are used for things like transformOrigin or backgroundPosition. Optionally decorates a supplied object (recObj) with the following properties: "ox" (offsetX), "oy" (offsetY), "oxp" (if true, "ox" is a percentage not a pixel value), and "oxy" (if true, "oy" is a percentage not a pixel value)
+			//@private Parses position-related complex strings like "top left" or "50px 10px" or "70% 20%", etc. which are used for things like transformOrigin or backgroundPosition. Optionally decorates a supplied object (recObj) with the following properties: "ox" (offsetX), "oy" (offsetY), "oxp" (if true, "ox" is a percentage not a pixel value), and "oxy" (if true, "oy" is a percentage not a pixel value)
 			_parsePosition = function(v, recObj) {
 				if (v == null || v === "" || v === "auto" || v === "auto auto") { //note: Firefox uses "auto auto" as default whereas Chrome uses "auto".
 					v = "0 0";
@@ -2347,7 +2342,7 @@
 			 * @param {(number|string)} b Beginning value which is typically a string but could be a number
 			 * @return {number} Amount of change between the beginning and ending values (relative values that have a "+=" or "-=" are recognized)
 			 */
-				_parseChange = function(e, b) {
+			_parseChange = function(e, b) {
 				return (typeof(e) === "string" && e.charAt(1) === "=") ? parseInt(e.charAt(0) + "1") * parseFloat(e.substr(2)) : parseFloat(e) - parseFloat(b);
 			},
 
@@ -2357,8 +2352,8 @@
 			 * @param {!number} d Default value (which is also used for relative calculations if "+=" or "-=" is found in the first parameter)
 			 * @return {number} Parsed value
 			 */
-				_parseVal = function(v, d) {
-				return (v == null) ? d : (typeof(v) === "string" && v.charAt(1) === "=") ? parseInt(v.charAt(0) + "1") * Number(v.substr(2)) + d : Number(v);
+			_parseVal = function(v, d) {
+				return (v == null) ? d : (typeof(v) === "string" && v.charAt(1) === "=") ? parseInt(v.charAt(0) + "1") * Number(v.substr(2)) + d : parseFloat(v);
 			},
 
 			/**
@@ -2367,7 +2362,7 @@
 			 * @param {!number} d Default value (which is also used for relative calculations if "+=" or "-=" is found in the first parameter)
 			 * @return {number} parsed angle in radians
 			 */
-				_parseAngle = function(v, d) {
+			_parseAngle = function(v, d) {
 				if (v == null) {
 					return d;
 				}
@@ -2383,7 +2378,7 @@
 			 * @param {number} b beginning value
 			 * @return {number} rotation value in radians
 			 */
-				_parseShortRotation = function(e, b) {
+			_parseShortRotation = function(e, b) {
 				var r = (typeof(e) === "number") ? e * _DEG2RAD : _parseAngle(e, b),
 					dif = (r - b) % (Math.PI * 2);
 				if (dif !== dif % Math.PI) {
@@ -2418,7 +2413,7 @@
 			 * @param {(string|number)} v The value the should be parsed which could be a string like #9F0 or rgb(255,102,51) or rgba(255,0,0,0.5) or it could be a number like 0xFF00CC or even a named color like red, blue, purple, etc.
 			 * @return {Array.<number>} An array containing red, green, and blue (and optionally alpha) in that order.
 			 */
-				_parseColor = function(v) {
+			_parseColor = function(v) {
 				if (!v || v === "") {
 					return _colorLookup.black;
 				} else if (_colorLookup[v]) {
@@ -2508,7 +2503,7 @@
 			 * @param {!string} props a comma-delimited list of property names in order from top to left, like "marginTop,marginRight,marginBottom,marginLeft"
 			 * @return {Function} a formatter function
 			 */
-				_getEdgeParser = function(props) {
+			_getEdgeParser = function(props) {
 				props = props.split(",");
 				return function(t, e, p, cssp, pt, plugin, vars) {
 					var a = (e + "").split(" "),
@@ -2521,7 +2516,7 @@
 				};
 			},
 
-		//@private used when other plugins must tween values first, like BezierPlugin or ThrowPropsPlugin, etc. That plugin's setRatio() gets called first so that the values are updated, and then we loop through the MiniPropTweens  which handle copying the values into their appropriate slots so that they can then be applied correctly in the main CSSPlugin setRatio() method. Remember, we typically create a proxy object that has a bunch of uniquely-named properties that we feed to the sub-plugin and it does its magic normally, and then we must interpret those values and apply them to the css because often numbers must get combined/concatenated, suffixes added, etc. to work with css, like boxShadow could have 4 values plus a color.
+			//@private used when other plugins must tween values first, like BezierPlugin or ThrowPropsPlugin, etc. That plugin's setRatio() gets called first so that the values are updated, and then we loop through the MiniPropTweens  which handle copying the values into their appropriate slots so that they can then be applied correctly in the main CSSPlugin setRatio() method. Remember, we typically create a proxy object that has a bunch of uniquely-named properties that we feed to the sub-plugin and it does its magic normally, and then we must interpret those values and apply them to the css because often numbers must get combined/concatenated, suffixes added, etc. to work with css, like boxShadow could have 4 values plus a color.
 			_setPluginRatio = _internals._setPluginRatio = function(v) {
 				this.plugin.setRatio(v);
 				var d = this.data,
@@ -2540,7 +2535,6 @@
 					mpt = mpt._next;
 				}
 				if (d.autoRotate) {
-					//_log("set rotation to "+(proxy.rotation*_RAD2DEG));
 					d.autoRotate.rotation = proxy.rotation;
 				}
 				//at the end, we must set the CSSPropTween's "e" (end) value dynamically here because that's what is used in the final setRatio() method.
@@ -2570,7 +2564,7 @@
 			 * @param {MiniPropTween=} next next MiniPropTween in the linked list
 			 * @param {boolean=} r if true, the tweened value should be rounded to the nearest integer
 			 */
-				MiniPropTween = function(t, p, v, next, r) {
+			MiniPropTween = function(t, p, v, next, r) {
 				this.t = t;
 				this.p = p;
 				this.v = v;
@@ -2596,7 +2590,7 @@
 			 * @param {boolean=} shallow if true, the resulting linked list from the parse will NOT be attached to the CSSPropTween that was passed in as the "pt" (4th) parameter.
 			 * @return An object containing the following properties: proxy, end, firstMPT, and pt (see above for descriptions)
 			 */
-				_parseToProxy = _internals._parseToProxy = function(t, vars, cssp, pt, plugin, shallow) {
+			_parseToProxy = _internals._parseToProxy = function(t, vars, cssp, pt, plugin, shallow) {
 				var bpt = pt,
 					start = {},
 					end = {},
@@ -2666,7 +2660,7 @@
 			 * @param {string=} b Beginning value. We store this to ensure that it is EXACTLY what it was when the tween began without any risk of interpretation issues.
 			 * @param {string=} e Ending value. We store this to ensure that it is EXACTLY what the user defined at the end of the tween without any risk of interpretation issues.
 			 */
-				CSSPropTween = _internals.CSSPropTween = function(t, p, s, c, next, type, n, r, pr, b, e) {
+			CSSPropTween = _internals.CSSPropTween = function(t, p, s, c, next, type, n, r, pr, b, e) {
 				this.t = t; //target
 				this.p = p; //property
 				this.s = s; //starting value
@@ -2707,7 +2701,7 @@
 			 * @param {function(number)=} setRatio If values should be set in a custom function instead of being pieced together in a type:1 (complex-value) CSSPropTween, define that custom function here.
 			 * @return {CSSPropTween} The first CSSPropTween in the linked list which includes the new one(s) added by the parseComplex() call.
 			 */
-				_parseComplex = CSSPlugin.parseComplex = function(t, p, b, e, clrs, dflt, pt, pr, plugin, setRatio) {
+			_parseComplex = CSSPlugin.parseComplex = function(t, p, b, e, clrs, dflt, pt, pr, plugin, setRatio) {
 				//DEBUG: _log("parseComplex: "+p+", b: "+b+", e: "+e);
 				pt = new CSSPropTween(t, p, 0, 0, pt, (setRatio ? 2 : 1), null, false, pr, b, e);
 				var ba = b.split(", ").join(",").split(" "), //beginning array
@@ -2731,7 +2725,7 @@
 					if (bn || bn === 0) {
 						pt.appendXtra("", bn, _parseChange(ev, bn), ev.replace(_relNumExp, ""), (autoRound && ev.indexOf("px") !== -1), true);
 
-						//if the value is a color
+					//if the value is a color
 					} else if (clrs && (bv.charAt(0) === "#" || bv.indexOf("rgb") === 0 || _colorLookup[bv])) {
 						bv = _parseColor(bv);
 						ev = _parseColor(ev);
@@ -2757,7 +2751,7 @@
 						if (!bnums) {
 							pt["xs" + pt.l] += pt.l ? " " + bv : bv;
 
-							//loop through all the numbers that are found and construct the extra values on the pt.
+						//loop through all the numbers that are found and construct the extra values on the pt.
 						} else {
 							enums = ev.match(_relNumExp); //get each group of numbers in the end value string and drop them into an array. We allow relative values too, like +=50 or -=.5
 							if (!enums || enums.length !== bnums.length) {
@@ -2865,7 +2859,7 @@
 				this.pr = pr || 0;
 			},
 
-		//shortcut for creating a new SpecialProp that can accept multiple properties as a comma-delimited list (helps minification). dflt can be an array for multiple values (we don't do a comma-delimited list because the default value may contain commas, like rect(0px,0px,0px,0px)). We attach this method to the SpecialProp class/object instead of using a private _createSpecialProp() method so that we can tap into it externally if necessary, like from another plugin.
+			//shortcut for creating a new SpecialProp that can accept multiple properties as a comma-delimited list (helps minification). dflt can be an array for multiple values (we don't do a comma-delimited list because the default value may contain commas, like rect(0px,0px,0px,0px)). We attach this method to the SpecialProp class/object instead of using a private _createSpecialProp() method so that we can tap into it externally if necessary, like from another plugin.
 			_registerComplexSpecialProp = _internals._registerComplexSpecialProp = function(p, dflt, parser, vpfx, clrs, formatter, pr) {
 				var a = p.split(","),
 					da = (dflt instanceof Array) ? dflt : [dflt],
@@ -2875,7 +2869,7 @@
 					temp = new SpecialProp(a[i], da[i], parser, (vpfx && i === 0), clrs, formatter, pr);
 				}
 			},
-		//creates a placeholder special prop for a plugin so that the property gets caught the first time a tween of it is attempted, and at that time it makes the plugin register itself, thus taking over for all future tweens of that property. This allows us to not mandate that things load in a particular order and it also allows us to log() an error that informs the user when they attempt to tween an external plugin-related property without loading its .js file.
+			//creates a placeholder special prop for a plugin so that the property gets caught the first time a tween of it is attempted, and at that time it makes the plugin register itself, thus taking over for all future tweens of that property. This allows us to not mandate that things load in a particular order and it also allows us to log() an error that informs the user when they attempt to tween an external plugin-related property without loading its .js file.
 			_registerPluginProp = function(p) {
 				if (!_specialProps[p]) {
 					var pluginName = p.charAt(0).toUpperCase() + p.substr(1) + "Plugin";
@@ -2981,7 +2975,7 @@
 			 * @param {boolean=} rec if true, the transform values will be recorded to the target element's _gsTransform object, like target._gsTransform = {x:0, y:0, z:0, scaleX:1...}
 			 * @return {object} object containing all of the transform properties/values like {x:0, y:0, z:0, scaleX:1...}
 			 */
-				_getTransform = function(t, cs, rec) {
+			_getTransform = function(t, cs, rec) {
 				var tm = rec ? t._gsTransform || {skewY:0} : {skewY:0},
 					invX = (tm.scaleX < 0), //in order to interpret things properly, we need to know if the user applied a negative scaleX previously so that we can adjust the rotation and skewX accordingly. Otherwise, if we always interpret a flipped matrix as affecting scaleY and the user only wants to tween the scaleX on multiple sequential tweens, it would keep the negative scaleY without that being the user's intent.
 					min = 0.000001,
@@ -3136,7 +3130,7 @@
 				}
 				return tm;
 			},
-		//for setting 2D transforms in IE6, IE7, and IE8 (must use a "filter" to emulate the behavior of modern day browser transforms)
+			//for setting 2D transforms in IE6, IE7, and IE8 (must use a "filter" to emulate the behavior of modern day browser transforms)
 			_setIETransformRatio = function(v) {
 				var t = this.data, //refers to the element's _gsTransform object
 					ang = -t.rotation,
@@ -3300,7 +3294,6 @@
 				a34 = (((a34 + t.z)* big) >> 0) * sml;
 
 				style[_transformProp] = "matrix3d(" + (((a11 * big) >> 0) * sml) + cma + (((a21 * big) >> 0) * sml) + cma + (((a31 * big) >> 0) * sml) + cma + (((a41 * big) >> 0) * sml) + cma	+ (((a12 * big) >> 0) * sml) + cma + (((a22 * big) >> 0) * sml) + cma + (((a32 * big) >> 0) * sml) + cma + (((a42 * big) >> 0) * sml) + cma + (((a13 * big) >> 0) * sml) + cma + (((a23 * big) >> 0) * sml) + cma + (((a33 * big) >> 0) * sml) + cma + (((a43 * big) >> 0) * sml) + cma + (((a14 * big) >> 0) * sml) + cma + (((a24 * big) >> 0) * sml) + cma + a34 + cma + (perspective ? (1 + (-a34 / perspective)) : 1) + ")";
-
 			},
 			_set2DTransformRatio = function(v) {
 				var t = this.data; //refers to the element's _gsTransform object
@@ -3358,6 +3351,7 @@
 						m2.rotationY = 0;
 					}
 				}
+				m2.skewX = (v.skewX == null) ? m1.skewX : (typeof(v.skewX) === "number") ? v.skewX * _DEG2RAD : _parseAngle(v.skewX, m1.skewX);
 
 				//note: for performance reasons, we combine all skewing into the skewX and rotation values, ignoring skewY but we must still record it so that we can discern how much of the overall skew is attributed to skewX vs. skewY. Otherwise, if the skewY would always act relative (tween skewY to 10deg, for example, multiple times and if we always combine things into skewX, we can't remember that skewY was 10 from last time). Remember, a skewY of 10 degrees looks the same as a rotation of 10 degrees plus a skewX of -10 degrees.
 				m2.skewY = (v.skewY == null) ? m1.skewY : (typeof(v.skewY) === "number") ? v.skewY * _DEG2RAD : _parseAngle(v.skewY, m1.skewY);
@@ -3382,7 +3376,7 @@
 				m2.scaleZ = 1; //no need to tween scaleZ.
 			}
 
-			pt = cssp._enableTransforms(has3D, pt, plugin);
+			cssp._transformType = has3D ? 3 : 2; //quicker than calling cssp._enableTransforms();
 
 			while (--i > -1) {
 				p = _transformProps[i];
@@ -3415,13 +3409,13 @@
 						pt.xs0 = pt.e = style[p] = orig;
 					}
 
-					//for older versions of IE (6-8), we need to manually calculate things inside the setRatio() function. We record origin x and y (ox and oy) and whether or not the values are percentages (oxp and oyp).
+				//for older versions of IE (6-8), we need to manually calculate things inside the setRatio() function. We record origin x and y (ox and oy) and whether or not the values are percentages (oxp and oyp).
 				} else {
 					_parsePosition(orig + "", m1);
 				}
 			}
 
-			if (pt.t === t) { //if no tweenable properties are found, remove the "transform" CSSPropTween from the linked list and return the original one that was passed in.
+			if (pt && pt.t === t) { //if no tweenable properties are found, remove the "transform" CSSPropTween from the linked list and return the original one that was passed in.
 				if (pt._next) {
 					pt._next._prev = null;
 				}
@@ -3430,6 +3424,7 @@
 			return pt;
 
 		}, true);
+
 
 
 
@@ -3524,33 +3519,33 @@
 		_registerComplexSpecialProp("textShadow", "0px 0px 0px #999", null, false, true);
 		_registerComplexSpecialProp("autoRound", null, function(t, e, p, cssp, pt) {return pt;}); //just so that we can ignore "autoRound"
 		_registerComplexSpecialProp("border", "0px solid #000", function(t, e, p, cssp, pt, plugin) {
-			return this.parseComplex(t.style, this.format(_getStyle(t, "borderTopWidth", _cs, false, "0px") + " " + _getStyle(t, "borderTopStyle", _cs, false, "solid") + " " + _getStyle(t, "borderTopColor", _cs, false, "#000")), this.format(e), pt, plugin);
-		}, false, true, function(v) {
-			var a = v.split(" ");
-			return a[0] + " " + (a[1] || "solid") + " " + (v.match(_colorExp) || ["#000"])[0];
-		});
+				return this.parseComplex(t.style, this.format(_getStyle(t, "borderTopWidth", _cs, false, "0px") + " " + _getStyle(t, "borderTopStyle", _cs, false, "solid") + " " + _getStyle(t, "borderTopColor", _cs, false, "#000")), this.format(e), pt, plugin);
+			}, false, true, function(v) {
+				var a = v.split(" ");
+				return a[0] + " " + (a[1] || "solid") + " " + (v.match(_colorExp) || ["#000"])[0];
+			});
 
 
 		//opacity-related
 		var _setIEOpacityRatio = function(v) {
-			var t = this.t,
-				val = this.s + this.c * v,
-				skip;
-			if (val === 100) { //for older versions of IE that need to use a filter to apply opacity, we should remove the filter if opacity hits 1 in order to improve performance.
-				t.removeAttribute("filter");
-				skip = (!_getStyle(this.data, "filter")); //if a class is applied that has an alpha filter, it will take effect (we don't want that), so re-apply our alpha filter in that case. We must first remove it and then check.
-			}
-			if (!skip) {
-				if (this.xn1) {
-					t.filter = t.filter || "alpha(opacity=100)"; //works around bug in IE7/8 that prevents changes to "visibility" from being applied properly if the filter is changed to a different alpha on the same frame.
+				var t = this.t,
+					val = this.s + this.c * v,
+					skip;
+				if (val === 100) { //for older versions of IE that need to use a filter to apply opacity, we should remove the filter if opacity hits 1 in order to improve performance.
+					t.removeAttribute("filter");
+					skip = (!_getStyle(this.data, "filter")); //if a class is applied that has an alpha filter, it will take effect (we don't want that), so re-apply our alpha filter in that case. We must first remove it and then check.
 				}
-				if (t.filter.indexOf("opacity") === -1) { //only used if browser doesn't support the standard opacity style property (IE 7 and 8)
-					t.filter += " alpha(opacity=" + (val >> 0) + ")"; //we round the value because otherwise, bugs in IE7/8 can prevent "visibility" changes from being applied properly.
-				} else {
-					t.filter = t.filter.replace(_opacityExp, "opacity=" + (val >> 0));
+				if (!skip) {
+					if (this.xn1) {
+						t.filter = t.filter || "alpha(opacity=100)"; //works around bug in IE7/8 that prevents changes to "visibility" from being applied properly if the filter is changed to a different alpha on the same frame.
+					}
+					if (t.filter.indexOf("opacity") === -1) { //only used if browser doesn't support the standard opacity style property (IE 7 and 8)
+						t.filter += " alpha(opacity=" + (val >> 0) + ")"; //we round the value because otherwise, bugs in IE7/8 can prevent "visibility" changes from being applied properly.
+					} else {
+						t.filter = t.filter.replace(_opacityExp, "opacity=" + (val >> 0));
+					}
 				}
-			}
-		};
+			};
 		_registerComplexSpecialProp("opacity,alpha,autoAlpha", "1", function(t, e, p, cssp, pt, plugin) {
 			var b = parseFloat(_getStyle(t, "opacity", _cs, false, "1")),
 				e = parseFloat(e),
@@ -3650,7 +3645,7 @@
 			_cs = _getComputedStyle(target, "");
 			_overwriteProps = this._overwriteProps;
 			var style = target.style,
-				v, pt, pt2, first, last, next;
+				v, pt, pt2, first, last, next, zIndex, tpt, threeD;
 
 			if (_reqSafariFix) if (style.zIndex === "") {
 				v = _getStyle(target, "zIndex", _cs);
@@ -3672,6 +3667,39 @@
 				style.cssText = first;
 			}
 			this._firstPT = pt = this.parse(target, vars, null);
+
+			if (this._transformType) {
+				threeD = (this._transformType === 3);
+				if (!_transformProp) {
+					style.zoom = 1; //helps correct an IE issue.
+				} else if (_isSafari) {
+					_reqSafariFix = true;
+					//if zIndex isn't set, iOS Safari doesn't repaint things correctly sometimes (seemingly at random).
+					if (style.zIndex === "") {
+						zIndex = _getStyle(target, "zIndex", _cs);
+						if (zIndex === "auto" || zIndex === "") {
+							style.zIndex = 0;
+						}
+					}
+					//Setting WebkitBackfaceVisibility corrects 3 bugs:
+					// 1) [non-Android] Safari skips rendering changes to "top" and "left" that are made on the same frame/render as a transform update.
+					// 2) iOS Safari sometimes neglects to repaint elements in their new positions. Setting "WebkitPerspective" to a non-zero value worked too except that on iOS Safari things would flicker randomly.
+					// 3) Safari sometimes displayed odd artifacts when tweening the transform (or WebkitTransform) property, like ghosts of the edges of the element remained. Definitely a browser bug.
+					//Note: we allow the user to override the auto-setting by defining WebkitBackfaceVisibility in the vars of the tween.
+					if (_isSafariLT6) {
+						style.WebkitBackfaceVisibility = this._vars.WebkitBackfaceVisibility || (threeD ? "visible" : "hidden");
+					}
+				}
+				pt2 = pt;
+				while (pt2 && pt2._next) {
+					pt2 = pt2._next;
+				}
+				tpt = new CSSPropTween(target, "transform", 0, 0, null, 2);
+				this._linkCSSP(tpt, null, pt2);
+				tpt.setRatio = (threeD && _supports3D) ? _set3DTransformRatio : _transformProp ? _set2DTransformRatio : _setIETransformRatio;
+				tpt.data = this._transform || _getTransform(target, _cs, true);
+				_overwriteProps.pop(); //we don't want to force the overwrite of all "transform" tweens of the target - we only care about individual transform properties like scaleX, rotation, etc. The CSSPropTween constructor automatically adds the property to _overwriteProps which is why we need to pop() here.
+			}
 
 			if (_hasPriority) {
 				//reorders the linked list in order of pr (priority)
@@ -3765,7 +3793,7 @@
 							} else if (esfx === "em") {
 								bn /= _convertToPixels(target, p, 1, "em");
 
-								//otherwise convert to pixels.
+							//otherwise convert to pixels.
 							} else {
 								en = _convertToPixels(target, p, en, esfx);
 								esfx = "px"; //we don't use bsfx after this, so we don't need to set it to px too.
@@ -3868,58 +3896,20 @@
 		/**
 		 * @private
 		 * Forces rendering of the target's transforms (rotation, scale, etc.) whenever the CSSPlugin's setRatio() is called.
-		 * Basically, this creates a CSSPropTween (type 2) that calls the appropriate (3D or 2D) function. We separate this into
-		 * its own method so that we can call it from other plugins like BezierPlugin if, for example, it needs to apply an autoRotation
-		 * and this CSSPlugin doesn't have any transform-related properties of its own. You can call this method as many times as you
+		 * Basically, this tells the CSSPlugin to create a CSSPropTween (type 2) after instantiation that runs last in the linked
+		 * list and calls the appropriate (3D or 2D) rendering function. We separate this into its own method so that we can call
+		 * it from other plugins like BezierPlugin if, for example, it needs to apply an autoRotation and this CSSPlugin
+		 * doesn't have any transform-related properties of its own. You can call this method as many times as you
 		 * want and it won't create duplicate CSSPropTweens.
 		 *
 		 * @param {boolean} threeD if true, it should apply 3D tweens (otherwise, just 2D ones are fine and typically faster)
-		 * @param {CSSPropTween=} pt the next CSSPropTween in the linked list
-		 * @param {TweenPlugin=} plugin if another TweenPlugin is handling this transform, pass a reference of the instance here.
-		 * @return {CSSPropTween}
 		 */
-		p._enableTransforms = function(threeD, pt, plugin) {
-			var tpt = this._transformPT,
-				t = this._target,
-				style = t.style,
-				zIndex;
-
-			if (!tpt) {
-				if (!_transformProp) {
-					style.zoom = 1; //helps correct an IE issue.
-				} else if (_isSafari) {
-					_reqSafariFix = true;
-					//if zIndex isn't set, iOS Safari doesn't repaint things correctly sometimes (seemingly at random).
-					if (style.zIndex === "") {
-						zIndex = _getStyle(t, "zIndex", _cs);
-						if (zIndex === "auto" || zIndex === "") {
-							style.zIndex = 0;
-						}
-					}
-
-					//Setting WebkitBackfaceVisibility corrects 3 bugs:
-					// 1) [non-Android] Safari skips rendering changes to "top" and "left" that are made on the same frame/render as a transform update.
-					// 2) iOS Safari sometimes neglects to repaint elements in their new positions. Setting "WebkitPerspective" to a non-zero value worked too except that on iOS Safari things would flicker randomly.
-					// 3) Safari sometimes displayed odd artifacts when tweening the transform (or WebkitTransform) property, like ghosts of the edges of the element remained. Definitely a browser bug.
-					//Note: we allow the user to override the auto-setting by defining WebkitBackfaceVisibility in the vars of the tween.
-					if (_isSafariLT6) {
-						style.WebkitBackfaceVisibility = this._vars.WebkitBackfaceVisibility || (threeD ? "visible" : "hidden");
-					}
-				}
-
-				this._transformPT = pt = new CSSPropTween(t, "transform", 0, 0, pt, 2);
-				pt.setRatio = (threeD && _supports3D) ? _set3DTransformRatio : _transformProp ? _set2DTransformRatio : _setIETransformRatio;
-				pt.plugin = plugin;
-				pt.data = this._transform || _getTransform(t, _cs, true);
-				_overwriteProps.pop(); //we don't want to force the overwrite of all "transform" tweens of the target - we only care about individual transform properties like scaleX, rotation, etc. The CSSPropTween constructor automatically adds the property to _overwriteProps which is why we need to pop() here.
-			} else if (threeD && _supports3D) {
-				tpt.setRatio = _set3DTransformRatio;
-			}
-			return pt;
+		p._enableTransforms = function(threeD) {
+			this._transformType = (threeD || this._transformType === 3) ? 3 : 2;
 		};
 
 		/** @private **/
-		p._linkCSSP = function(pt, next, prev) {
+		p._linkCSSP = function(pt, next, prev, remove) {
 			if (pt) {
 				if (next) {
 					next._prev = pt;
@@ -3929,6 +3919,8 @@
 				}
 				if (prev) {
 					prev._next = pt;
+				} else if (!remove && this._firstPT === null) {
+					this._firstPT = pt;
 				}
 				if (pt._prev) {
 					pt._prev._next = pt._next;
