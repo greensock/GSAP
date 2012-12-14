@@ -1,6 +1,6 @@
 /*!
- * VERSION: beta 1.653
- * DATE: 2012-12-13
+ * VERSION: beta 1.66
+ * DATE: 2012-12-14
  * JavaScript 
  * UPDATES AND DOCS AT: http://www.greensock.com
  *
@@ -29,7 +29,7 @@
 			p = CSSPlugin.prototype = new TweenPlugin("css");
 
 		p.constructor = CSSPlugin;
-		CSSPlugin.version = 1.653;
+		CSSPlugin.version = 1.66;
 		CSSPlugin.API = 2;
 		CSSPlugin.defaultTransformPerspective = 0;
 		p = "px"; //we'll reuse the "p" variable to keep file size down
@@ -63,16 +63,16 @@
 			_reqSafariFix, //we won't apply the Safari transform fix until we actually come across a tween that affects a transform property (to maintain best performance).
 
 			_isSafari,
-			_isMozilla, //Mozilla (Firefox) has a bug that causes 3D transformed elements to randomly disappear unless a repaint is forced after each update on each element.
+			_isFirefox, //Firefox has a bug that causes 3D transformed elements to randomly disappear unless a repaint is forced after each update on each element.
 			_isSafariLT6, //Safari (and Android 4 which uses a flavor of Safari) has a bug that prevents changes to "top" and "left" properties from rendering properly if changed on the same frame as a transform UNLESS we set the element's WebkitBackfaceVisibility to hidden (weird, I know). Doing this for Android 3 and earlier seems to actually cause other problems, though (fun!)
 			_ieVers,
-			_supportsOpacity = (function() { //we set _isSafari, _ieVers, _isMozilla, and _supportsOpacity all in one function here to reduce file size slightly, especially in the minified version.
+			_supportsOpacity = (function() { //we set _isSafari, _ieVers, _isFirefox, and _supportsOpacity all in one function here to reduce file size slightly, especially in the minified version.
 				var i = _agent.indexOf("Android"),
 					d = _doc.createElement("div"), a;
 
 				_isSafari = (_agent.indexOf("Safari") !== -1 && _agent.indexOf("Chrome") === -1 && (i === -1 || Number(_agent.substr(i+8, 1)) > 3));
 				_isSafariLT6 = (_isSafari && (Number(_agent.substr(_agent.indexOf("Version/")+8, 1)) < 6));
-				_isMozilla = (_agent.indexOf("Mozilla") !== -1);
+				_isFirefox = (_agent.indexOf("Firefox") !== -1);
 
 				(/MSIE ([0-9]{1,}[\.0-9]{0,})/).exec(_agent);
 				_ieVers = parseFloat( RegExp.$1 );
@@ -501,6 +501,7 @@
 					mpt = mpt._next;
 				}
 				if (d.autoRotate) {
+					//_log("set rotation to "+(proxy.rotation*_RAD2DEG));
 					d.autoRotate.rotation = proxy.rotation;
 				}
 				//at the end, we must set the CSSPropTween's "e" (end) value dynamically here because that's what is used in the final setRatio() method.
@@ -1184,46 +1185,26 @@
 				}
 			},
 			_set3DTransformRatio = function(v) {
-				/* alternate version that is more concise but not as fast in most scenarios. We chose the more verbose matrix3d() technique for maximum performance.
-				var t = this.data,
-					s = "";
-				if (t.perspective) {
-					s = "perspective(" + t.perspective + ") ";
-				}
-				if (t.x || t.y || t.z) {
-					s += "translate3d(" + parseInt(t.x) + "px," + parseInt(t.y) + "px," + parseInt(t.z) + "px) ";
-				}
-				if (t.zOrigin) {
-					s += "translateZ(" + t.zOrigin + "px) ";
-				}
-				if (t.scaleX !== 1 || t.scaleY !== 1 || t.scaleZ !== 1) {
-					s += "scale3d(" + t.scaleX + "," + t.scaleY + "," + t.scaleZ + ") ";
-				}
-				if (t.rotation) {
-					s += "rotateZ(" + t.rotation + "rad) ";
-				}
-				if (t.rotationY) {
-					s += "rotateY(" + t.rotationY + "rad) ";
-				}
-				if (t.rotationX) {
-					s += "rotateX(" + t.rotationX + "rad) ";
-				}
-				if (t.zOrigin) {
-					s += "translateZ(" + -t.zOrigin + "px) ";
-				}
-				this.t.style[_transformProp] = s;
-				*/
 				var t = this.data, //refers to the element's _gsTransform object
+					style = this.t.style,
 					perspective = t.perspective,
 					a11 = t.scaleX, a12 = 0, a13 = 0, a14 = 0,
 					a21 = 0, a22 = t.scaleY, a23 = 0, a24 = 0,
 					a31 = 0, a32 = 0, a33 = t.scaleZ, a34 = 0,
 					a41 = 0, a42 = 0, a43 = (perspective) ? -1 / perspective : 0,
-					min = 0.000001, angle = t.rotation,
+					angle = t.rotation,
 					zOrigin = t.zOrigin,
-					style = this.t.style,
-					delimiter = ",",
-					cos, sin, t1, t2, t3, t4;
+					cma = ",",
+					big = 100000,
+					sml = 0.00001,
+					cos, sin, t1, t2, t3, t4, top, n, sfx;
+				if (_isFirefox) { //Firefox has a bug that causes 3D elements to randomly disappear during animation unless a repaint is forced. One way to do this is change "top" by 0.05 which is imperceptible, so we go back and forth. Another way is to change the display to "none", read the clientTop, and then revert the display but that is much slower.
+					top = style.top + "";
+					n = parseFloat(top) || 0;
+					sfx = top.substr((n + "").length);
+					t._ffFix = !t._ffFix;
+					style.top = (t._ffFix ? n + 0.05 : n - 0.05) + ((sfx === "") ? "px" : sfx);
+				}
 
 				if (angle) {
 					cos = Math.cos(angle);
@@ -1277,21 +1258,54 @@
 				}
 				a14 += t.x;
 				a24 += t.y;
-				a34 += t.z;
+				a34 = (((a34 + t.z)* big) >> 0) * sml;
 
-				if (a34 < min) if (a34 > -min) {
-					a34 = 0;
+				style[_transformProp] = "matrix3d(" + (((a11 * big) >> 0) * sml) + cma + (((a21 * big) >> 0) * sml) + cma + (((a31 * big) >> 0) * sml) + cma + (((a41 * big) >> 0) * sml) + cma	+ (((a12 * big) >> 0) * sml) + cma + (((a22 * big) >> 0) * sml) + cma + (((a32 * big) >> 0) * sml) + cma + (((a42 * big) >> 0) * sml) + cma + (((a13 * big) >> 0) * sml) + cma + (((a23 * big) >> 0) * sml) + cma + (((a33 * big) >> 0) * sml) + cma + (((a43 * big) >> 0) * sml) + cma + (((a14 * big) >> 0) * sml) + cma + (((a24 * big) >> 0) * sml) + cma + a34 + cma + (perspective ? (1 + (-a34 / perspective)) : 1) + ")";
+
+				/* alternate version that is more concise but not as fast in most scenarios. We chose the more verbose matrix3d() technique for maximum performance.
+				var t = this.data, //refers to the element's _gsTransform object
+					style = this.t.style,
+					s = "",
+					big = 10000,
+					sml = 0.0001,
+					zOrigin = (((t.zOrigin * big) >> 0) * sml),
+					top, n, sfx;
+				if (_isFirefox) { //Firefox has a bug that causes 3D elements to randomly disappear during animation unless a repaint is forced. One way to do this is change "top" by 0.05 which is imperceptible, so we go back and forth. Another way is to change the display to "none", read the clientTop, and then revert the display but that is much slower.
+					top = style.top + "";
+					n = parseFloat(top) || 0;
+					sfx = top.substr((n + "").length);
+					t._ffFix = !t._ffFix;
+					style.top = (t._ffFix ? n + 0.05 : n - 0.05) + ((sfx === "") ? "px" : sfx);
 				}
-
-				style[_transformProp] = "matrix3d(" + ((a11 < min && a11 > -min) ? 0 : a11) + delimiter + ((a21 < min && a21 > -min) ? 0 : a21) + delimiter + ((a31 < min && a31 > -min) ? 0 : a31) + delimiter + ((a41 < min && a41 > -min) ? 0 : a41) + delimiter	+ ((a12 < min && a12 > -min) ? 0 : a12) + delimiter	+ ((a22 < min && a22 > -min) ? 0 : a22) + delimiter	+ ((a32 < min && a32 > -min) ? 0 : a32) + delimiter	+ ((a42 < min && a42 > -min) ? 0 : a42) + delimiter	+ ((a13 < min && a13 > -min) ? 0 : a13) + delimiter	+ ((a23 < min && a23 > -min) ? 0 : a23) + delimiter	+ ((a33 < min && a33 > -min) ? 0 : a33) + delimiter	+ ((a43 < min && a43 > -min) ? 0 : a43) + delimiter	+ ((a14 < min && a14 > -min) ? 0 : a14) + delimiter + ((a24 < min && a24 > -min) ? 0 : a24) + delimiter + a34 + delimiter + (perspective ? (1 + (-a34 / perspective)) : 1) + ")";
-
-				if (_isMozilla) { //Firefox (Mozilla) has a bug that causes 3D elements to randomly disappear during animation unless a repaint is forced. One way is to change the display to "none", read the offsetWidth, and then revert the display. Another option is to change a property like "top" by at least about 0.05 pixels, but we can't just immediately revert that, so we'd have to vibrate back and forth (+/-0.05) which would be visibly imperceptible but could cause small issues with accurately reading the value elsewhere, so we opt for the cleanest approach here...
-					t1 = style.display;
-					style.display = "none";
-					t2 = this.t.offsetWidth;
-					style.display = t1;
-					return t2; //we only return a value to prevent the t2 assignment from being stripped out during minification, but there's no real purpose for this function returning the value.
+				if (t.perspective) {
+					s = "perspective(" + t.perspective + ") ";
 				}
+				if (t.x || t.y || t.z) {
+					s += "translate3d(" + (((t.x * big) >> 0) * sml)  + "px," + (((t.y * big) >> 0) * sml)  + "px," + (((t.z * big) >> 0) * sml)  + "px) ";
+				}
+				if (zOrigin) {
+					s += "translateZ(" + zOrigin + "px) ";
+				}
+				if (t.scaleX !== 1 || t.scaleY !== 1 || t.scaleZ !== 1) {
+					s += "scale3d(" + (((t.scaleX * big) >> 0) * sml)  + "," + (((t.scaleY * big) >> 0) * sml)  + "," + (((t.scaleZ * big) >> 0) * sml)  + ") ";
+				}
+				if (t.rotation) {
+					s += "rotateZ(" + (((t.rotation * big) >> 0) * sml)  + "rad) ";
+				}
+				if (t.rotationY) {
+					s += "rotateY(" + (((t.rotationY * big) >> 0) * sml) + "rad) ";
+				}
+				if (t.rotationX) {
+					s += "rotateX(" + (((t.rotationX * big) >> 0) * sml) + "rad) ";
+				}
+				if (zOrigin) {
+					s += "translateZ(" + -zOrigin + "px)";
+				}
+				style[_transformProp] = s;
+				*/
+
+				//alternate way of applying the values (slightly slower but slightly more accurate, although I doubt anyone could ever tell a difference) (add a var min = 0.000001)
+				//style[_transformProp] = "matrix3d(" + ((a11 < min && a11 > -min) ? 0 : a11) + cma + ((a21 < min && a21 > -min) ? 0 : a21) + cma + ((a31 < min && a31 > -min) ? 0 : a31) + cma + ((a41 < min && a41 > -min) ? 0 : a41) + cma	+ ((a12 < min && a12 > -min) ? 0 : a12) + cma	+ ((a22 < min && a22 > -min) ? 0 : a22) + cma	+ ((a32 < min && a32 > -min) ? 0 : a32) + cma	+ ((a42 < min && a42 > -min) ? 0 : a42) + cma	+ ((a13 < min && a13 > -min) ? 0 : a13) + cma	+ ((a23 < min && a23 > -min) ? 0 : a23) + cma	+ ((a33 < min && a33 > -min) ? 0 : a33) + cma	+ ((a43 < min && a43 > -min) ? 0 : a43) + cma	+ ((a14 < min && a14 > -min) ? 0 : a14) + cma + ((a24 < min && a24 > -min) ? 0 : a24) + cma + a34 + cma + (perspective ? (1 + (-a34 / perspective)) : 1) + ")";
 			},
 			_set2DTransformRatio = function(v) {
 				var t = this.data; //refers to the element's _gsTransform object
@@ -1340,16 +1354,8 @@
 					m2.rotation = (typeof(rotation) === "number") ? rotation * _DEG2RAD : _parseAngle(rotation, m1.rotation);
 				}
 				if (_supports3D) {
-					if (v.shortRotationX != null) {
-						m2.rotationX = _parseShortRotation(v.shortRotationX, m1.rotationX);
-					} else {
-						m2.rotationX = (typeof(v.rotationX) === "number") ? v.rotationX * _DEG2RAD : _parseAngle(v.rotationX, m1.rotationX);
-					}
-					if (v.shortRotationY != null) {
-						m2.rotationY = _parseShortRotation(v.shortRotationY, m1.rotationY);
-					} else {
-						m2.rotationY = (typeof(v.rotationY) === "number") ? v.rotationY * _DEG2RAD : _parseAngle(v.rotationY, m1.rotationY);
-					}
+					m2.rotationX = (v.shortRotationX != null) ? _parseShortRotation(v.shortRotationX, m1.rotationX) : (typeof(v.rotationX) === "number") ? v.rotationX * _DEG2RAD : _parseAngle(v.rotationX, m1.rotationX);
+					m2.rotationY = (v.shortRotationY != null) ? _parseShortRotation(v.shortRotationY, m1.rotationY) : (typeof(v.rotationY) === "number") ? v.rotationY * _DEG2RAD : _parseAngle(v.rotationY, m1.rotationY);
 					if (m2.rotationX < min) if (m2.rotationX > -min) {
 						m2.rotationX = 0;
 					}
@@ -1357,7 +1363,6 @@
 						m2.rotationY = 0;
 					}
 				}
-				m2.skewX = (v.skewX == null) ? m1.skewX : (typeof(v.skewX) === "number") ? v.skewX * _DEG2RAD : _parseAngle(v.skewX, m1.skewX);
 
 				//note: for performance reasons, we combine all skewing into the skewX and rotation values, ignoring skewY but we must still record it so that we can discern how much of the overall skew is attributed to skewX vs. skewY. Otherwise, if the skewY would always act relative (tween skewY to 10deg, for example, multiple times and if we always combine things into skewX, we can't remember that skewY was 10 from last time). Remember, a skewY of 10 degrees looks the same as a rotation of 10 degrees plus a skewX of -10 degrees.
 				m2.skewY = (v.skewY == null) ? m1.skewY : (typeof(v.skewY) === "number") ? v.skewY * _DEG2RAD : _parseAngle(v.skewY, m1.skewY);
@@ -1382,33 +1387,7 @@
 				m2.scaleZ = 1; //no need to tween scaleZ.
 			}
 
-			if (!_transformProp) {
-				style.zoom = 1; //helps correct an IE issue.
-			} else if (_isSafari) {
-				_reqSafariFix = true;
-				//if zIndex isn't set, iOS Safari doesn't repaint things correctly sometimes (seemingly at random).
-				if (style.zIndex === "") {
-					copy = _getStyle(t, "zIndex", _cs);
-					if (copy === "auto" || copy === "") {
-						style.zIndex = 0;
-					}
-				}
-
-				//Setting WebkitBackfaceVisibility corrects 3 bugs:
-				// 1) [non-Android] Safari skips rendering changes to "top" and "left" that are made on the same frame/render as a transform update.
-				// 2) iOS Safari sometimes neglects to repaint elements in their new positions. Setting "WebkitPerspective" to a non-zero value worked too except that on iOS Safari things would flicker randomly.
-				// 3) Safari sometimes displayed odd artifacts when tweening the transform (or WebkitTransform) property, like ghosts of the edges of the element remained. Definitely a browser bug.
-				//Note: we allow the user to override the auto-setting by defining WebkitBackfaceVisibility in the vars of the tween.
-				if (_isSafariLT6) {
-					style.WebkitBackfaceVisibility = vars.WebkitBackfaceVisibility || (has3D ? "visible" : "hidden");
-				}
-			}
-
-			pt = new CSSPropTween(t, "transform", 0, 0, pt, 2);
-			pt.setRatio = (has3D && _supports3D) ? _set3DTransformRatio : _transformProp ? _set2DTransformRatio : _setIETransformRatio;
-			pt.plugin = plugin;
-			pt.data = m1;
-			_overwriteProps.pop(); //we don't want to force the overwrite of all "transform" tweens of the target - we only care about individual transform properties like scaleX, rotation, etc. The CSSPropTween constructor automatically adds the property to _overwriteProps which is why we need to pop() here.
+			pt = cssp._enableTransforms(has3D, pt, plugin);
 
 			while (--i > -1) {
 				p = _transformProps[i];
@@ -1421,7 +1400,7 @@
 				}
 			}
 
-			orig = v.transformOrigin
+			orig = v.transformOrigin;
 			if (orig || (_supports3D && has3D && m1.zOrigin)) { //if anything 3D is happening and there's a transformOrigin with a z component that's non-zero, we must ensure that the transformOrigin's z-component is set to 0 so that we can manually do those calculations to get around Safari bugs. Even if the user didn't specifically define a "transformOrigin" in this particular tween (maybe they did it via css directly).
 				if (_transformProp) {
 					orig = (orig || _getStyle(t, p, _cs, false, "50% 50%")) + ""; //cast as string to avoid errors
@@ -1706,6 +1685,7 @@
 			}
 			this._target = target;
 			this._tween = tween;
+			this._vars = vars;
 			_autoRound = vars.autoRound;
 			_hasPriority = false;
 			_suffixMap = vars.suffixMap || CSSPlugin.suffixMap;
@@ -1927,6 +1907,60 @@
 			}
 		};
 
+		/**
+		 * @private
+		 * Forces rendering of the target's transforms (rotation, scale, etc.) whenever the CSSPlugin's setRatio() is called.
+		 * Basically, this creates a CSSPropTween (type 2) that calls the appropriate (3D or 2D) function. We separate this into
+		 * its own method so that we can call it from other plugins like BezierPlugin if, for example, it needs to apply an autoRotation
+		 * and this CSSPlugin doesn't have any transform-related properties of its own. You can call this method as many times as you
+		 * want and it won't create duplicate CSSPropTweens.
+		 *
+		 * @param {boolean} threeD if true, it should apply 3D tweens (otherwise, just 2D ones are fine and typically faster)
+		 * @param {CSSPropTween=} pt the next CSSPropTween in the linked list
+		 * @param {TweenPlugin=} plugin if another TweenPlugin is handling this transform, pass a reference of the instance here.
+		 * @return {CSSPropTween}
+		 */
+		p._enableTransforms = function(threeD, pt, plugin) {
+			var tpt = this._transformPT,
+				t = this._target,
+				style = t.style,
+				zIndex;
+
+			if (!tpt) {
+				if (!_transformProp) {
+					style.zoom = 1; //helps correct an IE issue.
+				} else if (_isSafari) {
+					_reqSafariFix = true;
+					//if zIndex isn't set, iOS Safari doesn't repaint things correctly sometimes (seemingly at random).
+					if (style.zIndex === "") {
+						zIndex = _getStyle(t, "zIndex", _cs);
+						if (zIndex === "auto" || zIndex === "") {
+							style.zIndex = 0;
+						}
+					}
+
+					//Setting WebkitBackfaceVisibility corrects 3 bugs:
+					// 1) [non-Android] Safari skips rendering changes to "top" and "left" that are made on the same frame/render as a transform update.
+					// 2) iOS Safari sometimes neglects to repaint elements in their new positions. Setting "WebkitPerspective" to a non-zero value worked too except that on iOS Safari things would flicker randomly.
+					// 3) Safari sometimes displayed odd artifacts when tweening the transform (or WebkitTransform) property, like ghosts of the edges of the element remained. Definitely a browser bug.
+					//Note: we allow the user to override the auto-setting by defining WebkitBackfaceVisibility in the vars of the tween.
+					if (_isSafariLT6) {
+						style.WebkitBackfaceVisibility = this._vars.WebkitBackfaceVisibility || (threeD ? "visible" : "hidden");
+					}
+				}
+
+				this._transformPT = pt = new CSSPropTween(t, "transform", 0, 0, pt, 2);
+				pt.setRatio = (threeD && _supports3D) ? _set3DTransformRatio : _transformProp ? _set2DTransformRatio : _setIETransformRatio;
+				pt.plugin = plugin;
+				pt.data = this._transform || _getTransform(t, _cs, true);
+				_overwriteProps.pop(); //we don't want to force the overwrite of all "transform" tweens of the target - we only care about individual transform properties like scaleX, rotation, etc. The CSSPropTween constructor automatically adds the property to _overwriteProps which is why we need to pop() here.
+			} else if (threeD && _supports3D) {
+				tpt.setRatio = _set3DTransformRatio;
+			}
+			return pt;
+		};
+
+		/** @private **/
 		p._linkCSSP = function(pt, next, prev) {
 			if (pt) {
 				if (next) {

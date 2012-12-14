@@ -1,6 +1,6 @@
 /**
- * VERSION: beta 1.13
- * DATE: 2012-11-14
+ * VERSION: beta 1.14
+ * DATE: 2012-12-14
  * JavaScript (also available in AS3 and AS2)
  * UPDATES AND DOCS AT: http://www.greensock.com
  *
@@ -22,6 +22,7 @@
 			},
 			p = BezierPlugin.prototype = new TweenPlugin("bezier", 1),
 			_RAD2DEG = 180 / Math.PI,
+			_DEG2RAD = Math.PI / 180,
 			_r1 = [],
 			_r2 = [],
 			_r3 = [],
@@ -125,7 +126,7 @@
 			},
 			_parseAnchors = function(values, p, correlate, prepend) {
 				var a = [],
-					l, i, obj, p1, p2, p3, r1, tmp;
+					l, i, p1, p2, p3, tmp;
 				if (prepend) {
 					values = [prepend].concat(values);
 					i = values.length;
@@ -296,7 +297,6 @@
 			var _internals = CSSPlugin._internals,
 				_parseToProxy = _internals._parseToProxy,
 				_setPluginRatio = _internals._setPluginRatio,
-				_specialProps = _internals._specialProps,
 				CSSPropTween = _internals.CSSPropTween;
 			_internals._registerComplexSpecialProp("bezier", null, function(t, e, prop, cssp, pt, plugin) {
 				if (e instanceof Array) {
@@ -307,7 +307,7 @@
 					l = values.length - 1,
 					pluginValues = [],
 					v = {},
-					i, p, data;
+					i, p, data, transPT;
 				if (l < 0) {
 					return pt;
 				}
@@ -332,9 +332,13 @@
 				}
 				if (v.autoRotate) {
 					if (!cssp._transform) {
-						pt = _specialProps.rotation.parse(t, 0, p, cssp, pt, plugin, {}); //just to create a CSSPropTween that will force the transforms to render since there isn't one that exists.
+						transPT = cssp._enableTransforms(false, pt, plugin);
+						transPT._next = pt._next; //flip-flop the order because we need the autoRotation to get set first before the rotation transform is applied to the css.
+						transPT._prev = pt;
+						pt._next = transPT;
+						pt._prev = null;
 					}
-					data.autoRotate = cssp._transform;
+					data.autoRotate = cssp._target._gsTransform;
 				}
 				plugin._onInitTween(data.proxy, v, cssp._tween);
 				return pt;
