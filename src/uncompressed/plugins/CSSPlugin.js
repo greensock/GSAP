@@ -1,6 +1,6 @@
 /*!
- * VERSION: beta 1.661
- * DATE: 2012-12-14
+ * VERSION: beta 1.662
+ * DATE: 2012-12-15
  * JavaScript 
  * UPDATES AND DOCS AT: http://www.greensock.com
  *
@@ -945,8 +945,9 @@
 				var tm = rec ? t._gsTransform || {skewY:0} : {skewY:0},
 					invX = (tm.scaleX < 0), //in order to interpret things properly, we need to know if the user applied a negative scaleX previously so that we can adjust the rotation and skewX accordingly. Otherwise, if we always interpret a flipped matrix as affecting scaleY and the user only wants to tween the scaleX on multiple sequential tweens, it would keep the negative scaleY without that being the user's intent.
 					min = 0.000001,
+					rnd = 100000,
 					zOrigin = _supports3D ? parseFloat(_getStyle(t, _transformOriginProp, cs, false, "0 0 0").split(" ")[2]) || tm.zOrigin  || 0 : 0,
-					s, m, i, scaleX, scaleY, rotation, skewX, difX, difY, difR, difS;
+					s, m, i, n, scaleX, scaleY, rotation, skewX, difX, difY, difR, difS;
 				if (_transformProp) {
 					s = _getStyle(t, _transformPropCSS, cs, true);
 				} else if (t.currentStyle) {
@@ -958,7 +959,8 @@
 				m = (s || "").match(/(?:\-|\b)[\d\-\.e]+\b/gi) || [];
 				i = m.length;
 				while (--i > -1) {
-					m[i] = Number(m[i]); //convert strings to Numbers
+					n = Number(m[i]);
+					m[i] = ((n * rnd + ((n < 0) ? -0.5 : 0.5)) >> 0) / rnd; //convert strings to Numbers and round to 5 decimal places to avoid issues with tiny numbers
 				}
 				if (m.length === 16) {
 
@@ -979,8 +981,11 @@
 						var a11 = m[0], a21 = m[1], a31 = m[2], a41 = m[3],
 							a12 = m[4], a22 = m[5], a32 = m[6], a42 = m[7],
 							a43 = m[11],
+							minPI = -Math.PI + 0.0001,
+							maxPI = Math.PI - 0.0001,
 							angle = tm.rotationX = Math.atan2(a32, a33),
-							t1, t2, t3, t4, cos, sin;
+							xFlip = (angle < minPI || angle > maxPI),
+							t1, t2, t3, t4, cos, sin, yFlip, zFlip;
 						//rotationX
 						if (angle) {
 							cos = Math.cos(-angle);
@@ -996,29 +1001,31 @@
 							a12 = t1;
 							a22 = t2;
 							a32 = t3;
-							a42 = t4;
+							//a42 = t4;
 						}
 						//rotationY
 						angle = tm.rotationY = Math.atan2(a13, a11);
 						if (angle) {
+							yFlip = (angle < minPI || angle > maxPI);
 							cos = Math.cos(-angle);
 							sin = Math.sin(-angle);
 							t1 = a11*cos-a13*sin;
 							t2 = a21*cos-a23*sin;
 							t3 = a31*cos-a33*sin;
 							t4 = a41*cos-a43*sin;
-							a13 = a11*sin+a13*cos;
+							//a13 = a11*sin+a13*cos;
 							a23 = a21*sin+a23*cos;
 							a33 = a31*sin+a33*cos;
 							a43 = a41*sin+a43*cos;
 							a11 = t1;
 							a21 = t2;
 							a31 = t3;
-							a41 = t4;
+							//a41 = t4;
 						}
 						//rotationZ
 						angle = tm.rotation = Math.atan2(a21, a22);
 						if (angle) {
+							zFlip = (angle < minPI || angle > maxPI);
 							cos = Math.cos(-angle);
 							sin = Math.sin(-angle);
 							a11 = a11*cos+a12*sin;
@@ -1027,14 +1034,18 @@
 							a32 = a31*-sin+a32*cos;
 							a21 = t2;
 						}
-						if (Math.abs(tm.rotationY) > Math.PI / 2) {
-							tm.rotationY *= -1;
-							tm.rotationX += Math.PI;
-							tm.rotation = Math.PI - tm.rotation;
+
+						if (zFlip && xFlip) {
+							tm.rotation = tm.rotationX = 0;
+						} else if (zFlip && yFlip) {
+							tm.rotation = tm.rotationY = 0;
+						} else if (yFlip && xFlip) {
+							tm.rotationY = tm.rotationX = 0;
 						}
-						tm.scaleX = Math.sqrt(a11 * a11 + a21 * a21);
-						tm.scaleY = Math.sqrt(a22 * a22 + a23 * a23);
-						tm.scaleZ = Math.sqrt(a32 * a32 + a33 * a33);
+
+						tm.scaleX = ((Math.sqrt(a11 * a11 + a21 * a21) * rnd + 0.5) >> 0) / rnd;
+						tm.scaleY = ((Math.sqrt(a22 * a22 + a23 * a23) * rnd + 0.5) >> 0) / rnd;
+						tm.scaleZ = ((Math.sqrt(a32 * a32 + a33 * a33) * rnd + 0.5) >> 0) / rnd;
 						tm.skewX = 0;
 						tm.perspective = a43 ? 1 / a43 : 0;
 						tm.x = a14;
@@ -1089,8 +1100,9 @@
 					if (tm[i] < min) if (tm[i] > -min) {
 						tm[i] = 0;
 					}
+					//alternate method rounds to 5 decimal places: tm[i] = ((tm[i] * rnd) >> 0) / rnd;
 				}
-				//_log("parsed rotation: "+(tm.rotationX*_RAD2DEG)+", "+(tm.rotationY*_RAD2DEG)+", "+(tm.rotation*_RAD2DEG)+", scale: "+tm.scaleX+", "+tm.scaleY+", "+tm.scaleZ+", position: "+tm.x+", "+tm.y+", "+tm.z+", perspective: "+tm.perspective);
+				//DEBUG: _log("parsed rotation: "+(tm.rotationX*_RAD2DEG)+", "+(tm.rotationY*_RAD2DEG)+", "+(tm.rotation*_RAD2DEG)+", scale: "+tm.scaleX+", "+tm.scaleY+", "+tm.scaleZ+", position: "+tm.x+", "+tm.y+", "+tm.z+", perspective: "+tm.perspective);
 				if (rec) {
 					t._gsTransform = tm; //record to the object's _gsTransform which we use so that tweens can control individual properties independently (we need all the properties to accurately recompose the matrix in the setRatio() method)
 				}
@@ -1101,33 +1113,20 @@
 				var t = this.data, //refers to the element's _gsTransform object
 					ang = -t.rotation,
 					skew = ang + t.skewX,
-					a = Math.cos(ang) * t.scaleX,
-					b = Math.sin(ang) * t.scaleX,
-					c = Math.sin(skew) * -t.scaleY,
-					d = Math.cos(skew) * t.scaleY,
-					min = 0.000001,
+					rnd = 100000,
+					a = ((Math.cos(ang) * t.scaleX * rnd) >> 0) / rnd,
+					b = ((Math.sin(ang) * t.scaleX * rnd) >> 0) / rnd,
+					c = ((Math.sin(skew) * -t.scaleY * rnd) >> 0) / rnd,
+					d = ((Math.cos(skew) * t.scaleY * rnd) >> 0) / rnd,
 					style = this.t.style,
 					cs = this.t.currentStyle,
 					filters, val;
 				if (!cs) {
 					return;
 				}
-				//some browsers have a hard time with very small values like 2.4492935982947064e-16 (notice the "e-" towards the end) and would render the object slightly off. So we round to 0 in these cases. The conditional logic here is faster than calling Math.abs().
-				if (a < min) if (a > -min) {
-					a = 0;
-				}
-				if (b < min) if (b > -min) {
-					b = 0;
-				}
-				if (c < min) if (c > -min) {
-					c = 0;
-				}
-				if (d < min) if (d > -min) {
-					d = 0;
-				}
-				min = b; //just for swapping the variables an inverting them (reused "min" to avoid creating another variable in memory). IE's filter matrix uses a non-standard matrix configuration (angle goes the opposite way, and b and c are reversed and inverted)
+				val = b; //just for swapping the variables an inverting them (reused "val" to avoid creating another variable in memory). IE's filter matrix uses a non-standard matrix configuration (angle goes the opposite way, and b and c are reversed and inverted)
 				b = -c;
-				c = -min;
+				c = -val;
 				filters = cs.filter;
 				style.filter = ""; //remove filters so that we can accurately measure offsetWidth/offsetHeight
 				var w = this.t.offsetWidth,
@@ -1194,8 +1193,7 @@
 					angle = t.rotation,
 					zOrigin = t.zOrigin,
 					cma = ",",
-					big = 100000,
-					sml = 0.00001,
+					rnd = 100000,
 					cos, sin, t1, t2, t3, t4, top, n, sfx;
 				if (_isFirefox) { //Firefox has a bug that causes 3D elements to randomly disappear during animation unless a repaint is forced. One way to do this is change "top" by 0.05 which is imperceptible, so we go back and forth. Another way is to change the display to "none", read the clientTop, and then revert the display but that is much slower.
 					top = style.top + "";
@@ -1257,17 +1255,16 @@
 				}
 				a14 += t.x;
 				a24 += t.y;
-				a34 = (((a34 + t.z)* big) >> 0) * sml;
+				a34 = (((a34 + t.z) * rnd) >> 0) / rnd;
 
-				style[_transformProp] = "matrix3d(" + (((a11 * big) >> 0) * sml) + cma + (((a21 * big) >> 0) * sml) + cma + (((a31 * big) >> 0) * sml) + cma + (((a41 * big) >> 0) * sml) + cma	+ (((a12 * big) >> 0) * sml) + cma + (((a22 * big) >> 0) * sml) + cma + (((a32 * big) >> 0) * sml) + cma + (((a42 * big) >> 0) * sml) + cma + (((a13 * big) >> 0) * sml) + cma + (((a23 * big) >> 0) * sml) + cma + (((a33 * big) >> 0) * sml) + cma + (((a43 * big) >> 0) * sml) + cma + (((a14 * big) >> 0) * sml) + cma + (((a24 * big) >> 0) * sml) + cma + a34 + cma + (perspective ? (1 + (-a34 / perspective)) : 1) + ")";
+				style[_transformProp] = "matrix3d(" + (((a11 * rnd) >> 0) / rnd) + cma + (((a21 * rnd) >> 0) / rnd) + cma + (((a31 * rnd) >> 0) / rnd) + cma + (((a41 * rnd) >> 0) / rnd) + cma	+ (((a12 * rnd) >> 0) / rnd) + cma + (((a22 * rnd) >> 0) / rnd) + cma + (((a32 * rnd) >> 0) / rnd) + cma + (((a42 * rnd) >> 0) / rnd) + cma + (((a13 * rnd) >> 0) / rnd) + cma + (((a23 * rnd) >> 0) / rnd) + cma + (((a33 * rnd) >> 0) / rnd) + cma + (((a43 * rnd) >> 0) / rnd) + cma + (((a14 * rnd) >> 0) / rnd) + cma + (((a24 * rnd) >> 0) / rnd) + cma + a34 + cma + (perspective ? (1 + (-a34 / perspective)) : 1) + ")";
 
 				/* alternate version that is more concise but not as fast in most scenarios. We chose the more verbose matrix3d() technique for maximum performance.
 				var t = this.data, //refers to the element's _gsTransform object
 					style = this.t.style,
 					s = "",
-					big = 10000,
-					sml = 0.0001,
-					zOrigin = (((t.zOrigin * big) >> 0) * sml),
+					rnd = 10000,
+					zOrigin = (((t.zOrigin * rnd) >> 0) / rnd),
 					top, n, sfx;
 				if (_isFirefox) { //Firefox has a bug that causes 3D elements to randomly disappear during animation unless a repaint is forced. One way to do this is change "top" by 0.05 which is imperceptible, so we go back and forth. Another way is to change the display to "none", read the clientTop, and then revert the display but that is much slower.
 					top = style.top + "";
@@ -1280,22 +1277,22 @@
 					s = "perspective(" + t.perspective + ") ";
 				}
 				if (t.x || t.y || t.z) {
-					s += "translate3d(" + (((t.x * big) >> 0) * sml)  + "px," + (((t.y * big) >> 0) * sml)  + "px," + (((t.z * big) >> 0) * sml)  + "px) ";
+					s += "translate3d(" + (((t.x * rnd) >> 0) / rnd)  + "px," + (((t.y * rnd) >> 0) / rnd)  + "px," + (((t.z * rnd) >> 0) / rnd)  + "px) ";
 				}
 				if (zOrigin) {
 					s += "translateZ(" + zOrigin + "px) ";
 				}
 				if (t.scaleX !== 1 || t.scaleY !== 1 || t.scaleZ !== 1) {
-					s += "scale3d(" + (((t.scaleX * big) >> 0) * sml)  + "," + (((t.scaleY * big) >> 0) * sml)  + "," + (((t.scaleZ * big) >> 0) * sml)  + ") ";
+					s += "scale3d(" + (((t.scaleX * rnd) >> 0) / rnd)  + "," + (((t.scaleY * rnd) >> 0) / rnd)  + "," + (((t.scaleZ * rnd) >> 0) / rnd)  + ") ";
 				}
 				if (t.rotation) {
-					s += "rotateZ(" + (((t.rotation * big) >> 0) * sml)  + "rad) ";
+					s += "rotateZ(" + (((t.rotation * rnd) >> 0) / rnd)  + "rad) ";
 				}
 				if (t.rotationY) {
-					s += "rotateY(" + (((t.rotationY * big) >> 0) * sml) + "rad) ";
+					s += "rotateY(" + (((t.rotationY * rnd) >> 0) / rnd) + "rad) ";
 				}
 				if (t.rotationX) {
-					s += "rotateX(" + (((t.rotationX * big) >> 0) * sml) + "rad) ";
+					s += "rotateX(" + (((t.rotationX * rnd) >> 0) / rnd) + "rad) ";
 				}
 				if (zOrigin) {
 					s += "translateZ(" + -zOrigin + "px)";
@@ -1313,13 +1310,13 @@
 				} else {
 					var ang = t.rotation,
 						skew = ang - t.skewX,
-						a = Math.cos(ang) * t.scaleX,
-						b = Math.sin(ang) * t.scaleX,
-						c = Math.sin(skew) * -t.scaleY,
-						d = Math.cos(skew) * t.scaleY,
-						min = 0.000001;
-					//some browsers have a hard time with very small values like 2.4492935982947064e-16 (notice the "e-" towards the end) and would render the object slightly off. So we round to 0 in these cases. The conditional logic here is faster than calling Math.abs().
-					this.t.style[_transformProp] = "matrix(" + ((a < min && a > -min) ? 0 : a) + "," + ((b < min && b > -min) ? 0 : b) + "," + ((c < min && c > -min) ? 0 : c) + "," + ((d < min && d > -min) ? 0 : d) + "," + t.x + "," + t.y + ")";
+						rnd = 100000,
+						//some browsers have a hard time with very small values like 2.4492935982947064e-16 (notice the "e-" towards the end) and would render the object slightly off. So we round to 5 decimal places.
+						a = ((Math.cos(ang) * t.scaleX * rnd) >> 0) / rnd,
+						b = ((Math.sin(ang) * t.scaleX * rnd) >> 0) / rnd,
+						c = ((Math.sin(skew) * -t.scaleY * rnd) >> 0) / rnd,
+						d = ((Math.cos(skew) * t.scaleY * rnd) >> 0) / rnd;
+					this.t.style[_transformProp] = "matrix(" + a + "," + b + "," + c + "," + d + "," + t.x + "," + t.y + ")";
 				}
 			};
 
@@ -1387,7 +1384,7 @@
 				m2.scaleZ = 1; //no need to tween scaleZ.
 			}
 
-			cssp._transformType = has3D ? 3 : 2; //quicker than calling cssp._enableTransforms();
+			cssp._transformType = (has3D || this._transformType === 3) ? 3 : 2; //quicker than calling cssp._enableTransforms();
 
 			while (--i > -1) {
 				p = _transformProps[i];
