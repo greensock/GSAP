@@ -1,6 +1,6 @@
 /*!
- * VERSION: beta 1.651
- * DATE: 2012-12-10
+ * VERSION: beta 1.663
+ * DATE: 2012-12-20
  * JavaScript (ActionScript 3 and 2 also available)
  * UPDATES AND DOCS AT: http://www.greensock.com
  *
@@ -344,7 +344,7 @@
 		};
 		
 		p.seek = function(time, suppressEvents) {
-			return this.totalTime(Number(time), (suppressEvents != false));
+			return this.totalTime(Number(time), (suppressEvents !== false));
 		};
 		
 		p.restart = function(includeDelay, suppressEvents) {
@@ -517,7 +517,7 @@
 			if (!arguments.length) {
 				return this._startTime;
 			}
-			if (value != this._startTime) {
+			if (value !== this._startTime) {
 				this._startTime = value;
 				if (this.timeline) if (this.timeline._sortChildren) {
 					this.timeline.insert(this, value - this._delay); //ensures that any necessary re-sequencing of Animations in the timeline occurs to make sure the rendering order is correct.
@@ -730,7 +730,7 @@
 		p._firstPT = p._targets = p._overwrittenProps = null;
 		p._notifyPluginsOfEnabled = false;
 		
-		TweenLite.version = 1.651;
+		TweenLite.version = 1.663;
 		TweenLite.defaultEase = p._ease = new Ease(null, null, 1, 1);
 		TweenLite.defaultOverwrite = "auto";
 		TweenLite.ticker = _ticker;
@@ -789,9 +789,9 @@
 			},
 			
 			_applyOverwrite = function(target, tween, props, mode, siblings) {
-				var i, changed, curTween;
+				var i, changed, curTween, l;
 				if (mode === 1 || mode >= 4) {
-					var l = siblings.length;
+					l = siblings.length;
 					for (i = 0; i < l; i++) {
 						if ((curTween = siblings[i]) !== tween) {
 							if (!curTween._gc) if (curTween._enabled(false, false)) {
@@ -947,7 +947,7 @@
 					this._firstPT = propLookup[p] = pt = {_next:this._firstPT, t:target, p:p, f:(typeof(target[p]) === "function"), n:p, pg:false, pr:0};
 					pt.s = (!pt.f) ? parseFloat(target[p]) : target[ ((p.indexOf("set") || typeof(target["get" + p.substr(3)]) !== "function") ? p : "get" + p.substr(3)) ]();
 					v = this.vars[p];
-					pt.c = (typeof(v) === "number") ? v - pt.s : (typeof(v) === "string" && v.charAt(1) === "=") ? parseInt(v.charAt(0)+"1") * Number(v.substr(2)) : Number(v) || 0; //previously, we used Number(v.split("=").join("")) but that wouldn't adequately handle a value like "+=-500" or "-=-500".
+					pt.c = (typeof(v) === "number") ? v - pt.s : (typeof(v) === "string" && v.charAt(1) === "=") ? parseInt(v.charAt(0)+"1", 10) * Number(v.substr(2)) : Number(v) || 0; //previously, we used Number(v.split("=").join("")) but that wouldn't adequately handle a value like "+=-500" or "-=-500".
 				}
 				if (pt) if (pt._next) {
 					pt._next._prev = pt;
@@ -1185,7 +1185,7 @@
 		
 		TweenLite.from = function(target, duration, vars) {
 			vars.runBackwards = true;
-			if (vars.immediateRender != false) {
+			if (vars.immediateRender !== false) {
 				vars.immediateRender = true;
 			}
 			return new TweenLite(target, duration, vars);
@@ -1267,13 +1267,13 @@
 			
 		p._addTween = function(target, prop, start, end, overwriteProp, round) {
 			var c, pt;
-			if (end != null && (c = (typeof(end) === "number" || end.charAt(1) !== "=") ? Number(end) - start : parseInt(end.charAt(0)+"1") * Number(end.substr(2)))) {
+			if (end != null && (c = (typeof(end) === "number" || end.charAt(1) !== "=") ? Number(end) - start : parseInt(end.charAt(0)+"1", 10) * Number(end.substr(2)))) {
 				this._firstPT = pt = {_next:this._firstPT, t:target, p:prop, s:start, c:c, f:(typeof(target[prop]) === "function"), n:overwriteProp || prop, r:round};
 				if (pt._next) {
 					pt._next._prev = pt;
 				}
 			}
-		}
+		};
 			
 		p.setRatio = function(v) {
 			var pt = this._firstPT, 
@@ -1290,7 +1290,7 @@
 				}
 				pt = pt._next;
 			}
-		}
+		};
 			
 		p._kill = function(lookup) {
 			if (lookup[this._propName] != null) {
@@ -1319,7 +1319,7 @@
 				pt = pt._next;
 			}
 			return false;
-		}
+		};
 			
 		p._roundProps = function(lookup, value) {
 			var pt = this._firstPT;
@@ -1329,7 +1329,7 @@
 				}
 				pt = pt._next;
 			}
-		}
+		};
 		
 		TweenLite._onPluginEvent = function(type, tween) {
 			var pt = tween._firstPT, 
@@ -1364,7 +1364,7 @@
 				pt = pt._next;
 			}
 			return changed;
-		}
+		};
 		
 		TweenPlugin.activate = function(plugins) {
 			var i = plugins.length;
@@ -1374,7 +1374,7 @@
 				}
 			}
 			return true;
-		}
+		};
 		
 		
 		

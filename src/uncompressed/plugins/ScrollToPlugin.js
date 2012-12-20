@@ -1,6 +1,6 @@
 /**
- * VERSION: beta 1.5
- * DATE: 2012-11-16
+ * VERSION: beta 1.52
+ * DATE: 2012-12-17
  * JavaScript
  * UPDATES AND DOCS AT: http://www.greensock.com
  *
@@ -69,7 +69,7 @@
 			if (lookup.scrollTo_x) {
 				this.skipX = true;
 			}
-			if (lookup.scrollTo_x) {
+			if (lookup.scrollTo_y) {
 				this.skipY = true;
 			}
 			return TweenPlugin.prototype._kill.call(this, lookup);
@@ -84,14 +84,17 @@
 		p.setRatio = function(v) {
 			_setRatio.call(this, v);
 
-			var x = this.getX(),
-				y = this.getY();
+			var x = (this._wdw || !this.skipX) ? this.getX() : this.xPrev,
+				y = (this._wdw || !this.skipY) ? this.getY() : this.yPrev,
+				yDif = y - this.yPrev,
+				xDif = x - this.xPrev;
 
-			if (!this.skipX && x !== this.xPrev) {
+			//note: iOS has a bug that throws off the scroll by several pixels, so we need to check if it's within 7 pixels of the previous one that we set instead of just looking for an exact match.
+			if (!this.skipX && (xDif > 7 || xDif < -7)) {
 				this.skipX = true; //if the user scrolls separately, we should stop tweening!
 				this._checkAutoKill();
 			}
-			if (!this.skipY && y !== this.yPrev) {
+			if (!this.skipY && (yDif > 7 || yDif < -7)) {
 				this.skipY = true; //if the user scrolls separately, we should stop tweening!
 				this._checkAutoKill();
 			}

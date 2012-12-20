@@ -1,5 +1,5 @@
 /*!
- * VERSION: beta 1.662
+ * VERSION: beta 1.663
  * DATE: 2012-12-15
  * JavaScript 
  * UPDATES AND DOCS AT: http://www.greensock.com
@@ -29,7 +29,7 @@
 			p = CSSPlugin.prototype = new TweenPlugin("css");
 
 		p.constructor = CSSPlugin;
-		CSSPlugin.version = 1.661;
+		CSSPlugin.version = 1.663;
 		CSSPlugin.API = 2;
 		CSSPlugin.defaultTransformPerspective = 0;
 		p = "px"; //we'll reuse the "p" variable to keep file size down
@@ -309,7 +309,7 @@
 			 * @return {number} Amount of change between the beginning and ending values (relative values that have a "+=" or "-=" are recognized)
 			 */
 			_parseChange = function(e, b) {
-				return (typeof(e) === "string" && e.charAt(1) === "=") ? parseInt(e.charAt(0) + "1") * parseFloat(e.substr(2)) : parseFloat(e) - parseFloat(b);
+				return (typeof(e) === "string" && e.charAt(1) === "=") ? parseInt(e.charAt(0) + "1", 10) * parseFloat(e.substr(2)) : parseFloat(e) - parseFloat(b);
 			},
 
 			/**
@@ -319,7 +319,7 @@
 			 * @return {number} Parsed value
 			 */
 			_parseVal = function(v, d) {
-				return (v == null) ? d : (typeof(v) === "string" && v.charAt(1) === "=") ? parseInt(v.charAt(0) + "1") * Number(v.substr(2)) + d : parseFloat(v);
+				return (v == null) ? d : (typeof(v) === "string" && v.charAt(1) === "=") ? parseInt(v.charAt(0) + "1", 10) * Number(v.substr(2)) + d : parseFloat(v);
 			},
 
 			/**
@@ -412,7 +412,6 @@
 		}
 		_colorExp = new RegExp(_colorExp+")", "gi");
 
-
 		/**
 		 * @private Returns a formatter function that handles taking a string (or number in some cases) and returning a consistently formatted one in terms of delimiters, quantity of values, etc. For example, we may get boxShadow values defined as "0px red" or "0px 0px 10px rgb(255,0,0)" or "0px 0px 20px 20px #F00" and we need to ensure that what we get back is described with 4 numbers and a color. This allows us to feed it into the _parseComplex() method and split the values up appropriately. The neat thing about this _getFormatter() function is that the dflt defines a pattern as well as a default, so for example, _getFormatter("0px 0px 0px 0px #777", true) not only sets the default as 0px for all distances and #777 for the color, but also sets the pattern such that 4 numbers and a color will always get returned.
 		 * @param {!string} dflt The default value and pattern to follow. So "0px 0px 0px 0px #777" will ensure that 4 numbers and a color will always get returned.
@@ -447,21 +446,20 @@
 						return pfx + vals.join(delim) + delim + color + sfx;
 					};
 
-				} else {
-					return function(v) {
-						if (typeof(v) === "number") {
-							v += dSfx;
-						}
-						var vals = v.match(_valuesExp) || [],
-							i = vals.length;
-						if (numVals > i--) {
-							while (++i < numVals) {
-								vals[i] = collapsible ? vals[(((i - 1) / 2) >> 0)] : dVals[i];
-							}
-						}
-						return pfx + vals.join(delim) + sfx;
-					};
 				}
+				return function(v) {
+					if (typeof(v) === "number") {
+						v += dSfx;
+					}
+					var vals = v.match(_valuesExp) || [],
+						i = vals.length;
+					if (numVals > i--) {
+						while (++i < numVals) {
+							vals[i] = collapsible ? vals[(((i - 1) / 2) >> 0)] : dVals[i];
+						}
+					}
+					return pfx + vals.join(delim) + sfx;
+				};
 			},
 
 			/**
@@ -1443,8 +1441,7 @@
 				b11 = b[0], b21 = b[1], b31 = b[2], b41 = b[3],
 				b12 = b[4], b22 = b[5], b32 = b[6], b42 = b[7],
 				b13 = b[8], b23 = b[9], b33 = b[10], b43 = b[11],
-				b14 = b[12], b24 = b[13], b34 = b[14], b44 = b[15],
-				min = 0.000001, i = 12;
+				b14 = b[12], b24 = b[13], b34 = b[14], b44 = b[15];
 			c[0] = a11*b11+a12*b21+a13*b31+a14*b41; //a11
 			c[1] = a21*b11+a22*b21+a23*b31+a24*b41; //a21
 			c[2] = a31*b11+a32*b21+a33*b31+a34*b41; //a31
@@ -1461,11 +1458,6 @@
 			c[13] = a21*b14+a22*b24+a23*b34+a24*b44; //a24
 			c[14] = a31*b14+a32*b24+a33*b34+a34*b44; //a34
 			c[15] = a41*b14+a42*b24+a43*b34+a44*b44; //a44
-			while (--i > -1) {
-				if (c[i] < min) if (c[i] > -min) {
-					c[i] = 0;
-				}
-			}
 			return c;
 		}
 		*/
@@ -1496,7 +1488,7 @@
 				bsfx = bs.substr((bn + "").length);
 				rel = (es.charAt(1) === "=");
 				if (rel) {
-					en = parseInt(es.charAt(0)+"1");
+					en = parseInt(es.charAt(0)+"1", 10);
 					es = es.substr(2);
 					en *= parseFloat(es);
 					esfx = es.substr((en + "").length - (en < 0 ? 1 : 0)) || "";
@@ -1557,6 +1549,7 @@
 		_registerComplexSpecialProp("perspective", "0px", null, true);
 		_registerComplexSpecialProp("perspectiveOrigin", "50% 50%", null, true);
 		_registerComplexSpecialProp("transformStyle", "preserve-3d", null, true);
+		_registerComplexSpecialProp("backfaceVisibility", "visible", null, true);
 		_registerComplexSpecialProp("margin", null, _getEdgeParser("marginTop,marginRight,marginBottom,marginLeft"));
 		_registerComplexSpecialProp("padding", null, _getEdgeParser("paddingTop,paddingRight,paddingBottom,paddingLeft"));
 		_registerComplexSpecialProp("clip", "rect(0px,0px,0px,0px)");
@@ -1810,7 +1803,7 @@
 
 						rel = (isStr && es.charAt(1) === "=");
 						if (rel) {
-							en = parseInt(es.charAt(0)+"1");
+							en = parseInt(es.charAt(0)+"1", 10);
 							es = es.substr(2);
 							en *= parseFloat(es);
 							esfx = es.substr((en + "").length - (en < 0 ? 1 : 0)) || "";

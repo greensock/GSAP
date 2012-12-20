@@ -1,6 +1,6 @@
 /**
- * VERSION: beta 1.15
- * DATE: 2012-12-14
+ * VERSION: beta 1.151
+ * DATE: 2012-12-20
  * JavaScript (also available in AS3 and AS2)
  * UPDATES AND DOCS AT: http://www.greensock.com
  *
@@ -348,7 +348,7 @@
 				vars = {values:vars};
 			}
 			this._props = [];
-			this._timeRes = (vars.timeResolution == null) ? 6 : parseInt(vars.timeResolution);
+			this._timeRes = (vars.timeResolution == null) ? 6 : parseInt(vars.timeResolution, 10);
 			var values = vars.values || [],
 				first = {},
 				second = values[0],
