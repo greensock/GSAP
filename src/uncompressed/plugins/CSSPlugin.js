@@ -1,6 +1,6 @@
 /*!
- * VERSION: beta 1.663
- * DATE: 2012-12-15
+ * VERSION: beta 1.664
+ * DATE: 2012-12-21
  * JavaScript 
  * UPDATES AND DOCS AT: http://www.greensock.com
  *
@@ -29,7 +29,7 @@
 			p = CSSPlugin.prototype = new TweenPlugin("css");
 
 		p.constructor = CSSPlugin;
-		CSSPlugin.version = 1.663;
+		CSSPlugin.version = 1.664;
 		CSSPlugin.API = 2;
 		CSSPlugin.defaultTransformPerspective = 0;
 		p = "px"; //we'll reuse the "p" variable to keep file size down
@@ -176,15 +176,17 @@
 				}
 				tr = _getTransform(t, cs, false);
 				s.rotation = tr.rotation * _RAD2DEG;
-				s.rotationX = tr.rotationX * _RAD2DEG;
-				s.rotationY = tr.rotationY * _RAD2DEG;
 				s.skewX = tr.skewX * _RAD2DEG;
 				s.scaleX = tr.scaleX;
 				s.scaleY = tr.scaleY;
-				s.scaleZ = tr.scaleZ;
 				s.x = tr.x;
 				s.y = tr.y;
-				s.z = tr.z;
+				if (_supports3D) {
+					s.z = tr.z;
+					s.rotationX = tr.rotationX * _RAD2DEG;
+					s.rotationY = tr.rotationY * _RAD2DEG;
+					s.scaleZ = tr.scaleZ;
+				}
 				if (s.filters) {
 					delete s.filters;
 				}
@@ -1325,7 +1327,7 @@
 				min = 0.000001,
 				i = _transformProps.length,
 				v = vars,
-				m2, rotation, skewY, copy, orig, has3D;
+				m2, rotation, skewY, copy, orig, has3D, hasChange;
 
 			if (typeof(v.transform) === "string" && _transformProp) { //for values like transform:"rotate(60deg) scale(0.5, 0.8)"
 				copy = style[_transformProp];
@@ -1382,12 +1384,11 @@
 				m2.scaleZ = 1; //no need to tween scaleZ.
 			}
 
-			cssp._transformType = (has3D || this._transformType === 3) ? 3 : 2; //quicker than calling cssp._enableTransforms();
-
 			while (--i > -1) {
 				p = _transformProps[i];
 				orig = m2[p] - m1[p];
 				if (orig > min || orig < -min || _forcePT[p] != null) {
+					hasChange = true;
 					pt = new CSSPropTween(m1, p, m1[p], orig, pt);
 					pt.xs0 = 0; //ensures the value stays numeric in setRatio()
 					pt.plugin = plugin;
@@ -1398,6 +1399,7 @@
 			orig = v.transformOrigin;
 			if (orig || (_supports3D && has3D && m1.zOrigin)) { //if anything 3D is happening and there's a transformOrigin with a z component that's non-zero, we must ensure that the transformOrigin's z-component is set to 0 so that we can manually do those calculations to get around Safari bugs. Even if the user didn't specifically define a "transformOrigin" in this particular tween (maybe they did it via css directly).
 				if (_transformProp) {
+					hasChange = true;
 					orig = (orig || _getStyle(t, p, _cs, false, "50% 50%")) + ""; //cast as string to avoid errors
 					p = _transformOriginProp;
 					pt = new CSSPropTween(style, p, 0, 0, pt, -1, "css_transformOrigin");
@@ -1421,14 +1423,10 @@
 				}
 			}
 
-			if (pt && pt.t === t) { //if no tweenable properties are found, remove the "transform" CSSPropTween from the linked list and return the original one that was passed in.
-				if (pt._next) {
-					pt._next._prev = null;
-				}
-				return pt._next;
+			if (hasChange) {
+				cssp._transformType = (has3D || this._transformType === 3) ? 3 : 2; //quicker than calling cssp._enableTransforms();
 			}
 			return pt;
-
 		}, true);
 
 		/* [unused] multiplies 4x4 matricies
@@ -1848,6 +1846,8 @@
 							pt = new CSSPropTween(style, p, bn, en - bn, pt, 0, "css_" + p, (_autoRound !== false && (esfx === "px" || p === "zIndex")), 0, bs, es);
 							pt.xs0 = esfx;
 							//DEBUG: _log("tween "+p+" from "+pt.b+" to "+pt.e+" with suffix: "+pt.xs0)
+						} else if (!es && (es + "" === "NaN" || es == null)) {
+							_log("invalid " + p + " tween value. ");
 						} else {
 							pt = new CSSPropTween(style, p, en || bn || 0, 0, pt, -1, "css_" + p, false, 0, bs, es);
 							pt.xs0 = (p === "display" && es === "none") ? bs : es; //intermediate value is typically the same as the end value except for "display"

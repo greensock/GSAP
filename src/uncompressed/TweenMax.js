@@ -1,6 +1,6 @@
 /**
- * VERSION: beta 1.663
- * DATE: 2012-12-20
+ * VERSION: beta 1.664
+ * DATE: 2012-12-21
  * JavaScript (ActionScript 3 and 2 also available)
  * UPDATES AND DOCS AT: http://www.greensock.com
  * 
@@ -33,7 +33,7 @@
 			p = TweenMax.prototype = TweenLite.to({}, 0.1, {}),
 			_blankArray = [];
 
-		TweenMax.version = 1.663;
+		TweenMax.version = 1.664;
 		p.constructor = TweenMax;
 		p.kill()._gc = false;
 		TweenMax.killTweensOf = TweenMax.killDelayedCallsTo = TweenLite.killTweensOf;
@@ -2063,7 +2063,7 @@
 			p = CSSPlugin.prototype = new TweenPlugin("css");
 
 		p.constructor = CSSPlugin;
-		CSSPlugin.version = 1.663;
+		CSSPlugin.version = 1.664;
 		CSSPlugin.API = 2;
 		CSSPlugin.defaultTransformPerspective = 0;
 		p = "px"; //we'll reuse the "p" variable to keep file size down
@@ -2210,15 +2210,17 @@
 				}
 				tr = _getTransform(t, cs, false);
 				s.rotation = tr.rotation * _RAD2DEG;
-				s.rotationX = tr.rotationX * _RAD2DEG;
-				s.rotationY = tr.rotationY * _RAD2DEG;
 				s.skewX = tr.skewX * _RAD2DEG;
 				s.scaleX = tr.scaleX;
 				s.scaleY = tr.scaleY;
-				s.scaleZ = tr.scaleZ;
 				s.x = tr.x;
 				s.y = tr.y;
-				s.z = tr.z;
+				if (_supports3D) {
+					s.z = tr.z;
+					s.rotationX = tr.rotationX * _RAD2DEG;
+					s.rotationY = tr.rotationY * _RAD2DEG;
+					s.scaleZ = tr.scaleZ;
+				}
 				if (s.filters) {
 					delete s.filters;
 				}
@@ -3290,50 +3292,6 @@
 				a34 = (((a34 + t.z) * rnd) >> 0) / rnd;
 
 				style[_transformProp] = "matrix3d(" + (((a11 * rnd) >> 0) / rnd) + cma + (((a21 * rnd) >> 0) / rnd) + cma + (((a31 * rnd) >> 0) / rnd) + cma + (((a41 * rnd) >> 0) / rnd) + cma	+ (((a12 * rnd) >> 0) / rnd) + cma + (((a22 * rnd) >> 0) / rnd) + cma + (((a32 * rnd) >> 0) / rnd) + cma + (((a42 * rnd) >> 0) / rnd) + cma + (((a13 * rnd) >> 0) / rnd) + cma + (((a23 * rnd) >> 0) / rnd) + cma + (((a33 * rnd) >> 0) / rnd) + cma + (((a43 * rnd) >> 0) / rnd) + cma + (((a14 * rnd) >> 0) / rnd) + cma + (((a24 * rnd) >> 0) / rnd) + cma + a34 + cma + (perspective ? (1 + (-a34 / perspective)) : 1) + ")";
-
-				/* alternate version that is more concise but not as fast in most scenarios. We chose the more verbose matrix3d() technique for maximum performance.
-				var t = this.data, //refers to the element's _gsTransform object
-					style = this.t.style,
-					s = "",
-					rnd = 10000,
-					zOrigin = (((t.zOrigin * rnd) >> 0) / rnd),
-					top, n, sfx;
-				if (_isFirefox) { //Firefox has a bug that causes 3D elements to randomly disappear during animation unless a repaint is forced. One way to do this is change "top" by 0.05 which is imperceptible, so we go back and forth. Another way is to change the display to "none", read the clientTop, and then revert the display but that is much slower.
-					top = style.top + "";
-					n = parseFloat(top) || 0;
-					sfx = top.substr((n + "").length);
-					t._ffFix = !t._ffFix;
-					style.top = (t._ffFix ? n + 0.05 : n - 0.05) + ((sfx === "") ? "px" : sfx);
-				}
-				if (t.perspective) {
-					s = "perspective(" + t.perspective + ") ";
-				}
-				if (t.x || t.y || t.z) {
-					s += "translate3d(" + (((t.x * rnd) >> 0) / rnd)  + "px," + (((t.y * rnd) >> 0) / rnd)  + "px," + (((t.z * rnd) >> 0) / rnd)  + "px) ";
-				}
-				if (zOrigin) {
-					s += "translateZ(" + zOrigin + "px) ";
-				}
-				if (t.scaleX !== 1 || t.scaleY !== 1 || t.scaleZ !== 1) {
-					s += "scale3d(" + (((t.scaleX * rnd) >> 0) / rnd)  + "," + (((t.scaleY * rnd) >> 0) / rnd)  + "," + (((t.scaleZ * rnd) >> 0) / rnd)  + ") ";
-				}
-				if (t.rotation) {
-					s += "rotateZ(" + (((t.rotation * rnd) >> 0) / rnd)  + "rad) ";
-				}
-				if (t.rotationY) {
-					s += "rotateY(" + (((t.rotationY * rnd) >> 0) / rnd) + "rad) ";
-				}
-				if (t.rotationX) {
-					s += "rotateX(" + (((t.rotationX * rnd) >> 0) / rnd) + "rad) ";
-				}
-				if (zOrigin) {
-					s += "translateZ(" + -zOrigin + "px)";
-				}
-				style[_transformProp] = s;
-				*/
-
-				//alternate way of applying the values (slightly slower but slightly more accurate, although I doubt anyone could ever tell a difference) (add a var min = 0.000001)
-				//style[_transformProp] = "matrix3d(" + ((a11 < min && a11 > -min) ? 0 : a11) + cma + ((a21 < min && a21 > -min) ? 0 : a21) + cma + ((a31 < min && a31 > -min) ? 0 : a31) + cma + ((a41 < min && a41 > -min) ? 0 : a41) + cma	+ ((a12 < min && a12 > -min) ? 0 : a12) + cma	+ ((a22 < min && a22 > -min) ? 0 : a22) + cma	+ ((a32 < min && a32 > -min) ? 0 : a32) + cma	+ ((a42 < min && a42 > -min) ? 0 : a42) + cma	+ ((a13 < min && a13 > -min) ? 0 : a13) + cma	+ ((a23 < min && a23 > -min) ? 0 : a23) + cma	+ ((a33 < min && a33 > -min) ? 0 : a33) + cma	+ ((a43 < min && a43 > -min) ? 0 : a43) + cma	+ ((a14 < min && a14 > -min) ? 0 : a14) + cma + ((a24 < min && a24 > -min) ? 0 : a24) + cma + a34 + cma + (perspective ? (1 + (-a34 / perspective)) : 1) + ")";
 			},
 			_set2DTransformRatio = function(v) {
 				var t = this.data; //refers to the element's _gsTransform object
@@ -3359,7 +3317,7 @@
 				min = 0.000001,
 				i = _transformProps.length,
 				v = vars,
-				m2, rotation, skewY, copy, orig, has3D;
+				m2, rotation, skewY, copy, orig, has3D, hasChange;
 
 			if (typeof(v.transform) === "string" && _transformProp) { //for values like transform:"rotate(60deg) scale(0.5, 0.8)"
 				copy = style[_transformProp];
@@ -3416,12 +3374,11 @@
 				m2.scaleZ = 1; //no need to tween scaleZ.
 			}
 
-			cssp._transformType = (has3D || this._transformType === 3) ? 3 : 2; //quicker than calling cssp._enableTransforms();
-
 			while (--i > -1) {
 				p = _transformProps[i];
 				orig = m2[p] - m1[p];
 				if (orig > min || orig < -min || _forcePT[p] != null) {
+					hasChange = true;
 					pt = new CSSPropTween(m1, p, m1[p], orig, pt);
 					pt.xs0 = 0; //ensures the value stays numeric in setRatio()
 					pt.plugin = plugin;
@@ -3432,6 +3389,7 @@
 			orig = v.transformOrigin;
 			if (orig || (_supports3D && has3D && m1.zOrigin)) { //if anything 3D is happening and there's a transformOrigin with a z component that's non-zero, we must ensure that the transformOrigin's z-component is set to 0 so that we can manually do those calculations to get around Safari bugs. Even if the user didn't specifically define a "transformOrigin" in this particular tween (maybe they did it via css directly).
 				if (_transformProp) {
+					hasChange = true;
 					orig = (orig || _getStyle(t, p, _cs, false, "50% 50%")) + ""; //cast as string to avoid errors
 					p = _transformOriginProp;
 					pt = new CSSPropTween(style, p, 0, 0, pt, -1, "css_transformOrigin");
@@ -3455,46 +3413,11 @@
 				}
 			}
 
-			if (pt && pt.t === t) { //if no tweenable properties are found, remove the "transform" CSSPropTween from the linked list and return the original one that was passed in.
-				if (pt._next) {
-					pt._next._prev = null;
-				}
-				return pt._next;
+			if (hasChange) {
+				cssp._transformType = (has3D || this._transformType === 3) ? 3 : 2; //quicker than calling cssp._enableTransforms();
 			}
 			return pt;
-
 		}, true);
-
-		/* [unused] multiplies 4x4 matricies
-		function multiply3D(a, b) {
-			var c = [],
-				a11 = a[0], a21 = a[1], a31 = a[2], a41 = a[3],
-				a12 = a[4], a22 = a[5], a32 = a[6], a42 = a[7],
-				a13 = a[8], a23 = a[9], a33 = a[10], a43 = a[11],
-				a14 = a[12], a24 = a[13], a34 = a[14], a44 = a[15],
-				b11 = b[0], b21 = b[1], b31 = b[2], b41 = b[3],
-				b12 = b[4], b22 = b[5], b32 = b[6], b42 = b[7],
-				b13 = b[8], b23 = b[9], b33 = b[10], b43 = b[11],
-				b14 = b[12], b24 = b[13], b34 = b[14], b44 = b[15];
-			c[0] = a11*b11+a12*b21+a13*b31+a14*b41; //a11
-			c[1] = a21*b11+a22*b21+a23*b31+a24*b41; //a21
-			c[2] = a31*b11+a32*b21+a33*b31+a34*b41; //a31
-			c[3] = a41*b11+a42*b21+a43*b31+a44*b41; //a41
-			c[4] = a11*b12+a12*b22+a13*b32+a14*b42; //a12
-			c[5] = a21*b12+a22*b22+a23*b32+a24*b42; //a22
-			c[6] = a31*b12+a32*b22+a33*b32+a34*b42; //a32
-			c[7] = a41*b12+a42*b22+a43*b32+a44*b42; //a42
-			c[8] = a11*b13+a12*b23+a13*b33+a14*b43; //a13
-			c[9] = a21*b13+a22*b23+a23*b33+a24*b43; //a23
-			c[10] = a31*b13+a32*b23+a33*b33+a34*b43; //a33
-			c[11] = a41*b13+a42*b23+a43*b33+a44*b43; //a43
-			c[12] = a11*b14+a12*b24+a13*b34+a14*b44; //a14
-			c[13] = a21*b14+a22*b24+a23*b34+a24*b44; //a24
-			c[14] = a31*b14+a32*b24+a33*b34+a34*b44; //a34
-			c[15] = a41*b14+a42*b24+a43*b34+a44*b44; //a44
-			return c;
-		}
-		*/
 
 
 
@@ -3882,6 +3805,8 @@
 							pt = new CSSPropTween(style, p, bn, en - bn, pt, 0, "css_" + p, (_autoRound !== false && (esfx === "px" || p === "zIndex")), 0, bs, es);
 							pt.xs0 = esfx;
 							//DEBUG: _log("tween "+p+" from "+pt.b+" to "+pt.e+" with suffix: "+pt.xs0)
+						} else if (!es && (es + "" === "NaN" || es == null)) {
+							_log("invalid " + p + " tween value. ");
 						} else {
 							pt = new CSSPropTween(style, p, en || bn || 0, 0, pt, -1, "css_" + p, false, 0, bs, es);
 							pt.xs0 = (p === "display" && es === "none") ? bs : es; //intermediate value is typically the same as the end value except for "display"
