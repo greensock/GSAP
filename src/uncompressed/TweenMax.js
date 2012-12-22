@@ -1,6 +1,6 @@
 /**
- * VERSION: beta 1.664
- * DATE: 2012-12-21
+ * VERSION: beta 1.665
+ * DATE: 2012-12-22
  * JavaScript (ActionScript 3 and 2 also available)
  * UPDATES AND DOCS AT: http://www.greensock.com
  * 
@@ -33,7 +33,7 @@
 			p = TweenMax.prototype = TweenLite.to({}, 0.1, {}),
 			_blankArray = [];
 
-		TweenMax.version = 1.664;
+		TweenMax.version = 1.665;
 		p.constructor = TweenMax;
 		p.kill()._gc = false;
 		TweenMax.killTweensOf = TweenMax.killDelayedCallsTo = TweenLite.killTweensOf;
@@ -2078,6 +2078,7 @@
 			_suffixExp = /(?:\d|\-|\+|=|#|\.)*/g,
 			_opacityExp = /opacity *= *([^)]*)/,
 			_opacityValExp = /opacity:([^;]*)/,
+			_alphaFilterExp = /alpha\(opacity *=.+?\)/i,
 			_capsExp = /([A-Z])/g,
 			_camelExp = /-([a-z])/gi,
 			_urlExp = /(^(?:url\(\"|url\())|(?:(\"\))$|\)$)/gi, //for pulling out urls from url(...) or url("...") strings (some browsers wrap urls in quotes, some don't when reporting things like backgroundImage)
@@ -3420,7 +3421,6 @@
 		}, true);
 
 
-
 		_registerComplexSpecialProp("boxShadow", "0px 0px 0px 0px #999", null, true, true);
 		_registerComplexSpecialProp("borderRadius", "0px", function(t, e, p, cssp, pt, plugin) {
 			e = this.format(e);
@@ -3522,21 +3522,27 @@
 
 		//opacity-related
 		var _setIEOpacityRatio = function(v) {
-				var t = this.t,
-					val = this.s + this.c * v,
+				var t = this.t, //refers to the element's style property
+					filters = t.filter,
+					val = (this.s + this.c * v) >> 0,
 					skip;
-				if (val === 100) { //for older versions of IE that need to use a filter to apply opacity, we should remove the filter if opacity hits 1 in order to improve performance.
-					t.removeAttribute("filter");
-					skip = (!_getStyle(this.data, "filter")); //if a class is applied that has an alpha filter, it will take effect (we don't want that), so re-apply our alpha filter in that case. We must first remove it and then check.
+				if (val === 100) { //for older versions of IE that need to use a filter to apply opacity, we should remove the filter if opacity hits 1 in order to improve performance, but make sure there isn't a transform (matrix) or gradient in the filters.
+					if (filters.indexOf("atrix(") === -1 && filters.indexOf("radient(") === -1) {
+						t.removeAttribute("filter");
+						skip = (!_getStyle(this.data, "filter")); //if a class is applied that has an alpha filter, it will take effect (we don't want that), so re-apply our alpha filter in that case. We must first remove it and then check.
+					} else {
+						t.filter = filters.replace(_alphaFilterExp, "");
+						skip = true;
+					}
 				}
 				if (!skip) {
 					if (this.xn1) {
-						t.filter = t.filter || "alpha(opacity=100)"; //works around bug in IE7/8 that prevents changes to "visibility" from being applied properly if the filter is changed to a different alpha on the same frame.
+						t.filter = filters = filters || "alpha(opacity=100)"; //works around bug in IE7/8 that prevents changes to "visibility" from being applied properly if the filter is changed to a different alpha on the same frame.
 					}
-					if (t.filter.indexOf("opacity") === -1) { //only used if browser doesn't support the standard opacity style property (IE 7 and 8)
-						t.filter += " alpha(opacity=" + (val >> 0) + ")"; //we round the value because otherwise, bugs in IE7/8 can prevent "visibility" changes from being applied properly.
+					if (filters.indexOf("opacity") === -1) { //only used if browser doesn't support the standard opacity style property (IE 7 and 8)
+						t.filter += " alpha(opacity=" + val + ")"; //we round the value because otherwise, bugs in IE7/8 can prevent "visibility" changes from being applied properly.
 					} else {
-						t.filter = t.filter.replace(_opacityExp, "opacity=" + (val >> 0));
+						t.filter = filters.replace(_opacityExp, "opacity=" + val);
 					}
 				}
 			};
