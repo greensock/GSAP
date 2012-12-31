@@ -1,6 +1,6 @@
 /*!
- * VERSION: beta 1.665
- * DATE: 2012-12-22
+ * VERSION: beta 1.667
+ * DATE: 2012-12-30
  * JavaScript 
  * UPDATES AND DOCS AT: http://www.greensock.com
  *
@@ -29,7 +29,7 @@
 			p = CSSPlugin.prototype = new TweenPlugin("css");
 
 		p.constructor = CSSPlugin;
-		CSSPlugin.version = 1.665;
+		CSSPlugin.version = 1.667;
 		CSSPlugin.API = 2;
 		CSSPlugin.defaultTransformPerspective = 0;
 		p = "px"; //we'll reuse the "p" variable to keep file size down
@@ -1590,12 +1590,12 @@
 			};
 		_registerComplexSpecialProp("opacity,alpha,autoAlpha", "1", function(t, e, p, cssp, pt, plugin) {
 			var b = parseFloat(_getStyle(t, "opacity", _cs, false, "1")),
-				e = parseFloat(e),
 				style = t.style,
 				vb;
+			e = parseFloat(e);
 			if (p === "autoAlpha") {
 				vb = _getStyle(t, "visibility", _cs);
-				if (b === 1) if (vb === "hidden") { //if visibility is initially set to "hidden", we should interpret that as intent to make opacity 0.
+				if (b === 1 && vb === "hidden" && e !== 0) { //if visibility is initially set to "hidden", we should interpret that as intent to make opacity 0 (a convenience)
 					b = 0;
 				}
 				pt = new CSSPropTween(style, "visibility", 0, 0, pt, -1, null, false, 0, ((b !== 0) ? "visible" : "hidden"), ((e === 0) ? "hidden" : "visible"));
