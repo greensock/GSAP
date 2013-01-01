@@ -1,12 +1,12 @@
 /**
- * VERSION: beta 1.667
- * DATE: 2012-12-30
+ * VERSION: beta 1.668
+ * DATE: 2013-01-01
  * JavaScript (ActionScript 3 and 2 also available)
  * UPDATES AND DOCS AT: http://www.greensock.com
  * 
  * Includes all of the following: TweenLite, TweenMax, TimelineLite, TimelineMax, easing.EasePack, plugins.CSSPlugin, plugins.RoundPropsPlugin, plugins.BezierPlugin
  *
- * Copyright (c) 2008-2012, GreenSock. All rights reserved. 
+ * Copyright (c) 2008-2013, GreenSock. All rights reserved. 
  * This work is subject to the terms in http://www.greensock.com/terms_of_use.html or for 
  * Club GreenSock members, the software agreement that was issued with your membership.
  * 
@@ -33,7 +33,7 @@
 			p = TweenMax.prototype = TweenLite.to({}, 0.1, {}),
 			_blankArray = [];
 
-		TweenMax.version = 1.667;
+		TweenMax.version = 1.668;
 		p.constructor = TweenMax;
 		p.kill()._gc = false;
 		TweenMax.killTweensOf = TweenMax.killDelayedCallsTo = TweenLite.killTweensOf;
@@ -4405,21 +4405,20 @@
 			if (this._func) {
 				this._params[0] = p;
 				return this._func.apply(null, this._params);
-			} else {
-				var t = this._type,
-					pw = this._power,
-					r = (t === 1) ? 1 - p : (t === 2) ? p : (p < 0.5) ? p * 2 : (1 - p) * 2;
-				if (pw === 1) {
-					r *= r;
-				} else if (pw === 2) {
-					r *= r * r;
-				} else if (pw === 3) {
-					r *= r * r * r;
-				} else if (pw === 4) {
-					r *= r * r * r * r;
-				}
-				return (t === 1) ? 1 - r : (t === 2) ? r : (p < 0.5) ? r / 2 : 1 - (r / 2);
 			}
+			var t = this._type,
+				pw = this._power,
+				r = (t === 1) ? 1 - p : (t === 2) ? p : (p < 0.5) ? p * 2 : (1 - p) * 2;
+			if (pw === 1) {
+				r *= r;
+			} else if (pw === 2) {
+				r *= r * r;
+			} else if (pw === 3) {
+				r *= r * r * r;
+			} else if (pw === 4) {
+				r *= r * r * r * r;
+			}
+			return (t === 1) ? 1 - r : (t === 2) ? r : (p < 0.5) ? r / 2 : 1 - (r / 2);
 		};
 
 		//create all the standard eases like Linear, Quad, Cubic, Quart, Quint, Strong, Power0, Power1, Power2, Power3, and Power4 (each with easeIn, easeOut, and easeInOut)
@@ -4846,7 +4845,7 @@
 			if (!arguments.length) {
 				return this._reversed;
 			}
-			if (value !== this._reversed) {
+			if (value != this._reversed) {
 				this._reversed = value;
 				this.totalTime(this._totalTime, true);
 			}
@@ -4857,7 +4856,7 @@
 			if (!arguments.length) {
 				return this._paused;
 			}
-			if (value !== this._paused) if (this._timeline) {
+			if (value != this._paused) if (this._timeline) {
 				if (!value && this._timeline.smoothChildTiming) {
 					this._startTime += this._timeline.rawTime() - this._pauseTime;
 					this._uncache(false);
@@ -5033,7 +5032,7 @@
 		p._firstPT = p._targets = p._overwrittenProps = null;
 		p._notifyPluginsOfEnabled = false;
 
-		TweenLite.version = 1.663;
+		TweenLite.version = 1.668;
 		TweenLite.defaultEase = p._ease = new Ease(null, null, 1, 1);
 		TweenLite.defaultOverwrite = "auto";
 		TweenLite.ticker = _ticker;
@@ -5389,7 +5388,7 @@
 			if (vars === "all") {
 				vars = null;
 			}
-			if (vars == null) if (target == null || target == this.target) {
+			if (vars == null) if (target == null || target === this.target) {
 				return this._enabled(false, false);
 			}
 			target = target || this._targets || this.target;
@@ -5421,7 +5420,7 @@
 
 				if (propLookup) {
 					killProps = vars || propLookup;
-					record = (vars != overwrittenProps && overwrittenProps != "all" && vars != propLookup && (vars == null || vars._tempKill != true)); //_tempKill is a super-secret way to delete a particular tweening property but NOT have it remembered as an official overwritten property (like in BezierPlugin)
+					record = (vars !== overwrittenProps && overwrittenProps !== "all" && vars !== propLookup && (vars == null || vars._tempKill !== true)); //_tempKill is a super-secret way to delete a particular tweening property but NOT have it remembered as an official overwritten property (like in BezierPlugin)
 					for (p in killProps) {
 						if ((pt = propLookup[p])) {
 							if (pt.pg && pt.t._kill(killProps)) {

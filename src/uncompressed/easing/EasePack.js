@@ -1,10 +1,10 @@
 /*!
  * VERSION: beta 1.3
- * DATE: 2012-12-03
+ * DATE: 2013-01-01
  * JavaScript (ActionScript 3 and 2 also available)
  * UPDATES AND DOCS AT: http://www.greensock.com
  *
- * Copyright (c) 2008-2012, GreenSock. All rights reserved. 
+ * Copyright (c) 2008-2013, GreenSock. All rights reserved. 
  * This work is subject to the terms in http://www.greensock.com/terms_of_use.html or for 
  * Club GreenSock members, the software agreement that was issued with your membership.
  * 
@@ -53,23 +53,21 @@
 				if (p < 1 / 2.75) {
 					return 7.5625 * p * p;
 				} else if (p < 2 / 2.75) {
-					return 7.5625 * (p -= 1.5 / 2.75) * p + .75;
+					return 7.5625 * (p -= 1.5 / 2.75) * p + 0.75;
 				} else if (p < 2.5 / 2.75) {
-					return 7.5625 * (p -= 2.25 / 2.75) * p + .9375;
-				} else {
-					return 7.5625 * (p -= 2.625 / 2.75) * p + .984375;
+					return 7.5625 * (p -= 2.25 / 2.75) * p + 0.9375;
 				}
+				return 7.5625 * (p -= 2.625 / 2.75) * p + 0.984375;
 			}), 
 			BounceIn = _create("BounceIn", function(p) {
 				if ((p = 1 - p) < 1 / 2.75) {
 					return 1 - (7.5625 * p * p);
 				} else if (p < 2 / 2.75) {
-					return 1 - (7.5625 * (p -= 1.5 / 2.75) * p + .75);
+					return 1 - (7.5625 * (p -= 1.5 / 2.75) * p + 0.75);
 				} else if (p < 2.5 / 2.75) {
-					return 1 - (7.5625 * (p -= 2.25 / 2.75) * p + .9375);
-				} else {
-					return 1 - (7.5625 * (p -= 2.625 / 2.75) * p + .984375);
+					return 1 - (7.5625 * (p -= 2.25 / 2.75) * p + 0.9375);
 				}
+				return 1 - (7.5625 * (p -= 2.625 / 2.75) * p + 0.984375);
 			}), 
 			BounceInOut = _create("BounceInOut", function(p) {
 				var invert = (p < 0.5);
