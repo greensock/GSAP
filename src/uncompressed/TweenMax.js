@@ -1,6 +1,6 @@
 /**
- * VERSION: beta 1.668
- * DATE: 2013-01-01
+ * VERSION: beta 1.669
+ * DATE: 2013-01-02
  * JavaScript (ActionScript 3 and 2 also available)
  * UPDATES AND DOCS AT: http://www.greensock.com
  * 
@@ -33,7 +33,7 @@
 			p = TweenMax.prototype = TweenLite.to({}, 0.1, {}),
 			_blankArray = [];
 
-		TweenMax.version = 1.668;
+		TweenMax.version = 1.669;
 		p.constructor = TweenMax;
 		p.kill()._gc = false;
 		TweenMax.killTweensOf = TweenMax.killDelayedCallsTo = TweenLite.killTweensOf;
@@ -2063,7 +2063,7 @@
 			p = CSSPlugin.prototype = new TweenPlugin("css");
 
 		p.constructor = CSSPlugin;
-		CSSPlugin.version = 1.667;
+		CSSPlugin.version = 1.669;
 		CSSPlugin.API = 2;
 		CSSPlugin.defaultTransformPerspective = 0;
 		p = "px"; //we'll reuse the "p" variable to keep file size down
@@ -3229,7 +3229,7 @@
 					rnd = 100000,
 					cos, sin, t1, t2, t3, t4, top, n, sfx;
 				if (_isFirefox) { //Firefox has a bug that causes 3D elements to randomly disappear during animation unless a repaint is forced. One way to do this is change "top" by 0.05 which is imperceptible, so we go back and forth. Another way is to change the display to "none", read the clientTop, and then revert the display but that is much slower.
-					top = style.top + "";
+					top = _getStyle(this.t, "top", null, false, "0");
 					n = parseFloat(top) || 0;
 					sfx = top.substr((n + "").length);
 					t._ffFix = !t._ffFix;
