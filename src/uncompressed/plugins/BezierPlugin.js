@@ -1,6 +1,6 @@
 /**
- * VERSION: beta 1.151
- * DATE: 2012-12-20
+ * VERSION: beta 1.16
+ * DATE: 2013-01-09
  * JavaScript (also available in AS3 and AS2)
  * UPDATES AND DOCS AT: http://www.greensock.com
  *
@@ -40,13 +40,35 @@
 			bezierThrough = BezierPlugin.bezierThrough = function(values, curviness, quadratic, basic, correlate, prepend) {
 				var obj = {},
 					props = [],
-					i, p, a, j, r, l;
+					first = prepend || values[0],
+					i, p, a, j, r, l, seamless, last;
 				correlate = (typeof(correlate) === "string") ? ","+correlate+"," : _correlate;
 				if (curviness == null) {
 					curviness = 1;
 				}
 				for (p in values[0]) {
 					props.push(p);
+				}
+				//check to see if the last and first values are identical (well, within 0.05). If so, make seamless by appending the second element to the very end of the values array and the 2nd-to-last element to the very beginning (we'll remove those segments later)
+				if (values.length > 1) {
+					last = values[values.length - 1];
+					seamless = true;
+					i = props.length;
+					while (--i > -1) {
+						p = props[i];
+						if (Math.abs(first[p] - last[p]) > 0.05) { //build in a tolerance of +/-0.05 to accommodate rounding errors. For example, if you set an object's position to 4.945, Flash will make it 4.9
+							seamless = false;
+							break;
+						}
+					}
+					if (seamless) {
+						values = values.concat(); //duplicate the array to avoid contaminating the original which the user may be reusing for other tweens
+						if (prepend) {
+							values.unshift(prepend);
+						}
+						values.push(values[1]);
+						prepend = values[values.length - 3];
+					}
 				}
 				_r1.length = _r2.length = _r3.length = 0;
 				i = props.length;
@@ -78,9 +100,15 @@
 					}
 				}
 				i = props.length;
+				j = quadratic ? 4 : 1;
 				while (--i > -1) {
 					p = props[i];
-					_calculateControlPoints(obj[p], curviness, quadratic, basic, _corProps[p]); //this method requires that _parseAnchors() and _setSegmentRatios() ran first so that _r1, _r2, and _r3 values are populated for all properties
+					a = obj[p];
+					_calculateControlPoints(a, curviness, quadratic, basic, _corProps[p]); //this method requires that _parseAnchors() and _setSegmentRatios() ran first so that _r1, _r2, and _r3 values are populated for all properties
+					if (seamless) {
+						a.splice(0, j);
+						a.splice(a.length - j, j);
+					}
 				}
 				return obj;
 			}, 

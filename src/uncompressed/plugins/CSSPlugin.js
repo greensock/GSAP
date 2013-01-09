@@ -1,6 +1,6 @@
 /*!
- * VERSION: beta 1.669
- * DATE: 2013-01-02
+ * VERSION: beta 1.67
+ * DATE: 2013-01-09
  * JavaScript 
  * UPDATES AND DOCS AT: http://www.greensock.com
  *
@@ -29,7 +29,7 @@
 			p = CSSPlugin.prototype = new TweenPlugin("css");
 
 		p.constructor = CSSPlugin;
-		CSSPlugin.version = 1.669;
+		CSSPlugin.version = 1.67;
 		CSSPlugin.API = 2;
 		CSSPlugin.defaultTransformPerspective = 0;
 		p = "px"; //we'll reuse the "p" variable to keep file size down
@@ -1794,7 +1794,7 @@
 
 					} else {
 						bn = parseFloat(bs);
-						bsfx = bs.substr((bn + "").length);
+						bsfx = (bn || bn === 0) ? bs.substr((bn + "").length) : ""; //remember, bs could be non-numeric like "normal" for fontWeight, so we should default to a blank suffix in that case.
 
 						if (bs === "" || bs === "auto") {
 							if (p === "width" || p === "height") {
