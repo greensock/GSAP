@@ -1,5 +1,5 @@
 /*!
- * VERSION: beta 1.67
+ * VERSION: beta 1.671
  * DATE: 2013-01-09
  * JavaScript 
  * UPDATES AND DOCS AT: http://www.greensock.com
@@ -29,7 +29,7 @@
 			p = CSSPlugin.prototype = new TweenPlugin("css");
 
 		p.constructor = CSSPlugin;
-		CSSPlugin.version = 1.67;
+		CSSPlugin.version = 1.671;
 		CSSPlugin.API = 2;
 		CSSPlugin.defaultTransformPerspective = 0;
 		p = "px"; //we'll reuse the "p" variable to keep file size down
@@ -698,10 +698,13 @@
 						ev = _parseColor(ev);
 						rgba = (bv.length + ev.length > 6);
 
-						if (rgba && !_supportsOpacity && ev[3] === 0) { //older versions of IE don't support rgba(), so if the destination alpha is 0, just use "transparent" for the color
+						if (rgba && !_supportsOpacity && ev[3] === 0) { //older versions of IE don't support rgba(), so if the destination alpha is 0, just use "transparent" for the end color
 							pt["xs" + pt.l] += pt.l ? " transparent" : "transparent";
 							pt.e = pt.e.split(ea[i]).join("transparent");
 						} else {
+							if (!_supportsOpacity) { //old versions of IE don't support rgba().
+								rgba = false;
+							}
 							pt.appendXtra((rgba ? "rgba(" : "rgb("), bv[0], ev[0] - bv[0], ",", true, true)
 								.appendXtra("", bv[1], ev[1] - bv[1], ",", true)
 								.appendXtra("", bv[2], ev[2] - bv[2], (rgba ? "," : ")"), true);
