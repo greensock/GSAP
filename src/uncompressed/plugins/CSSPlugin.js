@@ -1,5 +1,5 @@
 /*!
- * VERSION: beta 1.671
+ * VERSION: beta 1.672
  * DATE: 2013-01-09
  * JavaScript 
  * UPDATES AND DOCS AT: http://www.greensock.com
@@ -29,7 +29,7 @@
 			p = CSSPlugin.prototype = new TweenPlugin("css");
 
 		p.constructor = CSSPlugin;
-		CSSPlugin.version = 1.671;
+		CSSPlugin.version = 1.672;
 		CSSPlugin.API = 2;
 		CSSPlugin.defaultTransformPerspective = 0;
 		p = "px"; //we'll reuse the "p" variable to keep file size down
@@ -1308,19 +1308,26 @@
 				//style[_transformProp] = "matrix3d(" + ((a11 < min && a11 > -min) ? 0 : a11) + cma + ((a21 < min && a21 > -min) ? 0 : a21) + cma + ((a31 < min && a31 > -min) ? 0 : a31) + cma + ((a41 < min && a41 > -min) ? 0 : a41) + cma	+ ((a12 < min && a12 > -min) ? 0 : a12) + cma	+ ((a22 < min && a22 > -min) ? 0 : a22) + cma	+ ((a32 < min && a32 > -min) ? 0 : a32) + cma	+ ((a42 < min && a42 > -min) ? 0 : a42) + cma	+ ((a13 < min && a13 > -min) ? 0 : a13) + cma	+ ((a23 < min && a23 > -min) ? 0 : a23) + cma	+ ((a33 < min && a33 > -min) ? 0 : a33) + cma	+ ((a43 < min && a43 > -min) ? 0 : a43) + cma	+ ((a14 < min && a14 > -min) ? 0 : a14) + cma + ((a24 < min && a24 > -min) ? 0 : a24) + cma + a34 + cma + (perspective ? (1 + (-a34 / perspective)) : 1) + ")";
 			},
 			_set2DTransformRatio = function(v) {
-				var t = this.data; //refers to the element's _gsTransform object
+				var t = this.data, //refers to the element's _gsTransform object
+					targ = this.t,
+					top, n, sfx, ang, skew, rnd, sx, sy;
+				if (_isFirefox) { //Firefox has a bug that causes transformed elements to randomly disappear during (or after) animation unless a repaint is forced. One way to do this is change "top" by 0.05 which is imperceptible, so we alternate back and forth. Another way is to change the display to "none", read the clientTop, and then revert the display but that is much slower. The bug is present in at least Firefox 17 and 18
+					top = _getStyle(targ, "top", null, false, "0");
+					n = parseFloat(top) || 0;
+					sfx = top.substr((n + "").length);
+					t._ffFix = !t._ffFix;
+					targ.style.top = (t._ffFix ? n + 0.05 : n - 0.05) + ((sfx === "") ? "px" : sfx);
+				}
 				if (!t.rotation && !t.skewX) {
-					this.t.style[_transformProp] = "matrix(" + t.scaleX + ",0,0," + t.scaleY + "," + t.x + "," + t.y + ")";
+					targ.style[_transformProp] = "matrix(" + t.scaleX + ",0,0," + t.scaleY + "," + t.x + "," + t.y + ")";
 				} else {
-					var ang = t.rotation,
-						skew = ang - t.skewX,
-						rnd = 100000,
-						//some browsers have a hard time with very small values like 2.4492935982947064e-16 (notice the "e-" towards the end) and would render the object slightly off. So we round to 5 decimal places.
-						a = ((Math.cos(ang) * t.scaleX * rnd) >> 0) / rnd,
-						b = ((Math.sin(ang) * t.scaleX * rnd) >> 0) / rnd,
-						c = ((Math.sin(skew) * -t.scaleY * rnd) >> 0) / rnd,
-						d = ((Math.cos(skew) * t.scaleY * rnd) >> 0) / rnd;
-					this.t.style[_transformProp] = "matrix(" + a + "," + b + "," + c + "," + d + "," + t.x + "," + t.y + ")";
+					ang = t.rotation;
+					skew = ang - t.skewX;
+					rnd = 100000;
+					sx = t.scaleX * rnd;
+					sy = t.scaleY * rnd;
+					//some browsers have a hard time with very small values like 2.4492935982947064e-16 (notice the "e-" towards the end) and would render the object slightly off. So we round to 5 decimal places.
+					targ.style[_transformProp] = "matrix(" + (((Math.cos(ang) * sx) >> 0) / rnd) + "," + (((Math.sin(ang) * sx) >> 0) / rnd) + "," + (((Math.sin(skew) * -sy) >> 0) / rnd) + "," + (((Math.cos(skew) * sy) >> 0) / rnd) + "," + t.x + "," + t.y + ")";
 				}
 			};
 
