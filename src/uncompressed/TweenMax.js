@@ -1,6 +1,6 @@
 /**
- * VERSION: beta 1.672
- * DATE: 2013-01-09
+ * VERSION: beta 1.675
+ * DATE: 2013-01-10
  * JavaScript (ActionScript 3 and 2 also available)
  * UPDATES AND DOCS AT: http://www.greensock.com
  * 
@@ -33,7 +33,7 @@
 			p = TweenMax.prototype = TweenLite.to({}, 0.1, {}),
 			_blankArray = [];
 
-		TweenMax.version = 1.672;
+		TweenMax.version = 1.675;
 		p.constructor = TweenMax;
 		p.kill()._gc = false;
 		TweenMax.killTweensOf = TweenMax.killDelayedCallsTo = TweenLite.killTweensOf;
@@ -507,7 +507,7 @@
 
 /*
  * ----------------------------------------------------------------
- * TimelineLite 													(!TimelineLite)
+ * TimelineLite
  * ----------------------------------------------------------------
  */
 	_gsDefine("TimelineLite", ["core.Animation","core.SimpleTimeline","TweenLite"], function(Animation, SimpleTimeline, TweenLite) {
@@ -517,8 +517,8 @@
 		var TimelineLite = function(vars) {
 				SimpleTimeline.call(this, vars);
 				this._labels = {};
-				this.autoRemoveChildren = (this.vars.autoRemoveChildren === true);
-				this.smoothChildTiming = (this.vars.smoothChildTiming === true);
+				this.autoRemoveChildren = (this.vars.autoRemoveChildren == true);
+				this.smoothChildTiming = (this.vars.smoothChildTiming == true);
 				this._sortChildren = true;
 				this._onUpdate = this.vars.onUpdate;
 				var i = _paramProps.length,
@@ -549,7 +549,7 @@
 			},
 			p = TimelineLite.prototype = new SimpleTimeline();
 
-		TimelineLite.version = 1.641;
+		TimelineLite.version = 1.675;
 		p.constructor = TimelineLite;
 		p.kill()._gc = false;
 
@@ -641,7 +641,7 @@
 				return this;
 			}
 
-			SimpleTimeline.prototype.insert.call(this, value, this._parseTimeOrLabel(timeOrLabel || 0, 0, true));
+			SimpleTimeline.prototype.insert.call(this, value, this._parseTimeOrLabel(timeOrLabel || 0, 0, true, value));
 
 			//if the timeline has already ended but the inserted tween/timeline extends the duration, we should enable this timeline again so that it renders properly.
 			if (this._gc) if (!this._paused) if (this._time === this._duration) if (this._time < this.duration()) {
@@ -675,13 +675,13 @@
 		};
 
 		p.append = function(value, offsetOrLabel) {
-			return this.insert(value, this._parseTimeOrLabel(null, offsetOrLabel, true));
+			return this.insert(value, this._parseTimeOrLabel(null, offsetOrLabel, true, value));
 		};
 
 		p.insertMultiple = function(tweens, timeOrLabel, align, stagger) {
 			align = align || "normal";
 			stagger = stagger || 0;
-			var i, tween, curTime = this._parseTimeOrLabel(timeOrLabel || 0, 0, true), l = tweens.length;
+			var i, tween, curTime = this._parseTimeOrLabel(timeOrLabel || 0, 0, true, tweens), l = tweens.length;
 			for (i = 0; i < l; i++) {
 				if ((tween = tweens[i]) instanceof Array) {
 					tween = new TimelineLite({tweens:tween});
@@ -700,7 +700,7 @@
 		};
 
 		p.appendMultiple = function(tweens, offsetOrLabel, align, stagger) {
-			return this.insertMultiple(tweens, this._parseTimeOrLabel(null, offsetOrLabel, true), align, stagger);
+			return this.insertMultiple(tweens, this._parseTimeOrLabel(null, offsetOrLabel, true, tweens), align, stagger);
 		};
 
 		p.addLabel = function(label, time) {
@@ -717,7 +717,18 @@
 			return (this._labels[label] != null) ? this._labels[label] : -1;
 		};
 
-		p._parseTimeOrLabel = function(timeOrLabel, offsetOrLabel, appendIfAbsent) {
+		p._parseTimeOrLabel = function(timeOrLabel, offsetOrLabel, appendIfAbsent, ignore) {
+			//if we're about to add a tween/timeline (or an array of them) that's already a child of this timeline, we should remove it first so that it doesn't contaminate the duration().
+			if (ignore instanceof Animation && ignore.timeline === this) {
+				this.remove(ignore);
+			} else if (ignore instanceof Array) {
+				var i = ignore.length;
+				while (--i > -1) {
+					if (ignore[i] instanceof Animation && ignore[i].timeline === this) {
+						this.remove(ignore[i]);
+					}
+				}
+			}
 			if (typeof(offsetOrLabel) === "string") {
 				return this._parseTimeOrLabel(offsetOrLabel, ((appendIfAbsent && typeof(timeOrLabel) === "number" && this._labels[offsetOrLabel] == null) ? timeOrLabel - this.duration() : 0), appendIfAbsent);
 			}
@@ -770,7 +781,7 @@
 					}
 				}
 				this._rawPrevTime = time;
-				time = totalDur + 0.000001; //to avoid occassional floating point rounding errors - sometimes child tweens/timelines were not being fully completed (their progress might be 0.999999999999998 instead of 1 because when _time - tween._startTime is performed, floating point errors would return a value that was SLIGHTLY off)
+				time = totalDur + 0.000001; //to avoid occasional floating point rounding errors - sometimes child tweens/timelines were not being fully completed (their progress might be 0.999999999999998 instead of 1 because when _time - tween._startTime is performed, floating point errors would return a value that was SLIGHTLY off)
 
 			} else if (time <= 0) {
 				this._totalTime = this._time = 0;
@@ -787,7 +798,7 @@
 					force = true;
 				}
 				this._rawPrevTime = time;
-				time = -0.000001; //to avoid occassional floating point rounding errors in Flash - sometimes child tweens/timelines were not being rendered at the very beginning (their progress might be 0.000000000001 instead of 0 because when Flash performed _time - tween._startTime, floating point errors would return a value that was SLIGHTLY off)
+				time = -0.000001; //to avoid occasional floating point rounding errors in Flash - sometimes child tweens/timelines were not being rendered at the very beginning (their progress might be 0.000000000001 instead of 0 because when Flash performed _time - tween._startTime, floating point errors would return a value that was SLIGHTLY off)
 
 			} else {
 				this._totalTime = this._time = this._rawPrevTime = time;
@@ -1095,7 +1106,7 @@
 
 		p.constructor = TimelineMax;
 		p.kill()._gc = false;
-		TimelineMax.version = 1.641;
+		TimelineMax.version = 1.675;
 
 		p.invalidate = function() {
 			this._yoyo = (this.vars.yoyo === true);
@@ -2091,7 +2102,7 @@
 			p = CSSPlugin.prototype = new TweenPlugin("css");
 
 		p.constructor = CSSPlugin;
-		CSSPlugin.version = 1.672;
+		CSSPlugin.version = 1.673;
 		CSSPlugin.API = 2;
 		CSSPlugin.defaultTransformPerspective = 0;
 		p = "px"; //we'll reuse the "p" variable to keep file size down
@@ -3010,8 +3021,10 @@
 			_getTransform = function(t, cs, rec) {
 				var tm = rec ? t._gsTransform || {skewY:0} : {skewY:0},
 					invX = (tm.scaleX < 0), //in order to interpret things properly, we need to know if the user applied a negative scaleX previously so that we can adjust the rotation and skewX accordingly. Otherwise, if we always interpret a flipped matrix as affecting scaleY and the user only wants to tween the scaleX on multiple sequential tweens, it would keep the negative scaleY without that being the user's intent.
-					min = 0.000001,
+					min = 0.00002,
 					rnd = 100000,
+					minPI = -Math.PI + 0.0001,
+					maxPI = Math.PI - 0.0001,
 					zOrigin = _supports3D ? parseFloat(_getStyle(t, _transformOriginProp, cs, false, "0 0 0").split(" ")[2]) || tm.zOrigin  || 0 : 0,
 					s, m, i, n, scaleX, scaleY, rotation, skewX, difX, difY, difR, difS;
 				if (_transformProp) {
@@ -3047,8 +3060,6 @@
 						var a11 = m[0], a21 = m[1], a31 = m[2], a41 = m[3],
 							a12 = m[4], a22 = m[5], a32 = m[6], a42 = m[7],
 							a43 = m[11],
-							minPI = -Math.PI + 0.0001,
-							maxPI = Math.PI - 0.0001,
 							angle = tm.rotationX = Math.atan2(a32, a33),
 							xFlip = (angle < minPI || angle > maxPI),
 							t1, t2, t3, t4, cos, sin, yFlip, zFlip;
@@ -3144,10 +3155,10 @@
 							skewX += (skewX <= 0) ? Math.PI : -Math.PI;
 						}
 					}
-					difR = (rotation - tm.rotation) % Math.PI;
+					difR = (rotation - tm.rotation) % Math.PI; //note: matching ranges would be very small (+/-0.0001) or very close to Math.PI (+/-3.1415).
 					difS = (skewX - tm.skewX) % Math.PI;
 					//if there's already a recorded _gsTransform in place for the target, we should leave those values in place unless we know things changed for sure (beyond a super small amount). This gets around ambiguous interpretations, like if scaleX and scaleY are both -1, the matrix would be the same as if the rotation was 180 with normal scaleX/scaleY. If the user tweened to particular values, those must be prioritized to ensure animation is consistent.
-					if (tm.skewX === undefined || difX > min || difX < -min || difY > min || difY < -min || difR > min || difR < -min || difS > min || difS < -min) {
+					if (tm.skewX === undefined || difX > min || difX < -min || difY > min || difY < -min || (difR > minPI && difR < maxPI && (difR * rnd) >> 0 !== 0) || (difS > minPI && difS < maxPI && (difS * rnd) >> 0 !== 0)) {
 						tm.scaleX = scaleX;
 						tm.scaleY = scaleY;
 						tm.rotation = rotation;
@@ -4105,64 +4116,135 @@
  */
 	_gsDefine("easing.Back", ["easing.Ease"], function(Ease) {
 		
-		var gs = window.com.greensock, 
-			_class = gs._class, 
+		var w = window,
+			gs = w.com.greensock,
+			_2PI = Math.PI * 2,
+			_HALF_PI = Math.PI / 2,
+			_class = gs._class,
 			_create = function(n, f) {
-				var c = _class("easing." + n, function(){}, true), 
-					p = c.prototype = new Ease();
-				p.constructor = c;
+				var C = _class("easing." + n, function(){}, true),
+					p = C.prototype = new Ease();
+				p.constructor = C;
 				p.getRatio = f;
-				return c;
+				return C;
 			},
-			
-			//BACK
+			_easeReg = Ease.register || function(){}, //put an empty function in place just as a safety measure in case someone loads an OLD version of TweenLite.js where Ease.register doesn't exist.
+			_wrap = function(name, EaseOut, EaseIn, EaseInOut, aliases) {
+				var C = _class("easing."+name, {
+					easeOut:new EaseOut(),
+					easeIn:new EaseIn(),
+					easeInOut:new EaseInOut()
+				}, true);
+				_easeReg(C, name);
+				return C;
+			},
+
+			//Back
 			_createBack = function(n, f) {
-				var c = _class("easing." + n, function(overshoot) {
+				var C = _class("easing." + n, function(overshoot) {
 						this._p1 = (overshoot || overshoot === 0) ? overshoot : 1.70158;
 						this._p2 = this._p1 * 1.525;
-					}, true), 
-					p = c.prototype = new Ease();
-				p.constructor = c;
+					}, true),
+					p = C.prototype = new Ease();
+				p.constructor = C;
 				p.getRatio = f;
 				p.config = function(overshoot) {
-					return new c(overshoot);
+					return new C(overshoot);
 				};
-				return c;
-			}, 
-			BackOut = _createBack("BackOut", function(p) {
-				return ((p = p - 1) * p * ((this._p1 + 1) * p + this._p1) + 1);
-			}), 
-			BackIn = _createBack("BackIn", function(p) {
-				return p * p * ((this._p1 + 1) * p - this._p1);
-			}), 
-			BackInOut = _createBack("BackInOut", function(p) {
-				return ((p *= 2) < 1) ? 0.5 * p * p * ((this._p2 + 1) * p - this._p2) : 0.5 * ((p -= 2) * p * ((this._p2 + 1) * p + this._p2) + 2);
-			}),  
-			
-			//BOUNCE
-			BounceOut = _create("BounceOut", function(p) {
+				return C;
+			},
+
+			Back = _wrap("Back",
+				_createBack("BackOut", function(p) {
+					return ((p = p - 1) * p * ((this._p1 + 1) * p + this._p1) + 1);
+				}),
+				_createBack("BackIn", function(p) {
+					return p * p * ((this._p1 + 1) * p - this._p1);
+				}),
+				_createBack("BackInOut", function(p) {
+					return ((p *= 2) < 1) ? 0.5 * p * p * ((this._p2 + 1) * p - this._p2) : 0.5 * ((p -= 2) * p * ((this._p2 + 1) * p + this._p2) + 2);
+				})
+			),
+
+
+			//SlowMo
+			SlowMo = _class("easing.SlowMo", function(linearRatio, power, yoyoMode) {
+				power = (power || power === 0) ? power : 0.7;
+				if (linearRatio == null) {
+					linearRatio = 0.7;
+				} else if (linearRatio > 1) {
+					linearRatio = 1;
+				}
+				this._p = (linearRatio !== 1) ? power : 0;
+				this._p1 = (1 - linearRatio) / 2;
+				this._p2 = linearRatio;
+				this._p3 = this._p1 + this._p2;
+				this._calcEnd = (yoyoMode === true);
+			}, true),
+			p = SlowMo.prototype = new Ease(),
+			SteppedEase, _createElastic;
+
+		p.constructor = SlowMo;
+		p.getRatio = function(p) {
+			var r = p + (0.5 - p) * this._p;
+			if (p < this._p1) {
+				return this._calcEnd ? 1 - ((p = 1 - (p / this._p1)) * p) : r - ((p = 1 - (p / this._p1)) * p * p * p * r);
+			} else if (p > this._p3) {
+				return this._calcEnd ? 1 - (p = (p - this._p3) / this._p1) * p : r + ((p - r) * (p = (p - this._p3) / this._p1) * p * p * p);
+			}
+			return this._calcEnd ? 1 : r;
+		};
+		SlowMo.ease = new SlowMo(0.7, 0.7);
+
+		p.config = SlowMo.config = function(linearRatio, power, yoyoMode) {
+			return new SlowMo(linearRatio, power, yoyoMode);
+		};
+
+
+		//SteppedEase
+		SteppedEase = _class("easing.SteppedEase", function(steps) {
+				steps = steps || 1;
+				this._p1 = 1 / steps;
+				this._p2 = steps + 1;
+			}, true);
+		p = SteppedEase.prototype = new Ease();
+		p.constructor = SteppedEase;
+		p.getRatio = function(p) {
+			if (p < 0) {
+				p = 0;
+			} else if (p >= 1) {
+				p = 0.999999999;
+			}
+			return ((this._p2 * p) >> 0) * this._p1;
+		};
+		p.config = SteppedEase.config = function(steps) {
+			return new SteppedEase(steps);
+		};
+
+
+		//Bounce
+		_wrap("Bounce",
+			_create("BounceOut", function(p) {
 				if (p < 1 / 2.75) {
 					return 7.5625 * p * p;
 				} else if (p < 2 / 2.75) {
 					return 7.5625 * (p -= 1.5 / 2.75) * p + 0.75;
 				} else if (p < 2.5 / 2.75) {
 					return 7.5625 * (p -= 2.25 / 2.75) * p + 0.9375;
-				} else {
-					return 7.5625 * (p -= 2.625 / 2.75) * p + 0.984375;
 				}
-			}), 
-			BounceIn = _create("BounceIn", function(p) {
+				return 7.5625 * (p -= 2.625 / 2.75) * p + 0.984375;
+			}),
+			_create("BounceIn", function(p) {
 				if ((p = 1 - p) < 1 / 2.75) {
 					return 1 - (7.5625 * p * p);
 				} else if (p < 2 / 2.75) {
 					return 1 - (7.5625 * (p -= 1.5 / 2.75) * p + 0.75);
 				} else if (p < 2.5 / 2.75) {
 					return 1 - (7.5625 * (p -= 2.25 / 2.75) * p + 0.9375);
-				} else {
-					return 1 - (7.5625 * (p -= 2.625 / 2.75) * p + 0.984375);
 				}
-			}), 
-			BounceInOut = _create("BounceInOut", function(p) {
+				return 1 - (7.5625 * (p -= 2.625 / 2.75) * p + 0.984375);
+			}),
+			_create("BounceInOut", function(p) {
 				var invert = (p < 0.5);
 				if (invert) {
 					p = 1 - (p * 2);
@@ -4179,158 +4261,90 @@
 					p = 7.5625 * (p -= 2.625 / 2.75) * p + 0.984375;
 				}
 				return invert ? (1 - p) * 0.5 : p * 0.5 + 0.5;
-			}),
-			
-			//CIRC
-			CircOut = _create("CircOut", function(p) {
+			})
+		);
+
+
+		//CIRC
+		_wrap("Circ",
+			_create("CircOut", function(p) {
 				return Math.sqrt(1 - (p = p - 1) * p);
 			}),
-			CircIn = _create("CircIn", function(p) {
+			_create("CircIn", function(p) {
 				return -(Math.sqrt(1 - (p * p)) - 1);
 			}),
-			CircInOut = _create("CircInOut", function(p) {
+			_create("CircInOut", function(p) {
 				return ((p*=2) < 1) ? -0.5 * (Math.sqrt(1 - p * p) - 1) : 0.5 * (Math.sqrt(1 - (p -= 2) * p) + 1);
-			}),
-			
-			//ELASTIC
-			_2PI = Math.PI * 2,
-			_createElastic = function(n, f, def) {
-				var c = _class("easing." + n, function(amplitude, period) {
-						this._p1 = amplitude || 1;
-						this._p2 = period || def;
-						this._p3 = this._p2 / _2PI * (Math.asin(1 / this._p1) || 0);
-					}, true), 
-					p = c.prototype = new Ease();
-				p.constructor = c;
-				p.getRatio = f;
-				p.config = function(amplitude, period) {
-					return new c(amplitude, period);
-				};
-				return c;
-			}, 
-			ElasticOut = _createElastic("ElasticOut", function(p) {
+			})
+		);
+
+
+		//Elastic
+		_createElastic = function(n, f, def) {
+			var C = _class("easing." + n, function(amplitude, period) {
+					this._p1 = amplitude || 1;
+					this._p2 = period || def;
+					this._p3 = this._p2 / _2PI * (Math.asin(1 / this._p1) || 0);
+				}, true),
+				p = C.prototype = new Ease();
+			p.constructor = C;
+			p.getRatio = f;
+			p.config = function(amplitude, period) {
+				return new C(amplitude, period);
+			};
+			return C;
+		};
+		_wrap("Elastic",
+			_createElastic("ElasticOut", function(p) {
 				return this._p1 * Math.pow(2, -10 * p) * Math.sin( (p - this._p3) * _2PI / this._p2 ) + 1;
-			}, 0.3), 
-			ElasticIn = _createElastic("ElasticIn", function(p) {
+			}, 0.3),
+			_createElastic("ElasticIn", function(p) {
 				return -(this._p1 * Math.pow(2, 10 * (p -= 1)) * Math.sin( (p - this._p3) * _2PI / this._p2 ));
-			}, 0.3), 
-			ElasticInOut = _createElastic("ElasticInOut", function(p) {
-				return ((p *= 2) < 1) ? -.5 * (this._p1 * Math.pow(2, 10 * (p -= 1)) * Math.sin( (p - this._p3) * _2PI / this._p2)) : this._p1 * Math.pow(2, -10 *(p -= 1)) * Math.sin( (p - this._p3) * _2PI / this._p2 ) *.5 + 1;
-			}, 0.45),
-			
-			//Expo
-			ExpoOut = _create("ExpoOut", function(p) {
+			}, 0.3),
+			_createElastic("ElasticInOut", function(p) {
+				return ((p *= 2) < 1) ? -0.5 * (this._p1 * Math.pow(2, 10 * (p -= 1)) * Math.sin( (p - this._p3) * _2PI / this._p2)) : this._p1 * Math.pow(2, -10 *(p -= 1)) * Math.sin( (p - this._p3) * _2PI / this._p2 ) *0.5 + 1;
+			}, 0.45)
+		);
+
+
+		//Expo
+		_wrap("Expo",
+			_create("ExpoOut", function(p) {
 				return 1 - Math.pow(2, -10 * p);
 			}),
-			ExpoIn = _create("ExpoIn", function(p) {
+			_create("ExpoIn", function(p) {
 				return Math.pow(2, 10 * (p - 1)) - 0.001;
 			}),
-			ExpoInOut = _create("ExpoInOut", function(p) {
+			_create("ExpoInOut", function(p) {
 				return ((p *= 2) < 1) ? 0.5 * Math.pow(2, 10 * (p - 1)) : 0.5 * (2 - Math.pow(2, -10 * (p - 1)));
-			}), 
-			
-			//Sine
-			_HALF_PI = Math.PI / 2,
-			SineOut = _create("SineOut", function(p) {
+			})
+		);
+
+
+		//Sine
+		_wrap("Sine",
+			_create("SineOut", function(p) {
 				return Math.sin(p * _HALF_PI);
 			}),
-			SineIn = _create("SineIn", function(p) {
+			_create("SineIn", function(p) {
 				return -Math.cos(p * _HALF_PI) + 1;
 			}),
-			SineInOut = _create("SineInOut", function(p) {
+			_create("SineInOut", function(p) {
 				return -0.5 * (Math.cos(Math.PI * p) - 1);
-			}),
-			
-			//SlowMo
-			SlowMo = _class("easing.SlowMo", function(linearRatio, power, yoyoMode) {
-				power = (power || power === 0) ? power : 0.7;
-				if (linearRatio == null) {
-					linearRatio = 0.7;
-				} else if (linearRatio > 1) {
-					linearRatio = 1;
+			})
+		);
+
+		_class("easing.EaseLookup", {
+				find:function(s) {
+					return Ease.map[s];
 				}
-				this._p = (linearRatio != 1) ? power : 0;
-				this._p1 = (1 - linearRatio) / 2;
-				this._p2 = linearRatio;
-				this._p3 = this._p1 + this._p2;
-				this._calcEnd = (yoyoMode === true);
-			}, true),
-			p = SlowMo.prototype = new Ease();
-			
-		p.constructor = SlowMo;
-		p.getRatio = function(p) {
-			var r = p + (0.5 - p) * this._p;
-			if (p < this._p1) {
-				return this._calcEnd ? 1 - ((p = 1 - (p / this._p1)) * p) : r - ((p = 1 - (p / this._p1)) * p * p * p * r);
-			} else if (p > this._p3) {
-				return this._calcEnd ? 1 - (p = (p - this._p3) / this._p1) * p : r + ((p - r) * (p = (p - this._p3) / this._p1) * p * p * p);
-			}
-			return this._calcEnd ? 1 : r;
-		};
-		SlowMo.ease = new SlowMo(0.7, 0.7);
-		
-		p.config = SlowMo.config = function(linearRatio, power, yoyoMode) {
-			return new SlowMo(linearRatio, power, yoyoMode);
-		};
-		
-		
-		//SteppedEase
-		var SteppedEase = _class("easing.SteppedEase", function(steps) {
-				steps = steps || 1;
-				this._p1 = 1 / steps;
-				this._p2 = steps + 1;
 			}, true);
-		p = SteppedEase.prototype = new Ease();	
-		p.constructor = SteppedEase;
-		p.getRatio = function(p) {
-			if (p < 0) {
-				p = 0;
-			} else if (p >= 1) {
-				p = 0.999999999;
-			}
-			return ((this._p2 * p) >> 0) * this._p1;
-		};
-		p.config = SteppedEase.config = function(steps) {
-			return new SteppedEase(steps);
-		};
-		
-		
-		_class("easing.Bounce", {
-				easeOut:new BounceOut(),
-				easeIn:new BounceIn(),
-				easeInOut:new BounceInOut()
-			}, true);
-		
-		_class("easing.Circ", {
-				easeOut:new CircOut(),
-				easeIn:new CircIn(),
-				easeInOut:new CircInOut()
-			}, true);
-		
-		_class("easing.Elastic", {
-				easeOut:new ElasticOut(),
-				easeIn:new ElasticIn(),
-				easeInOut:new ElasticInOut()
-			}, true);
-			
-		_class("easing.Expo", {
-				easeOut:new ExpoOut(),
-				easeIn:new ExpoIn(),
-				easeInOut:new ExpoInOut()
-			}, true);
-			
-		_class("easing.Sine", {
-				easeOut:new SineOut(),
-				easeIn:new SineIn(),
-				easeInOut:new SineInOut()
-			}, true);
-		
-		
-		return {
-			easeOut:new BackOut(),
-			easeIn:new BackIn(),
-			easeInOut:new BackInOut()
-		};
+
+		//register the non-standard eases
+		_easeReg(w.SlowMo, "SlowMo", "ease,");
+		_easeReg(SteppedEase, "SteppedEase", "ease,");
+
+		return Back;
 		
 	}, true);
 
@@ -4436,7 +4450,23 @@
 				this._type = type || 0;
 				this._power = power || 0;
 				this._params = extraParams ? _baseParams.concat(extraParams) : _baseParams;
-			}, true);
+			}, true),
+			_easeMap = Ease.map = {},
+			_easeReg = Ease.register = function(ease, names, types, create) {
+				var na = names.split(","),
+					i = na.length,
+					ta = (types || "easeIn,easeOut,easeInOut").split(","),
+					e, name, j, type;
+				while (--i > -1) {
+					name = na[i];
+					e = create ? _class("easing."+name, null, true) : gs.easing[name] || {};
+					j = ta.length;
+					while (--j > -1) {
+						type = ta[j];
+						_easeMap[name + "." + type] = _easeMap[type + name] = e[type] = (ease.getRatio) ? ease : ease[type] || new ease();
+					}
+				}
+			};
 
 		p = Ease.prototype;
 		p._calcEnd = false;
@@ -4461,6 +4491,19 @@
 		};
 
 		//create all the standard eases like Linear, Quad, Cubic, Quart, Quint, Strong, Power0, Power1, Power2, Power3, and Power4 (each with easeIn, easeOut, and easeInOut)
+		a = ["Linear","Quad","Cubic","Quart","Quint,Strong"];
+		i = a.length;
+		while (--i > -1) {
+			p = a[i]+",Power"+i;
+			_easeReg(new Ease(null,null,1,i), p, "easeOut", true);
+			_easeReg(new Ease(null,null,2,i), p, "easeIn" + ((i === 0) ? ",easeNone" : ""));
+			_easeReg(new Ease(null,null,3,i), p, "easeInOut");
+		}
+		_easeMap.linear = gs.easing.Linear.easeIn;
+		_easeMap.swing = gs.easing.Quad.easeOut; //for jQuery folks
+
+		/*
+		//create all the standard eases like Linear, Quad, Cubic, Quart, Quint, Strong, Power0, Power1, Power2, Power3, and Power4 (each with easeIn, easeOut, and easeInOut)
 		a = ["Linear","Quad","Cubic","Quart","Quint"];
 		i = a.length;
 		while(--i > -1) {
@@ -4472,6 +4515,7 @@
 		}
 		_class("easing.Strong", gs.easing.Power4, true);
 		gs.easing.Linear.easeNone = gs.easing.Linear.easeIn;
+		*/
 
 
 /*
@@ -5071,7 +5115,7 @@
 		p._firstPT = p._targets = p._overwrittenProps = null;
 		p._notifyPluginsOfEnabled = false;
 
-		TweenLite.version = 1.67;
+		TweenLite.version = 1.675;
 		TweenLite.defaultEase = p._ease = new Ease(null, null, 1, 1);
 		TweenLite.defaultOverwrite = "auto";
 		TweenLite.ticker = _ticker;
@@ -5199,18 +5243,22 @@
 //---- TweenLite instance methods -----------------------------------------------------------------------------
 
 		p._init = function() {
-			if (this.vars.startAt) {
-				this.vars.startAt.overwrite = 0;
-				this.vars.startAt.immediateRender = true;
-				TweenLite.to(this.target, 0, this.vars.startAt);
+			var v = this.vars,
+				ease = v.ease,
+				i, initPlugins, pt;
+			if (v.startAt) {
+				v.startAt.overwrite = 0;
+				v.startAt.immediateRender = true;
+				TweenLite.to(this.target, 0, v.startAt);
 			}
-			var i, initPlugins, pt;
-			if (this.vars.ease instanceof Ease) {
-				this._ease = (this.vars.easeParams instanceof Array) ? this.vars.ease.config.apply(this.vars.ease, this.vars.easeParams) : this.vars.ease;
-			} else if (typeof(this.vars.ease) === "function") {
-				this._ease = new Ease(this.vars.ease, this.vars.easeParams);
-			} else {
+			if (!ease) {
 				this._ease = TweenLite.defaultEase;
+			} else if (ease instanceof Ease) {
+				this._ease = (v.easeParams instanceof Array) ? ease.config.apply(ease, v.easeParams) : ease;
+			} else if (typeof(ease) === "function") {
+				this._ease = new Ease(ease, v.easeParams);
+			} else {
+				this._ease = _easeMap[ease] || TweenLite.defaultEase;
 			}
 			this._easeType = this._ease._type;
 			this._easePower = this._ease._power;
@@ -5233,7 +5281,7 @@
 			if (this._overwrittenProps) if (this._firstPT == null) if (typeof(this.target) !== "function") { //if all tweening properties have been overwritten, kill the tween. If the target is a function, it's probably a delayedCall so let it live.
 				this._enabled(false, false);
 			}
-			if (this.vars.runBackwards) {
+			if (v.runBackwards) {
 				pt = this._firstPT;
 				while (pt) {
 					pt.s += pt.c;
@@ -5241,7 +5289,7 @@
 					pt = pt._next;
 				}
 			}
-			this._onUpdate = this.vars.onUpdate;
+			this._onUpdate = v.onUpdate;
 			this._initted = true;
 		};
 

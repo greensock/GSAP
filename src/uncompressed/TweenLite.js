@@ -1,6 +1,6 @@
 /*!
- * VERSION: beta 1.67
- * DATE: 2013-01-09
+ * VERSION: beta 1.675
+ * DATE: 2013-01-10
  * JavaScript (ActionScript 3 and 2 also available)
  * UPDATES AND DOCS AT: http://www.greensock.com
  *
@@ -94,7 +94,23 @@
 				this._type = type || 0;
 				this._power = power || 0;
 				this._params = extraParams ? _baseParams.concat(extraParams) : _baseParams;
-			}, true);
+			}, true),
+			_easeMap = Ease.map = {},
+			_easeReg = Ease.register = function(ease, names, types, create) {
+				var na = names.split(","),
+					i = na.length,
+					ta = (types || "easeIn,easeOut,easeInOut").split(","),
+					e, name, j, type;
+				while (--i > -1) {
+					name = na[i];
+					e = create ? _class("easing."+name, null, true) : gs.easing[name] || {};
+					j = ta.length;
+					while (--j > -1) {
+						type = ta[j];
+						_easeMap[name + "." + type] = _easeMap[type + name] = e[type] = (ease.getRatio) ? ease : ease[type] || new ease();
+					}
+				}
+			};
 		
 		p = Ease.prototype;
 		p._calcEnd = false;
@@ -117,7 +133,20 @@
 			}
 			return (t === 1) ? 1 - r : (t === 2) ? r : (p < 0.5) ? r / 2 : 1 - (r / 2);
 		};
-		
+
+		//create all the standard eases like Linear, Quad, Cubic, Quart, Quint, Strong, Power0, Power1, Power2, Power3, and Power4 (each with easeIn, easeOut, and easeInOut)
+		a = ["Linear","Quad","Cubic","Quart","Quint,Strong"];
+		i = a.length;
+		while (--i > -1) {
+			p = a[i]+",Power"+i;
+			_easeReg(new Ease(null,null,1,i), p, "easeOut", true);
+			_easeReg(new Ease(null,null,2,i), p, "easeIn" + ((i === 0) ? ",easeNone" : ""));
+			_easeReg(new Ease(null,null,3,i), p, "easeInOut");
+		}
+		_easeMap.linear = gs.easing.Linear.easeIn;
+		_easeMap.swing = gs.easing.Quad.easeOut; //for jQuery folks
+
+		/*
 		//create all the standard eases like Linear, Quad, Cubic, Quart, Quint, Strong, Power0, Power1, Power2, Power3, and Power4 (each with easeIn, easeOut, and easeInOut)
 		a = ["Linear","Quad","Cubic","Quart","Quint"];
 		i = a.length;
@@ -130,6 +159,7 @@
 		}
 		_class("easing.Strong", gs.easing.Power4, true);
 		gs.easing.Linear.easeNone = gs.easing.Linear.easeIn;
+		*/
 	
 
 /*
@@ -729,7 +759,7 @@
 		p._firstPT = p._targets = p._overwrittenProps = null;
 		p._notifyPluginsOfEnabled = false;
 		
-		TweenLite.version = 1.67;
+		TweenLite.version = 1.675;
 		TweenLite.defaultEase = p._ease = new Ease(null, null, 1, 1);
 		TweenLite.defaultOverwrite = "auto";
 		TweenLite.ticker = _ticker;
@@ -857,18 +887,22 @@
 //---- TweenLite instance methods -----------------------------------------------------------------------------
 
 		p._init = function() {
-			if (this.vars.startAt) {
-				this.vars.startAt.overwrite = 0;
-				this.vars.startAt.immediateRender = true;
-				TweenLite.to(this.target, 0, this.vars.startAt);
+			var v = this.vars,
+				ease = v.ease,
+				i, initPlugins, pt;
+			if (v.startAt) {
+				v.startAt.overwrite = 0;
+				v.startAt.immediateRender = true;
+				TweenLite.to(this.target, 0, v.startAt);
 			}
-			var i, initPlugins, pt;
-			if (this.vars.ease instanceof Ease) {
-				this._ease = (this.vars.easeParams instanceof Array) ? this.vars.ease.config.apply(this.vars.ease, this.vars.easeParams) : this.vars.ease;
-			} else if (typeof(this.vars.ease) === "function") {
-				this._ease = new Ease(this.vars.ease, this.vars.easeParams);
-			} else {
+			if (!ease) {
 				this._ease = TweenLite.defaultEase;
+			} else if (ease instanceof Ease) {
+				this._ease = (v.easeParams instanceof Array) ? ease.config.apply(ease, v.easeParams) : ease;
+			} else if (typeof(ease) === "function") {
+				this._ease = new Ease(ease, v.easeParams);
+			} else {
+				this._ease = _easeMap[ease] || TweenLite.defaultEase;
 			}
 			this._easeType = this._ease._type;
 			this._easePower = this._ease._power;
@@ -891,7 +925,7 @@
 			if (this._overwrittenProps) if (this._firstPT == null) if (typeof(this.target) !== "function") { //if all tweening properties have been overwritten, kill the tween. If the target is a function, it's probably a delayedCall so let it live.
 				this._enabled(false, false);
 			}
-			if (this.vars.runBackwards) {
+			if (v.runBackwards) {
 				pt = this._firstPT;
 				while (pt) {
 					pt.s += pt.c;
@@ -899,7 +933,7 @@
 					pt = pt._next;
 				}
 			}
-			this._onUpdate = this.vars.onUpdate;
+			this._onUpdate = v.onUpdate;
 			this._initted = true;
 		};
 		

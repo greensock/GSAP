@@ -1,5 +1,5 @@
 /*!
- * VERSION: beta 1.672
+ * VERSION: beta 1.673
  * DATE: 2013-01-09
  * JavaScript 
  * UPDATES AND DOCS AT: http://www.greensock.com
@@ -29,7 +29,7 @@
 			p = CSSPlugin.prototype = new TweenPlugin("css");
 
 		p.constructor = CSSPlugin;
-		CSSPlugin.version = 1.672;
+		CSSPlugin.version = 1.673;
 		CSSPlugin.API = 2;
 		CSSPlugin.defaultTransformPerspective = 0;
 		p = "px"; //we'll reuse the "p" variable to keep file size down
@@ -948,8 +948,10 @@
 			_getTransform = function(t, cs, rec) {
 				var tm = rec ? t._gsTransform || {skewY:0} : {skewY:0},
 					invX = (tm.scaleX < 0), //in order to interpret things properly, we need to know if the user applied a negative scaleX previously so that we can adjust the rotation and skewX accordingly. Otherwise, if we always interpret a flipped matrix as affecting scaleY and the user only wants to tween the scaleX on multiple sequential tweens, it would keep the negative scaleY without that being the user's intent.
-					min = 0.000001,
+					min = 0.00002,
 					rnd = 100000,
+					minPI = -Math.PI + 0.0001,
+					maxPI = Math.PI - 0.0001,
 					zOrigin = _supports3D ? parseFloat(_getStyle(t, _transformOriginProp, cs, false, "0 0 0").split(" ")[2]) || tm.zOrigin  || 0 : 0,
 					s, m, i, n, scaleX, scaleY, rotation, skewX, difX, difY, difR, difS;
 				if (_transformProp) {
@@ -985,8 +987,6 @@
 						var a11 = m[0], a21 = m[1], a31 = m[2], a41 = m[3],
 							a12 = m[4], a22 = m[5], a32 = m[6], a42 = m[7],
 							a43 = m[11],
-							minPI = -Math.PI + 0.0001,
-							maxPI = Math.PI - 0.0001,
 							angle = tm.rotationX = Math.atan2(a32, a33),
 							xFlip = (angle < minPI || angle > maxPI),
 							t1, t2, t3, t4, cos, sin, yFlip, zFlip;
@@ -1082,10 +1082,10 @@
 							skewX += (skewX <= 0) ? Math.PI : -Math.PI;
 						}
 					}
-					difR = (rotation - tm.rotation) % Math.PI;
+					difR = (rotation - tm.rotation) % Math.PI; //note: matching ranges would be very small (+/-0.0001) or very close to Math.PI (+/-3.1415).
 					difS = (skewX - tm.skewX) % Math.PI;
 					//if there's already a recorded _gsTransform in place for the target, we should leave those values in place unless we know things changed for sure (beyond a super small amount). This gets around ambiguous interpretations, like if scaleX and scaleY are both -1, the matrix would be the same as if the rotation was 180 with normal scaleX/scaleY. If the user tweened to particular values, those must be prioritized to ensure animation is consistent.
-					if (tm.skewX === undefined || difX > min || difX < -min || difY > min || difY < -min || difR > min || difR < -min || difS > min || difS < -min) {
+					if (tm.skewX === undefined || difX > min || difX < -min || difY > min || difY < -min || (difR > minPI && difR < maxPI && (difR * rnd) >> 0 !== 0) || (difS > minPI && difS < maxPI && (difS * rnd) >> 0 !== 0)) {
 						tm.scaleX = scaleX;
 						tm.scaleY = scaleY;
 						tm.rotation = rotation;

@@ -1,6 +1,6 @@
 /*!
- * VERSION: beta 1.641
- * DATE: 2012-11-07
+ * VERSION: beta 1.675
+ * DATE: 2013-01-10
  * JavaScript (ActionScript 3 and 2 also available)
  * UPDATES AND DOCS AT: http://www.greensock.com
  *
@@ -38,7 +38,7 @@
 			
 		p.constructor = TimelineMax;
 		p.kill()._gc = false;
-		TimelineMax.version = 1.641;
+		TimelineMax.version = 1.675;
 		
 		p.invalidate = function() {
 			this._yoyo = (this.vars.yoyo === true);
@@ -479,7 +479,7 @@
 			},
 			p = TimelineLite.prototype = new SimpleTimeline();
 
-		TimelineLite.version = 1.641;
+		TimelineLite.version = 1.675;
 		p.constructor = TimelineLite;
 		p.kill()._gc = false;
 
@@ -571,7 +571,7 @@
 				return this;
 			}
 
-			SimpleTimeline.prototype.insert.call(this, value, this._parseTimeOrLabel(timeOrLabel || 0, 0, true));
+			SimpleTimeline.prototype.insert.call(this, value, this._parseTimeOrLabel(timeOrLabel || 0, 0, true, value));
 
 			//if the timeline has already ended but the inserted tween/timeline extends the duration, we should enable this timeline again so that it renders properly.
 			if (this._gc) if (!this._paused) if (this._time === this._duration) if (this._time < this.duration()) {
@@ -605,13 +605,13 @@
 		};
 
 		p.append = function(value, offsetOrLabel) {
-			return this.insert(value, this._parseTimeOrLabel(null, offsetOrLabel, true));
+			return this.insert(value, this._parseTimeOrLabel(null, offsetOrLabel, true, value));
 		};
 
 		p.insertMultiple = function(tweens, timeOrLabel, align, stagger) {
 			align = align || "normal";
 			stagger = stagger || 0;
-			var i, tween, curTime = this._parseTimeOrLabel(timeOrLabel || 0, 0, true), l = tweens.length;
+			var i, tween, curTime = this._parseTimeOrLabel(timeOrLabel || 0, 0, true, tweens), l = tweens.length;
 			for (i = 0; i < l; i++) {
 				if ((tween = tweens[i]) instanceof Array) {
 					tween = new TimelineLite({tweens:tween});
@@ -630,7 +630,7 @@
 		};
 
 		p.appendMultiple = function(tweens, offsetOrLabel, align, stagger) {
-			return this.insertMultiple(tweens, this._parseTimeOrLabel(null, offsetOrLabel, true), align, stagger);
+			return this.insertMultiple(tweens, this._parseTimeOrLabel(null, offsetOrLabel, true, tweens), align, stagger);
 		};
 
 		p.addLabel = function(label, time) {
@@ -647,7 +647,18 @@
 			return (this._labels[label] != null) ? this._labels[label] : -1;
 		};
 
-		p._parseTimeOrLabel = function(timeOrLabel, offsetOrLabel, appendIfAbsent) {
+		p._parseTimeOrLabel = function(timeOrLabel, offsetOrLabel, appendIfAbsent, ignore) {
+			//if we're about to add a tween/timeline (or an array of them) that's already a child of this timeline, we should remove it first so that it doesn't contaminate the duration().
+			if (ignore instanceof Animation && ignore.timeline === this) {
+				this.remove(ignore);
+			} else if (ignore instanceof Array) {
+				var i = ignore.length;
+				while (--i > -1) {
+					if (ignore[i] instanceof Animation && ignore[i].timeline === this) {
+						this.remove(ignore[i]);
+					}
+				}
+			}
 			if (typeof(offsetOrLabel) === "string") {
 				return this._parseTimeOrLabel(offsetOrLabel, ((appendIfAbsent && typeof(timeOrLabel) === "number" && this._labels[offsetOrLabel] == null) ? timeOrLabel - this.duration() : 0), appendIfAbsent);
 			}
@@ -700,7 +711,7 @@
 					}
 				}
 				this._rawPrevTime = time;
-				time = totalDur + 0.000001; //to avoid occassional floating point rounding errors - sometimes child tweens/timelines were not being fully completed (their progress might be 0.999999999999998 instead of 1 because when _time - tween._startTime is performed, floating point errors would return a value that was SLIGHTLY off)
+				time = totalDur + 0.000001; //to avoid occasional floating point rounding errors - sometimes child tweens/timelines were not being fully completed (their progress might be 0.999999999999998 instead of 1 because when _time - tween._startTime is performed, floating point errors would return a value that was SLIGHTLY off)
 
 			} else if (time <= 0) {
 				this._totalTime = this._time = 0;
@@ -717,7 +728,7 @@
 					force = true;
 				}
 				this._rawPrevTime = time;
-				time = -0.000001; //to avoid occassional floating point rounding errors in Flash - sometimes child tweens/timelines were not being rendered at the very beginning (their progress might be 0.000000000001 instead of 0 because when Flash performed _time - tween._startTime, floating point errors would return a value that was SLIGHTLY off)
+				time = -0.000001; //to avoid occasional floating point rounding errors in Flash - sometimes child tweens/timelines were not being rendered at the very beginning (their progress might be 0.000000000001 instead of 0 because when Flash performed _time - tween._startTime, floating point errors would return a value that was SLIGHTLY off)
 
 			} else {
 				this._totalTime = this._time = this._rawPrevTime = time;
