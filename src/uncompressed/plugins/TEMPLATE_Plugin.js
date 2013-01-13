@@ -11,7 +11,7 @@
  * of your property is. Note that the plugin name itself is typically capitalized by convention 
  * but the name of the property itself isn't. MyCustomPropertyPlugin vs. myCustomProperty.
  *
- * Copyright (c) 2008-2013, GreenSock. All rights reserved. 
+ * @license Copyright (c) 2008-2013, GreenSock. All rights reserved.
  * This work is subject to the terms in http://www.greensock.com/terms_of_use.html or for 
  * Club GreenSock members, the software agreement that was issued with your membership.
  * 

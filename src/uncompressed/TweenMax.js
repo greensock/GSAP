@@ -1,12 +1,12 @@
 /**
- * VERSION: beta 1.675
- * DATE: 2013-01-10
+ * VERSION: beta 1.7
+ * DATE: 2013-01-12
  * JavaScript (ActionScript 3 and 2 also available)
  * UPDATES AND DOCS AT: http://www.greensock.com
  * 
  * Includes all of the following: TweenLite, TweenMax, TimelineLite, TimelineMax, easing.EasePack, plugins.CSSPlugin, plugins.RoundPropsPlugin, plugins.BezierPlugin
  *
- * Copyright (c) 2008-2013, GreenSock. All rights reserved. 
+ * @license Copyright (c) 2008-2013, GreenSock. All rights reserved.
  * This work is subject to the terms in http://www.greensock.com/terms_of_use.html or for 
  * Club GreenSock members, the software agreement that was issued with your membership.
  * 
@@ -33,7 +33,7 @@
 			p = TweenMax.prototype = TweenLite.to({}, 0.1, {}),
 			_blankArray = [];
 
-		TweenMax.version = 1.675;
+		TweenMax.version = 1.7;
 		p.constructor = TweenMax;
 		p.kill()._gc = false;
 		TweenMax.killTweensOf = TweenMax.killDelayedCallsTo = TweenLite.killTweensOf;
@@ -4369,72 +4369,104 @@
 (function(window) {
 
 		"use strict";
-		var _namespace = function(ns) {
+		var _globals = window.GreenSockGlobals || window,
+			_namespace = function(ns) {
 				var a = ns.split("."),
-					p = window, i;
+					p = _globals, i;
 				for (i = 0; i < a.length; i++) {
 					p[a[i]] = p = p[a[i]] || {};
 				}
 				return p;
 			},
 			gs = _namespace("com.greensock"),
-			a, i, e, e2, p, _gsInit,
-			_classLookup = {},
+			a, i, p, _gsInit,
+			_defLookup = {},
 
-			//_DepClass is for defining a dependent class. ns = namespace (leaving off "com.greensock." as that's assumed), dep = an array of namespaces that are required, def = the function that will return the class definition (this function will be passed each dependency in order as soon as they arrive), global = if true, the class is added to the global scope (window) or if requirejs is being used, it will tap into that instead.
-			_DepClass = function(ns, dep, def, global) {
-				this.sc = (_classLookup[ns]) ? _classLookup[ns].sc : []; //subclasses
-				_classLookup[ns] = this;
+			/**
+			 * @constructor
+			 * Defines a GreenSock class, optionally with an array of dependencies that must be instantiated first and passed into the definition.
+			 * This allows users to load GreenSock JS files in any order even if they have interdependencies (like CSSPlugin extends TweenPlugin which is
+			 * inside TweenLite.js, but if CSSPlugin is loaded first, it should wait to run its code until TweenLite.js loads and instantiates TweenPlugin
+			 * and then pass TweenPlugin to CSSPlugin's definition). This is all done automatically and internally.
+			 *
+			 * Every definition will be added to a "com.greensock" global object (typically window, but if a window.GreenSockGlobals object is found,
+			 * it will go there as of v1.7). For example, TweenLite will be found at window.com.greensock.TweenLite and since it's a global class that should be available anywhere,
+			 * it is ALSO referenced at window.TweenLite. However some classes aren't considered global, like the base com.greensock.core.Animation class, so
+			 * those will only be at the package like window.com.greensock.core.Animation. Again, if you define a GreenSockGlobals object on the window, everything
+			 * gets tucked neatly inside there instead of on the window directly. This allows you to do advanced things like load multiple versions of GreenSock
+			 * files and put them into distinct objects (imagine a banner ad uses a newer version but the main site uses an older one). In that case, you could
+			 * sandbox the banner one like:
+			 *
+			 * <script type="text/javascript">
+			 *     var gs = window.GreenSockGlobals = {}; //the newer version we're about to load could now be referenced in a "gs" object, like gs.TweenLite.to(...). Use whatever alias you want as long as it's unique, "gs" or "banner" or whatever.
+			 * </script>
+			 * <script type="text/javascript" src="js/greensock/v1.7/TweenMax.js"></script>
+			 * <script type="text/javascript">
+			 *     window.GreenSockGlobals = null; //reset it back to null so that the next load of TweenMax affects the window and we can reference things directly like TweenLite.to(...)
+			 * </script>
+			 * <script type="text/javascript" src="js/greensock/v1.6/TweenMax.js"></script>
+			 * <script type="text/javascript">
+			 *     gs.TweenLite.to(...); //would use v1.7
+			 *     TweenLite.to(...); //would use v1.6
+			 * </script>
+			 *
+			 * @param {!string} ns The namespace of the class definition, leaving off "com.greensock." as that's assumed. For example, "TweenLite" or "plugins.CSSPlugin" or "easing.Back".
+			 * @param {!Array.<string>} dependencies An array of dependencies (described as their namespaces minus "com.greensock." prefix). For example ["TweenLite","plugins.TweenPlugin","core.Animation"]
+			 * @param {!function():Object} func The function that should be called and passed the resolved dependencies which will return the actual class for this definition.
+			 * @param {boolean=} global If true, the class will be added to the global scope (typically window unless you define a window.GreenSockGlobals object)
+			 */
+			Definition = function(ns, dependencies, func, global) {
+				this.sc = (_defLookup[ns]) ? _defLookup[ns].sc : []; //subclasses
+				_defLookup[ns] = this;
 				this.gsClass = null;
-				this.def = def;
-				var _dep = dep || [],
-					_classes = [];
+				this.func = func;
+				var _classes = [];
 				this.check = function(init) {
-					var i = _dep.length, cnt = 0, cur;
+					var i = dependencies.length,
+						missing = i,
+						cur, a, n, cl;
 					while (--i > -1) {
-						if ((cur = _classLookup[_dep[i]] || new _DepClass(_dep[i])).gsClass) {
+						if ((cur = _defLookup[dependencies[i]] || new Definition(dependencies[i])).gsClass) {
 							_classes[i] = cur.gsClass;
-						} else {
-							cnt++;
-							if (init) {
-								cur.sc.push(this);
-							}
+							missing--;
+						} else if (init) {
+							cur.sc.push(this);
 						}
 					}
-					if (cnt === 0 && def) {
-						var a = ("com.greensock." + ns).split("."),
-							n = a.pop(),
-							cl = _namespace(a.join("."))[n] = this.gsClass = def.apply(def, _classes);
+					if (missing === 0 && func) {
+						a = ("com.greensock." + ns).split(".");
+						n = a.pop();
+						cl = _namespace(a.join("."))[n] = this.gsClass = func.apply(func, _classes);
 
 						//exports to multiple environments
 						if (global) {
-							(window.GreenSockGlobals || window)[n] = cl; //provides a way to avoid global namespace pollution. By default, the main classes like TweenLite, Power1, Strong, etc. are added to window unless a GreenSockGlobals is defined. So if you want to have things added to a custom object instead, just do something like window.GreenSockGlobals = {} before loading any GreenSock files. You can even set up an alias like window.GreenSockGlobals = windows.gs = {} so that you can access everything like gs.TweenLite. Also remember that ALL classes are added to the window.com.greensock object (in their respective packages, like com.greensock.easing.Power1, com.greensock.TweenLite, etc.)
+							_globals[n] = cl; //provides a way to avoid global namespace pollution. By default, the main classes like TweenLite, Power1, Strong, etc. are added to window unless a GreenSockGlobals is defined. So if you want to have things added to a custom object instead, just do something like window.GreenSockGlobals = {} before loading any GreenSock files. You can even set up an alias like window.GreenSockGlobals = windows.gs = {} so that you can access everything like gs.TweenLite. Also remember that ALL classes are added to the window.com.greensock object (in their respective packages, like com.greensock.easing.Power1, com.greensock.TweenLite, etc.)
 							if (typeof(define) === "function" && define.amd){ //AMD
 								define((window.GreenSockAMDPath ? window.GreenSockAMDPath + "/" : "") + ns.split(".").join("/"), [], function() { return cl; });
 							} else if (typeof(module) !== "undefined" && module.exports){ //node
 								module.exports = cl;
 							}
 						}
-
 						for (i = 0; i < this.sc.length; i++) {
-							this.sc[i].check(false);
+							this.sc[i].check();
 						}
-
 					}
 				};
 				this.check(true);
 			},
+
+			//used to create Definition instances (which basically registers a class that has dependencies).
+			_gsDefine = window._gsDefine = function(ns, dependencies, func, global) {
+				return new Definition(ns, dependencies, func, global);
+			},
+
 			//a quick way to create a class that doesn't have any dependencies. Returns the class, but first registers it in the GreenSock namespace so that other classes can grab it (other classes might be dependent on the class).
-			_class = gs._class = function(ns, f, g) {
-				f = f || function() {};
-				var c = new _DepClass(ns, [], function(){ return f; }, g);
-				return f;
+			_class = gs._class = function(ns, func, global) {
+				func = func || function() {};
+				_gsDefine(ns, [], function(){ return func; }, global);
+				return func;
 			};
 
-		//used to create _DepClass instances (which basically registers a class that has dependencies). ns = namespace, dep = dependencies (array), f = initialization function which should return the class, g = global (whether or not the class should be added to the global namespace (or if RequireJS is used, it will be defined as a named module instead)
-		window._gsDefine = function(ns, dep, f, g) {
-			return new _DepClass(ns, dep, f, g);
-		};
 
 
 
@@ -4501,21 +4533,6 @@
 		}
 		_easeMap.linear = gs.easing.Linear.easeIn;
 		_easeMap.swing = gs.easing.Quad.easeOut; //for jQuery folks
-
-		/*
-		//create all the standard eases like Linear, Quad, Cubic, Quart, Quint, Strong, Power0, Power1, Power2, Power3, and Power4 (each with easeIn, easeOut, and easeInOut)
-		a = ["Linear","Quad","Cubic","Quart","Quint"];
-		i = a.length;
-		while(--i > -1) {
-			e = _class("easing." + a[i], null, true);
-			e2 = _class("easing.Power" + i, null, true);
-			e.easeOut = e2.easeOut = new Ease(null, null, 1, i);
-			e.easeIn = e2.easeIn = new Ease(null, null, 2, i);
-			e.easeInOut = e2.easeInOut = new Ease(null, null, 3, i);
-		}
-		_class("easing.Strong", gs.easing.Power4, true);
-		gs.easing.Linear.easeNone = gs.easing.Linear.easeIn;
-		*/
 
 
 /*
@@ -5115,7 +5132,7 @@
 		p._firstPT = p._targets = p._overwrittenProps = null;
 		p._notifyPluginsOfEnabled = false;
 
-		TweenLite.version = 1.675;
+		TweenLite.version = 1.7;
 		TweenLite.defaultEase = p._ease = new Ease(null, null, 1, 1);
 		TweenLite.defaultOverwrite = "auto";
 		TweenLite.ticker = _ticker;
@@ -5772,9 +5789,9 @@
 			for (i = 0; i < a.length; i++) {
 				a[i]();
 			}
-			for (p in _classLookup) {
-				if (!_classLookup[p].def) {
-					console.log("Warning: TweenLite encountered missing dependency: com.greensock."+p);
+			for (p in _defLookup) {
+				if (!_defLookup[p].func) {
+					window.console.log("Warning: TweenLite encountered missing dependency: com.greensock."+p);
 				}
 			}
 		}

@@ -4,7 +4,7 @@
  * JavaScript (also available in AS3 and AS2)
  * UPDATES AND DOCS AT: http://www.greensock.com
  *
- * Copyright (c) 2008-2013, GreenSock. All rights reserved. 
+ * @license Copyright (c) 2008-2013, GreenSock. All rights reserved.
  * This work is subject to the terms in http://www.greensock.com/terms_of_use.html or for 
  * Club GreenSock members, the software agreement that was issued with your membership.
  * 
