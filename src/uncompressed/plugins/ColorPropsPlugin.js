@@ -10,10 +10,11 @@
  * 
  * @author: Jack Doyle, jack@greensock.com
  **/
+
 (window._gsQueue || (window._gsQueue = [])).push( function() {
 
-	_gsDefine("plugins.ColorPropsPlugin", ["plugins.TweenPlugin"], function(TweenPlugin) {
-		
+	window._gsDefine("plugins.ColorPropsPlugin", ["plugins.TweenPlugin"], function(TweenPlugin) {
+
 		var ColorPropsPlugin = function(props, priority) {
 				TweenPlugin.call(this, "colorProps", -1);
 				this._overwriteProps.pop();
@@ -57,10 +58,10 @@
 							pink:[255,192,203],
 							cyan:[0,255,255],
 							transparent:[255,255,255,0]};
-		
+
 		p.constructor = ColorPropsPlugin;
 		ColorPropsPlugin.API = 2;
-		
+
 		p._onInitTween = function(target, value, tween) {
 			this._target = target;
 			var p, s, c, pt;
@@ -76,7 +77,6 @@
 				pt.bc = Number(c[2]) - pt.bs;
 				if ((pt.rgba = (s.length > 3 || c.length > 3))) { //detect an rgba() value
 					pt.as = (s.length < 4) ? 1 : Number(s[3]);
-					console.log("as "+pt.as);
 					pt.ac = ((c.length < 4) ? 1 : Number(c[3])) - pt.as;
 				}
 				if (pt._next) {
@@ -84,8 +84,8 @@
 				}
 			}
 			return true;
-		}
-		
+		};
+
 		//gets called every time the tween updates, passing the new ratio (typically a value between 0 and 1, but not always (for example, if an Elastic.easeOut is used, the value can jump above 1 mid-tween). It will always start and 0 and end at 1.
 		p.setRatio = function(v) {
 			var pt = this._firstPT, val;
@@ -98,11 +98,11 @@
 				}
 				pt = pt._next;
 			}
-		}
-		
+		};
+
 		TweenPlugin.activate([ColorPropsPlugin]);
 		return ColorPropsPlugin;
-		
+
 	}, true);
 
-}); if (window._gsDefine) { _gsQueue.pop()(); }
+}); if (window._gsDefine) { window._gsQueue.pop()(); }

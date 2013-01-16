@@ -1,6 +1,6 @@
 /*!
- * VERSION: beta 0.14
- * DATE: 2012-06-19
+ * VERSION: beta 0.15
+ * DATE: 2013-01-13
  * JavaScript 
  * UPDATES AND DOCS AT: http://www.greensock.com
  *
@@ -304,7 +304,7 @@
 					this._pyg = dy - m1.ty;
 				}
 								
-			} else if (typeof(v) === "string" && _transformProp) { //for values like transform:"rotate(60deg) scale(0.5, 0.8)"
+			} else if (typeof(v) === "string") { //for values like transform:"rotate(60deg) scale(0.5, 0.8)"
 				copy = this._target.transform();
 				t.transform(v);
 				m2 = _getTransform(t, false);
@@ -372,7 +372,7 @@
 				this._target.transform("m" + a + "," + b + "," + c + "," + d + "," + (pt.tx + pt.ox) + "," + (pt.ty + pt.oy));
 			}
 			
-		}
+		};
 		
 		
 		TweenPlugin.activate([RaphaelPlugin]);

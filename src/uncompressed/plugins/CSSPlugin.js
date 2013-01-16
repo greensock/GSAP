@@ -1,5 +1,5 @@
 /*!
- * VERSION: beta 1.673
+ * VERSION: beta 1.675
  * DATE: 2013-01-09
  * JavaScript 
  * UPDATES AND DOCS AT: http://www.greensock.com
@@ -29,7 +29,7 @@
 			p = CSSPlugin.prototype = new TweenPlugin("css");
 
 		p.constructor = CSSPlugin;
-		CSSPlugin.version = 1.673;
+		CSSPlugin.version = 1.675;
 		CSSPlugin.API = 2;
 		CSSPlugin.defaultTransformPerspective = 0;
 		p = "px"; //we'll reuse the "p" variable to keep file size down
@@ -113,7 +113,7 @@
 				return null;
 			},
 
-			_getComputedStyle = _doc.defaultView ? _doc.defaultView.getComputedStyle : function(o,s) {},
+			_getComputedStyle = _doc.defaultView ? _doc.defaultView.getComputedStyle : function() {},
 
 			/**
 			 * @private Returns the css style for a particular property of an element. For example, to get whatever the current "left" css value for an element with an ID of "myElement", you could do:

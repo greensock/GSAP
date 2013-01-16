@@ -1,6 +1,6 @@
 /**
- * VERSION: beta 1.16
- * DATE: 2013-01-09
+ * VERSION: beta 1.161
+ * DATE: 2013-01-16
  * JavaScript (also available in AS3 and AS2)
  * UPDATES AND DOCS AT: http://www.greensock.com
  *
@@ -260,9 +260,6 @@
 				q3.c = q4.a = (q3.b + q4.b) / 2;
 				return [q1, q2, q3, q4];
 			},
-			quadraticToCubic = BezierPlugin.quadraticToCubic = function(a, b, c) {
-				return new Segment(a, (2 * b + a) / 3, (2 * b + c) / 3, c);
-			},
 			_parseLengthData = function(obj, resolution) {
 				resolution = resolution >> 0 || 6;
 				var a = [],
@@ -316,6 +313,9 @@
 		
 		p.constructor = BezierPlugin;
 		BezierPlugin.API = 2;
+		BezierPlugin.quadraticToCubic = function(a, b, c) {
+			return new Segment(a, (2 * b + a) / 3, (2 * b + c) / 3, c);
+		}
 
 		BezierPlugin._cssRegister = function() {
 			var CSSPlugin = window.com.greensock.plugins.CSSPlugin;
@@ -335,7 +335,7 @@
 					l = values.length - 1,
 					pluginValues = [],
 					v = {},
-					i, p, data, transPT;
+					i, p, data;
 				if (l < 0) {
 					return pt;
 				}

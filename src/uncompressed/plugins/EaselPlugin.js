@@ -1,6 +1,6 @@
 /**
- * VERSION: beta 0.11
- * DATE: 2012-10-26
+ * VERSION: beta 0.12
+ * DATE: 2013-01-13
  * JavaScript
  * UPDATES AND DOCS AT: http://www.greensock.com
  *
@@ -20,7 +20,7 @@
 			},
 			p = EaselPlugin.prototype = new TweenPlugin("easel", -1),
 			_numExp = /(\d|\.)+/g,
-			_ColorFilter;
+			_ColorFilter,
 			
 			_colorProps = ["redMultiplier","greenMultiplier","blueMultiplier","alphaMultiplier","redOffset","greenOffset","blueOffset","alphaOffset"],
 			
@@ -145,7 +145,7 @@
 				
 			}
 			return true;
-		}
+		};
 		
 		//gets called every time the tween updates, passing the new ratio (typically a value between 0 and 1, but not always (for example, if an Elastic.easeOut is used, the value can jump above 1 mid-tween). It will always start and 0 and end at 1.
 		p.setRatio = function(v) {
@@ -165,7 +165,7 @@
 			if (this._target.cacheID) {
 				this._target.updateCache();
 			}
-		}
+		};
 		
 		TweenPlugin.activate([EaselPlugin]);
 		return EaselPlugin;

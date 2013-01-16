@@ -1,6 +1,6 @@
 /**
- * VERSION: beta 1.7
- * DATE: 2013-01-12
+ * VERSION: beta 1.701
+ * DATE: 2013-01-16
  * JavaScript (ActionScript 3 and 2 also available)
  * UPDATES AND DOCS AT: http://www.greensock.com
  * 
@@ -33,7 +33,7 @@
 			p = TweenMax.prototype = TweenLite.to({}, 0.1, {}),
 			_blankArray = [];
 
-		TweenMax.version = 1.7;
+		TweenMax.version = 1.701;
 		p.constructor = TweenMax;
 		p.kill()._gc = false;
 		TweenMax.killTweensOf = TweenMax.killDelayedCallsTo = TweenLite.killTweensOf;
@@ -274,13 +274,13 @@
 					copy[p] = vars[p];
 				}
 				copy.delay = delay;
-				if (i === l - 1) if (onCompleteAll) {
+				if (i === l - 1 && onCompleteAll) {
 					copy.onComplete = function() {
 						if (vars.onComplete) {
 							vars.onComplete.apply(vars.onCompleteScope, vars.onCompleteParams);
 						}
 						onCompleteAll.apply(onCompleteAllScope, onCompleteAllParams);
-					}
+					};
 				}
 				a[i] = new TweenMax(targets[i], duration, copy);
 				delay += stagger;
@@ -382,7 +382,7 @@
 			}
 			var tl = TweenLite._tweenLookup,
 				a = [],
-				target, curParent, p, i, l;
+				curParent, p, i, l;
 			for (p in tl) {
 				curParent = tl[p].target.parentNode;
 				while (curParent) {
@@ -410,10 +410,10 @@
 		};
 		
 		var _changePause = function(pause, tweens, delayedCalls, timelines) {
-			if (tweens == undefined) {
+			if (tweens === undefined) {
 				tweens = true;
 			}
-			if (delayedCalls == undefined) {
+			if (delayedCalls === undefined) {
 				delayedCalls = true;
 			}
 			var a = getAllTweens(timelines),
@@ -451,7 +451,7 @@
 			}
 			if (this._yoyo && (this._cycle & 1) !== 0) {
 				value = (this._duration - value) + (this._cycle * (this._duration + this._repeatDelay));
-			} else if (this._repeat != 0) {
+			} else if (this._repeat !== 0) {
 				value += this._cycle * (this._duration + this._repeatDelay);
 			}
 			return this.totalTime(value, suppressEvents);
@@ -549,7 +549,7 @@
 			},
 			p = TimelineLite.prototype = new SimpleTimeline();
 
-		TimelineLite.version = 1.675;
+		TimelineLite.version = 1.701;
 		p.constructor = TimelineLite;
 		p.kill()._gc = false;
 
@@ -746,7 +746,7 @@
 
 		p.seek = function(timeOrLabel, suppressEvents) {
 			return this.totalTime(this._parseTimeOrLabel(timeOrLabel), (suppressEvents != false));
-		}
+		};
 
 		p.stop = function() {
 			return this.paused(true);
@@ -886,14 +886,14 @@
 				if (tween._startTime < ignoreBeforeTime) {
 					//do nothing
 				} else if (tween instanceof TweenLite) {
-					if (tweens != false) {
+					if (tweens !== false) {
 						a[cnt++] = tween;
 					}
 				} else {
-					if (timelines != false) {
+					if (timelines !== false) {
 						a[cnt++] = tween;
 					}
-					if (nested != false) {
+					if (nested !== false) {
 						a = a.concat(tween.getChildren(true, tweens, timelines));
 						cnt = a.length;
 					}
@@ -968,7 +968,7 @@
 			while (--i > -1) {
 				tweens[i]._enabled(false, false);
 			}
-			if (labels != false) {
+			if (labels !== false) {
 				this._labels = {};
 			}
 			return this._uncache(true);
@@ -2186,7 +2186,7 @@
 				return null;
 			},
 
-			_getComputedStyle = _doc.defaultView ? _doc.defaultView.getComputedStyle : function(o,s) {},
+			_getComputedStyle = _doc.defaultView ? _doc.defaultView.getComputedStyle : function() {},
 
 			/**
 			 * @private Returns the css style for a particular property of an element. For example, to get whatever the current "left" css value for an element with an ID of "myElement", you could do:
@@ -4426,7 +4426,7 @@
 						missing = i,
 						cur, a, n, cl;
 					while (--i > -1) {
-						if ((cur = _defLookup[dependencies[i]] || new Definition(dependencies[i])).gsClass) {
+						if ((cur = _defLookup[dependencies[i]] || new Definition(dependencies[i], [])).gsClass) {
 							_classes[i] = cur.gsClass;
 							missing--;
 						} else if (init) {
@@ -4658,7 +4658,7 @@
 				_fps = value;
 				_gap = 1 / (_fps || 60);
 				_nextTime = this.time + _gap;
-				_req = (_fps === 0) ? function(f){} : (!_useRAF || !_reqAnimFrame) ? function(f) { return window.setTimeout( f, (((_nextTime - _self.time) * 1000 + 1) >> 0) || 1); } : _reqAnimFrame;
+				_req = (_fps === 0) ? function(){} : (!_useRAF || !_reqAnimFrame) ? function(f) { return window.setTimeout( f, (((_nextTime - _self.time) * 1000 + 1) >> 0) || 1); } : _reqAnimFrame;
 				_cancelReq();
 				_id = _req(_tick);
 			};
@@ -5090,7 +5090,7 @@
 
 				this._overwrite = (this.vars.overwrite == null) ? _overwriteLookup[TweenLite.defaultOverwrite] : (typeof(this.vars.overwrite) === "number") ? this.vars.overwrite >> 0 : _overwriteLookup[this.vars.overwrite];
 
-				var jq, i, targ;
+				var i, targ;
 				if ((target instanceof Array || target.jquery) && typeof(target[0]) === "object") {
 					this._targets = target.slice(0); //works for both jQuery and Array instances
 					this._propLookup = [];
@@ -5132,7 +5132,7 @@
 		p._firstPT = p._targets = p._overwrittenProps = null;
 		p._notifyPluginsOfEnabled = false;
 
-		TweenLite.version = 1.7;
+		TweenLite.version = 1.701;
 		TweenLite.defaultEase = p._ease = new Ease(null, null, 1, 1);
 		TweenLite.defaultOverwrite = "auto";
 		TweenLite.ticker = _ticker;

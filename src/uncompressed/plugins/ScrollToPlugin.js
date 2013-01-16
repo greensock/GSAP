@@ -1,6 +1,6 @@
 /**
- * VERSION: beta 1.52
- * DATE: 2012-12-17
+ * VERSION: beta 1.521
+ * DATE: 2013-01-16
  * JavaScript
  * UPDATES AND DOCS AT: http://www.greensock.com
  *
@@ -34,7 +34,6 @@
 		ScrollToPlugin.API = 2;
 
 		p._onInitTween = function(target, value, tween) {
-			var val;
 			this._wdw = (target === _window);
 			this._target = target;
 			this._tween = tween;

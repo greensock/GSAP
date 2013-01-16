@@ -1,6 +1,6 @@
 /*!
- * VERSION: beta 1.675
- * DATE: 2013-01-10
+ * VERSION: beta 1.701
+ * DATE: 2013-01-16
  * JavaScript (ActionScript 3 and 2 also available)
  * UPDATES AND DOCS AT: http://www.greensock.com
  *
@@ -38,7 +38,7 @@
 			
 		p.constructor = TimelineMax;
 		p.kill()._gc = false;
-		TimelineMax.version = 1.675;
+		TimelineMax.version = 1.701;
 		
 		p.invalidate = function() {
 			this._yoyo = (this.vars.yoyo === true);
@@ -479,7 +479,7 @@
 			},
 			p = TimelineLite.prototype = new SimpleTimeline();
 
-		TimelineLite.version = 1.675;
+		TimelineLite.version = 1.701;
 		p.constructor = TimelineLite;
 		p.kill()._gc = false;
 
@@ -676,7 +676,7 @@
 
 		p.seek = function(timeOrLabel, suppressEvents) {
 			return this.totalTime(this._parseTimeOrLabel(timeOrLabel), (suppressEvents != false));
-		}
+		};
 
 		p.stop = function() {
 			return this.paused(true);
@@ -816,14 +816,14 @@
 				if (tween._startTime < ignoreBeforeTime) {
 					//do nothing
 				} else if (tween instanceof TweenLite) {
-					if (tweens != false) {
+					if (tweens !== false) {
 						a[cnt++] = tween;
 					}
 				} else {
-					if (timelines != false) {
+					if (timelines !== false) {
 						a[cnt++] = tween;
 					}
-					if (nested != false) {
+					if (nested !== false) {
 						a = a.concat(tween.getChildren(true, tweens, timelines));
 						cnt = a.length;
 					}
@@ -898,7 +898,7 @@
 			while (--i > -1) {
 				tweens[i]._enabled(false, false);
 			}
-			if (labels != false) {
+			if (labels !== false) {
 				this._labels = {};
 			}
 			return this._uncache(true);

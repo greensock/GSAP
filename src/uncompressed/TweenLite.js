@@ -1,6 +1,6 @@
 /*!
- * VERSION: beta 1.7
- * DATE: 2013-01-12
+ * VERSION: beta 1.701
+ * DATE: 2013-01-16
  * JavaScript (ActionScript 3 and 2 also available)
  * UPDATES AND DOCS AT: http://www.greensock.com
  *
@@ -70,7 +70,7 @@
 						missing = i,
 						cur, a, n, cl;
 					while (--i > -1) {
-						if ((cur = _defLookup[dependencies[i]] || new Definition(dependencies[i])).gsClass) {
+						if ((cur = _defLookup[dependencies[i]] || new Definition(dependencies[i], [])).gsClass) {
 							_classes[i] = cur.gsClass;
 							missing--;
 						} else if (init) {
@@ -302,7 +302,7 @@
 				_fps = value;
 				_gap = 1 / (_fps || 60);
 				_nextTime = this.time + _gap;
-				_req = (_fps === 0) ? function(f){} : (!_useRAF || !_reqAnimFrame) ? function(f) { return window.setTimeout( f, (((_nextTime - _self.time) * 1000 + 1) >> 0) || 1); } : _reqAnimFrame;
+				_req = (_fps === 0) ? function(){} : (!_useRAF || !_reqAnimFrame) ? function(f) { return window.setTimeout( f, (((_nextTime - _self.time) * 1000 + 1) >> 0) || 1); } : _reqAnimFrame;
 				_cancelReq();
 				_id = _req(_tick);
 			};
@@ -734,7 +734,7 @@
 				
 				this._overwrite = (this.vars.overwrite == null) ? _overwriteLookup[TweenLite.defaultOverwrite] : (typeof(this.vars.overwrite) === "number") ? this.vars.overwrite >> 0 : _overwriteLookup[this.vars.overwrite];
 				
-				var jq, i, targ;
+				var i, targ;
 				if ((target instanceof Array || target.jquery) && typeof(target[0]) === "object") { 
 					this._targets = target.slice(0); //works for both jQuery and Array instances
 					this._propLookup = [];
@@ -776,7 +776,7 @@
 		p._firstPT = p._targets = p._overwrittenProps = null;
 		p._notifyPluginsOfEnabled = false;
 		
-		TweenLite.version = 1.7;
+		TweenLite.version = 1.701;
 		TweenLite.defaultEase = p._ease = new Ease(null, null, 1, 1);
 		TweenLite.defaultOverwrite = "auto";
 		TweenLite.ticker = _ticker;
