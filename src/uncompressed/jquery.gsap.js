@@ -1,6 +1,6 @@
 /*!
- * VERSION: 0.1.0
- * DATE: 2013-01-24
+ * VERSION: 0.1.1
+ * DATE: 2013-01-25
  * JavaScript
  * UPDATES AND DOCS AT: http://www.greensock.com/jquery-gsap-plugin/
  *
@@ -21,12 +21,14 @@
 		_enabled = true,
 		TweenLite, CSSPlugin, _warned,
 		_dequeue = function(func, next) {
-			if (func) {
+			if (typeof(func) === "function") {
 				this.each(func);
 			}
 			next();
 		},
 		_addCallback = function(type, func, obj, vars, next) {
+			next = (typeof(next) === "function") ? next : null;
+			func = (typeof(func) === "function") ? func : null;
 			if (!func && !next) {
 				return;
 			}
@@ -87,7 +89,7 @@
 			return _animate.call(this, prop, speed, easing, callback);
 		}
 		var config = $.speed(speed, easing, callback),
-			vars = {ease:(_easeMap[config.easing] || _easeMap.swing)},
+			vars = {ease:(_easeMap[config.easing] || ((config.easing === false) ? _easeMap.linear : _easeMap.swing))},
 			obj = this,
 			specEasing = (typeof(speed) === "object") ? speed.specialEasing : null,
 			fallbackProps, val, p, doAnimation, specEasingVars;
@@ -170,6 +172,6 @@
 		return this;
 	};
 
-	$.gsap = {enabled:function(value) {_enabled = value;}, version:"0.1.0"};
+	$.gsap = {enabled:function(value) {_enabled = value;}, version:"0.1.1"};
 
 }(jQuery));
