@@ -1,5 +1,5 @@
 /*!
- * VERSION: 0.1.1
+ * VERSION: 0.1.2
  * DATE: 2013-01-25
  * JavaScript
  * UPDATES AND DOCS AT: http://www.greensock.com/jquery-gsap-plugin/
@@ -85,7 +85,7 @@
 				return _animate.call(this, prop, speed, easing, callback);
 			}
 		}
-		if (!_enabled || prop.skipGSAP === true) {
+		if (!_enabled || prop.skipGSAP === true || (typeof(speed) === "object" && typeof(speed.step) === "function")) { //we don't support the "step" feature because it's too costly performance-wise, so fall back to the native animate() call if we sense one.
 			return _animate.call(this, prop, speed, easing, callback);
 		}
 		var config = $.speed(speed, easing, callback),
@@ -110,9 +110,6 @@
 			}
 		}
 
-		if (typeof(speed) === "object" && typeof(speed.step) === "function") {
-			_addCallback("onUpdate", speed.step, obj, vars);
-		}
 		if (specEasing) {
 			specEasingVars = [];
 			for (p in specEasing) {
@@ -172,6 +169,6 @@
 		return this;
 	};
 
-	$.gsap = {enabled:function(value) {_enabled = value;}, version:"0.1.1"};
+	$.gsap = {enabled:function(value) {_enabled = value;}, version:"0.1.2"};
 
 }(jQuery));
