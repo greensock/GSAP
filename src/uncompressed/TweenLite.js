@@ -1,6 +1,6 @@
 /*!
- * VERSION: beta 1.701
- * DATE: 2013-01-16
+ * VERSION: beta 1.8.0
+ * DATE: 2013-01-21
  * JavaScript (ActionScript 3 and 2 also available)
  * UPDATES AND DOCS AT: http://www.greensock.com
  *
@@ -41,15 +41,15 @@
 			 * files and put them into distinct objects (imagine a banner ad uses a newer version but the main site uses an older one). In that case, you could
 			 * sandbox the banner one like:
 			 *
-			 * <script type="text/javascript">
+			 * <script>
 			 *     var gs = window.GreenSockGlobals = {}; //the newer version we're about to load could now be referenced in a "gs" object, like gs.TweenLite.to(...). Use whatever alias you want as long as it's unique, "gs" or "banner" or whatever.
 			 * </script>
-			 * <script type="text/javascript" src="js/greensock/v1.7/TweenMax.js"></script>
-			 * <script type="text/javascript">
+			 * <script src="js/greensock/v1.7/TweenMax.js"></script>
+			 * <script>
 			 *     window.GreenSockGlobals = null; //reset it back to null so that the next load of TweenMax affects the window and we can reference things directly like TweenLite.to(...)
 			 * </script>
-			 * <script type="text/javascript" src="js/greensock/v1.6/TweenMax.js"></script>
-			 * <script type="text/javascript">
+			 * <script src="js/greensock/v1.6/TweenMax.js"></script>
+			 * <script>
 			 *     gs.TweenLite.to(...); //would use v1.7
 			 *     TweenLite.to(...); //would use v1.6
 			 * </script>
@@ -176,7 +176,7 @@
 			_easeReg(new Ease(null,null,3,i), p, "easeInOut");
 		}
 		_easeMap.linear = gs.easing.Linear.easeIn;
-		_easeMap.swing = gs.easing.Quad.easeOut; //for jQuery folks
+		_easeMap.swing = gs.easing.Quad.easeInOut; //for jQuery folks
 
 
 /*
@@ -318,7 +318,7 @@
 			_self.fps(fps);
 
 			//a bug in iOS 6 Safari occasionally prevents the requestAnimationFrame from working initially, so we use a 1-second timeout that automatically falls back to setTimeout() if it senses this condition.
-			window.setTimeout(function() {
+			setTimeout(function() {
 				if (_useRAF && !_id) {
 					_self.useRAF(false);
 				}
@@ -352,7 +352,7 @@
 				}
 
 				var tl = this.vars.useFrames ? _rootFramesTimeline : _rootTimeline;
-				tl.insert(this, tl._time);
+				tl.add(this, tl._time);
 				
 				if (this.vars.paused) {
 					this.paused(true);
@@ -420,7 +420,7 @@
 			this._active = (enabled && !this._paused && this._totalTime > 0 && this._totalTime < this._totalDuration);
 			if (ignoreTimeline !== true) {
 				if (enabled && this.timeline == null) {
-					this._timeline.insert(this, this._startTime - this._delay);
+					this._timeline.add(this, this._startTime - this._delay);
 				} else if (!enabled && this.timeline != null) {
 					this._timeline._remove(this, true);
 				}
@@ -566,7 +566,7 @@
 			if (value !== this._startTime) {
 				this._startTime = value;
 				if (this.timeline) if (this.timeline._sortChildren) {
-					this.timeline.insert(this, value - this._delay); //ensures that any necessary re-sequencing of Animations in the timeline occurs to make sure the rendering order is correct.
+					this.timeline.add(this, value - this._delay); //ensures that any necessary re-sequencing of Animations in the timeline occurs to make sure the rendering order is correct.
 				}
 			}
 			return this;
@@ -631,46 +631,48 @@
 		p.kill()._gc = false;
 		p._first = p._last = null;
 		p._sortChildren = false;
-		
-		p.insert = function(tween, time) {
-			tween._startTime = Number(time || 0) + tween._delay;
-			if (tween._paused) if (this !== tween._timeline) { //we only adjust the _pauseTime if it wasn't in this timeline already. Remember, sometimes a tween will be inserted again into the same timeline when its startTime is changed so that the tweens in the TimelineLite/Max are re-ordered properly in the linked list (so everything renders in the proper order). 
-				tween._pauseTime = tween._startTime + ((this.rawTime() - tween._startTime) / tween._timeScale);
+
+		p.add = function(child, position, align, stagger) {
+			var prevTween, st;
+			child._startTime = Number(position || 0) + child._delay;
+			if (child._paused) if (this !== child._timeline) { //we only adjust the _pauseTime if it wasn't in this timeline already. Remember, sometimes a tween will be inserted again into the same timeline when its startTime is changed so that the tweens in the TimelineLite/Max are re-ordered properly in the linked list (so everything renders in the proper order).
+				child._pauseTime = child._startTime + ((this.rawTime() - child._startTime) / child._timeScale);
 			}
-			if (tween.timeline) {
-				tween.timeline._remove(tween, true); //removes from existing timeline so that it can be properly added to this one.
+			if (child.timeline) {
+				child.timeline._remove(child, true); //removes from existing timeline so that it can be properly added to this one.
 			}
-			tween.timeline = tween._timeline = this;
-			if (tween._gc) {
-				tween._enabled(true, true);
+			child.timeline = child._timeline = this;
+			if (child._gc) {
+				child._enabled(true, true);
 			}
-			
-			var prevTween = this._last;
+			prevTween = this._last;
 			if (this._sortChildren) {
-				var st = tween._startTime;
+				st = child._startTime;
 				while (prevTween && prevTween._startTime > st) {
 					prevTween = prevTween._prev;
 				}
 			}
 			if (prevTween) {
-				tween._next = prevTween._next;
-				prevTween._next = tween;
+				child._next = prevTween._next;
+				prevTween._next = child;
 			} else {
-				tween._next = this._first;
-				this._first = tween;
+				child._next = this._first;
+				this._first = child;
 			}
-			if (tween._next) {
-				tween._next._prev = tween;
+			if (child._next) {
+				child._next._prev = child;
 			} else {
-				this._last = tween;
+				this._last = child;
 			}
-			tween._prev = prevTween;
-			
+			child._prev = prevTween;
 			if (this._timeline) {
 				this._uncache(true);
 			}
 			return this;
 		};
+
+		//alias for backwards compatibility
+		p.insert = p.add;
 		
 		p._remove = function(tween, skipDisable) {
 			if (tween.timeline === this) {
@@ -730,19 +732,19 @@
 				if (target == null) {
 					throw "Cannot tween an undefined reference.";
 				}
-				this.target = target;		
-				
+
+				this.target = target = (typeof(target) !== "string") ? target : TweenLite.selector(target) || target;
 				this._overwrite = (this.vars.overwrite == null) ? _overwriteLookup[TweenLite.defaultOverwrite] : (typeof(this.vars.overwrite) === "number") ? this.vars.overwrite >> 0 : _overwriteLookup[this.vars.overwrite];
 				
 				var i, targ;
-				if ((target instanceof Array || target.jquery) && typeof(target[0]) === "object") { 
+				if ((target instanceof Array || target.jquery) && typeof(target[0]) === "object") {
 					this._targets = target.slice(0); //works for both jQuery and Array instances
 					this._propLookup = [];
 					this._siblings = [];
 					for (i = 0; i < this._targets.length; i++) {
 						targ = this._targets[i];
 						//in case the user is passing in an array of jQuery objects, for example, we need to check one more level and pull things out if necessary...
-						if (targ.jquery) { 
+						if (targ.jquery) {
 							this._targets.splice(i--, 1);
 							this._targets = this._targets.concat(targ.constructor.makeArray(targ));
 							continue;
@@ -764,7 +766,18 @@
 				if (this.vars.immediateRender || (duration === 0 && this._delay === 0 && this.vars.immediateRender !== false)) {
 					this.render(-this._delay, false, true);
 				}
-			}, true);
+			}, true),
+			_autoCSS = function(vars) {
+				var css = {},
+					p;
+				for (p in vars) {
+					if (!_reservedProps[p] && (!_plugins[p] || (_plugins[p] && _plugins[p]._autoCSS))) {
+						css[p] = vars[p];
+						delete vars[p];
+					}
+				}
+				vars.css = css;
+			};
 	
 		p = TweenLite.prototype = new Animation();
 		p.constructor = TweenLite;
@@ -776,15 +789,16 @@
 		p._firstPT = p._targets = p._overwrittenProps = null;
 		p._notifyPluginsOfEnabled = false;
 		
-		TweenLite.version = 1.701;
+		TweenLite.version = "1.8.0";
 		TweenLite.defaultEase = p._ease = new Ease(null, null, 1, 1);
 		TweenLite.defaultOverwrite = "auto";
 		TweenLite.ticker = _ticker;
+		TweenLite.selector = window.$ || window.jQuery || function(e) { if (window.$) { TweenLite.selector = window.$; return window.$(e); } return window.document ? window.document.getElementById((e.charAt(0) === "#") ? e.substr(1) : e) : e; };
 		
 		var _plugins = TweenLite._plugins = {},
 			_tweenLookup = TweenLite._tweenLookup = {}, 
 			_tweenLookupNum = 0,
-			_reservedProps = {ease:1, delay:1, overwrite:1, onComplete:1, onCompleteParams:1, onCompleteScope:1, useFrames:1, runBackwards:1, startAt:1, onUpdate:1, onUpdateParams:1, onUpdateScope:1, onStart:1, onStartParams:1, onStartScope:1, onReverseComplete:1, onReverseCompleteParams:1, onReverseCompleteScope:1, onRepeat:1, onRepeatParams:1, onRepeatScope:1, easeParams:1, yoyo:1, orientToBezier:1, immediateRender:1, repeat:1, repeatDelay:1, data:1, paused:1, reversed:1},
+			_reservedProps = {ease:1, delay:1, overwrite:1, onComplete:1, onCompleteParams:1, onCompleteScope:1, useFrames:1, runBackwards:1, startAt:1, onUpdate:1, onUpdateParams:1, onUpdateScope:1, onStart:1, onStartParams:1, onStartScope:1, onReverseComplete:1, onReverseCompleteParams:1, onReverseCompleteScope:1, onRepeat:1, onRepeatParams:1, onRepeatScope:1, easeParams:1, yoyo:1, orientToBezier:1, immediateRender:1, repeat:1, repeatDelay:1, data:1, paused:1, reversed:1, autoCSS:1},
 			_overwriteLookup = {none:0, all:1, auto:2, concurrent:3, allOnStart:4, preexisting:5, "true":1, "false":0},
 			_rootFramesTimeline = Animation._rootFramesTimeline = new SimpleTimeline(), 
 			_rootTimeline = Animation._rootTimeline = new SimpleTimeline();
@@ -959,6 +973,9 @@
 			if (target == null) {
 				return false;
 			}
+			if (!this.vars.css) if (target.style) if (target.nodeType) if (_plugins.css) if (this.vars.autoCSS !== false) { //it's so common to use TweenLite/Max to animate the css of DOM elements, we assume that if the target is a DOM element, that's what is intended (a convenience so that users don't have to wrap things in css:{}, although we still recommend it for a slight performance boost and better specificity)
+				_autoCSS(this.vars);
+			}
 			for (p in this.vars) {
 				if (_reservedProps[p]) { 
 					if (p === "onStartParams" || p === "onUpdateParams" || p === "onCompleteParams" || p === "onReverseCompleteParams" || p === "onRepeatParams") if ((a = this.vars[p])) {
@@ -1113,7 +1130,6 @@
 				pt = pt._next;
 			}
 			
-			
 			if (this._onUpdate) if (!suppressEvents) {
 				this._onUpdate.apply(this.vars.onUpdateScope || this, this.vars.onUpdateParams || _blankArray);
 			}
@@ -1139,7 +1155,7 @@
 			if (vars == null) if (target == null || target === this.target) {
 				return this._enabled(false, false);
 			}
-			target = target || this._targets || this.target;
+			target = (typeof(target) !== "string") ? (target || this._targets || this.target) : TweenLite.selector(target) || target;
 			var i, overwrittenProps, p, pt, propLookup, changed, killProps, record;
 			if ((target instanceof Array || target.jquery) && typeof(target[0]) === "object") { 
 				i = target.length;
@@ -1267,6 +1283,7 @@
 		
 		TweenLite.getTweensOf = function(target) {
 			if (target == null) { return; }
+			target = (typeof(target) !== "string") ? target : TweenLite.selector(target) || target;
 			var i, a, j, t;
 			if ((target instanceof Array || target.jquery) && typeof(target[0]) === "object") { 
 				i = target.length;
@@ -1425,9 +1442,7 @@
 			}
 			return true;
 		};
-		
-		
-		
+
 		//now run through all the dependencies discovered and if any are missing, log that to the console as a warning. This is why it's best to have TweenLite load last - it can check all the dependencies for you. 
 		if ((a = window._gsQueue)) {
 			for (i = 0; i < a.length; i++) {
@@ -1435,10 +1450,11 @@
 			}
 			for (p in _defLookup) {
 				if (!_defLookup[p].func) {
-					window.console.log("Warning: TweenLite encountered missing dependency: com.greensock."+p);
+					window.console.log("GSAP encountered missing dependency: com.greensock." + p);
 				}
 			}
 		}
-		
+
+		_gsInit = false; //ensures that the first official animation forces a ticker.tick() to update the time when it is instantiated
 	
 })(window);

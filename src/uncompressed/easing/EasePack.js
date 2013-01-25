@@ -1,6 +1,6 @@
 /*!
- * VERSION: beta 1.4
- * DATE: 2013-01-10
+ * VERSION: beta 1.8.0
+ * DATE: 2013-01-21
  * JavaScript (ActionScript 3 and 2 also available)
  * UPDATES AND DOCS AT: http://www.greensock.com
  *
@@ -15,7 +15,7 @@
 
 	_gsDefine("easing.Back", ["easing.Ease"], function(Ease) {
 		
-		var w = window,
+		var w = (window.GreenSockGlobals || window),
 			gs = w.com.greensock,
 			_2PI = Math.PI * 2,
 			_HALF_PI = Math.PI / 2,

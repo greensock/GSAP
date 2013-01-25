@@ -1,6 +1,6 @@
 /*!
- * VERSION: beta 1.675
- * DATE: 2013-01-09
+ * VERSION: beta 1.8.0
+ * DATE: 2013-01-20
  * JavaScript 
  * UPDATES AND DOCS AT: http://www.greensock.com
  *
@@ -29,7 +29,7 @@
 			p = CSSPlugin.prototype = new TweenPlugin("css");
 
 		p.constructor = CSSPlugin;
-		CSSPlugin.version = 1.675;
+		CSSPlugin.version = "1.8.0";
 		CSSPlugin.API = 2;
 		CSSPlugin.defaultTransformPerspective = 0;
 		p = "px"; //we'll reuse the "p" variable to keep file size down
@@ -844,7 +844,7 @@
 				if (!_specialProps[p]) {
 					var pluginName = p.charAt(0).toUpperCase() + p.substr(1) + "Plugin";
 					_registerComplexSpecialProp(p, null, function(t, e, p, cssp, pt, plugin, vars) {
-						var pluginClass = window.com.greensock.plugins[pluginName];
+						var pluginClass = (window.GreenSockGlobals || window).com.greensock.plugins[pluginName];
 						if (!pluginClass) {
 							_log("Error: " + pluginName + " js file not loaded.");
 							return pt;
@@ -1471,9 +1471,11 @@
 		}
 		*/
 
+		_registerComplexSpecialProp("boxShadow", "0px 0px 0px 0px #999", function(t, e, p, cssp, pt, plugin) {
+			var inset = ((e+"").indexOf("inset") !== -1) ? " inset" : "";
+			return this.parseComplex(t.style, this.format(_getStyle(t, this.p, _cs, false, this.dflt)) + inset, this.format(e) + inset, pt, plugin);
+		}, true, true);
 
-
-		_registerComplexSpecialProp("boxShadow", "0px 0px 0px 0px #999", null, true, true);
 		_registerComplexSpecialProp("borderRadius", "0px", function(t, e, p, cssp, pt, plugin) {
 			e = this.format(e);
 			var props = ["borderTopLeftRadius","borderTopRightRadius","borderBottomRightRadius","borderBottomLeftRadius"],

@@ -1,6 +1,6 @@
 /**
- * VERSION: beta 1.701
- * DATE: 2013-01-16
+ * VERSION: beta 1.8.0
+ * DATE: 2013-01-20
  * JavaScript (ActionScript 3 and 2 also available)
  * UPDATES AND DOCS AT: http://www.greensock.com
  * 
@@ -33,7 +33,7 @@
 			p = TweenMax.prototype = TweenLite.to({}, 0.1, {}),
 			_blankArray = [];
 
-		TweenMax.version = 1.701;
+		TweenMax.version = "1.8.0";
 		p.constructor = TweenMax;
 		p.kill()._gc = false;
 		TweenMax.killTweensOf = TweenMax.killDelayedCallsTo = TweenLite.killTweensOf;
@@ -517,8 +517,8 @@
 		var TimelineLite = function(vars) {
 				SimpleTimeline.call(this, vars);
 				this._labels = {};
-				this.autoRemoveChildren = (this.vars.autoRemoveChildren == true);
-				this.smoothChildTiming = (this.vars.smoothChildTiming == true);
+				this.autoRemoveChildren = (this.vars.autoRemoveChildren === true);
+				this.smoothChildTiming = (this.vars.smoothChildTiming === true);
 				this._sortChildren = true;
 				this._onUpdate = this.vars.onUpdate;
 				var i = _paramProps.length,
@@ -535,7 +535,7 @@
 					}
 				}
 				if (this.vars.tweens instanceof Array) {
-					this.insertMultiple(this.vars.tweens, 0, this.vars.align || "normal", this.vars.stagger || 0);
+					this.add(this.vars.tweens, 0, this.vars.align, this.vars.stagger);
 				}
 			},
 			_paramProps = ["onStartParams","onUpdateParams","onCompleteParams","onReverseCompleteParams","onRepeatParams"],
@@ -549,57 +549,57 @@
 			},
 			p = TimelineLite.prototype = new SimpleTimeline();
 
-		TimelineLite.version = 1.701;
+		TimelineLite.version = "1.8.0";
 		p.constructor = TimelineLite;
 		p.kill()._gc = false;
 
-		p.to = function(target, duration, vars, offsetOrLabel, baseTimeOrLabel) {
-			return this.insert( new TweenLite(target, duration, vars), this._parseTimeOrLabel(baseTimeOrLabel, offsetOrLabel, true));
+		p.to = function(target, duration, vars, position) {
+			return this.add( new TweenLite(target, duration, vars), position);
 		};
 
-		p.from = function(target, duration, vars, offsetOrLabel, baseTimeOrLabel) {
-			return this.insert( TweenLite.from(target, duration, vars), this._parseTimeOrLabel(baseTimeOrLabel, offsetOrLabel, true));
+		p.from = function(target, duration, vars, position) {
+			return this.add( TweenLite.from(target, duration, vars), position);
 		};
 
-		p.fromTo = function(target, duration, fromVars, toVars, offsetOrLabel, baseTimeOrLabel) {
-			return this.insert( TweenLite.fromTo(target, duration, fromVars, toVars), this._parseTimeOrLabel(baseTimeOrLabel, offsetOrLabel, true));
+		p.fromTo = function(target, duration, fromVars, toVars, position) {
+			return this.add( TweenLite.fromTo(target, duration, fromVars, toVars), position);
 		};
 
-		p.staggerTo = function(targets, duration, vars, stagger, offsetOrLabel, baseTimeOrLabel, onCompleteAll, onCompleteAllParams, onCompleteAllScope) {
+		p.staggerTo = function(targets, duration, vars, stagger, position, onCompleteAll, onCompleteAllParams, onCompleteAllScope) {
 			var tl = new TimelineLite({onComplete:onCompleteAll, onCompleteParams:onCompleteAllParams, onCompleteScope:onCompleteAllScope});
 			stagger = stagger || 0;
 			for (var i = 0; i < targets.length; i++) {
 				if (vars.startAt != null) {
 					vars.startAt = _copy(vars.startAt);
 				}
-				tl.insert( new TweenLite(targets[i], duration, _copy(vars)), i * stagger);
+				tl.add( new TweenLite(targets[i], duration, _copy(vars)), i * stagger);
 			}
-			return this.insert(tl, this._parseTimeOrLabel(baseTimeOrLabel, offsetOrLabel, true));
+			return this.add(tl, position);
 		};
 
-		p.staggerFrom = function(targets, duration, vars, stagger, offsetOrLabel, baseTimeOrLabel, onCompleteAll, onCompleteAllParams, onCompleteAllScope) {
+		p.staggerFrom = function(targets, duration, vars, stagger, position, onCompleteAll, onCompleteAllParams, onCompleteAllScope) {
 			if (vars.immediateRender == null) {
 				vars.immediateRender = true;
 			}
 			vars.runBackwards = true;
-			return this.staggerTo(targets, duration, vars, stagger, offsetOrLabel, baseTimeOrLabel, onCompleteAll, onCompleteAllParams, onCompleteAllScope);
+			return this.staggerTo(targets, duration, vars, stagger, position, onCompleteAll, onCompleteAllParams, onCompleteAllScope);
 		};
 
-		p.staggerFromTo = function(targets, duration, fromVars, toVars, stagger, offsetOrLabel, baseTimeOrLabel, onCompleteAll, onCompleteAllParams, onCompleteAllScope) {
+		p.staggerFromTo = function(targets, duration, fromVars, toVars, stagger, position, onCompleteAll, onCompleteAllParams, onCompleteAllScope) {
 			toVars.startAt = fromVars;
 			if (fromVars.immediateRender) {
 				toVars.immediateRender = true;
 			}
-			return this.staggerTo(targets, duration, toVars, stagger, offsetOrLabel, baseTimeOrLabel, onCompleteAll, onCompleteAllParams, onCompleteAllScope);
+			return this.staggerTo(targets, duration, toVars, stagger, position, onCompleteAll, onCompleteAllParams, onCompleteAllScope);
 		};
 
-		p.call = function(callback, params, scope, offsetOrLabel, baseTimeOrLabel) {
-			return this.insert( TweenLite.delayedCall(0, callback, params, scope), this._parseTimeOrLabel(baseTimeOrLabel, offsetOrLabel, true));
+		p.call = function(callback, params, scope, position) {
+			return this.add( TweenLite.delayedCall(0, callback, params, scope), position);
 		};
 
-		p.set = function(target, vars, offsetOrLabel, baseTimeOrLabel) {
+		p.set = function(target, vars, position) {
 			vars.immediateRender = false;
-			return this.insert( new TweenLite(target, 0, vars), this._parseTimeOrLabel(baseTimeOrLabel, offsetOrLabel, true));
+			return this.add( new TweenLite(target, 0, vars), position);
 		};
 
 		TimelineLite.exportRoot = function(vars, ignoreDelayedCalls) {
@@ -619,29 +619,50 @@
 			while (tween) {
 				next = tween._next;
 				if (!ignoreDelayedCalls || !(tween instanceof TweenLite && tween.target === tween.vars.onComplete)) {
-					tl.insert(tween, tween._startTime - tween._delay);
+					tl.add(tween, tween._startTime - tween._delay);
 				}
 				tween = next;
 			}
-			root.insert(tl, 0);
+			root.add(tl, 0);
 			return tl;
 		};
 
-		p.insert = function(value, timeOrLabel) {
+		p.add = function(value, position, align, stagger) {
+			if (typeof(position) !== "number") {
+				position = this._parseTimeOrLabel(position, 0, true, value);
+			}
 			if (value instanceof Animation) {
 				//continue...
 			} else if (value instanceof Array) {
-				return this.insertMultiple(value, timeOrLabel);
+				align = align || "normal";
+				stagger = stagger || 0;
+				var curTime = position,
+					l = value.length,
+					i, child;
+				for (i = 0; i < l; i++) {
+					if ((child = value[i]) instanceof Array) {
+						child = new TimelineLite({tweens:child});
+					}
+					this.add(child, curTime);
+					if (typeof(child) !== "string" && typeof(child) !== "function") {
+						if (align === "sequence") {
+							curTime = child._startTime + (child.totalDuration() / child._timeScale);
+						} else if (align === "start") {
+							child._startTime -= child.delay();
+						}
+					}
+					curTime += stagger;
+				}
+				return this._uncache(true);
 			} else if (typeof(value) === "string") {
-				return this.addLabel(value, this._parseTimeOrLabel(timeOrLabel || 0, 0, true));
+				return this.addLabel(value, position);
 			} else if (typeof(value) === "function") {
 				value = TweenLite.delayedCall(0, value);
 			} else {
-				throw ("ERROR: Cannot insert() " + value + " into the TimelineLite/Max because it is neither a tween, timeline, function, nor a String.");
-				return this;
+				throw("Cannot add " + value + " into the TimelineLite/Max: it is neither a tween, timeline, function, nor a String.");
 			}
 
-			SimpleTimeline.prototype.insert.call(this, value, this._parseTimeOrLabel(timeOrLabel || 0, 0, true, value));
+			SimpleTimeline.prototype.add.call(this, value, position);
 
 			//if the timeline has already ended but the inserted tween/timeline extends the duration, we should enable this timeline again so that it renders properly.
 			if (this._gc) if (!this._paused) if (this._time === this._duration) if (this._time < this.duration()) {
@@ -675,36 +696,19 @@
 		};
 
 		p.append = function(value, offsetOrLabel) {
-			return this.insert(value, this._parseTimeOrLabel(null, offsetOrLabel, true, value));
+			return this.add(value, this._parseTimeOrLabel(null, offsetOrLabel, true, value));
 		};
 
-		p.insertMultiple = function(tweens, timeOrLabel, align, stagger) {
-			align = align || "normal";
-			stagger = stagger || 0;
-			var i, tween, curTime = this._parseTimeOrLabel(timeOrLabel || 0, 0, true, tweens), l = tweens.length;
-			for (i = 0; i < l; i++) {
-				if ((tween = tweens[i]) instanceof Array) {
-					tween = new TimelineLite({tweens:tween});
-				}
-				this.insert(tween, curTime);
-				if (typeof(tween) === "string" || typeof(tween) === "function") {
-					//do nothing
-				} else if (align === "sequence") {
-					curTime = tween._startTime + (tween.totalDuration() / tween._timeScale);
-				} else if (align === "start") {
-					tween._startTime -= tween.delay();
-				}
-				curTime += stagger;
-			}
-			return this._uncache(true);
+		p.insert = p.insertMultiple = function(value, position, align, stagger) {
+			return this.add(value, position || 0, align, stagger);
 		};
 
 		p.appendMultiple = function(tweens, offsetOrLabel, align, stagger) {
-			return this.insertMultiple(tweens, this._parseTimeOrLabel(null, offsetOrLabel, true, tweens), align, stagger);
+			return this.add(tweens, this._parseTimeOrLabel(null, offsetOrLabel, true, tweens), align, stagger);
 		};
 
-		p.addLabel = function(label, time) {
-			this._labels[label] = time;
+		p.addLabel = function(label, position) {
+			this._labels[label] = this._parseTimeOrLabel(position);
 			return this;
 		};
 
@@ -718,11 +722,12 @@
 		};
 
 		p._parseTimeOrLabel = function(timeOrLabel, offsetOrLabel, appendIfAbsent, ignore) {
+			var i;
 			//if we're about to add a tween/timeline (or an array of them) that's already a child of this timeline, we should remove it first so that it doesn't contaminate the duration().
 			if (ignore instanceof Animation && ignore.timeline === this) {
 				this.remove(ignore);
 			} else if (ignore instanceof Array) {
-				var i = ignore.length;
+				i = ignore.length;
 				while (--i > -1) {
 					if (ignore[i] instanceof Animation && ignore[i].timeline === this) {
 						this.remove(ignore[i]);
@@ -730,34 +735,39 @@
 				}
 			}
 			if (typeof(offsetOrLabel) === "string") {
-				return this._parseTimeOrLabel(offsetOrLabel, ((appendIfAbsent && typeof(timeOrLabel) === "number" && this._labels[offsetOrLabel] == null) ? timeOrLabel - this.duration() : 0), appendIfAbsent);
+				return this._parseTimeOrLabel(offsetOrLabel, (appendIfAbsent && typeof(timeOrLabel) === "number" && this._labels[offsetOrLabel] == null) ? timeOrLabel - this.duration() : 0, appendIfAbsent);
 			}
 			offsetOrLabel = offsetOrLabel || 0;
-			if (timeOrLabel == null) {
-				return this.duration() + offsetOrLabel;
-			} else if (typeof(timeOrLabel) === "string" && isNaN(timeOrLabel)) {
-				if (this._labels[timeOrLabel] == null) {
-					return (appendIfAbsent) ? (this._labels[timeOrLabel] = this.duration() + offsetOrLabel) : offsetOrLabel;
+			if (typeof(timeOrLabel) === "string" && (isNaN(timeOrLabel) || this._labels[timeOrLabel] != null)) { //if the string is a number like "1", check to see if there's a label with that name, otherwise interpret it as a number (absolute value).
+				i = timeOrLabel.indexOf("=");
+				if (i === -1) {
+					if (this._labels[timeOrLabel] == null) {
+						return appendIfAbsent ? (this._labels[timeOrLabel] = this.duration() + offsetOrLabel) : offsetOrLabel;
+					}
+					return this._labels[timeOrLabel] + offsetOrLabel;
 				}
-				return this._labels[timeOrLabel] + offsetOrLabel;
+				offsetOrLabel = parseInt(timeOrLabel.charAt(i-1) + "1", 10) * Number(timeOrLabel.substr(i+1));
+				timeOrLabel = (i > 1) ? this._parseTimeOrLabel(timeOrLabel.substr(0, i-1), 0, appendIfAbsent) : this.duration();
+			} else if (timeOrLabel == null) {
+				timeOrLabel = this.duration();
 			}
 			return Number(timeOrLabel) + offsetOrLabel;
 		};
 
-		p.seek = function(timeOrLabel, suppressEvents) {
-			return this.totalTime(this._parseTimeOrLabel(timeOrLabel), (suppressEvents != false));
+		p.seek = function(position, suppressEvents) {
+			return this.totalTime((typeof(position) === "number") ? position : this._parseTimeOrLabel(position), (suppressEvents !== false));
 		};
 
 		p.stop = function() {
 			return this.paused(true);
 		};
 
-		p.gotoAndPlay = function(timeOrLabel, suppressEvents) {
-			return SimpleTimeline.prototype.play.call(this, timeOrLabel, suppressEvents);
+		p.gotoAndPlay = function(position, suppressEvents) {
+			return SimpleTimeline.prototype.play.call(this, position, suppressEvents);
 		};
 
-		p.gotoAndStop = function(timeOrLabel, suppressEvents) {
-			return this.pause(timeOrLabel, suppressEvents);
+		p.gotoAndStop = function(position, suppressEvents) {
+			return this.pause(position, suppressEvents);
 		};
 
 		p.render = function(time, suppressEvents, force) {
@@ -1022,7 +1032,7 @@
 						next = tween._next; //record it here in case the tween changes position in the sequence...
 
 						if (tween._startTime < prevStart && this._sortChildren) { //in case one of the tweens shifted out of order, it needs to be re-inserted into the correct position in the sequence
-							this.insert(tween, tween._startTime - tween._delay);
+							this.add(tween, tween._startTime - tween._delay);
 						} else {
 							prevStart = tween._startTime;
 						}
@@ -1106,7 +1116,7 @@
 
 		p.constructor = TimelineMax;
 		p.kill()._gc = false;
-		TimelineMax.version = 1.675;
+		TimelineMax.version = "1.8.0";
 
 		p.invalidate = function() {
 			this._yoyo = (this.vars.yoyo === true);
@@ -1116,17 +1126,17 @@
 			return TimelineLite.prototype.invalidate.call(this);
 		};
 
-		p.addCallback = function(callback, timeOrLabel, params, scope) {
-			return this.insert( TweenLite.delayedCall(0, callback, params, scope), timeOrLabel);
+		p.addCallback = function(callback, position, params, scope) {
+			return this.add( TweenLite.delayedCall(0, callback, params, scope), position);
 		};
 
-		p.removeCallback = function(callback, timeOrLabel) {
-			if (timeOrLabel == null) {
+		p.removeCallback = function(callback, position) {
+			if (position == null) {
 				this._kill(null, callback);
 			} else {
 				var a = this.getTweensOf(callback, false),
 					i = a.length,
-					time = this._parseTimeOrLabel(timeOrLabel);
+					time = this._parseTimeOrLabel(position);
 				while (--i > -1) {
 					if (a[i]._startTime === time) {
 						a[i]._enabled(false, false);
@@ -1136,13 +1146,13 @@
 			return this;
 		};
 
-		p.tweenTo = function(timeOrLabel, vars) {
+		p.tweenTo = function(position, vars) {
 			vars = vars || {};
 			var copy = {ease:_easeNone, overwrite:2, useFrames:this.usesFrames(), immediateRender:false}, p, t;
 			for (p in vars) {
 				copy[p] = vars[p];
 			}
-			copy.time = this._parseTimeOrLabel(timeOrLabel);
+			copy.time = this._parseTimeOrLabel(position);
 			t = new TweenLite(this, (Math.abs(Number(copy.time) - this._time) / this._timeScale) || 0.001, copy);
 			copy.onStart = function() {
 				t.target.paused(true);
@@ -1156,10 +1166,10 @@
 			return t;
 		};
 
-		p.tweenFromTo = function(fromTimeOrLabel, toTimeOrLabel, vars) {
+		p.tweenFromTo = function(fromPosition, toPosition, vars) {
 			vars = vars || {};
-			vars.startAt = {time:this._parseTimeOrLabel(fromTimeOrLabel)};
-			var t = this.tweenTo(toTimeOrLabel, vars);
+			vars.startAt = {time:this._parseTimeOrLabel(fromPosition)};
+			var t = this.tweenTo(toPosition, vars);
 			return t.duration((Math.abs( t.vars.time - t.vars.startAt.time) / this._timeScale) || 0.001);
 		};
 
@@ -1246,13 +1256,13 @@
 
 			if (this._cycle !== prevCycle) if (!this._locked) {
 				/*
-				 make sure children at the end/beginning of the timeline are rendered properly. If, for example,
-				 a 3-second long timeline rendered at 2.9 seconds previously, and now renders at 3.2 seconds (which
-				 would get transated to 2.8 seconds if the timeline yoyos or 0.2 seconds if it just repeats), there
-				 could be a callback or a short tween that's at 2.95 or 3 seconds in which wouldn't render. So
-				 we need to push the timeline to the end (and/or beginning depending on its yoyo value). Also we must
-				 ensure that zero-duration tweens at the very beginning or end of the TimelineMax work.
-				 */
+				make sure children at the end/beginning of the timeline are rendered properly. If, for example,
+				a 3-second long timeline rendered at 2.9 seconds previously, and now renders at 3.2 seconds (which
+				would get transated to 2.8 seconds if the timeline yoyos or 0.2 seconds if it just repeats), there
+				could be a callback or a short tween that's at 2.95 or 3 seconds in which wouldn't render. So
+				we need to push the timeline to the end (and/or beginning depending on its yoyo value). Also we must
+				ensure that zero-duration tweens at the very beginning or end of the TimelineMax work.
+				*/
 				var backwards = (this._yoyo && (prevCycle & 1) !== 0),
 					wrap = (backwards === (this._yoyo && (this._cycle & 1) !== 0)),
 					recTotalTime = this._totalTime,
@@ -1760,9 +1770,6 @@
 				q3.c = q4.a = (q3.b + q4.b) / 2;
 				return [q1, q2, q3, q4];
 			},
-			quadraticToCubic = BezierPlugin.quadraticToCubic = function(a, b, c) {
-				return new Segment(a, (2 * b + a) / 3, (2 * b + c) / 3, c);
-			},
 			_parseLengthData = function(obj, resolution) {
 				resolution = resolution >> 0 || 6;
 				var a = [],
@@ -1816,9 +1823,13 @@
 
 		p.constructor = BezierPlugin;
 		BezierPlugin.API = 2;
+		BezierPlugin._autoCSS = true; //indicates that this plugin can be inserted into the "css" object using the autoCSS feature of TweenLite
+		BezierPlugin.quadraticToCubic = function(a, b, c) {
+			return new Segment(a, (2 * b + a) / 3, (2 * b + c) / 3, c);
+		}
 
 		BezierPlugin._cssRegister = function() {
-			var CSSPlugin = window.com.greensock.plugins.CSSPlugin;
+			var CSSPlugin = (window.GreenSockGlobals || window).com.greensock.plugins.CSSPlugin;
 			if (!CSSPlugin) {
 				return;
 			}
@@ -1835,7 +1846,7 @@
 					l = values.length - 1,
 					pluginValues = [],
 					v = {},
-					i, p, data, transPT;
+					i, p, data;
 				if (l < 0) {
 					return pt;
 				}
@@ -2102,7 +2113,7 @@
 			p = CSSPlugin.prototype = new TweenPlugin("css");
 
 		p.constructor = CSSPlugin;
-		CSSPlugin.version = 1.673;
+		CSSPlugin.version = "1.8.0";
 		CSSPlugin.API = 2;
 		CSSPlugin.defaultTransformPerspective = 0;
 		p = "px"; //we'll reuse the "p" variable to keep file size down
@@ -2917,7 +2928,7 @@
 				if (!_specialProps[p]) {
 					var pluginName = p.charAt(0).toUpperCase() + p.substr(1) + "Plugin";
 					_registerComplexSpecialProp(p, null, function(t, e, p, cssp, pt, plugin, vars) {
-						var pluginClass = window.com.greensock.plugins[pluginName];
+						var pluginClass = (window.GreenSockGlobals || window).com.greensock.plugins[pluginName];
 						if (!pluginClass) {
 							_log("Error: " + pluginName + " js file not loaded.");
 							return pt;
@@ -3469,7 +3480,11 @@
 			return pt;
 		}, true);
 
-		_registerComplexSpecialProp("boxShadow", "0px 0px 0px 0px #999", null, true, true);
+		_registerComplexSpecialProp("boxShadow", "0px 0px 0px 0px #999", function(t, e, p, cssp, pt, plugin) {
+			var inset = ((e+"").indexOf("inset") !== -1) ? " inset" : "";
+			return this.parseComplex(t.style, this.format(_getStyle(t, this.p, _cs, false, this.dflt)) + inset, this.format(e) + inset, pt, plugin);
+		}, true, true);
+
 		_registerComplexSpecialProp("borderRadius", "0px", function(t, e, p, cssp, pt, plugin) {
 			e = this.format(e);
 			var props = ["borderTopLeftRadius","borderTopRightRadius","borderBottomRightRadius","borderBottomLeftRadius"],
@@ -4116,7 +4131,7 @@
  */
 	_gsDefine("easing.Back", ["easing.Ease"], function(Ease) {
 		
-		var w = window,
+		var w = (window.GreenSockGlobals || window),
 			gs = w.com.greensock,
 			_2PI = Math.PI * 2,
 			_HALF_PI = Math.PI / 2,
@@ -4397,15 +4412,15 @@
 			 * files and put them into distinct objects (imagine a banner ad uses a newer version but the main site uses an older one). In that case, you could
 			 * sandbox the banner one like:
 			 *
-			 * <script type="text/javascript">
+			 * <script>
 			 *     var gs = window.GreenSockGlobals = {}; //the newer version we're about to load could now be referenced in a "gs" object, like gs.TweenLite.to(...). Use whatever alias you want as long as it's unique, "gs" or "banner" or whatever.
 			 * </script>
-			 * <script type="text/javascript" src="js/greensock/v1.7/TweenMax.js"></script>
-			 * <script type="text/javascript">
+			 * <script src="js/greensock/v1.7/TweenMax.js"></script>
+			 * <script>
 			 *     window.GreenSockGlobals = null; //reset it back to null so that the next load of TweenMax affects the window and we can reference things directly like TweenLite.to(...)
 			 * </script>
-			 * <script type="text/javascript" src="js/greensock/v1.6/TweenMax.js"></script>
-			 * <script type="text/javascript">
+			 * <script src="js/greensock/v1.6/TweenMax.js"></script>
+			 * <script>
 			 *     gs.TweenLite.to(...); //would use v1.7
 			 *     TweenLite.to(...); //would use v1.6
 			 * </script>
@@ -4532,7 +4547,7 @@
 			_easeReg(new Ease(null,null,3,i), p, "easeInOut");
 		}
 		_easeMap.linear = gs.easing.Linear.easeIn;
-		_easeMap.swing = gs.easing.Quad.easeOut; //for jQuery folks
+		_easeMap.swing = gs.easing.Quad.easeInOut; //for jQuery folks
 
 
 /*
@@ -4674,7 +4689,7 @@
 			_self.fps(fps);
 
 			//a bug in iOS 6 Safari occasionally prevents the requestAnimationFrame from working initially, so we use a 1-second timeout that automatically falls back to setTimeout() if it senses this condition.
-			window.setTimeout(function() {
+			setTimeout(function() {
 				if (_useRAF && !_id) {
 					_self.useRAF(false);
 				}
@@ -4708,7 +4723,7 @@
 				}
 
 				var tl = this.vars.useFrames ? _rootFramesTimeline : _rootTimeline;
-				tl.insert(this, tl._time);
+				tl.add(this, tl._time);
 
 				if (this.vars.paused) {
 					this.paused(true);
@@ -4776,7 +4791,7 @@
 			this._active = (enabled && !this._paused && this._totalTime > 0 && this._totalTime < this._totalDuration);
 			if (ignoreTimeline !== true) {
 				if (enabled && this.timeline == null) {
-					this._timeline.insert(this, this._startTime - this._delay);
+					this._timeline.add(this, this._startTime - this._delay);
 				} else if (!enabled && this.timeline != null) {
 					this._timeline._remove(this, true);
 				}
@@ -4922,7 +4937,7 @@
 			if (value !== this._startTime) {
 				this._startTime = value;
 				if (this.timeline) if (this.timeline._sortChildren) {
-					this.timeline.insert(this, value - this._delay); //ensures that any necessary re-sequencing of Animations in the timeline occurs to make sure the rendering order is correct.
+					this.timeline.add(this, value - this._delay); //ensures that any necessary re-sequencing of Animations in the timeline occurs to make sure the rendering order is correct.
 				}
 			}
 			return this;
@@ -4988,45 +5003,47 @@
 		p._first = p._last = null;
 		p._sortChildren = false;
 
-		p.insert = function(tween, time) {
-			tween._startTime = Number(time || 0) + tween._delay;
-			if (tween._paused) if (this !== tween._timeline) { //we only adjust the _pauseTime if it wasn't in this timeline already. Remember, sometimes a tween will be inserted again into the same timeline when its startTime is changed so that the tweens in the TimelineLite/Max are re-ordered properly in the linked list (so everything renders in the proper order).
-				tween._pauseTime = tween._startTime + ((this.rawTime() - tween._startTime) / tween._timeScale);
+		p.add = function(child, position, align, stagger) {
+			var prevTween, st;
+			child._startTime = Number(position || 0) + child._delay;
+			if (child._paused) if (this !== child._timeline) { //we only adjust the _pauseTime if it wasn't in this timeline already. Remember, sometimes a tween will be inserted again into the same timeline when its startTime is changed so that the tweens in the TimelineLite/Max are re-ordered properly in the linked list (so everything renders in the proper order).
+				child._pauseTime = child._startTime + ((this.rawTime() - child._startTime) / child._timeScale);
 			}
-			if (tween.timeline) {
-				tween.timeline._remove(tween, true); //removes from existing timeline so that it can be properly added to this one.
+			if (child.timeline) {
+				child.timeline._remove(child, true); //removes from existing timeline so that it can be properly added to this one.
 			}
-			tween.timeline = tween._timeline = this;
-			if (tween._gc) {
-				tween._enabled(true, true);
+			child.timeline = child._timeline = this;
+			if (child._gc) {
+				child._enabled(true, true);
 			}
-
-			var prevTween = this._last;
+			prevTween = this._last;
 			if (this._sortChildren) {
-				var st = tween._startTime;
+				st = child._startTime;
 				while (prevTween && prevTween._startTime > st) {
 					prevTween = prevTween._prev;
 				}
 			}
 			if (prevTween) {
-				tween._next = prevTween._next;
-				prevTween._next = tween;
+				child._next = prevTween._next;
+				prevTween._next = child;
 			} else {
-				tween._next = this._first;
-				this._first = tween;
+				child._next = this._first;
+				this._first = child;
 			}
-			if (tween._next) {
-				tween._next._prev = tween;
+			if (child._next) {
+				child._next._prev = child;
 			} else {
-				this._last = tween;
+				this._last = child;
 			}
-			tween._prev = prevTween;
-
+			child._prev = prevTween;
 			if (this._timeline) {
 				this._uncache(true);
 			}
 			return this;
 		};
+
+		//alias for backwards compatibility
+		p.insert = p.add;
 
 		p._remove = function(tween, skipDisable) {
 			if (tween.timeline === this) {
@@ -5086,8 +5103,8 @@
 				if (target == null) {
 					throw "Cannot tween an undefined reference.";
 				}
-				this.target = target;
 
+				this.target = target = (typeof(target) !== "string") ? target : TweenLite.selector(target) || target;
 				this._overwrite = (this.vars.overwrite == null) ? _overwriteLookup[TweenLite.defaultOverwrite] : (typeof(this.vars.overwrite) === "number") ? this.vars.overwrite >> 0 : _overwriteLookup[this.vars.overwrite];
 
 				var i, targ;
@@ -5120,7 +5137,18 @@
 				if (this.vars.immediateRender || (duration === 0 && this._delay === 0 && this.vars.immediateRender !== false)) {
 					this.render(-this._delay, false, true);
 				}
-			}, true);
+			}, true),
+			_autoCSS = function(vars) {
+				var css = {},
+					p;
+				for (p in vars) {
+					if (!_reservedProps[p] && (!_plugins[p] || (_plugins[p] && _plugins[p]._autoCSS))) {
+						css[p] = vars[p];
+						delete vars[p];
+					}
+				}
+				vars.css = css;
+			};
 
 		p = TweenLite.prototype = new Animation();
 		p.constructor = TweenLite;
@@ -5132,15 +5160,16 @@
 		p._firstPT = p._targets = p._overwrittenProps = null;
 		p._notifyPluginsOfEnabled = false;
 
-		TweenLite.version = 1.701;
+		TweenLite.version = "1.8.0";
 		TweenLite.defaultEase = p._ease = new Ease(null, null, 1, 1);
 		TweenLite.defaultOverwrite = "auto";
 		TweenLite.ticker = _ticker;
+		TweenLite.selector = window.$ || window.jQuery || function(e) { if (window.$) { TweenLite.selector = window.$; return window.$(e); } return window.document ? window.document.getElementById((e.charAt(0) === "#") ? e.substr(1) : e) : e; };
 
 		var _plugins = TweenLite._plugins = {},
 			_tweenLookup = TweenLite._tweenLookup = {},
 			_tweenLookupNum = 0,
-			_reservedProps = {ease:1, delay:1, overwrite:1, onComplete:1, onCompleteParams:1, onCompleteScope:1, useFrames:1, runBackwards:1, startAt:1, onUpdate:1, onUpdateParams:1, onUpdateScope:1, onStart:1, onStartParams:1, onStartScope:1, onReverseComplete:1, onReverseCompleteParams:1, onReverseCompleteScope:1, onRepeat:1, onRepeatParams:1, onRepeatScope:1, easeParams:1, yoyo:1, orientToBezier:1, immediateRender:1, repeat:1, repeatDelay:1, data:1, paused:1, reversed:1},
+			_reservedProps = {ease:1, delay:1, overwrite:1, onComplete:1, onCompleteParams:1, onCompleteScope:1, useFrames:1, runBackwards:1, startAt:1, onUpdate:1, onUpdateParams:1, onUpdateScope:1, onStart:1, onStartParams:1, onStartScope:1, onReverseComplete:1, onReverseCompleteParams:1, onReverseCompleteScope:1, onRepeat:1, onRepeatParams:1, onRepeatScope:1, easeParams:1, yoyo:1, orientToBezier:1, immediateRender:1, repeat:1, repeatDelay:1, data:1, paused:1, reversed:1, autoCSS:1},
 			_overwriteLookup = {none:0, all:1, auto:2, concurrent:3, allOnStart:4, preexisting:5, "true":1, "false":0},
 			_rootFramesTimeline = Animation._rootFramesTimeline = new SimpleTimeline(),
 			_rootTimeline = Animation._rootTimeline = new SimpleTimeline();
@@ -5315,6 +5344,9 @@
 			if (target == null) {
 				return false;
 			}
+			if (!this.vars.css) if (target.style) if (target.nodeType) if (_plugins.css) if (this.vars.autoCSS !== false) { //it's so common to use TweenLite/Max to animate the css of DOM elements, we assume that if the target is a DOM element, that's what is intended (a convenience so that users don't have to wrap things in css:{}, although we still recommend it for a slight performance boost and better specificity)
+				_autoCSS(this.vars);
+			}
 			for (p in this.vars) {
 				if (_reservedProps[p]) {
 					if (p === "onStartParams" || p === "onUpdateParams" || p === "onCompleteParams" || p === "onReverseCompleteParams" || p === "onRepeatParams") if ((a = this.vars[p])) {
@@ -5469,7 +5501,6 @@
 				pt = pt._next;
 			}
 
-
 			if (this._onUpdate) if (!suppressEvents) {
 				this._onUpdate.apply(this.vars.onUpdateScope || this, this.vars.onUpdateParams || _blankArray);
 			}
@@ -5495,7 +5526,7 @@
 			if (vars == null) if (target == null || target === this.target) {
 				return this._enabled(false, false);
 			}
-			target = target || this._targets || this.target;
+			target = (typeof(target) !== "string") ? (target || this._targets || this.target) : TweenLite.selector(target) || target;
 			var i, overwrittenProps, p, pt, propLookup, changed, killProps, record;
 			if ((target instanceof Array || target.jquery) && typeof(target[0]) === "object") {
 				i = target.length;
@@ -5623,6 +5654,7 @@
 
 		TweenLite.getTweensOf = function(target) {
 			if (target == null) { return; }
+			target = (typeof(target) !== "string") ? target : TweenLite.selector(target) || target;
 			var i, a, j, t;
 			if ((target instanceof Array || target.jquery) && typeof(target[0]) === "object") {
 				i = target.length;
@@ -5782,8 +5814,6 @@
 			return true;
 		};
 
-
-
 		//now run through all the dependencies discovered and if any are missing, log that to the console as a warning. This is why it's best to have TweenLite load last - it can check all the dependencies for you.
 		if ((a = window._gsQueue)) {
 			for (i = 0; i < a.length; i++) {
@@ -5791,10 +5821,11 @@
 			}
 			for (p in _defLookup) {
 				if (!_defLookup[p].func) {
-					window.console.log("Warning: TweenLite encountered missing dependency: com.greensock."+p);
+					window.console.log("GSAP encountered missing dependency: com.greensock." + p);
 				}
 			}
 		}
 
+		_gsInit = false; //ensures that the first official animation forces a ticker.tick() to update the time when it is instantiated
 
 })(window);

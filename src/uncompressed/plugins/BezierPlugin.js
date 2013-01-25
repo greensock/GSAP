@@ -313,12 +313,13 @@
 		
 		p.constructor = BezierPlugin;
 		BezierPlugin.API = 2;
+		BezierPlugin._autoCSS = true; //indicates that this plugin can be inserted into the "css" object using the autoCSS feature of TweenLite
 		BezierPlugin.quadraticToCubic = function(a, b, c) {
 			return new Segment(a, (2 * b + a) / 3, (2 * b + c) / 3, c);
 		}
 
 		BezierPlugin._cssRegister = function() {
-			var CSSPlugin = window.com.greensock.plugins.CSSPlugin;
+			var CSSPlugin = (window.GreenSockGlobals || window).com.greensock.plugins.CSSPlugin;
 			if (!CSSPlugin) {
 				return;
 			}
