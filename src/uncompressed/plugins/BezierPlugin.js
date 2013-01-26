@@ -1,4 +1,4 @@
-/**
+/*!
  * VERSION: beta 1.161
  * DATE: 2013-01-16
  * JavaScript (also available in AS3 and AS2)
