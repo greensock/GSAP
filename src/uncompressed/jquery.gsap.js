@@ -1,5 +1,5 @@
 /*!
- * VERSION: 0.1.2
+ * VERSION: 0.1.3
  * DATE: 2013-01-25
  * JavaScript
  * UPDATES AND DOCS AT: http://www.greensock.com/jquery-gsap-plugin/
@@ -94,7 +94,6 @@
 			specEasing = (typeof(speed) === "object") ? speed.specialEasing : null,
 			fallbackProps, val, p, doAnimation, specEasingVars;
 
-
 		for (p in prop) {
 			val = prop[p];
 			if (val instanceof Array && _easeMap[val[1]]) {
@@ -127,17 +126,17 @@
 		}
 
 		doAnimation = function(next) {
-			_addCallback("onComplete", config.old, obj, vars, next);
+			if (fallbackProps) {
+				_animate.call(obj, fallbackProps, {duration:config.duration, easing:config.easing, queue:false});
+			}
 			if (specEasingVars) {
 				var i = specEasingVars.length;
 				while (--i > -1) {
 					TweenLite.to(obj, $.fx.off ? 0 : config.duration / 1000, specEasingVars[i]);
 				}
 			}
+			_addCallback("onComplete", config.old, obj, vars, next);
 			TweenLite.to(obj, $.fx.off ? 0 : config.duration / 1000, vars);
-			if (fallbackProps) {
-				_animate.call(obj, fallbackProps, {duration:config.duration, easing:config.easing, queue:false});
-			}
 		};
 
 		if (config.queue !== false) {
@@ -169,6 +168,6 @@
 		return this;
 	};
 
-	$.gsap = {enabled:function(value) {_enabled = value;}, version:"0.1.2"};
+	$.gsap = {enabled:function(value) {_enabled = value;}, version:"0.1.3"};
 
 }(jQuery));
