@@ -1,6 +1,6 @@
 /*!
  * VERSION: beta 1.8.0
- * DATE: 2013-01-20
+ * DATE: 2013-01-28
  * JavaScript 
  * UPDATES AND DOCS AT: http://www.greensock.com
  *
@@ -1565,7 +1565,7 @@
 		_registerComplexSpecialProp("padding", null, _getEdgeParser("paddingTop,paddingRight,paddingBottom,paddingLeft"));
 		_registerComplexSpecialProp("clip", "rect(0px,0px,0px,0px)");
 		_registerComplexSpecialProp("textShadow", "0px 0px 0px #999", null, false, true);
-		_registerComplexSpecialProp("autoRound", null, function(t, e, p, cssp, pt) {return pt;}); //just so that we can ignore "autoRound"
+		_registerComplexSpecialProp("autoRound,strictUnits", null, function(t, e, p, cssp, pt) {return pt;}); //just so that we can ignore these properties (not tween them)
 		_registerComplexSpecialProp("border", "0px solid #000", function(t, e, p, cssp, pt, plugin) {
 				return this.parseComplex(t.style, this.format(_getStyle(t, "borderTopWidth", _cs, false, "0px") + " " + _getStyle(t, "borderTopStyle", _cs, false, "solid") + " " + _getStyle(t, "borderTopColor", _cs, false, "#000")), this.format(e), pt, plugin);
 			}, false, true, function(v) {
@@ -1842,6 +1842,9 @@
 								bn /= _convertToPixels(target, p, 100, "%") / 100;
 								if (bn > 100) { //extremely rare
 									bn = 100;
+								}
+								if (vars.strictUnits !== true) { //some browsers report only "px" values instead of allowing "%" with getComputedStyle(), so we assume that if we're tweening to a %, we should start there too unless strictUnits:true is defined. This approach is particularly useful for responsive designs that use from() tweens.
+									bs = bn + "%";
 								}
 
 							} else if (esfx === "em") {
