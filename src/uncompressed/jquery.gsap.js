@@ -1,6 +1,6 @@
 /*!
- * VERSION: 0.1.3
- * DATE: 2013-01-25
+ * VERSION: 0.1.4
+ * DATE: 2013-01-28
  * JavaScript
  * UPDATES AND DOCS AT: http://www.greensock.com/jquery-gsap-plugin/
  *
@@ -92,7 +92,7 @@
 			vars = {ease:(_easeMap[config.easing] || ((config.easing === false) ? _easeMap.linear : _easeMap.swing))},
 			obj = this,
 			specEasing = (typeof(speed) === "object") ? speed.specialEasing : null,
-			fallbackProps, val, p, doAnimation, specEasingVars;
+			val, p, doAnimation, specEasingVars;
 
 		for (p in prop) {
 			val = prop[p];
@@ -102,8 +102,7 @@
 				val = val[0];
 			}
 			if (val === "toggle" || val === "hide" || val === "show") {
-				fallbackProps = fallbackProps || {};
-				fallbackProps[p] = val;
+				return _animate.call(this, prop, speed, easing, callback);
 			} else {
 				vars[(p.indexOf("-") === -1) ? p : $.camelCase(p)] = val;
 			}
@@ -126,9 +125,6 @@
 		}
 
 		doAnimation = function(next) {
-			if (fallbackProps) {
-				_animate.call(obj, fallbackProps, {duration:config.duration, easing:config.easing, queue:false});
-			}
 			if (specEasingVars) {
 				var i = specEasingVars.length;
 				while (--i > -1) {
@@ -168,6 +164,6 @@
 		return this;
 	};
 
-	$.gsap = {enabled:function(value) {_enabled = value;}, version:"0.1.3"};
+	$.gsap = {enabled:function(value) {_enabled = value;}, version:"0.1.4"};
 
 }(jQuery));
