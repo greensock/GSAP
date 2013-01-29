@@ -1,6 +1,6 @@
 /*!
- * VERSION: beta 1.8.0
- * DATE: 2013-01-21
+ * VERSION: beta 1.8.1
+ * DATE: 2013-01-29
  * JavaScript (ActionScript 3 and 2 also available)
  * UPDATES AND DOCS AT: http://www.greensock.com
  *
@@ -302,7 +302,7 @@
 				_fps = value;
 				_gap = 1 / (_fps || 60);
 				_nextTime = this.time + _gap;
-				_req = (_fps === 0) ? function(){} : (!_useRAF || !_reqAnimFrame) ? function(f) { return window.setTimeout( f, (((_nextTime - _self.time) * 1000 + 1) >> 0) || 1); } : _reqAnimFrame;
+				_req = (_fps === 0) ? function(){} : (!_useRAF || !_reqAnimFrame) ? function(f) { return setTimeout( f, (((_nextTime - _self.time) * 1000 + 1) >> 0) || 1); } : _reqAnimFrame;
 				_cancelReq();
 				_id = _req(_tick);
 			};
@@ -735,18 +735,27 @@
 
 				this.target = target = (typeof(target) !== "string") ? target : TweenLite.selector(target) || target;
 				this._overwrite = (this.vars.overwrite == null) ? _overwriteLookup[TweenLite.defaultOverwrite] : (typeof(this.vars.overwrite) === "number") ? this.vars.overwrite >> 0 : _overwriteLookup[this.vars.overwrite];
-				
-				var i, targ;
-				if ((target instanceof Array || target.jquery) && typeof(target[0]) === "object") {
-					this._targets = target.slice(0); //works for both jQuery and Array instances
+
+				var isSelector = (target.jquery || (typeof(target.each) === "function" && target[0] && target[0].nodeType && target[0].style)),
+					i, targ;
+				if ((isSelector || target instanceof Array) && typeof(target[0]) !== "number") {
+					this._targets = (isSelector && !target.slice) ? _selectorToArray(target) : target.slice(0);
 					this._propLookup = [];
 					this._siblings = [];
 					for (i = 0; i < this._targets.length; i++) {
 						targ = this._targets[i];
-						//in case the user is passing in an array of jQuery objects, for example, we need to check one more level and pull things out if necessary...
-						if (targ.jquery) {
+						if (!targ) {
 							this._targets.splice(i--, 1);
-							this._targets = this._targets.concat(targ.constructor.makeArray(targ));
+							continue;
+						} else if (typeof(targ) === "string") {
+							targ = this._targets[i--] = TweenLite.selector(targ); //in case it's an array of strings
+							if (typeof(targ) === "string") {
+								this._targets.splice(i+1, 1); //to avoid an endless loop (can't imagine why the selector would return a string, but just in case)
+							}
+							continue;
+						} else if (typeof(targ.each) === "function" && targ[0] && targ[0].nodeType && targ[0].style) { //in case the user is passing in an array of selector objects (like jQuery objects), we need to check one more level and pull things out if necessary...
+							this._targets.splice(i--, 1);
+							this._targets = this._targets.concat(_selectorToArray(targ));
 							continue;
 						}
 						this._siblings[i] = _register(targ, this, false);
@@ -767,6 +776,16 @@
 					this.render(-this._delay, false, true);
 				}
 			}, true),
+			_isSelector = function(v) {
+				return (typeof(v.each) === "function" && v[0] && v[0].nodeType && v[0].style);
+			},
+			_selectorToArray = function(v) {
+				var a = [];
+				v.each(function() {
+					a.push(this);
+				});
+				return a;
+			},
 			_autoCSS = function(vars) {
 				var css = {},
 					p;
@@ -789,7 +808,7 @@
 		p._firstPT = p._targets = p._overwrittenProps = null;
 		p._notifyPluginsOfEnabled = false;
 		
-		TweenLite.version = "1.8.0";
+		TweenLite.version = "1.8.1";
 		TweenLite.defaultEase = p._ease = new Ease(null, null, 1, 1);
 		TweenLite.defaultOverwrite = "auto";
 		TweenLite.ticker = _ticker;
@@ -1157,7 +1176,7 @@
 			}
 			target = (typeof(target) !== "string") ? (target || this._targets || this.target) : TweenLite.selector(target) || target;
 			var i, overwrittenProps, p, pt, propLookup, changed, killProps, record;
-			if ((target instanceof Array || target.jquery) && typeof(target[0]) === "object") { 
+			if ((target instanceof Array || _isSelector(target)) && typeof(target[0]) !== "number") {
 				i = target.length;
 				while (--i > -1) {
 					if (this._kill(vars, target[i])) {
@@ -1285,7 +1304,7 @@
 			if (target == null) { return; }
 			target = (typeof(target) !== "string") ? target : TweenLite.selector(target) || target;
 			var i, a, j, t;
-			if ((target instanceof Array || target.jquery) && typeof(target[0]) === "object") { 
+			if ((target instanceof Array || _isSelector(target)) && typeof(target[0]) !== "number") {
 				i = target.length;
 				a = [];
 				while (--i > -1) {

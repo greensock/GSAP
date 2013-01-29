@@ -1,6 +1,6 @@
 /*!
- * VERSION: beta 1.8.0
- * DATE: 2013-01-28
+ * VERSION: beta 1.8.1
+ * DATE: 2013-01-29
  * JavaScript 
  * UPDATES AND DOCS AT: http://www.greensock.com
  *
@@ -29,7 +29,7 @@
 			p = CSSPlugin.prototype = new TweenPlugin("css");
 
 		p.constructor = CSSPlugin;
-		CSSPlugin.version = "1.8.0";
+		CSSPlugin.version = "1.8.1";
 		CSSPlugin.API = 2;
 		CSSPlugin.defaultTransformPerspective = 0;
 		p = "px"; //we'll reuse the "p" variable to keep file size down
@@ -1207,13 +1207,12 @@
 					style.top = (t._ffFix ? n + 0.05 : n - 0.05) + ((sfx === "") ? "px" : sfx);
 				}
 
-				if (angle) {
-					cos = Math.cos(angle);
-					sin = Math.sin(angle);
-					t1 = a11*cos;
-					t2 = a22*sin;
-					a12 = a11*-sin;
-					a22 = a22*cos;
+				if (angle || t.skewX) {
+					t1 = a11*Math.cos(angle);
+					t2 = a22*Math.sin(angle);
+					angle -= t.skewX;
+					a12 = a11*-Math.sin(angle);
+					a22 = a22*Math.cos(angle);
 					a11 = t1;
 					a21 = t2;
 				}
