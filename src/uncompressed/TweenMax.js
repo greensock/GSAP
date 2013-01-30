@@ -1,6 +1,6 @@
 /*!
- * VERSION: beta 1.8.1
- * DATE: 2013-01-29
+ * VERSION: beta 1.8.2
+ * DATE: 2013-01-30
  * JavaScript (ActionScript 3 and 2 also available)
  * UPDATES AND DOCS AT: http://www.greensock.com
  * 
@@ -33,7 +33,7 @@
 			p = TweenMax.prototype = TweenLite.to({}, 0.1, {}),
 			_blankArray = [];
 
-		TweenMax.version = "1.8.1";
+		TweenMax.version = "1.8.2";
 		p.constructor = TweenMax;
 		p.kill()._gc = false;
 		TweenMax.killTweensOf = TweenMax.killDelayedCallsTo = TweenLite.killTweensOf;
@@ -2113,7 +2113,7 @@
 			p = CSSPlugin.prototype = new TweenPlugin("css");
 
 		p.constructor = CSSPlugin;
-		CSSPlugin.version = "1.8.1";
+		CSSPlugin.version = "1.8.2";
 		CSSPlugin.API = 2;
 		CSSPlugin.defaultTransformPerspective = 0;
 		p = "px"; //we'll reuse the "p" variable to keep file size down
@@ -3663,6 +3663,8 @@
 				difData, bs;
 			pt = cssp._classNamePT = new CSSPropTween(t, p, 0, 0, pt, 2);
 			pt.setRatio = _setClassNameRatio;
+			pt.pr = -11;
+			_hasPriority = true;
 			pt.b = b;
 			pt.e = (e.charAt(1) !== "=") ? e : (e.charAt(0) === "+") ? b + " " + e.substr(2) : b.split(e.substr(2)).join("");
 			if (cssp._tween._duration) { //if it's a zero-duration tween, there's no need to tween anything or parse the data. In fact, if we switch classes temporarily (which we must do for proper parsing) and the class has a transition applied, it could cause a quick flash to the end state and back again initially in some browsers.
@@ -3674,6 +3676,38 @@
 				t.style.cssText = cssText; //we recorded cssText before we swapped classes and ran _getAllStyles() because in cases when a className tween is overwritten, we remove all the related tweening properties from that class change (otherwise class-specific stuff can't override properties we've directly set on the target's style object due to specificity). Note: see _getAllStyles() for the code that reverts things and makes the className CSSPropTween run its setRatio(0). Also, we record the className CSSPropTween instance in the element's _gsOverwrittenClassNamePT property (a linked list).
 				pt = pt.xfirst = cssp.parse(t, difData.difs, pt, plugin); //we record the CSSPropTween as the xfirst so that we can handle overwriting propertly (if "className" gets overwritten, we must kill all the properties associated with the className part of the tween, so we can loop through from xfirst to the pt itself)
 			}
+			return pt;
+		});
+
+
+		var _setClearPropsRatio = function(v) {
+			if (v === 1 || v === 0) if (this.data._totalTime === this.data._totalDuration) { //this.data refers to the tween. Only clear at the END of the tween (remember, from() tweens make the ratio go from 1 to 0, so we can't just check that).
+				var all = (this.e === "all"),
+					s = this.t.style,
+					a = all ? s.cssText.split(";") : this.e.split(","),
+					removeProp = s.removeProperty ? "removeProperty" : "removeAttribute", //note: old versions of IE use "removeAttribute()" instead of "removeProperty()"
+					i = a.length,
+					transformParse = _specialProps.transform.parse,
+					p;
+				while (--i > -1) {
+					p = a[i];
+					if (all) {
+						p = p.substr(0, p.indexOf(":")).split(" ").join("");
+					}
+					if (_specialProps[p]) {
+						p = (_specialProps[p].parse === transformParse) ? _transformProp : _specialProps[p].p; //ensures that special properties use the proper browser-specific property name, like "scaleX" might be "-webkit-transform" or "boxShadow" might be "-moz-box-shadow"
+					}
+					s[removeProp](p.replace(_capsExp, "-$1").toLowerCase());
+				}
+			}
+		};
+		_registerComplexSpecialProp("clearProps", null, function(t, e, p, cssp, pt) {
+			pt = new CSSPropTween(t, p, 0, 0, pt, 2);
+			pt.setRatio = _setClearPropsRatio;
+			pt.e = e;
+			pt.pr = -10;
+			pt.data = cssp._tween;
+			_hasPriority = true;
 			return pt;
 		});
 
@@ -3947,7 +3981,7 @@
 					pt = pt._next;
 				}
 
-				//if the tween is reversed all the way back to the beginning, we need to restore the original values which may have different units (like % instead of px or em or whatever).
+			//if the tween is reversed all the way back to the beginning, we need to restore the original values which may have different units (like % instead of px or em or whatever).
 			} else {
 				while (pt) {
 					if (pt.type !== 2) {

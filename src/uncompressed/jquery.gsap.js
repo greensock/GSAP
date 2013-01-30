@@ -1,6 +1,6 @@
 /*!
- * VERSION: 0.1.4
- * DATE: 2013-01-28
+ * VERSION: 0.1.5
+ * DATE: 2013-01-29
  * JavaScript
  * UPDATES AND DOCS AT: http://www.greensock.com/jquery-gsap-plugin/
  *
@@ -85,7 +85,7 @@
 				return _animate.call(this, prop, speed, easing, callback);
 			}
 		}
-		if (!_enabled || prop.skipGSAP === true || (typeof(speed) === "object" && typeof(speed.step) === "function")) { //we don't support the "step" feature because it's too costly performance-wise, so fall back to the native animate() call if we sense one.
+		if (!_enabled || prop.skipGSAP === true || (typeof(speed) === "object" && typeof(speed.step) === "function") || prop.scrollTop != null || prop.scrollLeft != null) { //we don't support the "step" feature because it's too costly performance-wise, so fall back to the native animate() call if we sense one. Same with scrollTop and scrollLeft which are handled in a special way in jQuery.
 			return _animate.call(this, prop, speed, easing, callback);
 		}
 		var config = $.speed(speed, easing, callback),
@@ -164,6 +164,6 @@
 		return this;
 	};
 
-	$.gsap = {enabled:function(value) {_enabled = value;}, version:"0.1.4"};
+	$.gsap = {enabled:function(value) {_enabled = value;}, version:"0.1.5"};
 
 }(jQuery));
