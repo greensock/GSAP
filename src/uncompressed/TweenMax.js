@@ -1,6 +1,6 @@
 /*!
  * VERSION: beta 1.8.2
- * DATE: 2013-01-30
+ * DATE: 2013-02-04
  * JavaScript (ActionScript 3 and 2 also available)
  * UPDATES AND DOCS AT: http://www.greensock.com
  * 
@@ -29,6 +29,16 @@
 				this._repeat = this.vars.repeat || 0;
 				this._repeatDelay = this.vars.repeatDelay || 0;
 				this._dirty = true; //ensures that if there is any repeat, the totalDuration will get recalculated to accurately report it.
+			},
+			_isSelector = function(v) {
+				return (v.jquery || (typeof(v.each) === "function" && v[0] && v[0].nodeType && v[0].style));
+			},
+			_selectorToArray = function(v) {
+				var a = [];
+				v.each(function() {
+					a.push(this);
+				});
+				return a;
 			},
 			p = TweenMax.prototype = TweenLite.to({}, 0.1, {}),
 			_blankArray = [];
@@ -264,10 +274,18 @@
 		
 		TweenMax.staggerTo = TweenMax.allTo = function(targets, duration, vars, stagger, onCompleteAll, onCompleteAllParams, onCompleteAllScope) {
 			stagger = stagger || 0;
-			var a = [],
-				l = targets.length,
-				delay = vars.delay || 0,
-				copy, i, p;
+			var delay = vars.delay || 0,
+				a = [],
+				l, copy, i, p;
+			if (!(targets instanceof Array)) {
+				if (typeof(targets) === "string") {
+					targets = TweenLite.selector(targets) || targets;
+				}
+				if (_isSelector(targets)) {
+					targets = _selectorToArray(targets);
+				}
+			}
+			l = targets.length;
 			for (i = 0; i < l; i++) {
 				copy = {};
 				for (p in vars) {
@@ -374,15 +392,22 @@
 			if (parent == null) {
 				return;
 			}
-			if (parent.jquery) {
-				parent.each( function(i, e) {
-					TweenMax.killChildTweensOf(e, complete);
-				});
+			var tl = TweenLite._tweenLookup,
+				a, curParent, p, i, l;
+			if (typeof(parent) === "string") {
+				parent = TweenLite.selector(parent) || parent;
+			}
+			if (_isSelector(parent)) {
+				parent = _selectorToArray(parent);
+			}
+			if (parent instanceof Array) {
+				i = parent.length;
+				while (--i > -1) {
+					TweenMax.killChildTweensOf(parent[i], complete);
+				}
 				return;
 			}
-			var tl = TweenLite._tweenLookup,
-				a = [],
-				curParent, p, i, l;
+			a = [];
 			for (p in tl) {
 				curParent = tl[p].target.parentNode;
 				while (curParent) {
@@ -549,7 +574,7 @@
 			},
 			p = TimelineLite.prototype = new SimpleTimeline();
 
-		TimelineLite.version = "1.8.0";
+		TimelineLite.version = "1.8.2";
 		p.constructor = TimelineLite;
 		p.kill()._gc = false;
 
@@ -566,9 +591,20 @@
 		};
 
 		p.staggerTo = function(targets, duration, vars, stagger, position, onCompleteAll, onCompleteAllParams, onCompleteAllScope) {
-			var tl = new TimelineLite({onComplete:onCompleteAll, onCompleteParams:onCompleteAllParams, onCompleteScope:onCompleteAllScope});
+			var tl = new TimelineLite({onComplete:onCompleteAll, onCompleteParams:onCompleteAllParams, onCompleteScope:onCompleteAllScope}),
+				i, a;
+			if (typeof(targets) === "string") {
+				targets = TweenLite.selector(targets) || targets;
+			}
+			if (!(targets instanceof Array) && typeof(targets.each) === "function" && targets[0] && targets[0].nodeType && targets[0].style) {
+				a = [];
+				targets.each(function() {
+					a.push(this);
+				});
+				targets = a;
+			}
 			stagger = stagger || 0;
-			for (var i = 0; i < targets.length; i++) {
+			for (i = 0; i < targets.length; i++) {
 				if (vars.startAt != null) {
 					vars.startAt = _copy(vars.startAt);
 				}
@@ -5215,7 +5251,7 @@
 		p._firstPT = p._targets = p._overwrittenProps = null;
 		p._notifyPluginsOfEnabled = false;
 
-		TweenLite.version = "1.8.1";
+		TweenLite.version = "1.8.2";
 		TweenLite.defaultEase = p._ease = new Ease(null, null, 1, 1);
 		TweenLite.defaultOverwrite = "auto";
 		TweenLite.ticker = _ticker;

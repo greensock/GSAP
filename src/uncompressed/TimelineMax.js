@@ -1,6 +1,6 @@
 /*!
- * VERSION: beta 1.8.0
- * DATE: 2013-01-20
+ * VERSION: beta 1.8.2
+ * DATE: 2013-02-04
  * JavaScript (ActionScript 3 and 2 also available)
  * UPDATES AND DOCS AT: http://www.greensock.com
  *
@@ -38,7 +38,7 @@
 			
 		p.constructor = TimelineMax;
 		p.kill()._gc = false;
-		TimelineMax.version = "1.8.0";
+		TimelineMax.version = "1.8.2";
 		
 		p.invalidate = function() {
 			this._yoyo = (this.vars.yoyo === true);
@@ -479,7 +479,7 @@
 			},
 			p = TimelineLite.prototype = new SimpleTimeline();
 
-		TimelineLite.version = "1.8.0";
+		TimelineLite.version = "1.8.2";
 		p.constructor = TimelineLite;
 		p.kill()._gc = false;
 
@@ -496,9 +496,20 @@
 		};
 
 		p.staggerTo = function(targets, duration, vars, stagger, position, onCompleteAll, onCompleteAllParams, onCompleteAllScope) {
-			var tl = new TimelineLite({onComplete:onCompleteAll, onCompleteParams:onCompleteAllParams, onCompleteScope:onCompleteAllScope});
+			var tl = new TimelineLite({onComplete:onCompleteAll, onCompleteParams:onCompleteAllParams, onCompleteScope:onCompleteAllScope}),
+				i, a;
+			if (typeof(targets) === "string") {
+				targets = TweenLite.selector(targets) || targets;
+			}
+			if (!(targets instanceof Array) && typeof(targets.each) === "function" && targets[0] && targets[0].nodeType && targets[0].style) {
+				a = [];
+				targets.each(function() {
+					a.push(this);
+				});
+				targets = a;
+			}
 			stagger = stagger || 0;
-			for (var i = 0; i < targets.length; i++) {
+			for (i = 0; i < targets.length; i++) {
 				if (vars.startAt != null) {
 					vars.startAt = _copy(vars.startAt);
 				}
