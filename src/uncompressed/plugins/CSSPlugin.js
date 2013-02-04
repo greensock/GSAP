@@ -1,6 +1,6 @@
 /*!
  * VERSION: beta 1.8.2
- * DATE: 2013-01-30
+ * DATE: 2013-02-04
  * JavaScript 
  * UPDATES AND DOCS AT: http://www.greensock.com
  *
@@ -1340,10 +1340,11 @@
 				m2, rotation, skewY, copy, orig, has3D, hasChange;
 
 			if (typeof(v.transform) === "string" && _transformProp) { //for values like transform:"rotate(60deg) scale(0.5, 0.8)"
-				copy = style[_transformProp];
+				copy = style.cssText;
 				style[_transformProp] = v.transform;
+				style.display = "block"; //if display is "none", the browser often refuses to report the transform properties correctly.
 				m2 = _getTransform(t, null, false);
-				style[_transformProp] = copy;
+				style.cssText = copy;
 			} else if (typeof(v) === "object") { //for values like scaleX, scaleY, rotation, x, y, skewX, and skewY or transform:{...} (object)
 				rotation = (v.rotation != null) ? v.rotation : (v.rotationZ != null) ? v.rotationZ : m1.rotation * _RAD2DEG;
 				m2 = {scaleX:_parseVal((v.scaleX != null) ? v.scaleX : v.scale, m1.scaleX),
