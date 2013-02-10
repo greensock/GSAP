@@ -12,7 +12,7 @@
  **/
 (window._gsQueue || (window._gsQueue = [])).push( function() {
 
-	_gsDefine("plugins.BezierPlugin", ["plugins.TweenPlugin"], function(TweenPlugin) {
+	window._gsDefine("plugins.BezierPlugin", ["plugins.TweenPlugin"], function(TweenPlugin) {
 		
 		var BezierPlugin = function(props, priority) {
 				TweenPlugin.call(this, "bezier", -1);
@@ -568,4 +568,4 @@
 		
 	}, true);
 
-}); if (window._gsDefine) { _gsQueue.pop()(); }
+}); if (window._gsDefine) { window._gsQueue.pop()(); }

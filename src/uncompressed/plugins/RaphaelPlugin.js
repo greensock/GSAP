@@ -11,11 +11,11 @@
  * @author: Jack Doyle, jack@greensock.com
  */
 (window._gsQueue || (window._gsQueue = [])).push( function() {
-	
-	_gsDefine("plugins.RaphaelPlugin", ["plugins.TweenPlugin","TweenLite"], function(TweenPlugin, TweenLite) {
-		
-		"use strict";
-		
+
+	"use strict";
+
+	window._gsDefine("plugins.RaphaelPlugin", ["plugins.TweenPlugin","TweenLite"], function(TweenPlugin, TweenLite) {
+
 		var RaphaelPlugin = function() {
 				TweenPlugin.call(this, "raphael");
 				this._overwriteProps.pop();
@@ -380,4 +380,4 @@
 		
 	}, true);
 	
-}); if (window._gsDefine) { _gsQueue.pop()(); }
+}); if (window._gsDefine) { window._gsQueue.pop()(); }

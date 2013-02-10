@@ -12,7 +12,9 @@
  **/
 (window._gsQueue || (window._gsQueue = [])).push( function() {
 
-	_gsDefine("plugins.RoundPropsPlugin", ["plugins.TweenPlugin"], function(TweenPlugin) {
+	"use strict";
+
+	window._gsDefine("plugins.RoundPropsPlugin", ["plugins.TweenPlugin"], function(TweenPlugin) {
 		
 		var RoundPropsPlugin = function(props, priority) {
 				TweenPlugin.call(this, "roundProps", -1);
@@ -77,4 +79,4 @@
 		
 	}, true);
 
-}); if (window._gsDefine) { _gsQueue.pop()(); }
+}); if (window._gsDefine) { window._gsQueue.pop()(); }

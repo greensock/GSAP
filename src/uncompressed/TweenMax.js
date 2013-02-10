@@ -1,6 +1,6 @@
 /*!
- * VERSION: beta 1.8.2
- * DATE: 2013-02-04
+ * VERSION: beta 1.8.3
+ * DATE: 2013-02-09
  * JavaScript (ActionScript 3 and 2 also available)
  * UPDATES AND DOCS AT: http://www.greensock.com
  * 
@@ -15,12 +15,9 @@
 
 (window._gsQueue || (window._gsQueue = [])).push( function() {
 
-/*
- * ----------------------------------------------------------------
- * TweenMax
- * ----------------------------------------------------------------
- */
-	_gsDefine("TweenMax", ["core.Animation","core.SimpleTimeline","TweenLite"], function(Animation, SimpleTimeline, TweenLite) {
+	"use strict";
+
+	window._gsDefine("TweenMax", ["core.Animation","core.SimpleTimeline","TweenLite"], function(Animation, SimpleTimeline, TweenLite) {
 		
 		var TweenMax = function(target, duration, vars) {
 				TweenLite.call(this, target, duration, vars);
@@ -43,7 +40,7 @@
 			p = TweenMax.prototype = TweenLite.to({}, 0.1, {}),
 			_blankArray = [];
 
-		TweenMax.version = "1.8.2";
+		TweenMax.version = "1.8.3";
 		p.constructor = TweenMax;
 		p.kill()._gc = false;
 		TweenMax.killTweensOf = TweenMax.killDelayedCallsTo = TweenLite.killTweensOf;
@@ -535,9 +532,7 @@
  * TimelineLite
  * ----------------------------------------------------------------
  */
-	_gsDefine("TimelineLite", ["core.Animation","core.SimpleTimeline","TweenLite"], function(Animation, SimpleTimeline, TweenLite) {
-
-		"use strict";
+	window._gsDefine("TimelineLite", ["core.Animation","core.SimpleTimeline","TweenLite"], function(Animation, SimpleTimeline, TweenLite) {
 
 		var TimelineLite = function(vars) {
 				SimpleTimeline.call(this, vars);
@@ -574,7 +569,7 @@
 			},
 			p = TimelineLite.prototype = new SimpleTimeline();
 
-		TimelineLite.version = "1.8.2";
+		TimelineLite.version = "1.8.3";
 		p.constructor = TimelineLite;
 		p.kill()._gc = false;
 
@@ -596,7 +591,7 @@
 			if (typeof(targets) === "string") {
 				targets = TweenLite.selector(targets) || targets;
 			}
-			if (!(targets instanceof Array) && typeof(targets.each) === "function" && targets[0] && targets[0].nodeType && targets[0].style) {
+			if (!(targets instanceof Array) && typeof(targets.each) === "function" && targets[0] && targets[0].nodeType && targets[0].style) { //senses if the targets object is a selector. If it is, we should translate it into an array.
 				a = [];
 				targets.each(function() {
 					a.push(this);
@@ -644,14 +639,15 @@
 				vars.smoothChildTiming = true;
 			}
 			var tl = new TimelineLite(vars),
-				root = tl._timeline;
+				root = tl._timeline,
+				tween, next;
 			if (ignoreDelayedCalls == null) {
 				ignoreDelayedCalls = true;
 			}
 			root._remove(tl, true);
 			tl._startTime = 0;
 			tl._rawPrevTime = tl._time = tl._totalTime = root._time;
-			var tween = root._first, next;
+			tween = root._first;
 			while (tween) {
 				next = tween._next;
 				if (!ignoreDelayedCalls || !(tween instanceof TweenLite && tween.target === tween.vars.onComplete)) {
@@ -667,35 +663,35 @@
 			if (typeof(position) !== "number") {
 				position = this._parseTimeOrLabel(position, 0, true, value);
 			}
-			if (value instanceof Animation) {
-				//continue...
-			} else if (value instanceof Array) {
-				align = align || "normal";
-				stagger = stagger || 0;
-				var curTime = position,
-					l = value.length,
-					i, child;
-				for (i = 0; i < l; i++) {
-					if ((child = value[i]) instanceof Array) {
-						child = new TimelineLite({tweens:child});
-					}
-					this.add(child, curTime);
-					if (typeof(child) !== "string" && typeof(child) !== "function") {
-						if (align === "sequence") {
-							curTime = child._startTime + (child.totalDuration() / child._timeScale);
-						} else if (align === "start") {
-							child._startTime -= child.delay();
+			if (!(value instanceof Animation)) {
+				if (value instanceof Array) {
+					align = align || "normal";
+					stagger = stagger || 0;
+					var curTime = position,
+						l = value.length,
+						i, child;
+					for (i = 0; i < l; i++) {
+						if ((child = value[i]) instanceof Array) {
+							child = new TimelineLite({tweens:child});
 						}
+						this.add(child, curTime);
+						if (typeof(child) !== "string" && typeof(child) !== "function") {
+							if (align === "sequence") {
+								curTime = child._startTime + (child.totalDuration() / child._timeScale);
+							} else if (align === "start") {
+								child._startTime -= child.delay();
+							}
+						}
+						curTime += stagger;
 					}
-					curTime += stagger;
+					return this._uncache(true);
+				} else if (typeof(value) === "string") {
+					return this.addLabel(value, position);
+				} else if (typeof(value) === "function") {
+					value = TweenLite.delayedCall(0, value);
+				} else {
+					throw("Cannot add " + value + " into the TimelineLite/Max: it is neither a tween, timeline, function, nor a String.");
 				}
-				return this._uncache(true);
-			} else if (typeof(value) === "string") {
-				return this.addLabel(value, position);
-			} else if (typeof(value) === "function") {
-				value = TweenLite.delayedCall(0, value);
-			} else {
-				throw("Cannot add " + value + " into the TimelineLite/Max: it is neither a tween, timeline, function, nor a String.");
 			}
 
 			SimpleTimeline.prototype.add.call(this, value, position);
@@ -975,7 +971,8 @@
 
 		p.shiftChildren = function(amount, adjustLabels, ignoreBeforeTime) {
 			ignoreBeforeTime = ignoreBeforeTime || 0;
-			var tween = this._first;
+			var tween = this._first,
+				p;
 			while (tween) {
 				if (tween._startTime >= ignoreBeforeTime) {
 					tween._startTime += amount;
@@ -983,7 +980,7 @@
 				tween = tween._next;
 			}
 			if (adjustLabels) {
-				for (var p in this._labels) {
+				for (p in this._labels) {
 					if (this._labels[p] >= ignoreBeforeTime) {
 						this._labels[p] += amount;
 					}
@@ -1061,27 +1058,32 @@
 			if (!arguments.length) {
 				if (this._dirty) {
 					var max = 0,
-						tween = this._first,
-						prevStart = -999999999999,
-						next, end;
+						tween = this._last,
+						prevStart = 999999999999,
+						prev, end;
 					while (tween) {
-						next = tween._next; //record it here in case the tween changes position in the sequence...
-
-						if (tween._startTime < prevStart && this._sortChildren) { //in case one of the tweens shifted out of order, it needs to be re-inserted into the correct position in the sequence
+						prev = tween._prev; //record it here in case the tween changes position in the sequence...
+						if (tween._dirty) {
+							tween.totalDuration(); //could change the tween._startTime, so make sure the tween's cache is clean before analyzing it.
+						}
+						if (tween._startTime > prevStart && this._sortChildren && !tween._paused) { //in case one of the tweens shifted out of order, it needs to be re-inserted into the correct position in the sequence
 							this.add(tween, tween._startTime - tween._delay);
 						} else {
 							prevStart = tween._startTime;
 						}
-						if (tween._startTime < 0) {//children aren't allowed to have negative startTimes, so adjust here if one is found.
+						if (tween._startTime < 0 && !tween._paused) { //children aren't allowed to have negative startTimes unless smoothChildTiming is true, so adjust here if one is found.
 							max -= tween._startTime;
+							if (this._timeline.smoothChildTiming) {
+								this._startTime += tween._startTime / this._timeScale;
+							}
 							this.shiftChildren(-tween._startTime, false, -9999999999);
+							prevStart = 0;
 						}
-						end = tween._startTime + ((!tween._dirty ? tween._totalDuration : tween.totalDuration()) / tween._timeScale);
+						end = tween._startTime + (tween._totalDuration / tween._timeScale);
 						if (end > max) {
 							max = end;
 						}
-
-						tween = next;
+						tween = prev;
 					}
 					this._duration = this._totalDuration = max;
 					this._dirty = false;
@@ -1127,7 +1129,7 @@
  * TimelineMax
  * ----------------------------------------------------------------
  */
-	_gsDefine("TimelineMax", ["TimelineLite","TweenLite","easing.Ease"], function(TimelineLite, TweenLite, Ease) {
+	window._gsDefine("TimelineMax", ["TimelineLite","TweenLite","easing.Ease"], function(TimelineLite, TweenLite, Ease) {
 
 		var TimelineMax = function(vars) {
 				TimelineLite.call(this, vars);
@@ -1152,7 +1154,7 @@
 
 		p.constructor = TimelineMax;
 		p.kill()._gc = false;
-		TimelineMax.version = "1.8.0";
+		TimelineMax.version = "1.8.3";
 
 		p.invalidate = function() {
 			this._yoyo = (this.vars.yoyo === true);
@@ -1198,7 +1200,7 @@
 				if (vars.onStart) { //in case the user had an onStart in the vars - we don't want to overwrite it.
 					vars.onStart.apply(vars.onStartScope || t, vars.onStartParams || _blankArray);
 				}
-			}
+			};
 			return t;
 		};
 
@@ -1558,7 +1560,7 @@
  * BezierPlugin 						(!BezierPlugin)
  * ----------------------------------------------------------------
  */
-	_gsDefine("plugins.BezierPlugin", ["plugins.TweenPlugin"], function(TweenPlugin) {
+	window._gsDefine("plugins.BezierPlugin", ["plugins.TweenPlugin"], function(TweenPlugin) {
 
 		var BezierPlugin = function(props, priority) {
 				TweenPlugin.call(this, "bezier", -1);
@@ -2132,9 +2134,7 @@
  * CSSPlugin
  * ----------------------------------------------------------------
  */
-	_gsDefine("plugins.CSSPlugin", ["plugins.TweenPlugin","TweenLite"], function(TweenPlugin, TweenLite) {
-
-		"use strict";
+	window._gsDefine("plugins.CSSPlugin", ["plugins.TweenPlugin","TweenLite"], function(TweenPlugin, TweenLite) {
 
 		/** @constructor **/
 		var CSSPlugin = function() {
@@ -2149,7 +2149,7 @@
 			p = CSSPlugin.prototype = new TweenPlugin("css");
 
 		p.constructor = CSSPlugin;
-		CSSPlugin.version = "1.8.2";
+		CSSPlugin.version = "1.8.3";
 		CSSPlugin.API = 2;
 		CSSPlugin.defaultTransformPerspective = 0;
 		p = "px"; //we'll reuse the "p" variable to keep file size down
@@ -3171,7 +3171,7 @@
 						tm.scaleY = ((Math.sqrt(a22 * a22 + a23 * a23) * rnd + 0.5) >> 0) / rnd;
 						tm.scaleZ = ((Math.sqrt(a32 * a32 + a33 * a33) * rnd + 0.5) >> 0) / rnd;
 						tm.skewX = 0;
-						tm.perspective = a43 ? 1 / a43 : 0;
+						tm.perspective = a43 ? 1 / ((a43 < 0) ? -a43 : a43) : 0;
 						tm.x = a14;
 						tm.y = a24;
 						tm.z = a34;
@@ -3421,7 +3421,6 @@
 				style.display = "block"; //if display is "none", the browser often refuses to report the transform properties correctly.
 				m2 = _getTransform(t, null, false);
 				style.cssText = copy;
-
 			} else if (typeof(v) === "object") { //for values like scaleX, scaleY, rotation, x, y, skewX, and skewY or transform:{...} (object)
 				rotation = (v.rotation != null) ? v.rotation : (v.rotationZ != null) ? v.rotationZ : m1.rotation * _RAD2DEG;
 				m2 = {scaleX:_parseVal((v.scaleX != null) ? v.scaleX : v.scale, m1.scaleX),
@@ -3584,21 +3583,24 @@
 				cs = (_cs || _getComputedStyle(t, null)),
 				bs = this.format( ((cs) ? _ieVers ? cs.getPropertyValue(bp + "-x") + " " + cs.getPropertyValue(bp + "-y") : cs.getPropertyValue(bp) : t.currentStyle.backgroundPositionX + " " + t.currentStyle.backgroundPositionY) || "0 0"), //Internet Explorer doesn't report background-position correctly - we must query background-position-x and background-position-y and combine them (even in IE10). Before IE9, we must do the same with the currentStyle object and use camelCase
 				es = this.format(e),
-				ba, ea, i, pct, overlap;
+				ba, ea, i, pct, overlap, src;
 			if ((bs.indexOf("%") !== -1) !== (es.indexOf("%") !== -1)) {
-				ba = bs.split(" ");
-				ea = es.split(" ");
-				_tempImg.setAttribute("src", _getStyle(t, "backgroundImage").replace(_urlExp, "")); //set the temp <img>'s src to the background-image so that we can measure its width/height
-				i = 2;
-				while (--i > -1) {
-					bs = ba[i];
-					pct = (bs.indexOf("%") !== -1);
-					if (pct !== (ea[i].indexOf("%") !== -1)) {
-						overlap = (i === 0) ? t.offsetWidth - _tempImg.width : t.offsetHeight - _tempImg.height;
-						ba[i] = pct ? (parseFloat(bs) / 100 * overlap) + "px" : (parseFloat(bs) / overlap * 100) + "%";
+				src = _getStyle(t, "backgroundImage").replace(_urlExp, "");
+				if (src && src !== "none") {
+					ba = bs.split(" ");
+					ea = es.split(" ");
+					_tempImg.setAttribute("src", src); //set the temp <img>'s src to the background-image so that we can measure its width/height
+					i = 2;
+					while (--i > -1) {
+						bs = ba[i];
+						pct = (bs.indexOf("%") !== -1);
+						if (pct !== (ea[i].indexOf("%") !== -1)) {
+							overlap = (i === 0) ? t.offsetWidth - _tempImg.width : t.offsetHeight - _tempImg.height;
+							ba[i] = pct ? (parseFloat(bs) / 100 * overlap) + "px" : (parseFloat(bs) / overlap * 100) + "%";
+						}
 					}
+					bs = ba.join(" ");
 				}
-				bs = ba.join(" ");
 			}
 			return this.parseComplex(t.style, bs, es, pt, plugin);
 		}, false, false, _parsePosition); //note: backgroundPosition doesn't support interpreting between px and % (start and end values should use the same units) because doing so would require determining the size of the image itself and that can't be done quickly.
@@ -3735,7 +3737,9 @@
 					if (_specialProps[p]) {
 						p = (_specialProps[p].parse === transformParse) ? _transformProp : _specialProps[p].p; //ensures that special properties use the proper browser-specific property name, like "scaleX" might be "-webkit-transform" or "boxShadow" might be "-moz-box-shadow"
 					}
-					s[removeProp](p.replace(_capsExp, "-$1").toLowerCase());
+					if (p) {
+						s[removeProp](p.replace(_capsExp, "-$1").toLowerCase());
+					}
 				}
 			}
 		};
@@ -4125,7 +4129,7 @@
  * RoundPropsPlugin
  * ----------------------------------------------------------------
  */
-	_gsDefine("plugins.RoundPropsPlugin", ["plugins.TweenPlugin"], function(TweenPlugin) {
+	window._gsDefine("plugins.RoundPropsPlugin", ["plugins.TweenPlugin"], function(TweenPlugin) {
 
 		var RoundPropsPlugin = function(props, priority) {
 				TweenPlugin.call(this, "roundProps", -1);
@@ -4203,7 +4207,7 @@
  * EasePack
  * ----------------------------------------------------------------
  */
-	_gsDefine("easing.Back", ["easing.Ease"], function(Ease) {
+	window._gsDefine("easing.Back", ["easing.Ease"], function(Ease) {
 		
 		var w = (window.GreenSockGlobals || window),
 			gs = w.com.greensock,
@@ -5231,11 +5235,11 @@
 				});
 				return a;
 			},
-			_autoCSS = function(vars) {
+			_autoCSS = function(vars, target) {
 				var css = {},
 					p;
 				for (p in vars) {
-					if (!_reservedProps[p] && (!_plugins[p] || (_plugins[p] && _plugins[p]._autoCSS))) {
+					if (!_reservedProps[p] && target[p] === undefined && (!_plugins[p] || (_plugins[p] && _plugins[p]._autoCSS))) {
 						css[p] = vars[p];
 						delete vars[p];
 					}
@@ -5253,7 +5257,7 @@
 		p._firstPT = p._targets = p._overwrittenProps = null;
 		p._notifyPluginsOfEnabled = false;
 
-		TweenLite.version = "1.8.2";
+		TweenLite.version = "1.8.3";
 		TweenLite.defaultEase = p._ease = new Ease(null, null, 1, 1);
 		TweenLite.defaultOverwrite = "auto";
 		TweenLite.ticker = _ticker;
@@ -5438,7 +5442,7 @@
 				return false;
 			}
 			if (!this.vars.css) if (target.style) if (target.nodeType) if (_plugins.css) if (this.vars.autoCSS !== false) { //it's so common to use TweenLite/Max to animate the css of DOM elements, we assume that if the target is a DOM element, that's what is intended (a convenience so that users don't have to wrap things in css:{}, although we still recommend it for a slight performance boost and better specificity)
-				_autoCSS(this.vars);
+				_autoCSS(this.vars, target);
 			}
 			for (p in this.vars) {
 				if (_reservedProps[p]) {

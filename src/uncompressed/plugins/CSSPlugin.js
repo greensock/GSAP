@@ -1,6 +1,6 @@
 /*!
- * VERSION: beta 1.8.2
- * DATE: 2013-02-04
+ * VERSION: beta 1.8.3
+ * DATE: 2013-02-09
  * JavaScript 
  * UPDATES AND DOCS AT: http://www.greensock.com
  *
@@ -11,10 +11,10 @@
  * @author: Jack Doyle, jack@greensock.com
  */
 (window._gsQueue || (window._gsQueue = [])).push( function() {
-	
-	_gsDefine("plugins.CSSPlugin", ["plugins.TweenPlugin","TweenLite"], function(TweenPlugin, TweenLite) {
-		
-		"use strict";
+
+	"use strict";
+
+	window._gsDefine("plugins.CSSPlugin", ["plugins.TweenPlugin","TweenLite"], function(TweenPlugin, TweenLite) {
 
 		/** @constructor **/
 		var CSSPlugin = function() {
@@ -29,7 +29,7 @@
 			p = CSSPlugin.prototype = new TweenPlugin("css");
 
 		p.constructor = CSSPlugin;
-		CSSPlugin.version = "1.8.2";
+		CSSPlugin.version = "1.8.3";
 		CSSPlugin.API = 2;
 		CSSPlugin.defaultTransformPerspective = 0;
 		p = "px"; //we'll reuse the "p" variable to keep file size down
@@ -1051,7 +1051,7 @@
 						tm.scaleY = ((Math.sqrt(a22 * a22 + a23 * a23) * rnd + 0.5) >> 0) / rnd;
 						tm.scaleZ = ((Math.sqrt(a32 * a32 + a33 * a33) * rnd + 0.5) >> 0) / rnd;
 						tm.skewX = 0;
-						tm.perspective = a43 ? 1 / a43 : 0;
+						tm.perspective = a43 ? 1 / ((a43 < 0) ? -a43 : a43) : 0;
 						tm.x = a14;
 						tm.y = a24;
 						tm.z = a34;
@@ -1538,21 +1538,24 @@
 				cs = (_cs || _getComputedStyle(t, null)),
 				bs = this.format( ((cs) ? _ieVers ? cs.getPropertyValue(bp + "-x") + " " + cs.getPropertyValue(bp + "-y") : cs.getPropertyValue(bp) : t.currentStyle.backgroundPositionX + " " + t.currentStyle.backgroundPositionY) || "0 0"), //Internet Explorer doesn't report background-position correctly - we must query background-position-x and background-position-y and combine them (even in IE10). Before IE9, we must do the same with the currentStyle object and use camelCase
 				es = this.format(e),
-				ba, ea, i, pct, overlap;
+				ba, ea, i, pct, overlap, src;
 			if ((bs.indexOf("%") !== -1) !== (es.indexOf("%") !== -1)) {
-				ba = bs.split(" ");
-				ea = es.split(" ");
-				_tempImg.setAttribute("src", _getStyle(t, "backgroundImage").replace(_urlExp, "")); //set the temp <img>'s src to the background-image so that we can measure its width/height
-				i = 2;
-				while (--i > -1) {
-					bs = ba[i];
-					pct = (bs.indexOf("%") !== -1);
-					if (pct !== (ea[i].indexOf("%") !== -1)) {
-						overlap = (i === 0) ? t.offsetWidth - _tempImg.width : t.offsetHeight - _tempImg.height;
-						ba[i] = pct ? (parseFloat(bs) / 100 * overlap) + "px" : (parseFloat(bs) / overlap * 100) + "%";
+				src = _getStyle(t, "backgroundImage").replace(_urlExp, "");
+				if (src && src !== "none") {
+					ba = bs.split(" ");
+					ea = es.split(" ");
+					_tempImg.setAttribute("src", src); //set the temp <img>'s src to the background-image so that we can measure its width/height
+					i = 2;
+					while (--i > -1) {
+						bs = ba[i];
+						pct = (bs.indexOf("%") !== -1);
+						if (pct !== (ea[i].indexOf("%") !== -1)) {
+							overlap = (i === 0) ? t.offsetWidth - _tempImg.width : t.offsetHeight - _tempImg.height;
+							ba[i] = pct ? (parseFloat(bs) / 100 * overlap) + "px" : (parseFloat(bs) / overlap * 100) + "%";
+						}
 					}
+					bs = ba.join(" ");
 				}
-				bs = ba.join(" ");
 			}
 			return this.parseComplex(t.style, bs, es, pt, plugin);
 		}, false, false, _parsePosition); //note: backgroundPosition doesn't support interpreting between px and % (start and end values should use the same units) because doing so would require determining the size of the image itself and that can't be done quickly.
@@ -1689,7 +1692,9 @@
 					if (_specialProps[p]) {
 						p = (_specialProps[p].parse === transformParse) ? _transformProp : _specialProps[p].p; //ensures that special properties use the proper browser-specific property name, like "scaleX" might be "-webkit-transform" or "boxShadow" might be "-moz-box-shadow"
 					}
-					s[removeProp](p.replace(_capsExp, "-$1").toLowerCase());
+					if (p) {
+						s[removeProp](p.replace(_capsExp, "-$1").toLowerCase());
+					}
 				}
 			}
 		};
@@ -2064,4 +2069,4 @@
 		
 	}, true);
 	
-}); if (window._gsDefine) { _gsQueue.pop()(); }
+}); if (window._gsDefine) { window._gsQueue.pop()(); }

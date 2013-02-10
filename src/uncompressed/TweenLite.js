@@ -1,6 +1,6 @@
 /*!
- * VERSION: beta 1.8.1
- * DATE: 2013-01-29
+ * VERSION: beta 1.8.3
+ * DATE: 2013-02-09
  * JavaScript (ActionScript 3 and 2 also available)
  * UPDATES AND DOCS AT: http://www.greensock.com
  *
@@ -786,11 +786,11 @@
 				});
 				return a;
 			},
-			_autoCSS = function(vars) {
+			_autoCSS = function(vars, target) {
 				var css = {},
 					p;
 				for (p in vars) {
-					if (!_reservedProps[p] && (!_plugins[p] || (_plugins[p] && _plugins[p]._autoCSS))) {
+					if (!_reservedProps[p] && target[p] === undefined && (!_plugins[p] || (_plugins[p] && _plugins[p]._autoCSS))) {
 						css[p] = vars[p];
 						delete vars[p];
 					}
@@ -808,7 +808,7 @@
 		p._firstPT = p._targets = p._overwrittenProps = null;
 		p._notifyPluginsOfEnabled = false;
 		
-		TweenLite.version = "1.8.2";
+		TweenLite.version = "1.8.3";
 		TweenLite.defaultEase = p._ease = new Ease(null, null, 1, 1);
 		TweenLite.defaultOverwrite = "auto";
 		TweenLite.ticker = _ticker;
@@ -993,7 +993,7 @@
 				return false;
 			}
 			if (!this.vars.css) if (target.style) if (target.nodeType) if (_plugins.css) if (this.vars.autoCSS !== false) { //it's so common to use TweenLite/Max to animate the css of DOM elements, we assume that if the target is a DOM element, that's what is intended (a convenience so that users don't have to wrap things in css:{}, although we still recommend it for a slight performance boost and better specificity)
-				_autoCSS(this.vars);
+				_autoCSS(this.vars, target);
 			}
 			for (p in this.vars) {
 				if (_reservedProps[p]) { 

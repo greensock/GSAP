@@ -12,7 +12,9 @@
  **/
 (window._gsQueue || (window._gsQueue = [])).push( function() {
 
-	_gsDefine("plugins.EaselPlugin", ["plugins.TweenPlugin"], function(TweenPlugin) {
+	"use strict";
+
+	window._gsDefine("plugins.EaselPlugin", ["plugins.TweenPlugin"], function(TweenPlugin) {
 		
 		var EaselPlugin = function(props, priority) {
 				TweenPlugin.call(this, "easel", -1);
@@ -297,4 +299,4 @@
 		
 	}, true);
 
-}); if (window._gsDefine) { _gsQueue.pop()(); }
+}); if (window._gsDefine) { window._gsQueue.pop()(); }

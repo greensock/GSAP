@@ -1,6 +1,6 @@
 /*!
- * VERSION: beta 1.8.2
- * DATE: 2013-02-04
+ * VERSION: beta 1.8.3
+ * DATE: 2013-02-09
  * JavaScript (ActionScript 3 and 2 also available)
  * UPDATES AND DOCS AT: http://www.greensock.com
  *
@@ -13,7 +13,7 @@
 	
 (window._gsQueue || (window._gsQueue = [])).push( function() {
 
-	_gsDefine("TimelineMax", ["TimelineLite","TweenLite","easing.Ease"], function(TimelineLite, TweenLite, Ease) {
+	window._gsDefine("TimelineMax", ["TimelineLite","TweenLite","easing.Ease"], function(TimelineLite, TweenLite, Ease) {
 		
 		var TimelineMax = function(vars) {
 				TimelineLite.call(this, vars);
@@ -38,7 +38,7 @@
 			
 		p.constructor = TimelineMax;
 		p.kill()._gc = false;
-		TimelineMax.version = "1.8.2";
+		TimelineMax.version = "1.8.3";
 		
 		p.invalidate = function() {
 			this._yoyo = (this.vars.yoyo === true);
@@ -84,7 +84,7 @@
 				if (vars.onStart) { //in case the user had an onStart in the vars - we don't want to overwrite it.
 					vars.onStart.apply(vars.onStartScope || t, vars.onStartParams || _blankArray);
 				}
-			}
+			};
 			return t;
 		};
 		
@@ -440,9 +440,7 @@
  * ----------------------------------------------------------------
  */
 
-	_gsDefine("TimelineLite", ["core.Animation","core.SimpleTimeline","TweenLite"], function(Animation, SimpleTimeline, TweenLite) {
-
-		"use strict";
+	window._gsDefine("TimelineLite", ["core.Animation","core.SimpleTimeline","TweenLite"], function(Animation, SimpleTimeline, TweenLite) {
 
 		var TimelineLite = function(vars) {
 				SimpleTimeline.call(this, vars);
@@ -479,7 +477,7 @@
 			},
 			p = TimelineLite.prototype = new SimpleTimeline();
 
-		TimelineLite.version = "1.8.2";
+		TimelineLite.version = "1.8.3";
 		p.constructor = TimelineLite;
 		p.kill()._gc = false;
 
@@ -501,7 +499,7 @@
 			if (typeof(targets) === "string") {
 				targets = TweenLite.selector(targets) || targets;
 			}
-			if (!(targets instanceof Array) && typeof(targets.each) === "function" && targets[0] && targets[0].nodeType && targets[0].style) {
+			if (!(targets instanceof Array) && typeof(targets.each) === "function" && targets[0] && targets[0].nodeType && targets[0].style) { //senses if the targets object is a selector. If it is, we should translate it into an array.
 				a = [];
 				targets.each(function() {
 					a.push(this);
@@ -549,14 +547,15 @@
 				vars.smoothChildTiming = true;
 			}
 			var tl = new TimelineLite(vars),
-				root = tl._timeline;
+				root = tl._timeline,
+				tween, next;
 			if (ignoreDelayedCalls == null) {
 				ignoreDelayedCalls = true;
 			}
 			root._remove(tl, true);
 			tl._startTime = 0;
 			tl._rawPrevTime = tl._time = tl._totalTime = root._time;
-			var tween = root._first, next;
+			tween = root._first;
 			while (tween) {
 				next = tween._next;
 				if (!ignoreDelayedCalls || !(tween instanceof TweenLite && tween.target === tween.vars.onComplete)) {
@@ -880,7 +879,8 @@
 
 		p.shiftChildren = function(amount, adjustLabels, ignoreBeforeTime) {
 			ignoreBeforeTime = ignoreBeforeTime || 0;
-			var tween = this._first;
+			var tween = this._first,
+				p;
 			while (tween) {
 				if (tween._startTime >= ignoreBeforeTime) {
 					tween._startTime += amount;
@@ -888,7 +888,7 @@
 				tween = tween._next;
 			}
 			if (adjustLabels) {
-				for (var p in this._labels) {
+				for (p in this._labels) {
 					if (this._labels[p] >= ignoreBeforeTime) {
 						this._labels[p] += amount;
 					}
@@ -966,27 +966,32 @@
 			if (!arguments.length) {
 				if (this._dirty) {
 					var max = 0,
-						tween = this._first,
-						prevStart = -999999999999,
-						next, end;
+						tween = this._last,
+						prevStart = 999999999999,
+						prev, end;
 					while (tween) {
-						next = tween._next; //record it here in case the tween changes position in the sequence...
-
-						if (tween._startTime < prevStart && this._sortChildren) { //in case one of the tweens shifted out of order, it needs to be re-inserted into the correct position in the sequence
+						prev = tween._prev; //record it here in case the tween changes position in the sequence...
+						if (tween._dirty) {
+							tween.totalDuration(); //could change the tween._startTime, so make sure the tween's cache is clean before analyzing it.
+						}
+						if (tween._startTime > prevStart && this._sortChildren && !tween._paused) { //in case one of the tweens shifted out of order, it needs to be re-inserted into the correct position in the sequence
 							this.add(tween, tween._startTime - tween._delay);
 						} else {
 							prevStart = tween._startTime;
 						}
-						if (tween._startTime < 0) {//children aren't allowed to have negative startTimes, so adjust here if one is found.
+						if (tween._startTime < 0 && !tween._paused) { //children aren't allowed to have negative startTimes unless smoothChildTiming is true, so adjust here if one is found.
 							max -= tween._startTime;
+							if (this._timeline.smoothChildTiming) {
+								this._startTime += tween._startTime / this._timeScale;
+							}
 							this.shiftChildren(-tween._startTime, false, -9999999999);
+							prevStart = 0;
 						}
-						end = tween._startTime + ((!tween._dirty ? tween._totalDuration : tween.totalDuration()) / tween._timeScale);
+						end = tween._startTime + (tween._totalDuration / tween._timeScale);
 						if (end > max) {
 							max = end;
 						}
-
-						tween = next;
+						tween = prev;
 					}
 					this._duration = this._totalDuration = max;
 					this._dirty = false;
@@ -1015,4 +1020,4 @@
 
 	}, true);
 
-}); if (window._gsDefine) { _gsQueue.pop()(); }
+}); if (window._gsDefine) { window._gsQueue.pop()(); }

@@ -13,6 +13,8 @@
 
 (window._gsQueue || (window._gsQueue = [])).push( function() {
 
+	"use strict";
+
 	window._gsDefine("plugins.ColorPropsPlugin", ["plugins.TweenPlugin"], function(TweenPlugin) {
 
 		var ColorPropsPlugin = function(props, priority) {

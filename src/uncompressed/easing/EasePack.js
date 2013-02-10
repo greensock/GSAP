@@ -11,9 +11,10 @@
  * @author: Jack Doyle, jack@greensock.com
  **/
 (window._gsQueue || (window._gsQueue = [])).push( function() {
+
 	"use strict";
 
-	_gsDefine("easing.Back", ["easing.Ease"], function(Ease) {
+	window._gsDefine("easing.Back", ["easing.Ease"], function(Ease) {
 		
 		var w = (window.GreenSockGlobals || window),
 			gs = w.com.greensock,
@@ -247,4 +248,4 @@
 		
 	}, true);
 
-}); if (window._gsDefine) { _gsQueue.pop()(); }
+}); if (window._gsDefine) { window._gsQueue.pop()(); }

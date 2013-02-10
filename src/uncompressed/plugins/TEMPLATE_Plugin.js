@@ -19,9 +19,9 @@
  **/
 (window._gsQueue || (window._gsQueue = [])).push( function() {
 	//ignore the line above this and at the very end - those are for ensuring things load in the proper order
-	
+	"use strict";
 	//Replace "MyCustomPropertyPlugin" with whatever your property is, like "ScalePlugin" or "TintPlugin". 
-	_gsDefine("plugins.MyCustomPropertyPlugin", ["plugins.TweenPlugin"], function(TweenPlugin) {
+	window._gsDefine("plugins.MyCustomPropertyPlugin", ["plugins.TweenPlugin"], function(TweenPlugin) {
 		
 		var MyCustomPropertyPlugin = function(props, priority) {
 				//"myCustomProperty" is the name of the property that will get intercepted and handled by this plugin (obviously change it to whatever you want, typically it is camelCase starting with lowercase). The 0 parameter determines the priority in the rendering pipeline (0 by default). A priority of -1 would mean this plugin will run after all those with 0 or greater. A priority of 1 would get run before 0, etc. This only matters when a plugin relies on other plugins finishing their work before it runs (or visa-versa)
@@ -81,4 +81,4 @@
 		//no need to change anything after this point...
 	}, true);
 
-}); if (window._gsDefine) { _gsQueue.pop()(); }
+}); if (window._gsDefine) { window._gsQueue.pop()(); }

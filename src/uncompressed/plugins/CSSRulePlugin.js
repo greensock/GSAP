@@ -11,10 +11,10 @@
  * @author: Jack Doyle, jack@greensock.com
  */
 (window._gsQueue || (window._gsQueue = [])).push( function() {
-	
-	_gsDefine("plugins.CSSRulePlugin", ["plugins.TweenPlugin","TweenLite","plugins.CSSPlugin"], function(TweenPlugin, TweenLite, CSSPlugin) {
-		
-		"use strict";
+
+	"use strict";
+
+	window._gsDefine("plugins.CSSRulePlugin", ["plugins.TweenPlugin","TweenLite","plugins.CSSPlugin"], function(TweenPlugin, TweenLite, CSSPlugin) {
 
 		/** @constructor **/
 		var CSSRulePlugin = function() {
@@ -63,7 +63,6 @@
 			}
 			return a;
 		};
-
 							
 		
 		//@private gets called when the tween renders for the first time. This kicks everything off, recording start/end values, etc.
@@ -93,4 +92,4 @@
 		
 	}, true);
 	
-}); if (window._gsDefine) { _gsQueue.pop()(); }
+}); if (window._gsDefine) { window._gsQueue.pop()(); }

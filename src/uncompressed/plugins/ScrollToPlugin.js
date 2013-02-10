@@ -1,6 +1,6 @@
 /**
- * VERSION: beta 1.521
- * DATE: 2013-01-16
+ * VERSION: beta 1.6.0
+ * DATE: 2013-02-09
  * JavaScript
  * UPDATES AND DOCS AT: http://www.greensock.com
  *
@@ -40,7 +40,7 @@
 			if (typeof(value) !== "object") {
 				value = {y:value}; //if we don't receive an object as the parameter, assume the user intends "y".
 			}
-			this._autoKill = value.autoKill;
+			this._autoKill = (value.autoKill !== false);
 			this.x = this.xPrev = this.getX();
 			this.y = this.yPrev = this.getY();
 			if (value.x != null) {
@@ -73,12 +73,6 @@
 			}
 			return TweenPlugin.prototype._kill.call(this, lookup);
 		};
-
-		p._checkAutoKill = function() {
-			if (this._autoKill && this.skipX && this.skipY) {
-				this._tween.kill();
-			}
-		};
 		
 		p.setRatio = function(v) {
 			_setRatio.call(this, v);
@@ -88,14 +82,17 @@
 				yDif = y - this.yPrev,
 				xDif = x - this.xPrev;
 
-			//note: iOS has a bug that throws off the scroll by several pixels, so we need to check if it's within 7 pixels of the previous one that we set instead of just looking for an exact match.
-			if (!this.skipX && (xDif > 7 || xDif < -7)) {
-				this.skipX = true; //if the user scrolls separately, we should stop tweening!
-				this._checkAutoKill();
-			}
-			if (!this.skipY && (yDif > 7 || yDif < -7)) {
-				this.skipY = true; //if the user scrolls separately, we should stop tweening!
-				this._checkAutoKill();
+			if (this._autoKill) {
+				//note: iOS has a bug that throws off the scroll by several pixels, so we need to check if it's within 7 pixels of the previous one that we set instead of just looking for an exact match.
+				if (!this.skipX && (xDif > 7 || xDif < -7)) {
+					this.skipX = true; //if the user scrolls separately, we should stop tweening!
+				}
+				if (!this.skipY && (yDif > 7 || yDif < -7)) {
+					this.skipY = true; //if the user scrolls separately, we should stop tweening!
+				}
+				if (this.skipX && this.skipY) {
+					this._tween.kill();
+				}
 			}
 			if (this._wdw) {
 				_window.scrollTo((!this.skipX) ? this.x : x, (!this.skipY) ? this.y : y);
