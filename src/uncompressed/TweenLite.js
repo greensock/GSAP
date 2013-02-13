@@ -1,6 +1,6 @@
 /*!
- * VERSION: beta 1.8.3
- * DATE: 2013-02-09
+ * VERSION: beta 1.8.4
+ * DATE: 2013-02-13
  * JavaScript (ActionScript 3 and 2 also available)
  * UPDATES AND DOCS AT: http://www.greensock.com
  *
@@ -790,7 +790,7 @@
 				var css = {},
 					p;
 				for (p in vars) {
-					if (!_reservedProps[p] && target[p] === undefined && (!_plugins[p] || (_plugins[p] && _plugins[p]._autoCSS))) {
+					if (!_reservedProps[p] && (!(p in target) || p === "x" || p === "y" || p === "width" || p === "height") && (!_plugins[p] || (_plugins[p] && _plugins[p]._autoCSS))) { //note: <img> elements contain read-only "x" and "y" properties. We should also prioritize editing css width/height rather than the element's properties.
 						css[p] = vars[p];
 						delete vars[p];
 					}
@@ -808,7 +808,7 @@
 		p._firstPT = p._targets = p._overwrittenProps = null;
 		p._notifyPluginsOfEnabled = false;
 		
-		TweenLite.version = "1.8.3";
+		TweenLite.version = "1.8.4";
 		TweenLite.defaultEase = p._ease = new Ease(null, null, 1, 1);
 		TweenLite.defaultOverwrite = "auto";
 		TweenLite.ticker = _ticker;

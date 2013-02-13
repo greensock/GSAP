@@ -1,6 +1,6 @@
 /*!
- * VERSION: beta 1.8.3
- * DATE: 2013-02-09
+ * VERSION: beta 1.8.4
+ * DATE: 2013-02-13
  * JavaScript 
  * UPDATES AND DOCS AT: http://www.greensock.com
  *
@@ -29,7 +29,7 @@
 			p = CSSPlugin.prototype = new TweenPlugin("css");
 
 		p.constructor = CSSPlugin;
-		CSSPlugin.version = "1.8.3";
+		CSSPlugin.version = "1.8.4";
 		CSSPlugin.API = 2;
 		CSSPlugin.defaultTransformPerspective = 0;
 		p = "px"; //we'll reuse the "p" variable to keep file size down
@@ -1391,7 +1391,7 @@
 			}
 
 			has3D = (m1.z || m1.rotationX || m1.rotationY || m2.z || m2.rotationX || m2.rotationY || m2.perspective);
-			if (!has3D && m2.scale != null) {
+			if (!has3D && v.scale != null) {
 				m2.scaleZ = 1; //no need to tween scaleZ.
 			}
 

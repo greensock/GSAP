@@ -1,6 +1,6 @@
 /*!
- * VERSION: beta 1.8.3
- * DATE: 2013-02-09
+ * VERSION: beta 1.8.4
+ * DATE: 2013-02-13
  * JavaScript (ActionScript 3 and 2 also available)
  * UPDATES AND DOCS AT: http://www.greensock.com
  * 
@@ -40,7 +40,7 @@
 			p = TweenMax.prototype = TweenLite.to({}, 0.1, {}),
 			_blankArray = [];
 
-		TweenMax.version = "1.8.3";
+		TweenMax.version = "1.8.4";
 		p.constructor = TweenMax;
 		p.kill()._gc = false;
 		TweenMax.killTweensOf = TweenMax.killDelayedCallsTo = TweenLite.killTweensOf;
@@ -478,7 +478,14 @@
 			}
 			return this.totalTime(value, suppressEvents);
 		};
-		
+
+		p.duration = function(value) {
+			if (!arguments.length) {
+				return this._duration; //don't set _dirty = false because there could be repeats that haven't been factored into the _totalDuration yet. Otherwise, if you create a repeated TweenMax and then immediately check its duration(), it would cache the value and the totalDuration would not be correct, thus repeats wouldn't take effect.
+			}
+			return Animation.prototype.duration.call(this, value);
+		};
+
 		p.totalDuration = function(value) {
 			if (!arguments.length) {
 				if (this._dirty) {
@@ -569,7 +576,7 @@
 			},
 			p = TimelineLite.prototype = new SimpleTimeline();
 
-		TimelineLite.version = "1.8.3";
+		TimelineLite.version = "1.8.4";
 		p.constructor = TimelineLite;
 		p.kill()._gc = false;
 
@@ -1154,7 +1161,7 @@
 
 		p.constructor = TimelineMax;
 		p.kill()._gc = false;
-		TimelineMax.version = "1.8.3";
+		TimelineMax.version = "1.8.4";
 
 		p.invalidate = function() {
 			this._yoyo = (this.vars.yoyo === true);
@@ -2149,7 +2156,7 @@
 			p = CSSPlugin.prototype = new TweenPlugin("css");
 
 		p.constructor = CSSPlugin;
-		CSSPlugin.version = "1.8.3";
+		CSSPlugin.version = "1.8.4";
 		CSSPlugin.API = 2;
 		CSSPlugin.defaultTransformPerspective = 0;
 		p = "px"; //we'll reuse the "p" variable to keep file size down
@@ -3467,7 +3474,7 @@
 			}
 
 			has3D = (m1.z || m1.rotationX || m1.rotationY || m2.z || m2.rotationX || m2.rotationY || m2.perspective);
-			if (!has3D && m2.scale != null) {
+			if (!has3D && v.scale != null) {
 				m2.scaleZ = 1; //no need to tween scaleZ.
 			}
 
@@ -5239,7 +5246,7 @@
 				var css = {},
 					p;
 				for (p in vars) {
-					if (!_reservedProps[p] && target[p] === undefined && (!_plugins[p] || (_plugins[p] && _plugins[p]._autoCSS))) {
+					if (!_reservedProps[p] && (!(p in target) || p === "x" || p === "y" || p === "width" || p === "height") && (!_plugins[p] || (_plugins[p] && _plugins[p]._autoCSS))) { //note: <img> elements contain read-only "x" and "y" properties. We should also prioritize editing css width/height rather than the element's properties.
 						css[p] = vars[p];
 						delete vars[p];
 					}
@@ -5257,7 +5264,7 @@
 		p._firstPT = p._targets = p._overwrittenProps = null;
 		p._notifyPluginsOfEnabled = false;
 
-		TweenLite.version = "1.8.3";
+		TweenLite.version = "1.8.4";
 		TweenLite.defaultEase = p._ease = new Ease(null, null, 1, 1);
 		TweenLite.defaultOverwrite = "auto";
 		TweenLite.ticker = _ticker;

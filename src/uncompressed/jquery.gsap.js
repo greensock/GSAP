@@ -1,6 +1,6 @@
 /*!
- * VERSION: 0.1.5
- * DATE: 2013-01-29
+ * VERSION: 0.1.6
+ * DATE: 2013-02-13
  * JavaScript
  * UPDATES AND DOCS AT: http://www.greensock.com/jquery-gsap-plugin/
  *
@@ -52,12 +52,14 @@
 		_easeMap = {},
 		_init = function() {
 			var globals = window.GreenSockGlobals || window,
-				version, stale;
+				version, stale, p;
 			TweenLite = globals.TweenMax || globals.TweenLite; //we prioritize TweenMax if it's loaded so that we can accommodate special features like repeat, yoyo, repeatDelay, etc.
-			CSSPlugin = globals.CSSPlugin;
 			if (TweenLite) {
 				version = (TweenLite.version + ".0.0").split("."); //in case an old version of TweenLite is used that had a numeric version like 1.68 instead of a string like "1.6.8"
 				stale = !(Number(version[0]) > 0 && Number(version[1]) > 7);
+				globals = globals.com.greensock;
+				CSSPlugin = globals.plugins.CSSPlugin;
+				_easeMap = globals.easing.Ease.map || {}; //don't do just window.Ease or window.CSSPlugin because some other libraries like EaselJS/TweenJS use those same names and there could be a collision.
 			}
 			if (!TweenLite || !CSSPlugin || stale) {
 				TweenLite = null;
@@ -67,14 +69,12 @@
 				}
 				return;
 			}
-			_easeMap = globals.Ease.map;
-			if (!_easeMap || !$.easing) {
-				return;
+			if ($.easing) {
+				for (p in _easeMap) {
+					$.easing[p] = _createEase(_easeMap[p]);
+				}
+				_init = false;
 			}
-			for (var p in _easeMap) {
-				$.easing[p] = _createEase(_easeMap[p]);
-			}
-			_init = false;
 		};
 
 	$.fn.animate = function(prop, speed, easing, callback) {
@@ -164,6 +164,6 @@
 		return this;
 	};
 
-	$.gsap = {enabled:function(value) {_enabled = value;}, version:"0.1.5"};
+	$.gsap = {enabled:function(value) {_enabled = value;}, version:"0.1.6"};
 
 }(jQuery));

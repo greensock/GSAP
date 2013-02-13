@@ -1,6 +1,6 @@
 /*!
- * VERSION: beta 1.8.3
- * DATE: 2013-02-09
+ * VERSION: beta 1.8.4
+ * DATE: 2013-02-13
  * JavaScript (ActionScript 3 and 2 also available)
  * UPDATES AND DOCS AT: http://www.greensock.com
  *
@@ -38,7 +38,7 @@
 			
 		p.constructor = TimelineMax;
 		p.kill()._gc = false;
-		TimelineMax.version = "1.8.3";
+		TimelineMax.version = "1.8.4";
 		
 		p.invalidate = function() {
 			this._yoyo = (this.vars.yoyo === true);
@@ -362,7 +362,7 @@
 		p.totalProgress = function(value) {
 			return (!arguments.length) ? this._totalTime / this.totalDuration() : this.totalTime( this.totalDuration() * value, false);
 		};
-		
+
 		p.totalDuration = function(value) {
 			if (!arguments.length) {
 				if (this._dirty) {
@@ -477,7 +477,7 @@
 			},
 			p = TimelineLite.prototype = new SimpleTimeline();
 
-		TimelineLite.version = "1.8.3";
+		TimelineLite.version = "1.8.4";
 		p.constructor = TimelineLite;
 		p.kill()._gc = false;
 
@@ -571,35 +571,35 @@
 			if (typeof(position) !== "number") {
 				position = this._parseTimeOrLabel(position, 0, true, value);
 			}
-			if (value instanceof Animation) {
-				//continue...
-			} else if (value instanceof Array) {
-				align = align || "normal";
-				stagger = stagger || 0;
-				var curTime = position,
-					l = value.length,
-					i, child;
-				for (i = 0; i < l; i++) {
-					if ((child = value[i]) instanceof Array) {
-						child = new TimelineLite({tweens:child});
-					}
-					this.add(child, curTime);
-					if (typeof(child) !== "string" && typeof(child) !== "function") {
-						if (align === "sequence") {
-							curTime = child._startTime + (child.totalDuration() / child._timeScale);
-						} else if (align === "start") {
-							child._startTime -= child.delay();
+			if (!(value instanceof Animation)) {
+				if (value instanceof Array) {
+					align = align || "normal";
+					stagger = stagger || 0;
+					var curTime = position,
+						l = value.length,
+						i, child;
+					for (i = 0; i < l; i++) {
+						if ((child = value[i]) instanceof Array) {
+							child = new TimelineLite({tweens:child});
 						}
+						this.add(child, curTime);
+						if (typeof(child) !== "string" && typeof(child) !== "function") {
+							if (align === "sequence") {
+								curTime = child._startTime + (child.totalDuration() / child._timeScale);
+							} else if (align === "start") {
+								child._startTime -= child.delay();
+							}
+						}
+						curTime += stagger;
 					}
-					curTime += stagger;
+					return this._uncache(true);
+				} else if (typeof(value) === "string") {
+					return this.addLabel(value, position);
+				} else if (typeof(value) === "function") {
+					value = TweenLite.delayedCall(0, value);
+				} else {
+					throw("Cannot add " + value + " into the TimelineLite/Max: it is neither a tween, timeline, function, nor a String.");
 				}
-				return this._uncache(true);
-			} else if (typeof(value) === "string") {
-				return this.addLabel(value, position);
-			} else if (typeof(value) === "function") {
-				value = TweenLite.delayedCall(0, value);
-			} else {
-				throw("Cannot add " + value + " into the TimelineLite/Max: it is neither a tween, timeline, function, nor a String.");
 			}
 
 			SimpleTimeline.prototype.add.call(this, value, position);
