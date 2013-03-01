@@ -1,6 +1,6 @@
 /*!
- * VERSION: beta 1.8.4
- * DATE: 2013-02-13
+ * VERSION: beta 1.9.0
+ * DATE: 2013-03-01
  * JavaScript (ActionScript 3 and 2 also available)
  * UPDATES AND DOCS AT: http://www.greensock.com
  * 
@@ -40,7 +40,7 @@
 			p = TweenMax.prototype = TweenLite.to({}, 0.1, {}),
 			_blankArray = [];
 
-		TweenMax.version = "1.8.4";
+		TweenMax.version = "1.9.0";
 		p.constructor = TweenMax;
 		p.kill()._gc = false;
 		TweenMax.killTweensOf = TweenMax.killDelayedCallsTo = TweenLite.killTweensOf;
@@ -214,8 +214,13 @@
 			if (!this._active) if (!this._paused) {
 				this._active = true; //so that if the user renders a tween (as opposed to the timeline rendering it), the timeline is forced to re-render and align it with the proper time/frame on the next rendering cycle. Maybe the tween already finished but the user manually re-renders it as halfway done.
 			}
-			if (prevTotalTime === 0) if (this.vars.onStart) if (this._totalTime !== 0 || this._duration === 0) if (!suppressEvents) {
-				this.vars.onStart.apply(this.vars.onStartScope || this, this.vars.onStartParams || _blankArray);
+			if (prevTotalTime === 0) {
+				if (this._startAt) {
+					this._startAt.render(time, suppressEvents, force);
+				}
+				if (this.vars.onStart) if (this._totalTime !== 0 || this._duration === 0) if (!suppressEvents) {
+					this.vars.onStart.apply(this.vars.onStartScope || this, this.vars.onStartParams || _blankArray);
+				}
 			}
 			
 			pt = this._firstPT;
@@ -228,13 +233,21 @@
 				pt = pt._next;
 			}
 			
-			if (this._onUpdate) if (!suppressEvents) {
-				this._onUpdate.apply(this.vars.onUpdateScope || this, this.vars.onUpdateParams || _blankArray);
+			if (this._onUpdate) {
+				if (time < 0) if (this._startAt) {
+					this._startAt.render(time, suppressEvents, force); //note: for performance reasons, we tuck this conditional logic inside less traveled areas (most tweens don't have an onUpdate). We'd just have it at the end before the onComplete, but the values should be updated before any onUpdate is called, so we ALSO put it here and then if it's not called, we do so later near the onComplete.
+				}
+				if (!suppressEvents) {
+					this._onUpdate.apply(this.vars.onUpdateScope || this, this.vars.onUpdateParams || _blankArray);
+				}
 			}
 			if (this._cycle !== prevCycle) if (!suppressEvents) if (!this._gc) if (this.vars.onRepeat) {
 				this.vars.onRepeat.apply(this.vars.onRepeatScope || this, this.vars.onRepeatParams || _blankArray);
 			}
 			if (callback) if (!this._gc) { //check gc because there's a chance that kill() could be called in an onUpdate
+				if (time < 0) if (this._startAt) if (!this._onUpdate) {
+					this._startAt.render(time, suppressEvents, force);
+				}
 				if (isComplete) {
 					if (this._timeline.autoRemoveChildren) {
 						this._enabled(false, false);
@@ -263,9 +276,7 @@
 		
 		TweenMax.fromTo = function(target, duration, fromVars, toVars) {
 			toVars.startAt = fromVars;
-			if (fromVars.immediateRender) {
-				toVars.immediateRender = true;
-			}
+			toVars.immediateRender = (toVars.immediateRender != false && fromVars.immediateRender != false);
 			return new TweenMax(target, duration, toVars);
 		};
 		
@@ -305,7 +316,7 @@
 		
 		TweenMax.staggerFrom = TweenMax.allFrom = function(targets, duration, vars, stagger, onCompleteAll, onCompleteAllParams, onCompleteAllScope) {
 			vars.runBackwards = true;
-			if (vars.immediateRender !== false) {
+			if (vars.immediateRender != false) {
 				vars.immediateRender = true;
 			}
 			return TweenMax.staggerTo(targets, duration, vars, stagger, onCompleteAll, onCompleteAllParams, onCompleteAllScope);
@@ -313,9 +324,7 @@
 		
 		TweenMax.staggerFromTo = TweenMax.allFromTo = function(targets, duration, fromVars, toVars, stagger, onCompleteAll, onCompleteAllParams, onCompleteAllScope) {
 			toVars.startAt = fromVars;
-			if (fromVars.immediateRender) {
-				toVars.immediateRender = true;
-			}
+			toVars.immediateRender = (toVars.immediateRender != false && fromVars.immediateRender != false);
 			return TweenMax.staggerTo(targets, duration, toVars, stagger, onCompleteAll, onCompleteAllParams, onCompleteAllScope);
 		};
 				
@@ -422,15 +431,7 @@
 				a[i]._enabled(false, false);
 			}
 		};
-		
-		TweenMax.pauseAll = function(tweens, delayedCalls, timelines) {
-			_changePause(true, tweens, delayedCalls, timelines);
-		};
-		
-		TweenMax.resumeAll = function(tweens, delayedCalls, timelines) {
-			_changePause(false, tweens, delayedCalls, timelines);
-		};
-		
+
 		var _changePause = function(pause, tweens, delayedCalls, timelines) {
 			if (tweens === undefined) {
 				tweens = true;
@@ -448,6 +449,14 @@
 					tween.paused(pause);
 				}
 			}
+		};
+		
+		TweenMax.pauseAll = function(tweens, delayedCalls, timelines) {
+			_changePause(true, tweens, delayedCalls, timelines);
+		};
+		
+		TweenMax.resumeAll = function(tweens, delayedCalls, timelines) {
+			_changePause(false, tweens, delayedCalls, timelines);
 		};
 		
 	
@@ -576,7 +585,7 @@
 			},
 			p = TimelineLite.prototype = new SimpleTimeline();
 
-		TimelineLite.version = "1.8.4";
+		TimelineLite.version = "1.9.0";
 		p.constructor = TimelineLite;
 		p.kill()._gc = false;
 
@@ -625,9 +634,7 @@
 
 		p.staggerFromTo = function(targets, duration, fromVars, toVars, stagger, position, onCompleteAll, onCompleteAllParams, onCompleteAllScope) {
 			toVars.startAt = fromVars;
-			if (fromVars.immediateRender) {
-				toVars.immediateRender = true;
-			}
+			toVars.immediateRender = (toVars.immediateRender != false && fromVars.immediateRender != false);
 			return this.staggerTo(targets, duration, toVars, stagger, position, onCompleteAll, onCompleteAllParams, onCompleteAllScope);
 		};
 
@@ -636,7 +643,10 @@
 		};
 
 		p.set = function(target, vars, position) {
-			vars.immediateRender = false;
+			position = this._parseTimeOrLabel(position, 0, true);
+			if (vars.immediateRender == null) {
+				vars.immediateRender = (position === this._time && !this._paused);
+			}
 			return this.add( new TweenLite(target, 0, vars), position);
 		};
 
@@ -667,6 +677,7 @@
 		};
 
 		p.add = function(value, position, align, stagger) {
+			var curTime, l, i, child, tl;
 			if (typeof(position) !== "number") {
 				position = this._parseTimeOrLabel(position, 0, true, value);
 			}
@@ -674,9 +685,8 @@
 				if (value instanceof Array) {
 					align = align || "normal";
 					stagger = stagger || 0;
-					var curTime = position,
-						l = value.length,
-						i, child;
+					curTime = position;
+					l = value.length;
 					for (i = 0; i < l; i++) {
 						if ((child = value[i]) instanceof Array) {
 							child = new TimelineLite({tweens:child});
@@ -706,7 +716,7 @@
 			//if the timeline has already ended but the inserted tween/timeline extends the duration, we should enable this timeline again so that it renders properly.
 			if (this._gc) if (!this._paused) if (this._time === this._duration) if (this._time < this.duration()) {
 				//in case any of the anscestors had completed but should now be enabled...
-				var tl = this;
+				tl = this;
 				while (tl._gc && tl._timeline) {
 					if (tl._timeline.smoothChildTiming) {
 						tl.totalTime(tl._totalTime, true); //also enables them
@@ -716,6 +726,7 @@
 					tl = tl._timeline;
 				}
 			}
+
 			return this;
 		};
 
@@ -871,9 +882,9 @@
 					} else if (tween._active || (tween._startTime <= this._time && !tween._paused && !tween._gc)) {
 
 						if (!tween._reversed) {
-							tween.render((time - tween._startTime) * tween._timeScale, suppressEvents, false);
+							tween.render((time - tween._startTime) * tween._timeScale, suppressEvents, force);
 						} else {
-							tween.render(((!tween._dirty) ? tween._totalDuration : tween.totalDuration()) - ((time - tween._startTime) * tween._timeScale), suppressEvents, false);
+							tween.render(((!tween._dirty) ? tween._totalDuration : tween.totalDuration()) - ((time - tween._startTime) * tween._timeScale), suppressEvents, force);
 						}
 
 					}
@@ -888,9 +899,9 @@
 					} else if (tween._active || (tween._startTime <= prevTime && !tween._paused && !tween._gc)) {
 
 						if (!tween._reversed) {
-							tween.render((time - tween._startTime) * tween._timeScale, suppressEvents, false);
+							tween.render((time - tween._startTime) * tween._timeScale, suppressEvents, force);
 						} else {
-							tween.render(((!tween._dirty) ? tween._totalDuration : tween.totalDuration()) - ((time - tween._startTime) * tween._timeScale), suppressEvents, false);
+							tween.render(((!tween._dirty) ? tween._totalDuration : tween.totalDuration()) - ((time - tween._startTime) * tween._timeScale), suppressEvents, force);
 						}
 
 					}
@@ -902,7 +913,7 @@
 				this._onUpdate.apply(this.vars.onUpdateScope || this, this.vars.onUpdateParams || _blankArray);
 			}
 
-			if (callback) if (!this._gc) if (prevStart === this._startTime || prevTimeScale != this._timeScale) if (this._time === 0 || totalDur >= this.totalDuration()) { //if one of the tweens that was rendered altered this timeline's startTime (like if an onComplete reversed the timeline), it probably isn't complete. If it is, don't worry, because whatever call altered the startTime would complete if it was necessary at the new time. The only exception is the timeScale property. Also check _gc because there's a chance that kill() could be called in an onUpdate
+			if (callback) if (!this._gc) if (prevStart === this._startTime || prevTimeScale !== this._timeScale) if (this._time === 0 || totalDur >= this.totalDuration()) { //if one of the tweens that was rendered altered this timeline's startTime (like if an onComplete reversed the timeline), it probably isn't complete. If it is, don't worry, because whatever call altered the startTime would complete if it was necessary at the new time. The only exception is the timeScale property. Also check _gc because there's a chance that kill() could be called in an onUpdate
 				if (isComplete) {
 					if (this._timeline.autoRemoveChildren) {
 						this._enabled(false, false);
@@ -1161,7 +1172,7 @@
 
 		p.constructor = TimelineMax;
 		p.kill()._gc = false;
-		TimelineMax.version = "1.8.4";
+		TimelineMax.version = "1.9.0";
 
 		p.invalidate = function() {
 			this._yoyo = (this.vars.yoyo === true);
@@ -1365,9 +1376,9 @@
 						break;
 					} else if (tween._active || (tween._startTime <= this._time && !tween._paused && !tween._gc)) {
 						if (!tween._reversed) {
-							tween.render((time - tween._startTime) * tween._timeScale, suppressEvents, false);
+							tween.render((time - tween._startTime) * tween._timeScale, suppressEvents, force);
 						} else {
-							tween.render(((!tween._dirty) ? tween._totalDuration : tween.totalDuration()) - ((time - tween._startTime) * tween._timeScale), suppressEvents, false);
+							tween.render(((!tween._dirty) ? tween._totalDuration : tween.totalDuration()) - ((time - tween._startTime) * tween._timeScale), suppressEvents, force);
 						}
 
 					}
@@ -1381,9 +1392,9 @@
 						break;
 					} else if (tween._active || (tween._startTime <= prevTime && !tween._paused && !tween._gc)) {
 						if (!tween._reversed) {
-							tween.render((time - tween._startTime) * tween._timeScale, suppressEvents, false);
+							tween.render((time - tween._startTime) * tween._timeScale, suppressEvents, force);
 						} else {
-							tween.render(((!tween._dirty) ? tween._totalDuration : tween.totalDuration()) - ((time - tween._startTime) * tween._timeScale), suppressEvents, false);
+							tween.render(((!tween._dirty) ? tween._totalDuration : tween.totalDuration()) - ((time - tween._startTime) * tween._timeScale), suppressEvents, force);
 						}
 
 					}
@@ -1564,25 +1575,18 @@
 	
 /*
  * ----------------------------------------------------------------
- * BezierPlugin 						(!BezierPlugin)
+ * BezierPlugin
  * ----------------------------------------------------------------
  */
-	window._gsDefine("plugins.BezierPlugin", ["plugins.TweenPlugin"], function(TweenPlugin) {
+	(function() {
 
-		var BezierPlugin = function(props, priority) {
-				TweenPlugin.call(this, "bezier", -1);
-				this._overwriteProps.pop();
-				this._func = {};
-				this._round = {};
-			},
-			p = BezierPlugin.prototype = new TweenPlugin("bezier", 1),
-			_RAD2DEG = 180 / Math.PI,
+		var _RAD2DEG = 180 / Math.PI,
 			_DEG2RAD = Math.PI / 180,
 			_r1 = [],
 			_r2 = [],
 			_r3 = [],
 			_corProps = {},
-			Segment = function Segment(a, b, c, d) {
+			Segment = function(a, b, c, d) {
 				this.a = a;
 				this.b = b;
 				this.c = c;
@@ -1592,7 +1596,115 @@
 				this.ba = b - a;
 			},
 			_correlate = ",x,y,z,left,top,right,bottom,marginTop,marginLeft,marginRight,marginBottom,paddingLeft,paddingTop,paddingRight,paddingBottom,backgroundPosition,backgroundPosition_y,",
-			bezierThrough = BezierPlugin.bezierThrough = function(values, curviness, quadratic, basic, correlate, prepend) {
+			cubicToQuadratic = function(a, b, c, d) {
+				var q1 = {a:a},
+					q2 = {},
+					q3 = {},
+					q4 = {c:d},
+					mab = (a + b) / 2,
+					mbc = (b + c) / 2,
+					mcd = (c + d) / 2,
+					mabc = (mab + mbc) / 2,
+					mbcd = (mbc + mcd) / 2,
+					m8 = (mbcd - mabc) / 8;
+				q1.b = mab + (a - mab) / 4;
+				q2.b = mabc + m8;
+				q1.c = q2.a = (q1.b + q2.b) / 2;
+				q2.c = q3.a = (mabc + mbcd) / 2;
+				q3.b = mbcd - m8;
+				q4.b = mcd + (d - mcd) / 4;
+				q3.c = q4.a = (q3.b + q4.b) / 2;
+				return [q1, q2, q3, q4];
+			},
+			_calculateControlPoints = function(a, curviness, quad, basic, correlate) {
+				var l = a.length - 1,
+					ii = 0,
+					cp1 = a[0].a,
+					i, p1, p2, p3, seg, m1, m2, mm, cp2, qb, r1, r2, tl;
+				for (i = 0; i < l; i++) {
+					seg = a[ii];
+					p1 = seg.a;
+					p2 = seg.d;
+					p3 = a[ii+1].d;
+
+					if (correlate) {
+						r1 = _r1[i];
+						r2 = _r2[i];
+						tl = ((r2 + r1) * curviness * 0.25) / (basic ? 0.5 : _r3[i] || 0.5);
+						m1 = p2 - (p2 - p1) * (basic ? curviness * 0.5 : tl / r1);
+						m2 = p2 + (p3 - p2) * (basic ? curviness * 0.5 : tl / r2);
+						mm = p2 - (m1 + (m2 - m1) * ((r1 * 3 / (r1 + r2)) + 0.5) / 4);
+					} else {
+						m1 = p2 - (p2 - p1) * curviness * 0.5;
+						m2 = p2 + (p3 - p2) * curviness * 0.5;
+						mm = p2 - (m1 + m2) / 2;
+					}
+					m1 += mm;
+					m2 += mm;
+
+					seg.c = cp2 = m1;
+					if (i !== 0) {
+						seg.b = cp1;
+					} else {
+						seg.b = cp1 = seg.a + (seg.c - seg.a) * 0.6; //instead of placing b on a exactly, we move it inline with c so that if the user specifies an ease like Back.easeIn or Elastic.easeIn which goes BEYOND the beginning, it will do so smoothly.
+					}
+
+					seg.da = p2 - p1;
+					seg.ca = cp2 - p1;
+					seg.ba = cp1 - p1;
+
+					if (quad) {
+						qb = cubicToQuadratic(p1, cp1, cp2, p2);
+						a.splice(ii, 1, qb[0], qb[1], qb[2], qb[3]);
+						ii += 4;
+					} else {
+						ii++;
+					}
+
+					cp1 = m2;
+				}
+				seg = a[ii];
+				seg.b = cp1;
+				seg.c = cp1 + (seg.d - cp1) * 0.4; //instead of placing c on d exactly, we move it inline with b so that if the user specifies an ease like Back.easeOut or Elastic.easeOut which goes BEYOND the end, it will do so smoothly.
+				seg.da = seg.d - seg.a;
+				seg.ca = seg.c - seg.a;
+				seg.ba = cp1 - seg.a;
+				if (quad) {
+					qb = cubicToQuadratic(seg.a, cp1, seg.c, seg.d);
+					a.splice(ii, 1, qb[0], qb[1], qb[2], qb[3]);
+				}
+			},
+			_parseAnchors = function(values, p, correlate, prepend) {
+				var a = [],
+					l, i, p1, p2, p3, tmp;
+				if (prepend) {
+					values = [prepend].concat(values);
+					i = values.length;
+					while (--i > -1) {
+						if (typeof( (tmp = values[i][p]) ) === "string") if (tmp.charAt(1) === "=") {
+							values[i][p] = prepend[p] + Number(tmp.charAt(0) + tmp.substr(2)); //accommodate relative values. Do it inline instead of breaking it out into a function for speed reasons
+						}
+					}
+				}
+				l = values.length - 2;
+				if (l < 0) {
+					a[0] = new Segment(values[0][p], 0, 0, values[(l < -1) ? 0 : 1][p]);
+					return a;
+				}
+				for (i = 0; i < l; i++) {
+					p1 = values[i][p];
+					p2 = values[i+1][p];
+					a[i] = new Segment(p1, 0, 0, p2);
+					if (correlate) {
+						p3 = values[i+2][p];
+						_r1[i] = (_r1[i] || 0) + (p2 - p1) * (p2 - p1);
+						_r2[i] = (_r2[i] || 0) + (p3 - p2) * (p3 - p2);
+					}
+				}
+				a[i] = new Segment(values[i][p], 0, 0, values[i+1][p]);
+				return a;
+			},
+			bezierThrough = function(values, curviness, quadratic, basic, correlate, prepend) {
 				var obj = {},
 					props = [],
 					first = prepend || values[0],
@@ -1707,113 +1819,25 @@
 				}
 				return obj;
 			},
-			_parseAnchors = function(values, p, correlate, prepend) {
-				var a = [],
-					l, i, p1, p2, p3, tmp;
-				if (prepend) {
-					values = [prepend].concat(values);
-					i = values.length;
-					while (--i > -1) {
-						if (typeof( (tmp = values[i][p]) ) === "string") if (tmp.charAt(1) === "=") {
-							values[i][p] = prepend[p] + Number(tmp.charAt(0) + tmp.substr(2)); //accommodate relative values. Do it inline instead of breaking it out into a function for speed reasons
-						}
+			_addCubicLengths = function(a, steps, resolution) {
+				var inc = 1 / resolution,
+					j = a.length,
+					d, d1, s, da, ca, ba, p, i, inv, bez, index;
+				while (--j > -1) {
+					bez = a[j];
+					s = bez.a;
+					da = bez.d - s;
+					ca = bez.c - s;
+					ba = bez.b - s;
+					d = d1 = 0;
+					for (i = 1; i <= resolution; i++) {
+						p = inc * i;
+						inv = 1 - p;
+						d = d1 - (d1 = (p * p * da + 3 * inv * (p * ca + inv * ba)) * p);
+						index = j * resolution + i - 1;
+						steps[index] = (steps[index] || 0) + d * d;
 					}
 				}
-				l = values.length - 2;
-				if (l < 0) {
-					a[0] = new Segment(values[0][p], 0, 0, values[(l < -1) ? 0 : 1][p]);
-					return a;
-				}
-				for (i = 0; i < l; i++) {
-					p1 = values[i][p];
-					p2 = values[i+1][p];
-					a[i] = new Segment(p1, 0, 0, p2);
-					if (correlate) {
-						p3 = values[i+2][p];
-						_r1[i] = (_r1[i] || 0) + (p2 - p1) * (p2 - p1);
-						_r2[i] = (_r2[i] || 0) + (p3 - p2) * (p3 - p2);
-					}
-				}
-				a[i] = new Segment(values[i][p], 0, 0, values[i+1][p]);
-				return a;
-			},
-			_calculateControlPoints = function(a, curviness, quad, basic, correlate) {
-				var l = a.length - 1,
-					ii = 0,
-					cp1 = a[0].a,
-					i, p1, p2, p3, seg, m1, m2, mm, cp2, qb, r1, r2, tl;
-				for (i = 0; i < l; i++) {
-					seg = a[ii];
-					p1 = seg.a;
-					p2 = seg.d;
-					p3 = a[ii+1].d;
-
-					if (correlate) {
-						r1 = _r1[i];
-						r2 = _r2[i];
-						tl = ((r2 + r1) * curviness * 0.25) / (basic ? 0.5 : _r3[i] || 0.5);
-						m1 = p2 - (p2 - p1) * (basic ? curviness * 0.5 : tl / r1);
-						m2 = p2 + (p3 - p2) * (basic ? curviness * 0.5 : tl / r2);
-						mm = p2 - (m1 + (m2 - m1) * ((r1 * 3 / (r1 + r2)) + 0.5) / 4);
-					} else {
-						m1 = p2 - (p2 - p1) * curviness * 0.5;
-						m2 = p2 + (p3 - p2) * curviness * 0.5;
-						mm = p2 - (m1 + m2) / 2;
-					}
-					m1 += mm;
-					m2 += mm;
-
-					seg.c = cp2 = m1;
-					if (i !== 0) {
-						seg.b = cp1;
-					} else {
-						seg.b = cp1 = seg.a + (seg.c - seg.a) * 0.6; //instead of placing b on a exactly, we move it inline with c so that if the user specifies an ease like Back.easeIn or Elastic.easeIn which goes BEYOND the beginning, it will do so smoothly.
-					}
-
-					seg.da = p2 - p1;
-					seg.ca = cp2 - p1;
-					seg.ba = cp1 - p1;
-
-					if (quad) {
-						qb = cubicToQuadratic(p1, cp1, cp2, p2);
-						a.splice(ii, 1, qb[0], qb[1], qb[2], qb[3]);
-						ii += 4;
-					} else {
-						ii++;
-					}
-
-					cp1 = m2;
-				}
-				seg = a[ii];
-				seg.b = cp1;
-				seg.c = cp1 + (seg.d - cp1) * 0.4; //instead of placing c on d exactly, we move it inline with b so that if the user specifies an ease like Back.easeOut or Elastic.easeOut which goes BEYOND the end, it will do so smoothly.
-				seg.da = seg.d - seg.a;
-				seg.ca = seg.c - seg.a;
-				seg.ba = cp1 - seg.a;
-				if (quad) {
-					qb = cubicToQuadratic(seg.a, cp1, seg.c, seg.d);
-					a.splice(ii, 1, qb[0], qb[1], qb[2], qb[3]);
-				}
-			},
-			cubicToQuadratic = BezierPlugin.cubicToQuadratic = function(a, b, c, d) {
-				var q1 = {a:a},
-					q2 = {},
-					q3 = {},
-					q4 = {c:d},
-					mab = (a + b) / 2,
-					mbc = (b + c) / 2,
-					mcd = (c + d) / 2,
-					mabc = (mab + mbc) / 2,
-					mbcd = (mbc + mcd) / 2,
-					m8 = (mbcd - mabc) / 8;
-				q1.b = mab + (a - mab) / 4;
-				q2.b = mabc + m8;
-				q1.c = q2.a = (q1.b + q2.b) / 2;
-				q2.c = q3.a = (mabc + mbcd) / 2;
-				q3.b = mbcd - m8;
-				q4.b = mcd + (d - mcd) / 4;
-				q3.c = q4.a = (q3.b + q4.b) / 2;
-				return [q1, q2, q3, q4];
 			},
 			_parseLengthData = function(obj, resolution) {
 				resolution = resolution >> 0 || 6;
@@ -1844,37 +1868,193 @@
 				}
 				return {length:total, lengths:lengths, segments:segments};
 			},
-			_addCubicLengths = function(a, steps, resolution) {
-				var inc = 1 / resolution,
-					j = a.length,
-					d, d1, s, da, ca, ba, p, i, inv, bez, index;
-				while (--j > -1) {
-					bez = a[j];
-					s = bez.a;
-					da = bez.d - s;
-					ca = bez.c - s;
-					ba = bez.b - s;
-					d = d1 = 0;
-					for (i = 1; i <= resolution; i++) {
-						p = inc * i;
-						inv = 1 - p;
-						d = d1 - (d1 = (p * p * da + 3 * inv * (p * ca + inv * ba)) * p);
-						index = j * resolution + i - 1;
-						steps[index] = (steps[index] || 0) + d * d;
+
+
+
+			BezierPlugin = window._gsDefine.plugin({
+					propName: "bezier",
+					priority: -1,
+					API: 2,
+
+					//gets called when the tween renders for the first time. This is where initial values should be recorded and any setup routines should run.
+					init: function(target, vars, tween) {
+						this._target = target;
+						if (vars instanceof Array) {
+							vars = {values:vars};
+						}
+						this._func = {};
+						this._round = {};
+						this._props = [];
+						this._timeRes = (vars.timeResolution == null) ? 6 : parseInt(vars.timeResolution, 10);
+						var values = vars.values || [],
+							first = {},
+							second = values[0],
+							autoRotate = vars.autoRotate || tween.vars.orientToBezier,
+							p, isFunc, i, j, prepend;
+
+						this._autoRotate = autoRotate ? (autoRotate instanceof Array) ? autoRotate : [["x","y","rotation",((autoRotate === true) ? 0 : Number(autoRotate) || 0)]] : null;
+						for (p in second) {
+							this._props.push(p);
+						}
+
+						i = this._props.length;
+						while (--i > -1) {
+							p = this._props[i];
+
+							this._overwriteProps.push(p);
+							isFunc = this._func[p] = (typeof(target[p]) === "function");
+							first[p] = (!isFunc) ? parseFloat(target[p]) : target[ ((p.indexOf("set") || typeof(target["get" + p.substr(3)]) !== "function") ? p : "get" + p.substr(3)) ]();
+							if (!prepend) if (first[p] !== values[0][p]) {
+								prepend = first;
+							}
+						}
+						this._beziers = (vars.type !== "cubic" && vars.type !== "quadratic" && vars.type !== "soft") ? bezierThrough(values, isNaN(vars.curviness) ? 1 : vars.curviness, false, (vars.type === "thruBasic"), vars.correlate, prepend) : _parseBezierData(values, vars.type, first);
+						this._segCount = this._beziers[p].length;
+
+						if (this._timeRes) {
+							var ld = _parseLengthData(this._beziers, this._timeRes);
+							this._length = ld.length;
+							this._lengths = ld.lengths;
+							this._segments = ld.segments;
+							this._l1 = this._li = this._s1 = this._si = 0;
+							this._l2 = this._lengths[0];
+							this._curSeg = this._segments[0];
+							this._s2 = this._curSeg[0];
+							this._prec = 1 / this._curSeg.length;
+						}
+
+						if ((autoRotate = this._autoRotate)) {
+							if (!(autoRotate[0] instanceof Array)) {
+								this._autoRotate = autoRotate = [autoRotate];
+							}
+							i = autoRotate.length;
+							while (--i > -1) {
+								for (j = 0; j < 3; j++) {
+									p = autoRotate[i][j];
+									this._func[p] = (typeof(target[p]) === "function") ? target[ ((p.indexOf("set") || typeof(target["get" + p.substr(3)]) !== "function") ? p : "get" + p.substr(3)) ] : false;
+								}
+							}
+						}
+						return true;
+					},
+
+					//called each time the values should be updated, and the ratio gets passed as the only parameter (typically it's a value between 0 and 1, but it can exceed those when using an ease like Elastic.easeOut or Back.easeOut, etc.)
+					set: function(v) {
+						var segments = this._segCount,
+							func = this._func,
+							target = this._target,
+							curIndex, inv, i, p, b, t, val, l, lengths, curSeg;
+						if (!this._timeRes) {
+							curIndex = (v < 0) ? 0 : (v >= 1) ? segments - 1 : (segments * v) >> 0;
+							t = (v - (curIndex * (1 / segments))) * segments;
+						} else {
+							lengths = this._lengths;
+							curSeg = this._curSeg;
+							v *= this._length;
+							i = this._li;
+							//find the appropriate segment (if the currently cached one isn't correct)
+							if (v > this._l2 && i < segments - 1) {
+								l = segments - 1;
+								while (i < l && (this._l2 = lengths[++i]) <= v) {	}
+								this._l1 = lengths[i-1];
+								this._li = i;
+								this._curSeg = curSeg = this._segments[i];
+								this._s2 = curSeg[(this._s1 = this._si = 0)];
+							} else if (v < this._l1 && i > 0) {
+								while (i > 0 && (this._l1 = lengths[--i]) >= v) { }
+								if (i === 0 && v < this._l1) {
+									this._l1 = 0;
+								} else {
+									i++;
+								}
+								this._l2 = lengths[i];
+								this._li = i;
+								this._curSeg = curSeg = this._segments[i];
+								this._s1 = curSeg[(this._si = curSeg.length - 1) - 1] || 0;
+								this._s2 = curSeg[this._si];
+							}
+							curIndex = i;
+							//now find the appropriate sub-segment (we split it into the number of pieces that was defined by "precision" and measured each one)
+							v -= this._l1;
+							i = this._si;
+							if (v > this._s2 && i < curSeg.length - 1) {
+								l = curSeg.length - 1;
+								while (i < l && (this._s2 = curSeg[++i]) <= v) {	}
+								this._s1 = curSeg[i-1];
+								this._si = i;
+							} else if (v < this._s1 && i > 0) {
+								while (i > 0 && (this._s1 = curSeg[--i]) >= v) {	}
+								if (i === 0 && v < this._s1) {
+									this._s1 = 0;
+								} else {
+									i++;
+								}
+								this._s2 = curSeg[i];
+								this._si = i;
+							}
+							t = (i + (v - this._s1) / (this._s2 - this._s1)) * this._prec;
+						}
+						inv = 1 - t;
+
+						i = this._props.length;
+						while (--i > -1) {
+							p = this._props[i];
+							b = this._beziers[p][curIndex];
+							val = (t * t * b.da + 3 * inv * (t * b.ca + inv * b.ba)) * t + b.a;
+							if (this._round[p]) {
+								val = (val + ((val > 0) ? 0.5 : -0.5)) >> 0;
+							}
+							if (func[p]) {
+								target[p](val);
+							} else {
+								target[p] = val;
+							}
+						}
+
+						if (this._autoRotate) {
+							var ar = this._autoRotate,
+								b2, x1, y1, x2, y2, add, conv;
+							i = ar.length;
+							while (--i > -1) {
+								p = ar[i][2];
+								add = ar[i][3] || 0;
+								conv = (ar[i][4] === true) ? 1 : _RAD2DEG;
+								b = this._beziers[ar[i][0]][curIndex];
+								b2 = this._beziers[ar[i][1]][curIndex];
+
+								x1 = b.a + (b.b - b.a) * t;
+								x2 = b.b + (b.c - b.b) * t;
+								x1 += (x2 - x1) * t;
+								x2 += ((b.c + (b.d - b.c) * t) - x2) * t;
+
+								y1 = b2.a + (b2.b - b2.a) * t;
+								y2 = b2.b + (b2.c - b2.b) * t;
+								y1 += (y2 - y1) * t;
+								y2 += ((b2.c + (b2.d - b2.c) * t) - y2) * t;
+
+								val = Math.atan2(y2 - y1, x2 - x1) * conv + add;
+
+								if (func[p]) {
+									func[p].call(target, val);
+								} else {
+									target[p] = val;
+								}
+							}
+						}
 					}
-				}
-			};
+			}),
+			p = BezierPlugin.prototype;
 
 
-		p.constructor = BezierPlugin;
-		BezierPlugin.API = 2;
+		BezierPlugin.bezierThrough = bezierThrough;
+		BezierPlugin.cubicToQuadratic = cubicToQuadratic;
 		BezierPlugin._autoCSS = true; //indicates that this plugin can be inserted into the "css" object using the autoCSS feature of TweenLite
 		BezierPlugin.quadraticToCubic = function(a, b, c) {
 			return new Segment(a, (2 * b + a) / 3, (2 * b + c) / 3, c);
-		}
+		};
 
 		BezierPlugin._cssRegister = function() {
-			var CSSPlugin = (window.GreenSockGlobals || window).com.greensock.plugins.CSSPlugin;
+			var CSSPlugin = window._gsDefine.globals.CSSPlugin;
 			if (!CSSPlugin) {
 				return;
 			}
@@ -1910,7 +2090,7 @@
 				if (v.autoRotate === 0) {
 					v.autoRotate = true;
 				}
-				if (v.autoRotate) if (!(v.autoRotate instanceof Array)) {
+				if (v.autoRotate && !(v.autoRotate instanceof Array)) {
 					i = (v.autoRotate === true) ? 0 : Number(v.autoRotate) * _DEG2RAD;
 					v.autoRotate = (data.end.left != null) ? [["left","top","rotation",i,true]] : (data.end.x != null) ? [["x","y","rotation",i,true]] : false;
 				}
@@ -1923,171 +2103,6 @@
 				plugin._onInitTween(data.proxy, v, cssp._tween);
 				return pt;
 			});
-		};
-
-
-		p._onInitTween = function(target, vars, tween) {
-			this._target = target;
-			if (vars instanceof Array) {
-				vars = {values:vars};
-			}
-			this._props = [];
-			this._timeRes = (vars.timeResolution == null) ? 6 : parseInt(vars.timeResolution, 10);
-			var values = vars.values || [],
-				first = {},
-				second = values[0],
-				autoRotate = vars.autoRotate || tween.vars.orientToBezier,
-				p, isFunc, i, j, prepend;
-
-			this._autoRotate = autoRotate ? (autoRotate instanceof Array) ? autoRotate : [["x","y","rotation",((autoRotate === true) ? 0 : Number(autoRotate) || 0)]] : null;
-			for (p in second) {
-				this._props.push(p);
-			}
-
-			i = this._props.length;
-			while (--i > -1) {
-				p = this._props[i];
-
-				this._overwriteProps.push(p);
-				isFunc = this._func[p] = (typeof(target[p]) === "function");
-				first[p] = (!isFunc) ? parseFloat(target[p]) : target[ ((p.indexOf("set") || typeof(target["get" + p.substr(3)]) !== "function") ? p : "get" + p.substr(3)) ]();
-				if (!prepend) if (first[p] !== values[0][p]) {
-					prepend = first;
-				}
-			}
-			this._beziers = (vars.type !== "cubic" && vars.type !== "quadratic" && vars.type !== "soft") ? bezierThrough(values, isNaN(vars.curviness) ? 1 : vars.curviness, false, (vars.type === "thruBasic"), vars.correlate, prepend) : _parseBezierData(values, vars.type, first);
-			this._segCount = this._beziers[p].length;
-
-			if (this._timeRes) {
-				var ld = _parseLengthData(this._beziers, this._timeRes);
-				this._length = ld.length;
-				this._lengths = ld.lengths;
-				this._segments = ld.segments;
-				this._l1 = this._li = this._s1 = this._si = 0;
-				this._l2 = this._lengths[0];
-				this._curSeg = this._segments[0];
-				this._s2 = this._curSeg[0];
-				this._prec = 1 / this._curSeg.length;
-			}
-
-			if ((autoRotate = this._autoRotate)) {
-				if (!(autoRotate[0] instanceof Array)) {
-					this._autoRotate = autoRotate = [autoRotate];
-				}
-				i = autoRotate.length;
-				while (--i > -1) {
-					for (j = 0; j < 3; j++) {
-						p = autoRotate[i][j];
-						this._func[p] = (typeof(target[p]) === "function") ? target[ ((p.indexOf("set") || typeof(target["get" + p.substr(3)]) !== "function") ? p : "get" + p.substr(3)) ] : false;
-					}
-				}
-			}
-			return true;
-		};
-
-		//gets called every time the tween updates, passing the new ratio (typically a value between 0 and 1, but not always (for example, if an Elastic.easeOut is used, the value can jump above 1 mid-tween). It will always start and 0 and end at 1.
-		p.setRatio = function(v) {
-			var segments = this._segCount,
-				func = this._func,
-				target = this._target,
-				curIndex, inv, i, p, b, t, val, l, lengths, curSeg;
-			if (!this._timeRes) {
-				curIndex = (v < 0) ? 0 : (v >= 1) ? segments - 1 : (segments * v) >> 0;
-				t = (v - (curIndex * (1 / segments))) * segments;
-			} else {
-				lengths = this._lengths;
-				curSeg = this._curSeg;
-				v *= this._length;
-				i = this._li;
-				//find the appropriate segment (if the currently cached one isn't correct)
-				if (v > this._l2 && i < segments - 1) {
-					l = segments - 1;
-					while (i < l && (this._l2 = lengths[++i]) <= v) {	}
-					this._l1 = lengths[i-1];
-					this._li = i;
-					this._curSeg = curSeg = this._segments[i];
-					this._s2 = curSeg[(this._s1 = this._si = 0)];
-				} else if (v < this._l1 && i > 0) {
-					while (i > 0 && (this._l1 = lengths[--i]) >= v) { 	}
-					if (i === 0 && v < this._l1) {
-						this._l1 = 0;
-					} else {
-						i++;
-					}
-					this._l2 = lengths[i];
-					this._li = i;
-					this._curSeg = curSeg = this._segments[i];
-					this._s1 = curSeg[(this._si = curSeg.length - 1) - 1] || 0;
-					this._s2 = curSeg[this._si];
-				}
-				curIndex = i;
-				//now find the appropriate sub-segment (we split it into the number of pieces that was defined by "precision" and measured each one)
-				v -= this._l1;
-				i = this._si;
-				if (v > this._s2 && i < curSeg.length - 1) {
-					l = curSeg.length - 1;
-					while (i < l && (this._s2 = curSeg[++i]) <= v) {	}
-					this._s1 = curSeg[i-1];
-					this._si = i;
-				} else if (v < this._s1 && i > 0) {
-					while (i > 0 && (this._s1 = curSeg[--i]) >= v) {	}
-					if (i === 0 && v < this._s1) {
-						this._s1 = 0;
-					} else {
-						i++;
-					}
-					this._s2 = curSeg[i];
-					this._si = i;
-				}
-				t = (i + (v - this._s1) / (this._s2 - this._s1)) * this._prec;
-			}
-			inv = 1 - t;
-
-			i = this._props.length;
-			while (--i > -1) {
-				p = this._props[i];
-				b = this._beziers[p][curIndex];
-				val = (t * t * b.da + 3 * inv * (t * b.ca + inv * b.ba)) * t + b.a;
-				if (this._round[p]) {
-					val = (val + ((val > 0) ? 0.5 : -0.5)) >> 0;
-				}
-				if (func[p]) {
-					target[p](val);
-				} else {
-					target[p] = val;
-				}
-			}
-
-			if (this._autoRotate) {
-				var ar = this._autoRotate,
-					b2, x1, y1, x2, y2, add, conv;
-				i = ar.length;
-				while (--i > -1) {
-					p = ar[i][2];
-					add = ar[i][3] || 0;
-					conv = (ar[i][4] === true) ? 1 : _RAD2DEG;
-					b = this._beziers[ar[i][0]][curIndex];
-					b2 = this._beziers[ar[i][1]][curIndex];
-
-					x1 = b.a + (b.b - b.a) * t;
-					x2 = b.b + (b.c - b.b) * t;
-					x1 += (x2 - x1) * t;
-					x2 += ((b.c + (b.d - b.c) * t) - x2) * t;
-
-					y1 = b2.a + (b2.b - b2.a) * t;
-					y2 = b2.b + (b2.c - b2.b) * t;
-					y1 += (y2 - y1) * t;
-					y2 += ((b2.c + (b2.d - b2.c) * t) - y2) * t;
-
-					val = Math.atan2(y2 - y1, x2 - x1) * conv + add;
-
-					if (func[p]) {
-						func[p].call(target, val);
-					} else {
-						target[p] = val;
-					}
-				}
-			}
 		};
 
 		p._roundProps = function(lookup, value) {
@@ -2115,13 +2130,10 @@
 					}
 				}
 			}
-			return TweenPlugin.prototype._kill.call(this, lookup);
+			return this._super._kill.call(this, lookup);
 		};
 
-		TweenPlugin.activate([BezierPlugin]);
-		return BezierPlugin;
-
-	}, true);
+	}());
 
 
 
@@ -2156,7 +2168,7 @@
 			p = CSSPlugin.prototype = new TweenPlugin("css");
 
 		p.constructor = CSSPlugin;
-		CSSPlugin.version = "1.8.4";
+		CSSPlugin.version = "1.9.0";
 		CSSPlugin.API = 2;
 		CSSPlugin.defaultTransformPerspective = 0;
 		p = "px"; //we'll reuse the "p" variable to keep file size down
@@ -2389,7 +2401,7 @@
 					pix = (v / 100) * (horiz ? t.clientWidth : t.clientHeight);
 				} else {
 					style.cssText = "border-style:solid; border-width:0; position:absolute; line-height:0;";
-					if (sfx === "%" || sfx === "em" || !node.appendChild) {
+					if (sfx === "%" || !node.appendChild) {
 						node = t.parentNode || _doc.body;
 						style[(horiz ? "width" : "height")] = v + sfx;
 					} else {
@@ -2453,34 +2465,39 @@
 			},
 
 			/**
-			 * @private Translates strings like "40deg" or "40" or 40rad" or "+=40deg" to a numeric radian angle, optionally relative to a default value (if "+=" or "-=" prefix is found)
+			 * @private Translates strings like "40deg" or "40" or 40rad" or "+=40deg" or "270_short" or "-90_cw" or "+=45_ccw" to a numeric radian angle. Of course a starting/default value must be fed in too so that relative values can be calculated properly.
 			 * @param {Object} v Value to be parsed
 			 * @param {!number} d Default value (which is also used for relative calculations if "+=" or "-=" is found in the first parameter)
 			 * @return {number} parsed angle in radians
 			 */
 			_parseAngle = function(v, d) {
+				var min = 0.000001,
+					cap, split, dif, type, result;
 				if (v == null) {
-					return d;
+					result = d;
+				} else if (typeof(v) === "number") {
+					result = v * _DEG2RAD;
+				} else {
+					cap = Math.PI * 2;
+					split = v.split("_");
+					dif = Number(split[0].replace(_NaNExp, "")) * ((v.indexOf("rad") === -1) ? _DEG2RAD : 1) - ((v.charAt(1) === "=") ? 0 : d);
+					type = split[1];
+					if (type === "short") {
+						dif = dif % cap;
+						if (dif !== dif % (cap / 2)) {
+							dif = (dif < 0) ? dif + cap : dif - cap;
+						}
+					} else if (type === "cw" && dif < 0) {
+						dif = ((dif + cap * 9999999999) % cap) - ((dif / cap) | 0) * cap;
+					} else if (type === "ccw" && dif > 0) {
+						dif = ((dif - cap * 9999999999) % cap) - ((dif / cap) | 0) * cap;
+					}
+					result = d + dif;
 				}
-				var m = (v.indexOf("rad") === -1) ? _DEG2RAD : 1,
-					r = (v.charAt(1) === "=");
-				v = Number(v.replace(_NaNExp, "")) * m;
-				return r ? v + d : v;
-			},
-
-			/**
-			 * @private Translates an ending rotation value (could be a string or number, relative or not) into a radian number representing the shortest direction (no more than 180 degrees away from the beginning, or Math.PI radians). For example, if b is 0 and e is "270deg", this method would return -Math.PI/2 (-90 degrees).
-			 * @param {(number|string)} e ending/destination rotation value (can be a number or string. If a string, it can be relative or not)
-			 * @param {number} b beginning value
-			 * @return {number} rotation value in radians
-			 */
-			_parseShortRotation = function(e, b) {
-				var r = (typeof(e) === "number") ? e * _DEG2RAD : _parseAngle(e, b),
-					dif = (r - b) % (Math.PI * 2);
-				if (dif !== dif % Math.PI) {
-					dif += Math.PI * ((dif < 0) ? 2 : -2);
+				if (result < min && result > -min) {
+					result = 0;
 				}
-				return b + dif;
+				return result;
 			},
 
 			_colorLookup = {aqua:[0,255,255],
@@ -2504,29 +2521,53 @@
 				cyan:[0,255,255],
 				transparent:[255,255,255,0]},
 
+			_hue = function(h, m1, m2) {
+				h = (h < 0) ? h + 1 : (h > 1) ? h - 1 : h;
+				return ((((h * 6 < 1) ? m1 + (m2 - m1) * h * 6 : (h < 0.5) ? m2 : (h * 3 < 2) ? m1 + (m2 - m1) * (2 / 3 - h) * 6 : m1) * 255) + 0.5) | 0;
+			},
+
 			/**
 			 * @private Parses a color (like #9F0, #FF9900, or rgb(255,51,153)) into an array with 3 elements for red, green, and blue. Also handles rgba() values (splits into array of 4 elements of course)
 			 * @param {(string|number)} v The value the should be parsed which could be a string like #9F0 or rgb(255,102,51) or rgba(255,0,0,0.5) or it could be a number like 0xFF00CC or even a named color like red, blue, purple, etc.
 			 * @return {Array.<number>} An array containing red, green, and blue (and optionally alpha) in that order.
 			 */
 			_parseColor = function(v) {
+				var c1, c2, c3, h, s, l;
 				if (!v || v === "") {
 					return _colorLookup.black;
-				} else if (_colorLookup[v]) {
+				}
+				if (_colorLookup[v]) {
 					return _colorLookup[v];
-				} else if (typeof(v) === "number") {
+				}
+				if (typeof(v) === "number") {
 					return [v >> 16, (v >> 8) & 255, v & 255];
-				} else if (v.charAt(0) === "#") {
+				}
+				if (v.charAt(0) === "#") {
 					if (v.length === 4) { //for shorthand like #9F0
-						var c1 = v.charAt(1),
-							c2 = v.charAt(2),
-							c3 = v.charAt(3);
+						c1 = v.charAt(1),
+						c2 = v.charAt(2),
+						c3 = v.charAt(3);
 						v = "#" + c1 + c1 + c2 + c2 + c3 + c3;
 					}
 					v = parseInt(v.substr(1), 16);
 					return [v >> 16, (v >> 8) & 255, v & 255];
 				}
-				v = v.match(_numExp)  || _colorLookup.transparent;
+				if (v.substr(0, 3) === "hsl") {
+					v = v.match(_numExp);
+					h = (Number(v[0]) % 360) / 360;
+					s = Number(v[1]) / 100;
+					l = Number(v[2]) / 100;
+					c2 = (l <= 0.5) ? l * (s + 1) : l + s - l * s;
+					c1 = l * 2 - c2;
+					if (v.length > 3) {
+						v[3] = Number(v[3]);
+					}
+					v[0] = _hue(h + 1 / 3, c1, c2);
+					v[1] = _hue(h, c1, c2);
+					v[2] = _hue(h - 1 / 3, c1, c2);
+					return v;
+				}
+				v = v.match(_numExp) || _colorLookup.transparent;
 				v[0] = Number(v[0]);
 				v[1] = Number(v[1]);
 				v[2] = Number(v[2]);
@@ -2560,6 +2601,9 @@
 					delim = (dflt.indexOf(" ") !== -1) ? " " : ",",
 					numVals = dVals.length,
 					dSfx = (numVals > 0) ? dVals[0].replace(_numExp, "") : "";
+				if (!numVals) {
+					return function(v) {return v;};
+				}
 				if (clr) {
 					return function(v) {
 						if (typeof(v) === "number") {
@@ -3013,7 +3057,7 @@
 		 * @return {CSSPropTween} The first CSSPropTween in the linked list which includes the new one(s) added by the parse() call.
 		 */
 		p.parse = function(t, e, p, cssp, pt, plugin, vars) {
-			return this.parseComplex(t.style, this.format(_getStyle(t, p, _cs, false, this.dflt)), this.format(e), pt, plugin);
+			return this.parseComplex(t.style, this.format(_getStyle(t, this.p, _cs, false, this.dflt)), this.format(e), pt, plugin);
 		};
 
 		/**
@@ -3080,7 +3124,7 @@
 					minPI = -Math.PI + 0.0001,
 					maxPI = Math.PI - 0.0001,
 					zOrigin = _supports3D ? parseFloat(_getStyle(t, _transformOriginProp, cs, false, "0 0 0").split(" ")[2]) || tm.zOrigin  || 0 : 0,
-					s, m, i, n, scaleX, scaleY, rotation, skewX, difX, difY, difR, difS;
+					s, m, i, n, dec, scaleX, scaleY, rotation, skewX, difX, difY, difR, difS;
 				if (_transformProp) {
 					s = _getStyle(t, _transformPropCSS, cs, true);
 				} else if (t.currentStyle) {
@@ -3093,7 +3137,7 @@
 				i = m.length;
 				while (--i > -1) {
 					n = Number(m[i]);
-					m[i] = ((n * rnd + ((n < 0) ? -0.5 : 0.5)) >> 0) / rnd; //convert strings to Numbers and round to 5 decimal places to avoid issues with tiny numbers
+					m[i] = (dec = n - (n |= 0)) ? ((dec * rnd + (dec < 0 ? -0.5 : 0.5)) | 0) / rnd + n : n; //convert strings to Numbers and round to 5 decimal places to avoid issues with tiny numbers. Roughly 20x faster than Number.toFixed(). We also must make sure to round before dividing so that values like 0.9999999999 become 1 to avoid glitches in browser rendering and interpretation of flipped/rotated 3D matrices. And don't just multiply the number by rnd, floor it, and then divide by rnd because the bitwise operations max out at a 32-bit signed integer, thus it could get clipped at a relatively low value (like 22,000.00000 for example).
 				}
 				if (m.length === 16) {
 
@@ -3383,11 +3427,12 @@
 					a24 = a23*a34;
 					a34 = a33*a34+zOrigin;
 				}
-				a14 += t.x;
-				a24 += t.y;
-				a34 = (((a34 + t.z) * rnd) >> 0) / rnd;
+				//we round the x, y, and z slightly differently to allow even larger values.
+				a14 = (t1 = (a14 += t.x) - (a14 |= 0)) ? ((t1 * rnd + (t1 < 0 ? -0.5 : 0.5)) | 0) / rnd + a14 : a14;
+				a24 = (t1 = (a24 += t.y) - (a24 |= 0)) ? ((t1 * rnd + (t1 < 0 ? -0.5 : 0.5)) | 0) / rnd + a24 : a24;
+				a34 = (t1 = (a34 += t.z) - (a34 |= 0)) ? ((t1 * rnd + (t1 < 0 ? -0.5 : 0.5)) | 0) / rnd + a34 : a34;
 
-				style[_transformProp] = "matrix3d(" + (((a11 * rnd) >> 0) / rnd) + cma + (((a21 * rnd) >> 0) / rnd) + cma + (((a31 * rnd) >> 0) / rnd) + cma + (((a41 * rnd) >> 0) / rnd) + cma	+ (((a12 * rnd) >> 0) / rnd) + cma + (((a22 * rnd) >> 0) / rnd) + cma + (((a32 * rnd) >> 0) / rnd) + cma + (((a42 * rnd) >> 0) / rnd) + cma + (((a13 * rnd) >> 0) / rnd) + cma + (((a23 * rnd) >> 0) / rnd) + cma + (((a33 * rnd) >> 0) / rnd) + cma + (((a43 * rnd) >> 0) / rnd) + cma + (((a14 * rnd) >> 0) / rnd) + cma + (((a24 * rnd) >> 0) / rnd) + cma + a34 + cma + (perspective ? (1 + (-a34 / perspective)) : 1) + ")";
+				style[_transformProp] = "matrix3d(" + (((a11 * rnd) >> 0) / rnd) + cma + (((a21 * rnd) >> 0) / rnd) + cma + (((a31 * rnd) >> 0) / rnd) + cma + (((a41 * rnd) >> 0) / rnd) + cma	+ (((a12 * rnd) >> 0) / rnd) + cma + (((a22 * rnd) >> 0) / rnd) + cma + (((a32 * rnd) >> 0) / rnd) + cma + (((a42 * rnd) >> 0) / rnd) + cma + (((a13 * rnd) >> 0) / rnd) + cma + (((a23 * rnd) >> 0) / rnd) + cma + (((a33 * rnd) >> 0) / rnd) + cma + (((a43 * rnd) >> 0) / rnd) + cma + a14 + cma + a24 + cma + a34 + cma + (perspective ? (1 + (-a34 / perspective)) : 1) + ")";
 			},
 			_set2DTransformRatio = function(v) {
 				var t = this.data, //refers to the element's _gsTransform object
@@ -3413,14 +3458,14 @@
 				}
 			};
 
-		_registerComplexSpecialProp("transform,scale,scaleX,scaleY,scaleZ,x,y,z,rotation,rotationX,rotationY,rotationZ,skewX,skewY,shortRotation,shortRotationX,shortRotationY,shortRotationZ,transformOrigin,transformPerspective", null, function(t, e, p, cssp, pt, plugin, vars) {
+		_registerComplexSpecialProp("transform,scale,scaleX,scaleY,scaleZ,x,y,z,rotation,rotationX,rotationY,rotationZ,skewX,skewY,shortRotation,shortRotationX,shortRotationY,shortRotationZ,transformOrigin,transformPerspective,directionalRotation", null, function(t, e, p, cssp, pt, plugin, vars) {
 			if (cssp._transform) { return pt; } //only need to parse the transform once, and only if the browser supports it.
 			var m1 = cssp._transform = _getTransform(t, _cs, true),
 				style = t.style,
 				min = 0.000001,
 				i = _transformProps.length,
 				v = vars,
-				m2, rotation, skewY, copy, orig, has3D, hasChange;
+				m2, skewY, copy, orig, has3D, hasChange, dr;
 
 			if (typeof(v.transform) === "string" && _transformProp) { //for values like transform:"rotate(60deg) scale(0.5, 0.8)"
 				copy = style.cssText;
@@ -3429,7 +3474,6 @@
 				m2 = _getTransform(t, null, false);
 				style.cssText = copy;
 			} else if (typeof(v) === "object") { //for values like scaleX, scaleY, rotation, x, y, skewX, and skewY or transform:{...} (object)
-				rotation = (v.rotation != null) ? v.rotation : (v.rotationZ != null) ? v.rotationZ : m1.rotation * _RAD2DEG;
 				m2 = {scaleX:_parseVal((v.scaleX != null) ? v.scaleX : v.scale, m1.scaleX),
 					scaleY:_parseVal((v.scaleY != null) ? v.scaleY : v.scale, m1.scaleY),
 					scaleZ:_parseVal((v.scaleZ != null) ? v.scaleZ : v.scale, m1.scaleZ),
@@ -3437,39 +3481,28 @@
 					y:_parseVal(v.y, m1.y),
 					z:_parseVal(v.z, m1.z),
 					perspective:_parseVal(v.transformPerspective, m1.perspective)};
-
-				if (v.shortRotation != null || v.shortRotationZ != null) {
-					m2.rotation = _parseShortRotation(v.shortRotation || v.shortRotationZ || 0, m1.rotation);
-				} else {
-					m2.rotation = (typeof(rotation) === "number") ? rotation * _DEG2RAD : _parseAngle(rotation, m1.rotation);
+				dr = v.directionalRotation;
+				if (dr != null) {
+					if (typeof(dr) === "object") {
+						for (copy in dr) {
+							v[copy] = dr[copy];
+						}
+					} else {
+						v.rotation = dr;
+					}
 				}
+				m2.rotation = _parseAngle(("rotation" in v) ? v.rotation : ("shortRotation" in v) ? v.shortRotation + "_short" : ("rotationZ" in v) ? v.rotationZ : (m1.rotation * _RAD2DEG), m1.rotation);
 				if (_supports3D) {
-					m2.rotationX = (v.shortRotationX != null) ? _parseShortRotation(v.shortRotationX, m1.rotationX) : (typeof(v.rotationX) === "number") ? v.rotationX * _DEG2RAD : _parseAngle(v.rotationX, m1.rotationX);
-					m2.rotationY = (v.shortRotationY != null) ? _parseShortRotation(v.shortRotationY, m1.rotationY) : (typeof(v.rotationY) === "number") ? v.rotationY * _DEG2RAD : _parseAngle(v.rotationY, m1.rotationY);
-					if (m2.rotationX < min) if (m2.rotationX > -min) {
-						m2.rotationX = 0;
-					}
-					if (m2.rotationY < min) if (m2.rotationY > -min) {
-						m2.rotationY = 0;
-					}
+					m2.rotationX = _parseAngle(("rotationX" in v) ? v.rotationX : ("shortRotationX" in v) ? v.shortRotationX + "_short" : (m1.rotationX * _RAD2DEG) || 0, m1.rotationX);
+					m2.rotationY = _parseAngle(("rotationY" in v) ? v.rotationY : ("shortRotationY" in v) ? v.shortRotationY + "_short" : (m1.rotationY * _RAD2DEG) || 0, m1.rotationY);
 				}
-				m2.skewX = (v.skewX == null) ? m1.skewX : (typeof(v.skewX) === "number") ? v.skewX * _DEG2RAD : _parseAngle(v.skewX, m1.skewX);
+				m2.skewX = (v.skewX == null) ? m1.skewX : _parseAngle(v.skewX, m1.skewX);
 
 				//note: for performance reasons, we combine all skewing into the skewX and rotation values, ignoring skewY but we must still record it so that we can discern how much of the overall skew is attributed to skewX vs. skewY. Otherwise, if the skewY would always act relative (tween skewY to 10deg, for example, multiple times and if we always combine things into skewX, we can't remember that skewY was 10 from last time). Remember, a skewY of 10 degrees looks the same as a rotation of 10 degrees plus a skewX of -10 degrees.
-				m2.skewY = (v.skewY == null) ? m1.skewY : (typeof(v.skewY) === "number") ? v.skewY * _DEG2RAD : _parseAngle(v.skewY, m1.skewY);
+				m2.skewY = (v.skewY == null) ? m1.skewY : _parseAngle(v.skewY, m1.skewY);
 				if ((skewY = m2.skewY - m1.skewY)) {
 					m2.skewX += skewY;
 					m2.rotation += skewY;
-				}
-				//don't allow rotation/skew values to be a SUPER small decimal because when they're translated back to strings for setting the css property, the browser reports them in a funky way, like 1-e7. Of course we could use toFixed() to resolve that issue but that hurts performance quite a bit with all those function calls on every frame, plus it is virtually impossible to discern values that small visually (nobody will notice changing a rotation of 0.0000001 to 0, so the performance improvement is well worth it).
-				if (m2.skewY < min) if (m2.skewY > -min) {
-					m2.skewY = 0;
-				}
-				if (m2.skewX < min) if (m2.skewX > -min) {
-					m2.skewX = 0;
-				}
-				if (m2.rotation < min) if (m2.rotation > -min) {
-					m2.rotation = 0;
 				}
 			}
 
@@ -3614,8 +3647,8 @@
 		_registerComplexSpecialProp("backgroundSize", "0 0", null, false, false, _parsePosition);
 		_registerComplexSpecialProp("perspective", "0px", null, true);
 		_registerComplexSpecialProp("perspectiveOrigin", "50% 50%", null, true);
-		_registerComplexSpecialProp("transformStyle", "preserve-3d", null, true);
-		_registerComplexSpecialProp("backfaceVisibility", "visible", null, true);
+		_registerComplexSpecialProp("transformStyle", null, null, true);
+		_registerComplexSpecialProp("backfaceVisibility", null, null, true);
 		_registerComplexSpecialProp("margin", null, _getEdgeParser("marginTop,marginRight,marginBottom,marginLeft"));
 		_registerComplexSpecialProp("padding", null, _getEdgeParser("paddingTop,paddingRight,paddingBottom,paddingLeft"));
 		_registerComplexSpecialProp("clip", "rect(0px,0px,0px,0px)");
@@ -3627,7 +3660,11 @@
 				var a = v.split(" ");
 				return a[0] + " " + (a[1] || "solid") + " " + (v.match(_colorExp) || ["#000"])[0];
 			});
-
+		_registerComplexSpecialProp("float,cssFloat,styleFloat", null, function(t, e, p, cssp, pt, plugin) {
+			var s = t.style,
+				prop = ("cssFloat" in s) ? "cssFloat" : "styleFloat";
+			return new CSSPropTween(s, prop, 0, 0, pt, -1, p, false, 0, s[prop], e);
+		});
 
 		//opacity-related
 		var _setIEOpacityRatio = function(v) {
@@ -3911,10 +3948,10 @@
 
 						rel = (isStr && es.charAt(1) === "=");
 						if (rel) {
-							en = parseInt(es.charAt(0)+"1", 10);
+							en = parseInt(es.charAt(0) + "1", 10);
 							es = es.substr(2);
 							en *= parseFloat(es);
-							esfx = es.substr((en + "").length - (en < 0 ? 1 : 0)) || "";
+							esfx = es.replace(_suffixExp, "");
 						} else {
 							en = parseFloat(es);
 							esfx = isStr ? es.substr((en + "").length) || "" : "";
@@ -3958,7 +3995,7 @@
 						if ((bn || bn === 0) && (en || en === 0)) { //faster than isNaN(). Also, previously we required en !== bn but that doesn't really gain much performance and it prevents _parseToProxy() from working properly if beginning and ending values match but need to get tweened by an external plugin anyway. For example, a bezier tween where the target starts at left:0 and has these points: [{left:50},{left:0}] wouldn't work properly because when parsing the last point, it'd match the first (current) one and a non-tweening CSSPropTween would be recorded when we actually need a normal tween (type:0) so that things get updated during the tween properly.
 							pt = new CSSPropTween(style, p, bn, en - bn, pt, 0, "css_" + p, (_autoRound !== false && (esfx === "px" || p === "zIndex")), 0, bs, es);
 							pt.xs0 = esfx;
-							//DEBUG: _log("tween "+p+" from "+pt.b+" to "+pt.e+" with suffix: "+pt.xs0)
+							//DEBUG: _log("tween "+p+" from "+pt.b+" ("+bn+esfx+") to "+pt.e+" with suffix: "+pt.xs0);
 						} else if (!es && (es + "" === "NaN" || es == null)) {
 							_log("invalid " + p + " tween value. ");
 						} else {
@@ -4136,21 +4173,21 @@
  * RoundPropsPlugin
  * ----------------------------------------------------------------
  */
-	window._gsDefine("plugins.RoundPropsPlugin", ["plugins.TweenPlugin"], function(TweenPlugin) {
+	(function() {
 
-		var RoundPropsPlugin = function(props, priority) {
-				TweenPlugin.call(this, "roundProps", -1);
-				this._overwriteProps.length = 0;
-			},
-			p = RoundPropsPlugin.prototype = new TweenPlugin("roundProps", -1);
+		var RoundPropsPlugin = window._gsDefine.plugin({
+				propName: "roundProps",
+				priority: -1,
+				API: 2,
 
-		p.constructor = RoundPropsPlugin;
-		RoundPropsPlugin.API = 2;
+				//called when the tween renders for the first time. This is where initial values should be recorded and any setup routines should run.
+				init: function(target, value, tween) {
+					this._tween = tween;
+					return true;
+				}
 
-		p._onInitTween = function(target, value, tween) {
-			this._tween = tween;
-			return true;
-		};
+			}),
+			p = RoundPropsPlugin.prototype;
 
 		p._onInitAllProps = function() {
 			var tween = this._tween,
@@ -4195,16 +4232,133 @@
 			this._overwriteProps.push(p);
 		};
 
-		TweenPlugin.activate([RoundPropsPlugin]);
-
-		return RoundPropsPlugin;
-
-	}, true);
+	}());
 
 
-	
-	
-	
+
+
+
+
+
+
+
+
+/*
+ * ----------------------------------------------------------------
+ * AttrPlugin
+ * ----------------------------------------------------------------
+ */
+	window._gsDefine.plugin({
+		propName: "attr",
+		API: 2,
+
+		//called when the tween renders for the first time. This is where initial values should be recorded and any setup routines should run.
+		init: function(target, value, tween) {
+			var p;
+			if (typeof(target.setAttribute) !== "function") {
+				return false;
+			}
+			this._target = target;
+			this._proxy = {};
+			for (p in value) {
+				this._addTween(this._proxy, p, parseFloat(target.getAttribute(p)), value[p], p);
+				this._overwriteProps.push(p);
+			}
+			return true;
+		},
+
+		//called each time the values should be updated, and the ratio gets passed as the only parameter (typically it's a value between 0 and 1, but it can exceed those when using an ease like Elastic.easeOut or Back.easeOut, etc.)
+		set: function(ratio) {
+			this._super.setRatio.call(this, ratio);
+			var props = this._overwriteProps,
+				i = props.length,
+				p;
+			while (--i > -1) {
+				p = props[i];
+				this._target.setAttribute(p, this._proxy[p] + "");
+			}
+		}
+
+	});
+
+
+
+
+
+
+
+
+
+
+/*
+ * ----------------------------------------------------------------
+ * DirectionalRotationPlugin
+ * ----------------------------------------------------------------
+ */
+	window._gsDefine.plugin({
+		propName: "directionalRotation",
+		API: 2,
+
+		//called when the tween renders for the first time. This is where initial values should be recorded and any setup routines should run.
+		init: function(target, value, tween) {
+			if (typeof(value) !== "object") {
+				value = {rotation:value};
+			}
+			this.finals = {};
+			this._tween = tween;
+			var cap = (value.useRadians === true) ? Math.PI * 2 : 360,
+				p, v, start, end, dif, split, type;
+			for (p in value) {
+				if (p !== "useRadians") {
+					split = (value[p] + "").split("_");
+					v = split[0];
+					type = split[1];
+					start = parseFloat( (typeof(target[p]) !== "function") ? target[p] : target[ ((p.indexOf("set") || typeof(target["get" + p.substr(3)]) !== "function") ? p : "get" + p.substr(3)) ]() );
+					end = this.finals[p] = (typeof(v) === "string" && v.charAt(1) === "=") ? start + parseInt(v.charAt(0) + "1", 10) * Number(v.substr(2)) : Number(v) || 0;
+					dif = end - start;
+					if (type === "short") {
+						dif = dif % cap;
+						if (dif !== dif % (cap / 2)) {
+							dif = (dif < 0) ? dif + cap : dif - cap;
+						}
+					} else if (type === "cw" && dif < 0) {
+						dif = ((dif + cap * 9999999999) % cap) - ((dif / cap) | 0) * cap;
+					} else if (type === "ccw" && dif > 0) {
+						dif = ((dif - cap * 9999999999) % cap) - ((dif / cap) | 0) * cap;
+					}
+					this._addTween(target, p, start, start + dif, p);
+					this._overwriteProps.push(p);
+				}
+			}
+			return true;
+		},
+
+		//called each time the values should be updated, and the ratio gets passed as the only parameter (typically it's a value between 0 and 1, but it can exceed those when using an ease like Elastic.easeOut or Back.easeOut, etc.)
+		set: function(ratio) {
+			var pt;
+			if (ratio !== 1) {
+				this._super.setRatio.call(this, ratio);
+			} else {
+				pt = this._firstPT;
+				while (pt) {
+					if (pt.f) {
+						pt.t[pt.p](this.finals[pt.p]);
+					} else {
+						pt.t[pt.p] = this.finals[pt.p];
+					}
+					pt = pt._next;
+				}
+			}
+		}
+
+	})._autoCSS = true;
+
+
+
+
+
+
+
 	
 	
 	
@@ -4567,6 +4721,7 @@
 				return func;
 			};
 
+		_gsDefine.globals = _globals;
 
 
 
@@ -5163,9 +5318,9 @@
 				next = tween._next; //record it here because the value could change after rendering...
 				if (tween._active || (time >= tween._startTime && !tween._paused)) {
 					if (!tween._reversed) {
-						tween.render((time - tween._startTime) * tween._timeScale, suppressEvents, false);
+						tween.render((time - tween._startTime) * tween._timeScale, suppressEvents, force);
 					} else {
-						tween.render(((!tween._dirty) ? tween._totalDuration : tween.totalDuration()) - ((time - tween._startTime) * tween._timeScale), suppressEvents, false);
+						tween.render(((!tween._dirty) ? tween._totalDuration : tween.totalDuration()) - ((time - tween._startTime) * tween._timeScale), suppressEvents, force);
 					}
 				}
 				tween = next;
@@ -5227,7 +5382,6 @@
 						_applyOverwrite(target, this, null, 1, this._siblings);
 					}
 				}
-
 				if (this.vars.immediateRender || (duration === 0 && this._delay === 0 && this.vars.immediateRender !== false)) {
 					this.render(-this._delay, false, true);
 				}
@@ -5246,7 +5400,7 @@
 				var css = {},
 					p;
 				for (p in vars) {
-					if (!_reservedProps[p] && (!(p in target) || p === "x" || p === "y" || p === "width" || p === "height") && (!_plugins[p] || (_plugins[p] && _plugins[p]._autoCSS))) { //note: <img> elements contain read-only "x" and "y" properties. We should also prioritize editing css width/height rather than the element's properties.
+					if (!_reservedProps[p] && (!(p in target) || p === "x" || p === "y" || p === "width" || p === "height" || p === "className") && (!_plugins[p] || (_plugins[p] && _plugins[p]._autoCSS))) { //note: <img> elements contain read-only "x" and "y" properties. We should also prioritize editing css width/height rather than the element's properties.
 						css[p] = vars[p];
 						delete vars[p];
 					}
@@ -5261,10 +5415,10 @@
 //----TweenLite defaults, overwrite management, and root updates ----------------------------------------------------
 
 		p.ratio = 0;
-		p._firstPT = p._targets = p._overwrittenProps = null;
+		p._firstPT = p._targets = p._overwrittenProps = p._startAt = null;
 		p._notifyPluginsOfEnabled = false;
 
-		TweenLite.version = "1.8.4";
+		TweenLite.version = "1.9.0";
 		TweenLite.defaultEase = p._ease = new Ease(null, null, 1, 1);
 		TweenLite.defaultOverwrite = "auto";
 		TweenLite.ticker = _ticker;
@@ -5399,7 +5553,10 @@
 			if (v.startAt) {
 				v.startAt.overwrite = 0;
 				v.startAt.immediateRender = true;
-				TweenLite.to(this.target, 0, v.startAt);
+				this._startAt = new TweenLite(this.target, 0, v.startAt);
+				if (v.immediateRender) { //tweens that render immediately (like most from() tweens) shouldn't revert when their parent timeline's playhead goes backward past the startTime because the initial render could have happened anytime and it shouldn't be directly correlated to this tween's startTime. Imagine setting up a complex animation where the beginning states of various objects are rendered immediately but the tween doesn't happen for quite some time - if we revert to the starting values as soon as the playhead goes backward past the tween's startTime, it will throw things off visually. Reversion should only happen in TimelineLite/Max instances where immediateRender was false (which is the default in the convenience methods like from()).
+					this._startAt = null;
+				}
 			}
 			if (!ease) {
 				this._ease = TweenLite.defaultEase;
@@ -5591,8 +5748,13 @@
 			if (!this._active) if (!this._paused) {
 				this._active = true;  //so that if the user renders a tween (as opposed to the timeline rendering it), the timeline is forced to re-render and align it with the proper time/frame on the next rendering cycle. Maybe the tween already finished but the user manually re-renders it as halfway done.
 			}
-			if (prevTime === 0) if (this.vars.onStart) if (this._time !== 0 || this._duration === 0) if (!suppressEvents) {
-				this.vars.onStart.apply(this.vars.onStartScope || this, this.vars.onStartParams || _blankArray);
+			if (prevTime === 0) {
+				if (this._startAt) {
+					this._startAt.render(time, suppressEvents, force);
+				}
+				if (this.vars.onStart) if (this._time !== 0 || this._duration === 0) if (!suppressEvents) {
+					this.vars.onStart.apply(this.vars.onStartScope || this, this.vars.onStartParams || _blankArray);
+				}
 			}
 
 			pt = this._firstPT;
@@ -5605,11 +5767,19 @@
 				pt = pt._next;
 			}
 
-			if (this._onUpdate) if (!suppressEvents) {
-				this._onUpdate.apply(this.vars.onUpdateScope || this, this.vars.onUpdateParams || _blankArray);
+			if (this._onUpdate) {
+				if (time < 0) if (this._startAt) {
+					this._startAt.render(time, suppressEvents, force); //note: for performance reasons, we tuck this conditional logic inside less traveled areas (most tweens don't have an onUpdate). We'd just have it at the end before the onComplete, but the values should be updated before any onUpdate is called, so we ALSO put it here and then if it's not called, we do so later near the onComplete.
+				}
+				if (!suppressEvents) {
+					this._onUpdate.apply(this.vars.onUpdateScope || this, this.vars.onUpdateParams || _blankArray);
+				}
 			}
 
 			if (callback) if (!this._gc) { //check _gc because there's a chance that kill() could be called in an onUpdate
+				if (time < 0) if (this._startAt) if (!this._onUpdate) {
+					this._startAt.render(time, suppressEvents, force);
+				}
 				if (isComplete) {
 					if (this._timeline.autoRemoveChildren) {
 						this._enabled(false, false);
@@ -5694,6 +5864,7 @@
 			this._firstPT = null;
 			this._overwrittenProps = null;
 			this._onUpdate = null;
+			this._startAt = null;
 			this._initted = this._active = this._notifyPluginsOfEnabled = false;
 			this._propLookup = (this._targets) ? {} : [];
 			return this;
@@ -5726,7 +5897,7 @@
 
 		TweenLite.from = function(target, duration, vars) {
 			vars.runBackwards = true;
-			if (vars.immediateRender !== false) {
+			if (vars.immediateRender != false) {
 				vars.immediateRender = true;
 			}
 			return new TweenLite(target, duration, vars);
@@ -5734,9 +5905,7 @@
 
 		TweenLite.fromTo = function(target, duration, fromVars, toVars) {
 			toVars.startAt = fromVars;
-			if (fromVars.immediateRender) {
-				toVars.immediateRender = true;
-			}
+			toVars.immediateRender = (toVars.immediateRender != false && fromVars.immediateRender != false);
 			return new TweenLite(target, duration, toVars);
 		};
 
@@ -5800,6 +5969,7 @@
 					this._overwriteProps = (props || "").split(",");
 					this._propName = this._overwriteProps[0];
 					this._priority = priority || 0;
+					this._super = TweenPlugin.prototype;
 				}, true);
 
 		p = TweenPlugin.prototype;
@@ -5819,11 +5989,14 @@
 
 		p.setRatio = function(v) {
 			var pt = this._firstPT,
+				min = 0.000001,
 				val;
 			while (pt) {
 				val = pt.c * v + pt.s;
 				if (pt.r) {
 					val = (val + ((val > 0) ? 0.5 : -0.5)) >> 0; //about 4x faster than Math.round()
+				} else if (val < min) if (val > -min) { //prevents issues with converting very small numbers to strings in the browser
+					val = 0;
 				}
 				if (pt.f) {
 					pt.t[pt.p](val);
@@ -5835,17 +6008,19 @@
 		};
 
 		p._kill = function(lookup) {
+			var a = this._overwriteProps,
+				pt = this._firstPT,
+				i;
 			if (lookup[this._propName] != null) {
 				this._overwriteProps = [];
 			} else {
-				var i = this._overwriteProps.length;
+				i = a.length;
 				while (--i > -1) {
-					if (lookup[this._overwriteProps[i]] != null) {
-						this._overwriteProps.splice(i, 1);
+					if (lookup[a[i]] != null) {
+						a.splice(i, 1);
 					}
 				}
 			}
-			var pt = this._firstPT;
 			while (pt) {
 				if (lookup[pt.n] != null) {
 					if (pt._next) {
@@ -5875,10 +6050,9 @@
 
 		TweenLite._onPluginEvent = function(type, tween) {
 			var pt = tween._firstPT,
-				changed;
+				changed, pt2, first, last, next;
 			if (type === "_onInitAllProps") {
 				//sorts the PropTween linked list in order of priority because some plugins need to render earlier/later than others, like MotionBlurPlugin applies its effects after all x/y/alpha tweens have rendered on each frame.
-				var pt2, first, last, next;
 				while (pt) {
 					next = pt._next;
 					pt2 = first;
@@ -5917,6 +6091,33 @@
 			}
 			return true;
 		};
+
+		//provides a more concise way to define plugins that have no dependencies besides TweenPlugin and TweenLite, wrapping common boilerplate stuff into one function (added in 1.9.0). You don't NEED to use this to define a plugin - the old way still works and can be useful in certain (rare) situations.
+		_gsDefine.plugin = function(config) {
+			if (!config || !config.propName || !config.init || !config.API) { throw "illegal plugin definition."; }
+			var propName = config.propName,
+				priority = config.priority || 0,
+				overwriteProps = config.overwriteProps,
+				map = {init:"_onInitTween", set:"setRatio", kill:"_kill", round:"_roundProps", initAll:"_onInitAllProps"},
+				Plugin = _class("plugins." + propName.charAt(0).toUpperCase() + propName.substr(1) + "Plugin",
+					function() {
+						TweenPlugin.call(this, propName, priority);
+						this._overwriteProps = overwriteProps || [];
+					}, (config.global === true)),
+				p = Plugin.prototype = new TweenPlugin(propName),
+				prop;
+			p.constructor = Plugin;
+			Plugin.API = config.API;
+			for (prop in map) {
+				if (typeof(config[prop]) === "function") {
+					p[map[prop]] = config[prop];
+				}
+			}
+			Plugin.version = config.version;
+			TweenPlugin.activate([Plugin]);
+			return Plugin;
+		};
+
 
 		//now run through all the dependencies discovered and if any are missing, log that to the console as a warning. This is why it's best to have TweenLite load last - it can check all the dependencies for you.
 		if ((a = window._gsQueue)) {

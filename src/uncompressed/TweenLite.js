@@ -1,6 +1,6 @@
 /*!
- * VERSION: beta 1.8.4
- * DATE: 2013-02-13
+ * VERSION: beta 1.9.0
+ * DATE: 2013-02-28
  * JavaScript (ActionScript 3 and 2 also available)
  * UPDATES AND DOCS AT: http://www.greensock.com
  *
@@ -111,8 +111,9 @@
 				return func;
 			};
 
-		
-	
+		_gsDefine.globals = _globals;
+
+
 
 /*
  * ----------------------------------------------------------------
@@ -707,9 +708,9 @@
 				next = tween._next; //record it here because the value could change after rendering...
 				if (tween._active || (time >= tween._startTime && !tween._paused)) {
 					if (!tween._reversed) {
-						tween.render((time - tween._startTime) * tween._timeScale, suppressEvents, false);
+						tween.render((time - tween._startTime) * tween._timeScale, suppressEvents, force);
 					} else {
-						tween.render(((!tween._dirty) ? tween._totalDuration : tween.totalDuration()) - ((time - tween._startTime) * tween._timeScale), suppressEvents, false);
+						tween.render(((!tween._dirty) ? tween._totalDuration : tween.totalDuration()) - ((time - tween._startTime) * tween._timeScale), suppressEvents, force);
 					}
 				}
 				tween = next;
@@ -771,7 +772,6 @@
 						_applyOverwrite(target, this, null, 1, this._siblings);
 					}
 				}
-				
 				if (this.vars.immediateRender || (duration === 0 && this._delay === 0 && this.vars.immediateRender !== false)) {
 					this.render(-this._delay, false, true);
 				}
@@ -790,7 +790,7 @@
 				var css = {},
 					p;
 				for (p in vars) {
-					if (!_reservedProps[p] && (!(p in target) || p === "x" || p === "y" || p === "width" || p === "height") && (!_plugins[p] || (_plugins[p] && _plugins[p]._autoCSS))) { //note: <img> elements contain read-only "x" and "y" properties. We should also prioritize editing css width/height rather than the element's properties.
+					if (!_reservedProps[p] && (!(p in target) || p === "x" || p === "y" || p === "width" || p === "height" || p === "className") && (!_plugins[p] || (_plugins[p] && _plugins[p]._autoCSS))) { //note: <img> elements contain read-only "x" and "y" properties. We should also prioritize editing css width/height rather than the element's properties.
 						css[p] = vars[p];
 						delete vars[p];
 					}
@@ -805,10 +805,10 @@
 //----TweenLite defaults, overwrite management, and root updates ----------------------------------------------------
 	
 		p.ratio = 0;
-		p._firstPT = p._targets = p._overwrittenProps = null;
+		p._firstPT = p._targets = p._overwrittenProps = p._startAt = null;
 		p._notifyPluginsOfEnabled = false;
 		
-		TweenLite.version = "1.8.4";
+		TweenLite.version = "1.9.0";
 		TweenLite.defaultEase = p._ease = new Ease(null, null, 1, 1);
 		TweenLite.defaultOverwrite = "auto";
 		TweenLite.ticker = _ticker;
@@ -943,7 +943,10 @@
 			if (v.startAt) {
 				v.startAt.overwrite = 0;
 				v.startAt.immediateRender = true;
-				TweenLite.to(this.target, 0, v.startAt);
+				this._startAt = new TweenLite(this.target, 0, v.startAt);
+				if (v.immediateRender) { //tweens that render immediately (like most from() tweens) shouldn't revert when their parent timeline's playhead goes backward past the startTime because the initial render could have happened anytime and it shouldn't be directly correlated to this tween's startTime. Imagine setting up a complex animation where the beginning states of various objects are rendered immediately but the tween doesn't happen for quite some time - if we revert to the starting values as soon as the playhead goes backward past the tween's startTime, it will throw things off visually. Reversion should only happen in TimelineLite/Max instances where immediateRender was false (which is the default in the convenience methods like from()).
+					this._startAt = null;
+				}
 			}
 			if (!ease) {
 				this._ease = TweenLite.defaultEase;
@@ -1135,10 +1138,15 @@
 			if (!this._active) if (!this._paused) {
 				this._active = true;  //so that if the user renders a tween (as opposed to the timeline rendering it), the timeline is forced to re-render and align it with the proper time/frame on the next rendering cycle. Maybe the tween already finished but the user manually re-renders it as halfway done.
 			}
-			if (prevTime === 0) if (this.vars.onStart) if (this._time !== 0 || this._duration === 0) if (!suppressEvents) {
-				this.vars.onStart.apply(this.vars.onStartScope || this, this.vars.onStartParams || _blankArray);
+			if (prevTime === 0) {
+				if (this._startAt) {
+					this._startAt.render(time, suppressEvents, force);
+				}
+				if (this.vars.onStart) if (this._time !== 0 || this._duration === 0) if (!suppressEvents) {
+					this.vars.onStart.apply(this.vars.onStartScope || this, this.vars.onStartParams || _blankArray);
+				}
 			}
-			
+
 			pt = this._firstPT;
 			while (pt) {
 				if (pt.f) {
@@ -1149,11 +1157,19 @@
 				pt = pt._next;
 			}
 			
-			if (this._onUpdate) if (!suppressEvents) {
-				this._onUpdate.apply(this.vars.onUpdateScope || this, this.vars.onUpdateParams || _blankArray);
+			if (this._onUpdate) {
+				if (time < 0) if (this._startAt) {
+					this._startAt.render(time, suppressEvents, force); //note: for performance reasons, we tuck this conditional logic inside less traveled areas (most tweens don't have an onUpdate). We'd just have it at the end before the onComplete, but the values should be updated before any onUpdate is called, so we ALSO put it here and then if it's not called, we do so later near the onComplete.
+				}
+				if (!suppressEvents) {
+					this._onUpdate.apply(this.vars.onUpdateScope || this, this.vars.onUpdateParams || _blankArray);
+				}
 			}
 			
 			if (callback) if (!this._gc) { //check _gc because there's a chance that kill() could be called in an onUpdate
+				if (time < 0) if (this._startAt) if (!this._onUpdate) {
+					this._startAt.render(time, suppressEvents, force);
+				}
 				if (isComplete) {
 					if (this._timeline.autoRemoveChildren) {
 						this._enabled(false, false);
@@ -1238,6 +1254,7 @@
 			this._firstPT = null;
 			this._overwrittenProps = null;
 			this._onUpdate = null;
+			this._startAt = null;
 			this._initted = this._active = this._notifyPluginsOfEnabled = false;
 			this._propLookup = (this._targets) ? {} : [];
 			return this;
@@ -1270,7 +1287,7 @@
 		
 		TweenLite.from = function(target, duration, vars) {
 			vars.runBackwards = true;
-			if (vars.immediateRender !== false) {
+			if (vars.immediateRender != false) {
 				vars.immediateRender = true;
 			}
 			return new TweenLite(target, duration, vars);
@@ -1278,9 +1295,7 @@
 		
 		TweenLite.fromTo = function(target, duration, fromVars, toVars) {
 			toVars.startAt = fromVars;
-			if (fromVars.immediateRender) {
-				toVars.immediateRender = true;
-			}
+			toVars.immediateRender = (toVars.immediateRender != false && fromVars.immediateRender != false);
 			return new TweenLite(target, duration, toVars);
 		};
 		
@@ -1344,6 +1359,7 @@
 					this._overwriteProps = (props || "").split(",");
 					this._propName = this._overwriteProps[0];
 					this._priority = priority || 0;
+					this._super = TweenPlugin.prototype;
 				}, true);
 		
 		p = TweenPlugin.prototype;
@@ -1362,12 +1378,15 @@
 		};
 			
 		p.setRatio = function(v) {
-			var pt = this._firstPT, 
+			var pt = this._firstPT,
+				min = 0.000001,
 				val;
 			while (pt) {
 				val = pt.c * v + pt.s;
 				if (pt.r) {
 					val = (val + ((val > 0) ? 0.5 : -0.5)) >> 0; //about 4x faster than Math.round()
+				} else if (val < min) if (val > -min) { //prevents issues with converting very small numbers to strings in the browser
+					val = 0;
 				}
 				if (pt.f) {
 					pt.t[pt.p](val);
@@ -1379,17 +1398,19 @@
 		};
 			
 		p._kill = function(lookup) {
+			var a = this._overwriteProps,
+				pt = this._firstPT,
+				i;
 			if (lookup[this._propName] != null) {
 				this._overwriteProps = [];
 			} else {
-				var i = this._overwriteProps.length;
+				i = a.length;
 				while (--i > -1) {
-					if (lookup[this._overwriteProps[i]] != null) {
-						this._overwriteProps.splice(i, 1);
+					if (lookup[a[i]] != null) {
+						a.splice(i, 1);
 					}
 				}
 			}
-			var pt = this._firstPT;
 			while (pt) {
 				if (lookup[pt.n] != null) {
 					if (pt._next) {
@@ -1419,10 +1440,9 @@
 		
 		TweenLite._onPluginEvent = function(type, tween) {
 			var pt = tween._firstPT, 
-				changed;
+				changed, pt2, first, last, next;
 			if (type === "_onInitAllProps") {
 				//sorts the PropTween linked list in order of priority because some plugins need to render earlier/later than others, like MotionBlurPlugin applies its effects after all x/y/alpha tweens have rendered on each frame.
-				var pt2, first, last, next;
 				while (pt) {
 					next = pt._next;
 					pt2 = first;
@@ -1461,6 +1481,33 @@
 			}
 			return true;
 		};
+
+		//provides a more concise way to define plugins that have no dependencies besides TweenPlugin and TweenLite, wrapping common boilerplate stuff into one function (added in 1.9.0). You don't NEED to use this to define a plugin - the old way still works and can be useful in certain (rare) situations.
+		_gsDefine.plugin = function(config) {
+			if (!config || !config.propName || !config.init || !config.API) { throw "illegal plugin definition."; }
+			var propName = config.propName,
+				priority = config.priority || 0,
+				overwriteProps = config.overwriteProps,
+				map = {init:"_onInitTween", set:"setRatio", kill:"_kill", round:"_roundProps", initAll:"_onInitAllProps"},
+				Plugin = _class("plugins." + propName.charAt(0).toUpperCase() + propName.substr(1) + "Plugin",
+					function() {
+						TweenPlugin.call(this, propName, priority);
+						this._overwriteProps = overwriteProps || [];
+					}, (config.global === true)),
+				p = Plugin.prototype = new TweenPlugin(propName),
+				prop;
+			p.constructor = Plugin;
+			Plugin.API = config.API;
+			for (prop in map) {
+				if (typeof(config[prop]) === "function") {
+					p[map[prop]] = config[prop];
+				}
+			}
+			Plugin.version = config.version;
+			TweenPlugin.activate([Plugin]);
+			return Plugin;
+		};
+
 
 		//now run through all the dependencies discovered and if any are missing, log that to the console as a warning. This is why it's best to have TweenLite load last - it can check all the dependencies for you. 
 		if ((a = window._gsQueue)) {

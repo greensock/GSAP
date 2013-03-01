@@ -1,6 +1,6 @@
 /*!
- * VERSION: beta 1.8.4
- * DATE: 2013-02-13
+ * VERSION: beta 1.9.0
+ * DATE: 2013-03-01
  * JavaScript 
  * UPDATES AND DOCS AT: http://www.greensock.com
  *
@@ -29,7 +29,7 @@
 			p = CSSPlugin.prototype = new TweenPlugin("css");
 
 		p.constructor = CSSPlugin;
-		CSSPlugin.version = "1.8.4";
+		CSSPlugin.version = "1.9.0";
 		CSSPlugin.API = 2;
 		CSSPlugin.defaultTransformPerspective = 0;
 		p = "px"; //we'll reuse the "p" variable to keep file size down
@@ -262,7 +262,7 @@
 					pix = (v / 100) * (horiz ? t.clientWidth : t.clientHeight);
 				} else {
 					style.cssText = "border-style:solid; border-width:0; position:absolute; line-height:0;";
-					if (sfx === "%" || sfx === "em" || !node.appendChild) {
+					if (sfx === "%" || !node.appendChild) {
 						node = t.parentNode || _doc.body;
 						style[(horiz ? "width" : "height")] = v + sfx;
 					} else {
@@ -326,34 +326,39 @@
 			},
 
 			/**
-			 * @private Translates strings like "40deg" or "40" or 40rad" or "+=40deg" to a numeric radian angle, optionally relative to a default value (if "+=" or "-=" prefix is found)
+			 * @private Translates strings like "40deg" or "40" or 40rad" or "+=40deg" or "270_short" or "-90_cw" or "+=45_ccw" to a numeric radian angle. Of course a starting/default value must be fed in too so that relative values can be calculated properly.
 			 * @param {Object} v Value to be parsed
 			 * @param {!number} d Default value (which is also used for relative calculations if "+=" or "-=" is found in the first parameter)
 			 * @return {number} parsed angle in radians
 			 */
 			_parseAngle = function(v, d) {
+				var min = 0.000001,
+					cap, split, dif, type, result;
 				if (v == null) {
-					return d;
+					result = d;
+				} else if (typeof(v) === "number") {
+					result = v * _DEG2RAD;
+				} else {
+					cap = Math.PI * 2;
+					split = v.split("_");
+					dif = Number(split[0].replace(_NaNExp, "")) * ((v.indexOf("rad") === -1) ? _DEG2RAD : 1) - ((v.charAt(1) === "=") ? 0 : d);
+					type = split[1];
+					if (type === "short") {
+						dif = dif % cap;
+						if (dif !== dif % (cap / 2)) {
+							dif = (dif < 0) ? dif + cap : dif - cap;
+						}
+					} else if (type === "cw" && dif < 0) {
+						dif = ((dif + cap * 9999999999) % cap) - ((dif / cap) | 0) * cap;
+					} else if (type === "ccw" && dif > 0) {
+						dif = ((dif - cap * 9999999999) % cap) - ((dif / cap) | 0) * cap;
+					}
+					result = d + dif;
 				}
-				var m = (v.indexOf("rad") === -1) ? _DEG2RAD : 1,
-					r = (v.charAt(1) === "=");
-				v = Number(v.replace(_NaNExp, "")) * m;
-				return r ? v + d : v;
-			},
-
-			/**
-			 * @private Translates an ending rotation value (could be a string or number, relative or not) into a radian number representing the shortest direction (no more than 180 degrees away from the beginning, or Math.PI radians). For example, if b is 0 and e is "270deg", this method would return -Math.PI/2 (-90 degrees).
-			 * @param {(number|string)} e ending/destination rotation value (can be a number or string. If a string, it can be relative or not)
-			 * @param {number} b beginning value
-			 * @return {number} rotation value in radians
-			 */
-			_parseShortRotation = function(e, b) {
-				var r = (typeof(e) === "number") ? e * _DEG2RAD : _parseAngle(e, b),
-					dif = (r - b) % (Math.PI * 2);
-				if (dif !== dif % Math.PI) {
-					dif += Math.PI * ((dif < 0) ? 2 : -2);
+				if (result < min && result > -min) {
+					result = 0;
 				}
-				return b + dif;
+				return result;
 			},
 
 			_colorLookup = {aqua:[0,255,255],
@@ -377,29 +382,53 @@
 				cyan:[0,255,255],
 				transparent:[255,255,255,0]},
 
+			_hue = function(h, m1, m2) {
+				h = (h < 0) ? h + 1 : (h > 1) ? h - 1 : h;
+				return ((((h * 6 < 1) ? m1 + (m2 - m1) * h * 6 : (h < 0.5) ? m2 : (h * 3 < 2) ? m1 + (m2 - m1) * (2 / 3 - h) * 6 : m1) * 255) + 0.5) | 0;
+			},
+
 			/**
 			 * @private Parses a color (like #9F0, #FF9900, or rgb(255,51,153)) into an array with 3 elements for red, green, and blue. Also handles rgba() values (splits into array of 4 elements of course)
 			 * @param {(string|number)} v The value the should be parsed which could be a string like #9F0 or rgb(255,102,51) or rgba(255,0,0,0.5) or it could be a number like 0xFF00CC or even a named color like red, blue, purple, etc.
 			 * @return {Array.<number>} An array containing red, green, and blue (and optionally alpha) in that order.
 			 */
 			_parseColor = function(v) {
+				var c1, c2, c3, h, s, l;
 				if (!v || v === "") {
 					return _colorLookup.black;
-				} else if (_colorLookup[v]) {
+				}
+				if (_colorLookup[v]) {
 					return _colorLookup[v];
-				} else if (typeof(v) === "number") {
+				}
+				if (typeof(v) === "number") {
 					return [v >> 16, (v >> 8) & 255, v & 255];
-				} else if (v.charAt(0) === "#") {
+				}
+				if (v.charAt(0) === "#") {
 					if (v.length === 4) { //for shorthand like #9F0
-						var c1 = v.charAt(1),
-							c2 = v.charAt(2),
-							c3 = v.charAt(3);
+						c1 = v.charAt(1),
+						c2 = v.charAt(2),
+						c3 = v.charAt(3);
 						v = "#" + c1 + c1 + c2 + c2 + c3 + c3;
 					}
 					v = parseInt(v.substr(1), 16);
 					return [v >> 16, (v >> 8) & 255, v & 255];
 				}
-				v = v.match(_numExp)  || _colorLookup.transparent;
+				if (v.substr(0, 3) === "hsl") {
+					v = v.match(_numExp);
+					h = (Number(v[0]) % 360) / 360;
+					s = Number(v[1]) / 100;
+					l = Number(v[2]) / 100;
+					c2 = (l <= 0.5) ? l * (s + 1) : l + s - l * s;
+					c1 = l * 2 - c2;
+					if (v.length > 3) {
+						v[3] = Number(v[3]);
+					}
+					v[0] = _hue(h + 1 / 3, c1, c2);
+					v[1] = _hue(h, c1, c2);
+					v[2] = _hue(h - 1 / 3, c1, c2);
+					return v;
+				}
+				v = v.match(_numExp) || _colorLookup.transparent;
 				v[0] = Number(v[0]);
 				v[1] = Number(v[1]);
 				v[2] = Number(v[2]);
@@ -433,6 +462,9 @@
 					delim = (dflt.indexOf(" ") !== -1) ? " " : ",",
 					numVals = dVals.length,
 					dSfx = (numVals > 0) ? dVals[0].replace(_numExp, "") : "";
+				if (!numVals) {
+					return function(v) {return v;};
+				}
 				if (clr) {
 					return function(v) {
 						if (typeof(v) === "number") {
@@ -886,7 +918,7 @@
 		 * @return {CSSPropTween} The first CSSPropTween in the linked list which includes the new one(s) added by the parse() call.
 		 */
 		p.parse = function(t, e, p, cssp, pt, plugin, vars) {
-			return this.parseComplex(t.style, this.format(_getStyle(t, p, _cs, false, this.dflt)), this.format(e), pt, plugin);
+			return this.parseComplex(t.style, this.format(_getStyle(t, this.p, _cs, false, this.dflt)), this.format(e), pt, plugin);
 		};
 
 		/**
@@ -953,7 +985,7 @@
 					minPI = -Math.PI + 0.0001,
 					maxPI = Math.PI - 0.0001,
 					zOrigin = _supports3D ? parseFloat(_getStyle(t, _transformOriginProp, cs, false, "0 0 0").split(" ")[2]) || tm.zOrigin  || 0 : 0,
-					s, m, i, n, scaleX, scaleY, rotation, skewX, difX, difY, difR, difS;
+					s, m, i, n, dec, scaleX, scaleY, rotation, skewX, difX, difY, difR, difS;
 				if (_transformProp) {
 					s = _getStyle(t, _transformPropCSS, cs, true);
 				} else if (t.currentStyle) {
@@ -966,7 +998,7 @@
 				i = m.length;
 				while (--i > -1) {
 					n = Number(m[i]);
-					m[i] = ((n * rnd + ((n < 0) ? -0.5 : 0.5)) >> 0) / rnd; //convert strings to Numbers and round to 5 decimal places to avoid issues with tiny numbers
+					m[i] = (dec = n - (n |= 0)) ? ((dec * rnd + (dec < 0 ? -0.5 : 0.5)) | 0) / rnd + n : n; //convert strings to Numbers and round to 5 decimal places to avoid issues with tiny numbers. Roughly 20x faster than Number.toFixed(). We also must make sure to round before dividing so that values like 0.9999999999 become 1 to avoid glitches in browser rendering and interpretation of flipped/rotated 3D matrices. And don't just multiply the number by rnd, floor it, and then divide by rnd because the bitwise operations max out at a 32-bit signed integer, thus it could get clipped at a relatively low value (like 22,000.00000 for example).
 				}
 				if (m.length === 16) {
 
@@ -1256,11 +1288,12 @@
 					a24 = a23*a34;
 					a34 = a33*a34+zOrigin;
 				}
-				a14 += t.x;
-				a24 += t.y;
-				a34 = (((a34 + t.z) * rnd) >> 0) / rnd;
+				//we round the x, y, and z slightly differently to allow even larger values.
+				a14 = (t1 = (a14 += t.x) - (a14 |= 0)) ? ((t1 * rnd + (t1 < 0 ? -0.5 : 0.5)) | 0) / rnd + a14 : a14;
+				a24 = (t1 = (a24 += t.y) - (a24 |= 0)) ? ((t1 * rnd + (t1 < 0 ? -0.5 : 0.5)) | 0) / rnd + a24 : a24;
+				a34 = (t1 = (a34 += t.z) - (a34 |= 0)) ? ((t1 * rnd + (t1 < 0 ? -0.5 : 0.5)) | 0) / rnd + a34 : a34;
 
-				style[_transformProp] = "matrix3d(" + (((a11 * rnd) >> 0) / rnd) + cma + (((a21 * rnd) >> 0) / rnd) + cma + (((a31 * rnd) >> 0) / rnd) + cma + (((a41 * rnd) >> 0) / rnd) + cma	+ (((a12 * rnd) >> 0) / rnd) + cma + (((a22 * rnd) >> 0) / rnd) + cma + (((a32 * rnd) >> 0) / rnd) + cma + (((a42 * rnd) >> 0) / rnd) + cma + (((a13 * rnd) >> 0) / rnd) + cma + (((a23 * rnd) >> 0) / rnd) + cma + (((a33 * rnd) >> 0) / rnd) + cma + (((a43 * rnd) >> 0) / rnd) + cma + (((a14 * rnd) >> 0) / rnd) + cma + (((a24 * rnd) >> 0) / rnd) + cma + a34 + cma + (perspective ? (1 + (-a34 / perspective)) : 1) + ")";
+				style[_transformProp] = "matrix3d(" + (((a11 * rnd) >> 0) / rnd) + cma + (((a21 * rnd) >> 0) / rnd) + cma + (((a31 * rnd) >> 0) / rnd) + cma + (((a41 * rnd) >> 0) / rnd) + cma	+ (((a12 * rnd) >> 0) / rnd) + cma + (((a22 * rnd) >> 0) / rnd) + cma + (((a32 * rnd) >> 0) / rnd) + cma + (((a42 * rnd) >> 0) / rnd) + cma + (((a13 * rnd) >> 0) / rnd) + cma + (((a23 * rnd) >> 0) / rnd) + cma + (((a33 * rnd) >> 0) / rnd) + cma + (((a43 * rnd) >> 0) / rnd) + cma + a14 + cma + a24 + cma + a34 + cma + (perspective ? (1 + (-a34 / perspective)) : 1) + ")";
 
 				/* alternate version that is more concise but not as fast in most scenarios. We chose the more verbose matrix3d() technique for maximum performance.
 				var t = this.data, //refers to the element's _gsTransform object
@@ -1330,14 +1363,14 @@
 				}
 			};
 
-		_registerComplexSpecialProp("transform,scale,scaleX,scaleY,scaleZ,x,y,z,rotation,rotationX,rotationY,rotationZ,skewX,skewY,shortRotation,shortRotationX,shortRotationY,shortRotationZ,transformOrigin,transformPerspective", null, function(t, e, p, cssp, pt, plugin, vars) {
+		_registerComplexSpecialProp("transform,scale,scaleX,scaleY,scaleZ,x,y,z,rotation,rotationX,rotationY,rotationZ,skewX,skewY,shortRotation,shortRotationX,shortRotationY,shortRotationZ,transformOrigin,transformPerspective,directionalRotation", null, function(t, e, p, cssp, pt, plugin, vars) {
 			if (cssp._transform) { return pt; } //only need to parse the transform once, and only if the browser supports it.
 			var m1 = cssp._transform = _getTransform(t, _cs, true),
 				style = t.style,
 				min = 0.000001,
 				i = _transformProps.length,
 				v = vars,
-				m2, rotation, skewY, copy, orig, has3D, hasChange;
+				m2, skewY, copy, orig, has3D, hasChange, dr;
 
 			if (typeof(v.transform) === "string" && _transformProp) { //for values like transform:"rotate(60deg) scale(0.5, 0.8)"
 				copy = style.cssText;
@@ -1346,7 +1379,6 @@
 				m2 = _getTransform(t, null, false);
 				style.cssText = copy;
 			} else if (typeof(v) === "object") { //for values like scaleX, scaleY, rotation, x, y, skewX, and skewY or transform:{...} (object)
-				rotation = (v.rotation != null) ? v.rotation : (v.rotationZ != null) ? v.rotationZ : m1.rotation * _RAD2DEG;
 				m2 = {scaleX:_parseVal((v.scaleX != null) ? v.scaleX : v.scale, m1.scaleX),
 					scaleY:_parseVal((v.scaleY != null) ? v.scaleY : v.scale, m1.scaleY),
 					scaleZ:_parseVal((v.scaleZ != null) ? v.scaleZ : v.scale, m1.scaleZ),
@@ -1354,39 +1386,28 @@
 					y:_parseVal(v.y, m1.y),
 					z:_parseVal(v.z, m1.z),
 					perspective:_parseVal(v.transformPerspective, m1.perspective)};
-
-				if (v.shortRotation != null || v.shortRotationZ != null) {
-					m2.rotation = _parseShortRotation(v.shortRotation || v.shortRotationZ || 0, m1.rotation);
-				} else {
-					m2.rotation = (typeof(rotation) === "number") ? rotation * _DEG2RAD : _parseAngle(rotation, m1.rotation);
+				dr = v.directionalRotation;
+				if (dr != null) {
+					if (typeof(dr) === "object") {
+						for (copy in dr) {
+							v[copy] = dr[copy];
+						}
+					} else {
+						v.rotation = dr;
+					}
 				}
+				m2.rotation = _parseAngle(("rotation" in v) ? v.rotation : ("shortRotation" in v) ? v.shortRotation + "_short" : ("rotationZ" in v) ? v.rotationZ : (m1.rotation * _RAD2DEG), m1.rotation);
 				if (_supports3D) {
-					m2.rotationX = (v.shortRotationX != null) ? _parseShortRotation(v.shortRotationX, m1.rotationX) : (typeof(v.rotationX) === "number") ? v.rotationX * _DEG2RAD : _parseAngle(v.rotationX, m1.rotationX);
-					m2.rotationY = (v.shortRotationY != null) ? _parseShortRotation(v.shortRotationY, m1.rotationY) : (typeof(v.rotationY) === "number") ? v.rotationY * _DEG2RAD : _parseAngle(v.rotationY, m1.rotationY);
-					if (m2.rotationX < min) if (m2.rotationX > -min) {
-						m2.rotationX = 0;
-					}
-					if (m2.rotationY < min) if (m2.rotationY > -min) {
-						m2.rotationY = 0;
-					}
+					m2.rotationX = _parseAngle(("rotationX" in v) ? v.rotationX : ("shortRotationX" in v) ? v.shortRotationX + "_short" : (m1.rotationX * _RAD2DEG) || 0, m1.rotationX);
+					m2.rotationY = _parseAngle(("rotationY" in v) ? v.rotationY : ("shortRotationY" in v) ? v.shortRotationY + "_short" : (m1.rotationY * _RAD2DEG) || 0, m1.rotationY);
 				}
-				m2.skewX = (v.skewX == null) ? m1.skewX : (typeof(v.skewX) === "number") ? v.skewX * _DEG2RAD : _parseAngle(v.skewX, m1.skewX);
+				m2.skewX = (v.skewX == null) ? m1.skewX : _parseAngle(v.skewX, m1.skewX);
 
 				//note: for performance reasons, we combine all skewing into the skewX and rotation values, ignoring skewY but we must still record it so that we can discern how much of the overall skew is attributed to skewX vs. skewY. Otherwise, if the skewY would always act relative (tween skewY to 10deg, for example, multiple times and if we always combine things into skewX, we can't remember that skewY was 10 from last time). Remember, a skewY of 10 degrees looks the same as a rotation of 10 degrees plus a skewX of -10 degrees.
-				m2.skewY = (v.skewY == null) ? m1.skewY : (typeof(v.skewY) === "number") ? v.skewY * _DEG2RAD : _parseAngle(v.skewY, m1.skewY);
+				m2.skewY = (v.skewY == null) ? m1.skewY : _parseAngle(v.skewY, m1.skewY);
 				if ((skewY = m2.skewY - m1.skewY)) {
 					m2.skewX += skewY;
 					m2.rotation += skewY;
-				}
-				//don't allow rotation/skew values to be a SUPER small decimal because when they're translated back to strings for setting the css property, the browser reports them in a funky way, like 1-e7. Of course we could use toFixed() to resolve that issue but that hurts performance quite a bit with all those function calls on every frame, plus it is virtually impossible to discern values that small visually (nobody will notice changing a rotation of 0.0000001 to 0, so the performance improvement is well worth it).
-				if (m2.skewY < min) if (m2.skewY > -min) {
-					m2.skewY = 0;
-				}
-				if (m2.skewX < min) if (m2.skewX > -min) {
-					m2.skewX = 0;
-				}
-				if (m2.rotation < min) if (m2.rotation > -min) {
-					m2.rotation = 0;
 				}
 			}
 
@@ -1562,8 +1583,8 @@
 		_registerComplexSpecialProp("backgroundSize", "0 0", null, false, false, _parsePosition);
 		_registerComplexSpecialProp("perspective", "0px", null, true);
 		_registerComplexSpecialProp("perspectiveOrigin", "50% 50%", null, true);
-		_registerComplexSpecialProp("transformStyle", "preserve-3d", null, true);
-		_registerComplexSpecialProp("backfaceVisibility", "visible", null, true);
+		_registerComplexSpecialProp("transformStyle", null, null, true);
+		_registerComplexSpecialProp("backfaceVisibility", null, null, true);
 		_registerComplexSpecialProp("margin", null, _getEdgeParser("marginTop,marginRight,marginBottom,marginLeft"));
 		_registerComplexSpecialProp("padding", null, _getEdgeParser("paddingTop,paddingRight,paddingBottom,paddingLeft"));
 		_registerComplexSpecialProp("clip", "rect(0px,0px,0px,0px)");
@@ -1575,7 +1596,11 @@
 				var a = v.split(" ");
 				return a[0] + " " + (a[1] || "solid") + " " + (v.match(_colorExp) || ["#000"])[0];
 			});
-
+		_registerComplexSpecialProp("float,cssFloat,styleFloat", null, function(t, e, p, cssp, pt, plugin) {
+			var s = t.style,
+				prop = ("cssFloat" in s) ? "cssFloat" : "styleFloat";
+			return new CSSPropTween(s, prop, 0, 0, pt, -1, p, false, 0, s[prop], e);
+		});
 
 		//opacity-related
 		var _setIEOpacityRatio = function(v) {
@@ -1859,10 +1884,10 @@
 
 						rel = (isStr && es.charAt(1) === "=");
 						if (rel) {
-							en = parseInt(es.charAt(0)+"1", 10);
+							en = parseInt(es.charAt(0) + "1", 10);
 							es = es.substr(2);
 							en *= parseFloat(es);
-							esfx = es.substr((en + "").length - (en < 0 ? 1 : 0)) || "";
+							esfx = es.replace(_suffixExp, "");
 						} else {
 							en = parseFloat(es);
 							esfx = isStr ? es.substr((en + "").length) || "" : "";
@@ -1906,7 +1931,7 @@
 						if ((bn || bn === 0) && (en || en === 0)) { //faster than isNaN(). Also, previously we required en !== bn but that doesn't really gain much performance and it prevents _parseToProxy() from working properly if beginning and ending values match but need to get tweened by an external plugin anyway. For example, a bezier tween where the target starts at left:0 and has these points: [{left:50},{left:0}] wouldn't work properly because when parsing the last point, it'd match the first (current) one and a non-tweening CSSPropTween would be recorded when we actually need a normal tween (type:0) so that things get updated during the tween properly.
 							pt = new CSSPropTween(style, p, bn, en - bn, pt, 0, "css_" + p, (_autoRound !== false && (esfx === "px" || p === "zIndex")), 0, bs, es);
 							pt.xs0 = esfx;
-							//DEBUG: _log("tween "+p+" from "+pt.b+" to "+pt.e+" with suffix: "+pt.xs0)
+							//DEBUG: _log("tween "+p+" from "+pt.b+" ("+bn+esfx+") to "+pt.e+" with suffix: "+pt.xs0);
 						} else if (!es && (es + "" === "NaN" || es == null)) {
 							_log("invalid " + p + " tween value. ");
 						} else {

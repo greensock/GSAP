@@ -1,6 +1,6 @@
 /*!
- * VERSION: beta 1.8.
- * DATE: 2013-02-13
+ * VERSION: beta 1.9.0
+ * DATE: 2013-02-27
  * JavaScript (ActionScript 3 and 2 also available)
  * UPDATES AND DOCS AT: http://www.greensock.com
  *
@@ -52,7 +52,7 @@
 			},
 			p = TimelineLite.prototype = new SimpleTimeline();
 
-		TimelineLite.version = "1.8.4";
+		TimelineLite.version = "1.9.0";
 		p.constructor = TimelineLite;
 		p.kill()._gc = false;
 		
@@ -101,9 +101,7 @@
 		
 		p.staggerFromTo = function(targets, duration, fromVars, toVars, stagger, position, onCompleteAll, onCompleteAllParams, onCompleteAllScope) {
 			toVars.startAt = fromVars;
-			if (fromVars.immediateRender) {
-				toVars.immediateRender = true;
-			}
+			toVars.immediateRender = (toVars.immediateRender != false && fromVars.immediateRender != false);
 			return this.staggerTo(targets, duration, toVars, stagger, position, onCompleteAll, onCompleteAllParams, onCompleteAllScope);
 		};
 		
@@ -112,7 +110,10 @@
 		};
 		
 		p.set = function(target, vars, position) {
-			vars.immediateRender = false;
+			position = this._parseTimeOrLabel(position, 0, true);
+			if (vars.immediateRender == null) {
+				vars.immediateRender = (position === this._time && !this._paused);
+			}
 			return this.add( new TweenLite(target, 0, vars), position);
 		};
 		
@@ -143,6 +144,7 @@
 		};
 
 		p.add = function(value, position, align, stagger) {
+			var curTime, l, i, child, tl;
 			if (typeof(position) !== "number") {
 				position = this._parseTimeOrLabel(position, 0, true, value);
 			}
@@ -150,9 +152,8 @@
 				if (value instanceof Array) {
 					align = align || "normal";
 					stagger = stagger || 0;
-					var curTime = position,
-						l = value.length,
-						i, child;
+					curTime = position;
+					l = value.length;
 					for (i = 0; i < l; i++) {
 						if ((child = value[i]) instanceof Array) {
 							child = new TimelineLite({tweens:child});
@@ -182,7 +183,7 @@
 			//if the timeline has already ended but the inserted tween/timeline extends the duration, we should enable this timeline again so that it renders properly.
 			if (this._gc) if (!this._paused) if (this._time === this._duration) if (this._time < this.duration()) {
 				//in case any of the anscestors had completed but should now be enabled...
-				var tl = this;
+				tl = this;
 				while (tl._gc && tl._timeline) {
 					if (tl._timeline.smoothChildTiming) {
 						tl.totalTime(tl._totalTime, true); //also enables them
@@ -192,6 +193,7 @@
 					tl = tl._timeline;
 				}
 			}
+
 			return this;
 		};
 
@@ -347,9 +349,9 @@
 					} else if (tween._active || (tween._startTime <= this._time && !tween._paused && !tween._gc)) {
 						
 						if (!tween._reversed) {
-							tween.render((time - tween._startTime) * tween._timeScale, suppressEvents, false);
+							tween.render((time - tween._startTime) * tween._timeScale, suppressEvents, force);
 						} else {
-							tween.render(((!tween._dirty) ? tween._totalDuration : tween.totalDuration()) - ((time - tween._startTime) * tween._timeScale), suppressEvents, false);
+							tween.render(((!tween._dirty) ? tween._totalDuration : tween.totalDuration()) - ((time - tween._startTime) * tween._timeScale), suppressEvents, force);
 						}
 						
 					}
@@ -364,9 +366,9 @@
 					} else if (tween._active || (tween._startTime <= prevTime && !tween._paused && !tween._gc)) {
 						
 						if (!tween._reversed) {
-							tween.render((time - tween._startTime) * tween._timeScale, suppressEvents, false);
+							tween.render((time - tween._startTime) * tween._timeScale, suppressEvents, force);
 						} else {
-							tween.render(((!tween._dirty) ? tween._totalDuration : tween.totalDuration()) - ((time - tween._startTime) * tween._timeScale), suppressEvents, false);
+							tween.render(((!tween._dirty) ? tween._totalDuration : tween.totalDuration()) - ((time - tween._startTime) * tween._timeScale), suppressEvents, force);
 						}
 						
 					}
@@ -378,7 +380,7 @@
 				this._onUpdate.apply(this.vars.onUpdateScope || this, this.vars.onUpdateParams || _blankArray);
 			}
 			
-			if (callback) if (!this._gc) if (prevStart === this._startTime || prevTimeScale != this._timeScale) if (this._time === 0 || totalDur >= this.totalDuration()) { //if one of the tweens that was rendered altered this timeline's startTime (like if an onComplete reversed the timeline), it probably isn't complete. If it is, don't worry, because whatever call altered the startTime would complete if it was necessary at the new time. The only exception is the timeScale property. Also check _gc because there's a chance that kill() could be called in an onUpdate
+			if (callback) if (!this._gc) if (prevStart === this._startTime || prevTimeScale !== this._timeScale) if (this._time === 0 || totalDur >= this.totalDuration()) { //if one of the tweens that was rendered altered this timeline's startTime (like if an onComplete reversed the timeline), it probably isn't complete. If it is, don't worry, because whatever call altered the startTime would complete if it was necessary at the new time. The only exception is the timeScale property. Also check _gc because there's a chance that kill() could be called in an onUpdate
 				if (isComplete) {
 					if (this._timeline.autoRemoveChildren) {
 						this._enabled(false, false);
