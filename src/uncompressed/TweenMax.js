@@ -1,10 +1,6 @@
 /*!
  * VERSION: beta 1.9.1
-<<<<<<< HEAD
  * DATE: 2013-03-19
-=======
- * DATE: 2013-03-18
->>>>>>> 66e1576922bd423d04069676694edb424efd02c1
  * JavaScript (ActionScript 3 and 2 also available)
  * UPDATES AND DOCS AT: http://www.greensock.com
  * 
@@ -213,12 +209,8 @@
 				if (!this._initted) { //immediateRender tweens typically won't initialize until the playhead advances (_time is greater than 0) in order to ensure that overwriting occurs properly.
 					return;
 				}
-<<<<<<< HEAD
 				//_ease is initially set to defaultEase, so now that init() has run, _ease is set properly and we need to recalculate the ratio. Overall this is faster than using conditional logic earlier in the method to avoid having to set ratio twice because we only init() once but renderTime() gets called VERY frequently.
 				if (this._time && !isComplete) {
-=======
-				if (!isComplete && this._time) { //_ease is initially set to defaultEase, so now that init() has run, _ease is set properly and we need to recalculate the ratio. Overall this is faster than using conditional logic earlier in the method to avoid having to set ratio twice because we only init() once but renderTime() gets called VERY frequently.
->>>>>>> 66e1576922bd423d04069676694edb424efd02c1
 					this.ratio = this._ease.getRatio(this._time / this._duration);
 				} else if (isComplete && this._ease._calcEnd) {
 					this.ratio = this._ease.getRatio((this._time === 0) ? 0 : 1);
@@ -5888,12 +5880,8 @@
 				if (!this._initted) { //immediateRender tweens typically won't initialize until the playhead advances (_time is greater than 0) in order to ensure that overwriting occurs properly.
 					return;
 				}
-<<<<<<< HEAD
 				//_ease is initially set to defaultEase, so now that init() has run, _ease is set properly and we need to recalculate the ratio. Overall this is faster than using conditional logic earlier in the method to avoid having to set ratio twice because we only init() once but renderTime() gets called VERY frequently.
 				if (this._time && !isComplete) {
-=======
-				if (!isComplete && this._time) { //_ease is initially set to defaultEase, so now that init() has run, _ease is set properly and we need to recalculate the ratio. Overall this is faster than using conditional logic earlier in the method to avoid having to set ratio twice because we only init() once but renderTime() gets called VERY frequently.
->>>>>>> 66e1576922bd423d04069676694edb424efd02c1
 					this.ratio = this._ease.getRatio(this._time / this._duration);
 				} else if (isComplete && this._ease._calcEnd) {
 					this.ratio = this._ease.getRatio((this._time === 0) ? 0 : 1);
