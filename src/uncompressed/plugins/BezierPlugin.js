@@ -1,6 +1,6 @@
 /*!
- * VERSION: beta 1.2.0
- * DATE: 2013-02-27
+ * VERSION: beta 1.2.1
+ * DATE: 2013-03-13
  * JavaScript (also available in AS3 and AS2)
  * UPDATES AND DOCS AT: http://www.greensock.com
  *
@@ -496,7 +496,7 @@
 				_parseToProxy = _internals._parseToProxy,
 				_setPluginRatio = _internals._setPluginRatio,
 				CSSPropTween = _internals.CSSPropTween;
-			_internals._registerComplexSpecialProp("bezier", null, function(t, e, prop, cssp, pt, plugin) {
+			_internals._registerComplexSpecialProp("bezier", {parser:function(t, e, prop, cssp, pt, plugin) {
 				if (e instanceof Array) {
 					e = {values:e};
 				}
@@ -536,7 +536,7 @@
 				}
 				plugin._onInitTween(data.proxy, v, cssp._tween);
 				return pt;
-			});
+			}});
 		};
 
 		p._roundProps = function(lookup, value) {

@@ -1,6 +1,6 @@
 /*!
- * VERSION: beta 1.9.0
- * DATE: 2013-02-27
+ * VERSION: beta 1.9.1
+ * DATE: 2013-03-16
  * JavaScript (ActionScript 3 and 2 also available)
  * UPDATES AND DOCS AT: http://www.greensock.com
  *
@@ -24,21 +24,23 @@
 				this.smoothChildTiming = (this.vars.smoothChildTiming === true);
 				this._sortChildren = true;
 				this._onUpdate = this.vars.onUpdate;
-				var i = _paramProps.length,
+				var v = this.vars,
+					i = _paramProps.length,
 					j, a;
 				while (--i > -1) {
-					if ((a = this.vars[_paramProps[i]])) {
+					a = v[_paramProps[i]];
+					if (a) {
 						j = a.length;
 						while (--j > -1) {
 							if (a[j] === "{self}") {
-								a = this.vars[_paramProps[i]] = a.concat(); //copy the array in case the user referenced the same array in multiple timelines/tweens (each {self} should be unique)
+								a = v[_paramProps[i]] = a.concat(); //copy the array in case the user referenced the same array in multiple timelines/tweens (each {self} should be unique)
 								a[j] = this;
 							}
 						}
 					}
 				}
-				if (this.vars.tweens instanceof Array) {
-					this.add(this.vars.tweens, 0, this.vars.align, this.vars.stagger);
+				if (v.tweens instanceof Array) {
+					this.add(v.tweens, 0, v.align, v.stagger);
 				}
 			},
 			_paramProps = ["onStartParams","onUpdateParams","onCompleteParams","onReverseCompleteParams","onRepeatParams"],
@@ -52,7 +54,7 @@
 			},
 			p = TimelineLite.prototype = new SimpleTimeline();
 
-		TimelineLite.version = "1.9.0";
+		TimelineLite.version = "1.9.1";
 		p.constructor = TimelineLite;
 		p.kill()._gc = false;
 		
@@ -83,7 +85,7 @@
 			}
 			stagger = stagger || 0;
 			for (i = 0; i < targets.length; i++) {
-				if (vars.startAt != null) {
+				if (vars.startAt) {
 					vars.startAt = _copy(vars.startAt);
 				}
 				tl.add( new TweenLite(targets[i], duration, _copy(vars)), i * stagger);
@@ -92,9 +94,7 @@
 		};
 		
 		p.staggerFrom = function(targets, duration, vars, stagger, position, onCompleteAll, onCompleteAllParams, onCompleteAllScope) {
-			if (vars.immediateRender == null) {
-				vars.immediateRender = true;
-			}
+			vars.immediateRender = (vars.immediateRender != false);
 			vars.runBackwards = true;
 			return this.staggerTo(targets, duration, vars, stagger, position, onCompleteAll, onCompleteAllParams, onCompleteAllScope);
 		};
@@ -174,7 +174,7 @@
 				} else if (typeof(value) === "function") {
 					value = TweenLite.delayedCall(0, value);
 				} else {
-					throw("Cannot add " + value + " into the TimelineLite/Max: it is neither a tween, timeline, function, nor a String.");
+					throw("Cannot add " + value + " into the timeline: it is neither a tween, timeline, function, nor a string.");
 				}
 			}
 
@@ -280,7 +280,7 @@
 		};
 	
 		p.gotoAndPlay = function(position, suppressEvents) {
-			return SimpleTimeline.prototype.play.call(this, position, suppressEvents);
+			return this.play(position, suppressEvents);
 		};
 		
 		p.gotoAndStop = function(position, suppressEvents) {
@@ -291,20 +291,20 @@
 			if (this._gc) {
 				this._enabled(true, false);
 			}
-			this._active = !this._paused; 
+			this._active = !this._paused;
 			var totalDur = (!this._dirty) ? this._totalDuration : this.totalDuration(), 
 				prevTime = this._time, 
 				prevStart = this._startTime, 
 				prevTimeScale = this._timeScale, 
 				prevPaused = this._paused,
-				tween, isComplete, next, callback;
+				tween, isComplete, next, callback, internalForce;
 			if (time >= totalDur) {
 				this._totalTime = this._time = totalDur;
 				if (!this._reversed) if (!this._hasPausedChild()) {
 					isComplete = true;
 					callback = "onComplete";
 					if (this._duration === 0) if (time === 0 || this._rawPrevTime < 0) if (this._rawPrevTime !== time) { //In order to accommodate zero-duration timelines, we must discern the momentum/direction of time in order to render values properly when the "playhead" goes past 0 in the forward direction or lands directly on it, and also when it moves past it in the backward direction (from a postitive time to a negative time).
-						force = true;
+						internalForce = true;
 					}
 				}
 				this._rawPrevTime = time;
@@ -319,10 +319,10 @@
 				if (time < 0) {
 					this._active = false;
 					if (this._duration === 0) if (this._rawPrevTime >= 0) { //zero-duration timelines are tricky because we must discern the momentum/direction of time in order to determine whether the starting values should be rendered or the ending values. If the "playhead" of its timeline goes past the zero-duration tween in the forward direction or lands directly on it, the end values should be rendered, but if the timeline's "playhead" moves past it in the backward direction (from a postitive time to a negative time), the starting values must be rendered.
-						force = true;
+						internalForce = true;
 					}
 				} else if (!this._initted) {
-					force = true;
+					internalForce = true;
 				}
 				this._rawPrevTime = time;
 				time = -0.000001; //to avoid occasional floating point rounding errors in Flash - sometimes child tweens/timelines were not being rendered at the very beginning (their progress might be 0.000000000001 instead of 0 because when Flash performed _time - tween._startTime, floating point errors would return a value that was SLIGHTLY off)
@@ -331,7 +331,7 @@
 				this._totalTime = this._time = this._rawPrevTime = time;
 			}
 			
-			if (this._time === prevTime && !force) {
+			if (this._time === prevTime && !force && !internalForce) {
 				return;
 			} else if (!this._initted) {
 				this._initted = true;
@@ -457,6 +457,7 @@
 		p.shiftChildren = function(amount, adjustLabels, ignoreBeforeTime) {
 			ignoreBeforeTime = ignoreBeforeTime || 0;
 			var tween = this._first,
+				labels = this._labels,
 				p;
 			while (tween) {
 				if (tween._startTime >= ignoreBeforeTime) {
@@ -465,9 +466,9 @@
 				tween = tween._next;
 			}
 			if (adjustLabels) {
-				for (p in this._labels) {
-					if (this._labels[p] >= ignoreBeforeTime) {
-						this._labels[p] += amount;
+				for (p in labels) {
+					if (labels[p] >= ignoreBeforeTime) {
+						labels[p] += amount;
 					}
 				}
 			}
@@ -475,10 +476,10 @@
 		};
 		
 		p._kill = function(vars, target) {
-			if (vars == null) if (target == null) {
+			if (!vars && !target) {
 				return this._enabled(false, false);
 			}
-			var tweens = (target == null) ? this.getChildren(true, true, false) : this.getTweensOf(target),
+			var tweens = (!target) ? this.getChildren(true, true, false) : this.getTweensOf(target),
 				i = tweens.length, 
 				changed = false;
 			while (--i > -1) {
@@ -533,7 +534,7 @@
 				}
 				return this._duration;
 			}
-			if (this.duration() !== 0) if (value !== 0) {
+			if (this.duration() !== 0 && value !== 0) {
 				this.timeScale(this._duration / value);
 			}
 			return this;

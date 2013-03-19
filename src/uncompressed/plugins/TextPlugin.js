@@ -1,6 +1,6 @@
 /*!
- * VERSION: 0.3.0
- * DATE: 2013-02-25
+ * VERSION: 0.3.1
+ * DATE: 2013-03-18
  * JavaScript 
  * UPDATES AND DOCS AT: http://www.greensock.com
  *
@@ -55,13 +55,13 @@
 						this._hasClass = true;
 					}
 					var i = this._original.length - this._text.length,
-						short = (i < 0) ? this._original : this._text;
+						shrt = (i < 0) ? this._original : this._text;
 					this._fillChar = value.fillChar || (i > 0 && this._delimiter === "") ? "&nbsp;" : "";
 					if (i < 0) {
 						i = -i;
 					}
 					while (--i > -1) {
-						short.push(this._fillChar);
+						shrt.push(this._fillChar);
 					}
 					return true;
 				},
