@@ -1,6 +1,6 @@
 /*!
- * VERSION: beta 1.9.0
- * DATE: 2013-03-01
+ * VERSION: beta 1.9.1
+ * DATE: 2013-03-18
  * JavaScript 
  * UPDATES AND DOCS AT: http://www.greensock.com
  *
@@ -29,7 +29,7 @@
 			p = CSSPlugin.prototype = new TweenPlugin("css");
 
 		p.constructor = CSSPlugin;
-		CSSPlugin.version = "1.9.0";
+		CSSPlugin.version = "1.9.1";
 		CSSPlugin.API = 2;
 		CSSPlugin.defaultTransformPerspective = 0;
 		p = "px"; //we'll reuse the "p" variable to keep file size down
@@ -52,6 +52,7 @@
 			_horizExp = /(?:Left|Right|Width)/i,
 			_ieGetMatrixExp = /(M11|M12|M21|M22)=[\d\-\.e]+/gi,
 			_ieSetMatrixExp = /progid\:DXImageTransform\.Microsoft\.Matrix\(.+?\)/i,
+			_commasOutsideParenExp = /,(?=[^\)]*(?:\(|$))/gi, //finds any commas that are not within parenthesis
 			_DEG2RAD = Math.PI / 180,
 			_RAD2DEG = 180 / Math.PI,
 			_forcePT = {},
@@ -329,9 +330,11 @@
 			 * @private Translates strings like "40deg" or "40" or 40rad" or "+=40deg" or "270_short" or "-90_cw" or "+=45_ccw" to a numeric radian angle. Of course a starting/default value must be fed in too so that relative values can be calculated properly.
 			 * @param {Object} v Value to be parsed
 			 * @param {!number} d Default value (which is also used for relative calculations if "+=" or "-=" is found in the first parameter)
+			 * @param {string=} p property name for directionalEnd (optional - only used when the parsed value is directional ("_short", "_cw", or "_ccw" suffix). We need a way to store the uncompensated value so that at the end of the tween, we set it to exactly what was requested with no directional compensation). Property name would be "rotation", "rotationX", or "rotationY"
+			 * @param {Object=} directionalEnd An object that will store the raw end values for directional angles ("_short", "_cw", or "_ccw" suffix). We need a way to store the uncompensated value so that at the end of the tween, we set it to exactly what was requested with no directional compensation.
 			 * @return {number} parsed angle in radians
 			 */
-			_parseAngle = function(v, d) {
+			_parseAngle = function(v, d, p, directionalEnd) {
 				var min = 0.000001,
 					cap, split, dif, type, result;
 				if (v == null) {
@@ -343,6 +346,9 @@
 					split = v.split("_");
 					dif = Number(split[0].replace(_NaNExp, "")) * ((v.indexOf("rad") === -1) ? _DEG2RAD : 1) - ((v.charAt(1) === "=") ? 0 : d);
 					type = split[1];
+					if (type && directionalEnd) {
+						directionalEnd[p] = d + dif;
+					}
 					if (type === "short") {
 						dif = dif % cap;
 						if (dif !== dif % (cap / 2)) {
@@ -397,11 +403,14 @@
 				if (!v || v === "") {
 					return _colorLookup.black;
 				}
-				if (_colorLookup[v]) {
-					return _colorLookup[v];
-				}
 				if (typeof(v) === "number") {
 					return [v >> 16, (v >> 8) & 255, v & 255];
+				}
+				if (v.charAt(v.length - 1) === ",") { //sometimes a trailing commma is included and we should chop it off (typically from a comma-delimited list of values like a textShadow:"2px 2px 2px blue, 5px 5px 5px rgb(255,0,0)" - in this example "blue," has a trailing comma. We could strip it out inside parseComplex() but we'd need to do it to the beginning and ending values plus it wouldn't provide protection from other potential scenarios like if the user passes in a similar value.
+					v = v.substr(0, v.length - 1);
+				}
+				if (_colorLookup[v]) {
+					return _colorLookup[v];
 				}
 				if (v.charAt(0) === "#") {
 					if (v.length === 4) { //for shorthand like #9F0
@@ -437,7 +446,7 @@
 				}
 				return v;
 			},
-			_colorExp = "(?:\\b(?:(?:rgb|rgba)\\(.+?\\))|\\B#.+?\\b"; //we'll dynamically build this Regular Expression to conserve file size. After building it, it will be able to find rgb(), rgba(), # (hexadecimal), and named color values like red, blue, purple, etc.
+			_colorExp = "(?:\\b(?:(?:rgb|rgba|hsl|hsla)\\(.+?\\))|\\B#.+?\\b"; //we'll dynamically build this Regular Expression to conserve file size. After building it, it will be able to find rgb(), rgba(), # (hexadecimal), and named color values like red, blue, purple, etc.
 
 		for (p in _colorLookup) {
 			_colorExp += "|" + p + "\\b";
@@ -451,7 +460,7 @@
 		 * @param {boolean=} collapsible If true, the value is a top/left/right/bottom style one that acts like margin or padding, where if only one value is received, it's used for all 4; if 2 are received, the first is duplicated for 3rd (bottom) and the 2nd is duplicated for the 4th spot (left), etc.
 		 * @return {Function} formatter function
 		 */
-		var _getFormatter = function(dflt, clr, collapsible) {
+		var _getFormatter = function(dflt, clr, collapsible, multi) {
 				if (dflt == null) {
 					return function(v) {return v;};
 				}
@@ -461,33 +470,49 @@
 					sfx = (dflt.charAt(dflt.length - 1) === ")") ? ")" : "",
 					delim = (dflt.indexOf(" ") !== -1) ? " " : ",",
 					numVals = dVals.length,
-					dSfx = (numVals > 0) ? dVals[0].replace(_numExp, "") : "";
+					dSfx = (numVals > 0) ? dVals[0].replace(_numExp, "") : "",
+					formatter;
 				if (!numVals) {
 					return function(v) {return v;};
 				}
 				if (clr) {
-					return function(v) {
+					formatter = function(v) {
+						var color, vals, i, a;
 						if (typeof(v) === "number") {
 							v += dSfx;
+						} else if (multi && _commasOutsideParenExp.test(v)) {
+							a = v.replace(_commasOutsideParenExp, "|").split("|");
+							for (i = 0; i < a.length; i++) {
+								a[i] = formatter(a[i]);
+							}
+							return a.join(",");
 						}
-						var color = (v.match(_colorExp) || [dColor])[0],
-							vals = v.split(color).join("").match(_valuesExp) || [],
-							i = vals.length;
+						color = (v.match(_colorExp) || [dColor])[0];
+						vals = v.split(color).join("").match(_valuesExp) || [];
+						i = vals.length;
 						if (numVals > i--) {
 							while (++i < numVals) {
 								vals[i] = collapsible ? vals[(((i - 1) / 2) >> 0)] : dVals[i];
 							}
 						}
-						return pfx + vals.join(delim) + delim + color + sfx;
+						return pfx + vals.join(delim) + delim + color + sfx + (v.indexOf("inset") !== -1 ? " inset" : "");
 					};
+					return formatter;
 
 				}
-				return function(v) {
+				formatter = function(v) {
+					var vals, a, i;
 					if (typeof(v) === "number") {
 						v += dSfx;
+					} else if (multi && _commasOutsideParenExp.test(v)) {
+						a = v.replace(_commasOutsideParenExp, "|").split("|");
+						for (i = 0; i < a.length; i++) {
+							a[i] = formatter(a[i]);
+						}
+						return a.join(",");
 					}
-					var vals = v.match(_valuesExp) || [],
-						i = vals.length;
+					vals = v.match(_valuesExp) || [];
+					i = vals.length;
 					if (numVals > i--) {
 						while (++i < numVals) {
 							vals[i] = collapsible ? vals[(((i - 1) / 2) >> 0)] : dVals[i];
@@ -495,6 +520,7 @@
 					}
 					return pfx + vals.join(delim) + sfx;
 				};
+				return formatter;
 			},
 
 			/**
@@ -703,11 +729,17 @@
 			_parseComplex = CSSPlugin.parseComplex = function(t, p, b, e, clrs, dflt, pt, pr, plugin, setRatio) {
 				//DEBUG: _log("parseComplex: "+p+", b: "+b+", e: "+e);
 				pt = new CSSPropTween(t, p, 0, 0, pt, (setRatio ? 2 : 1), null, false, pr, b, e);
+				e += ""; //ensures it's a string
 				var ba = b.split(", ").join(",").split(" "), //beginning array
-					ea = (e + "").split(", ").join(",").split(" "), //ending array
+					ea = e.split(", ").join(",").split(" "), //ending array
 					l = ba.length,
 					autoRound = (_autoRound !== false),
 					i, xi, ni, bv, ev, bnums, enums, bn, rgba, temp, cv, str;
+				if (e.indexOf(",") !== -1 || b.indexOf(",") !== -1) {
+					ba = ba.join(" ").replace(_commasOutsideParenExp, ", ").split(" ");
+					ea = ea.join(" ").replace(_commasOutsideParenExp, ", ").split(" ");
+					l = ba.length;
+				}
 				if (l !== ea.length) {
 					//DEBUG: _log("mismatched formatting detected on " + p + " (" + b + " vs " + e + ")");
 					ba = (dflt || "").split(" ");
@@ -725,11 +757,11 @@
 						pt.appendXtra("", bn, _parseChange(ev, bn), ev.replace(_relNumExp, ""), (autoRound && ev.indexOf("px") !== -1), true);
 
 					//if the value is a color
-					} else if (clrs && (bv.charAt(0) === "#" || bv.indexOf("rgb") === 0 || _colorLookup[bv])) {
+					} else if (clrs && (bv.charAt(0) === "#" || bv.indexOf("rgb") === 0 || _colorLookup[bv] || bv.indexOf("hsl") === 0)) {
+						str = ev.charAt(ev.length - 1) === "," ? ")," : ")"; //if there's a comma at the end, retain it.
 						bv = _parseColor(bv);
 						ev = _parseColor(ev);
 						rgba = (bv.length + ev.length > 6);
-
 						if (rgba && !_supportsOpacity && ev[3] === 0) { //older versions of IE don't support rgba(), so if the destination alpha is 0, just use "transparent" for the end color
 							pt["xs" + pt.l] += pt.l ? " transparent" : "transparent";
 							pt.e = pt.e.split(ea[i]).join("transparent");
@@ -739,10 +771,10 @@
 							}
 							pt.appendXtra((rgba ? "rgba(" : "rgb("), bv[0], ev[0] - bv[0], ",", true, true)
 								.appendXtra("", bv[1], ev[1] - bv[1], ",", true)
-								.appendXtra("", bv[2], ev[2] - bv[2], (rgba ? "," : ")"), true);
+								.appendXtra("", bv[2], ev[2] - bv[2], (rgba ? "," : str), true);
 							if (rgba) {
 								bv = (bv.length < 4) ? 1 : bv[3];
-								pt.appendXtra("", bv, ((ev.length < 4) ? 1 : ev[3]) - bv, ")", false);
+								pt.appendXtra("", bv, ((ev.length < 4) ? 1 : ev[3]) - bv, str, false);
 							}
 						}
 
@@ -842,40 +874,53 @@
 		/**
 		 * @constructor A SpecialProp is basically a css property that needs to be treated in a non-standard way, like if it may contain a complex value like boxShadow:"5px 10px 15px rgb(255, 102, 51)" or if it is associated with another plugin like ThrowPropsPlugin or BezierPlugin. Every SpecialProp is associated with a particular property name like "boxShadow" or "throwProps" or "bezier" and it will intercept those values in the vars object that's passed to the CSSPlugin and handle them accordingly.
 		 * @param {!string} p Property name (like "boxShadow" or "throwProps")
-		 * @param {(string|number)=} dflt Default starting value.
-		 * @param {function(Object, Object, Object, Object):CSSPropTween=} parser A function that should be called when the associated property name is found in the vars. This function should return a CSSPropTween instance and it should ensure that it is properly inserted into the linked list. It will receive 4 paramters: 1) The target, 2) The value defined in the vars, 3) The CSSPlugin instance (whose _firstPT should be used for the linked list), and 4) A computed style object if one was calculated (this is a speed optimization that allows retrieval of starting values quicker)
-		 * @param {boolean=} vpfx If true, the property will be checked to see if a vendor prefix is necessary and if so, it will be used.
-		 * @param {boolean=} clrs If true, the special property may contain color values. Many do not in which case we can skip some processing steps when analyzing the starting/ending values.
-		 * @param {function(string):string=} formatter Function that takes a string (beginning or ending value) and formats it correctly, like for boxShadow it could take "5px 5px red" and format it to "5px 5px 0px 0px red" so that both the beginning and ending values have a common order and quantity of values.
-		 * @param {number=} pr Priority in the linked list order. Higher priority SpecialProps will be updated before lower priority ones. The default priority is 0.
+		 * @param {Object=} options An object containing any of the following configuration options:
+		 *                      - defaultValue: the default value
+		 *                      - parser: A function that should be called when the associated property name is found in the vars. This function should return a CSSPropTween instance and it should ensure that it is properly inserted into the linked list. It will receive 4 paramters: 1) The target, 2) The value defined in the vars, 3) The CSSPlugin instance (whose _firstPT should be used for the linked list), and 4) A computed style object if one was calculated (this is a speed optimization that allows retrieval of starting values quicker)
+		 *                      - formatter: a function that formats any value received for this special property (for example, boxShadow could take "5px 5px red" and format it to "5px 5px 0px 0px red" so that both the beginning and ending values have a common order and quantity of values.)
+		 *                      - prefix: if true, we'll determine whether or not this property requires a vendor prefix (like Webkit or Moz or ms or O)
+		 *                      - color: set this to true if the value for this SpecialProp may contain color-related values like rgb(), rgba(), etc.
+		 *                      - priority: priority in the linked list order. Higher priority SpecialProps will be updated before lower priority ones. The default priority is 0.
+		 *                      - multi: if true, the formatter should accommodate a comma-delimited list of values, like boxShadow could have multiple boxShadows listed out.
+		 *                      - collapsible: if true, the formatter should treat the value like it's a top/right/bottom/left value that could be collapsed, like "5px" would apply to all, "5px, 10px" would use 5px for top/bottom and 10px for right/left, etc.
+		 *                      - keyword: a special keyword that can [optionally] be found inside the value (like "inset" for boxShadow). This allows us to validate beginning/ending values to make sure they match (if the keyword is found in one, it'll be added to the other for consistency by default).
 		 */
-		var SpecialProp = function(p, dflt, parser, vpfx, clrs, formatter, pr) {
-				this.p = vpfx ? _checkPropPrefix(p) || p : p;
+		var SpecialProp = function(p, options) {
+				options = options || {};
+				this.p = options.prefix ? _checkPropPrefix(p) || p : p;
 				_specialProps[p] = _specialProps[this.p] = this;
-				this.format = formatter || _getFormatter(dflt, clrs);
-				if (parser) {
-					this.parse = parser;
+				this.format = options.formatter || _getFormatter(options.defaultValue, options.color, options.collapsible, options.multi);
+				if (options.parser) {
+					this.parse = options.parser;
 				}
-				this.clrs = clrs;
-				this.dflt = dflt;
-				this.pr = pr || 0;
+				this.clrs = options.color;
+				this.multi = options.multi;
+				this.keyword = options.keyword;
+				this.dflt = options.defaultValue;
+				this.pr = options.priority || 0;
 			},
 
 			//shortcut for creating a new SpecialProp that can accept multiple properties as a comma-delimited list (helps minification). dflt can be an array for multiple values (we don't do a comma-delimited list because the default value may contain commas, like rect(0px,0px,0px,0px)). We attach this method to the SpecialProp class/object instead of using a private _createSpecialProp() method so that we can tap into it externally if necessary, like from another plugin.
-			_registerComplexSpecialProp = _internals._registerComplexSpecialProp = function(p, dflt, parser, vpfx, clrs, formatter, pr) {
+			_registerComplexSpecialProp = _internals._registerComplexSpecialProp = function(p, options, defaults) {
+				if (typeof(options) !== "object") {
+					options = {parser:defaults}; //to make backwards compatible with older versions of BezierPlugin and ThrowPropsPlugin
+				}
 				var a = p.split(","),
-					da = (dflt instanceof Array) ? dflt : [dflt],
-					i = a.length,
-					temp;
-				while (--i > -1) {
-					temp = new SpecialProp(a[i], da[i], parser, (vpfx && i === 0), clrs, formatter, pr);
+					d = options.defaultValue,
+					i, temp;
+				defaults = defaults || [d];
+				for (i = 0; i < a.length; i++) {
+					options.prefix = (i === 0 && options.prefix);
+					options.defaultValue = defaults[i] || d;
+					temp = new SpecialProp(a[i], options);
 				}
 			},
+
 			//creates a placeholder special prop for a plugin so that the property gets caught the first time a tween of it is attempted, and at that time it makes the plugin register itself, thus taking over for all future tweens of that property. This allows us to not mandate that things load in a particular order and it also allows us to log() an error that informs the user when they attempt to tween an external plugin-related property without loading its .js file.
 			_registerPluginProp = function(p) {
 				if (!_specialProps[p]) {
 					var pluginName = p.charAt(0).toUpperCase() + p.substr(1) + "Plugin";
-					_registerComplexSpecialProp(p, null, function(t, e, p, cssp, pt, plugin, vars) {
+					_registerComplexSpecialProp(p, {parser:function(t, e, p, cssp, pt, plugin, vars) {
 						var pluginClass = (window.GreenSockGlobals || window).com.greensock.plugins[pluginName];
 						if (!pluginClass) {
 							_log("Error: " + pluginName + " js file not loaded.");
@@ -883,7 +928,7 @@
 						}
 						pluginClass._cssRegister();
 						return _specialProps[p].parse(t, e, p, cssp, pt, plugin, vars);
-					});
+					}});
 				}
 			};
 
@@ -891,7 +936,7 @@
 		p = SpecialProp.prototype;
 
 		/**
-		 * Alias for _parseComplex() that automatically plugs in certain values for this SpecialProp, like its property name, whether or not colors should be sensed, the default value, and priority.
+		 * Alias for _parseComplex() that automatically plugs in certain values for this SpecialProp, like its property name, whether or not colors should be sensed, the default value, and priority. It also looks for any keyword that the SpecialProp defines (like "inset" for boxShadow) and ensures that the beginning and ending values have the same number of values for SpecialProps where multi is true (like boxShadow and textShadow can have a comma-delimited list)
 		 * @param {!Object} t target element
 		 * @param {(string|number|object)} b beginning value
 		 * @param {(string|number|object)} e ending (destination) value
@@ -901,6 +946,33 @@
 		 * @return {CSSPropTween=} First CSSPropTween in the linked list
 		 */
 		p.parseComplex = function(t, b, e, pt, plugin, setRatio) {
+			var kwd = this.keyword,
+				i, ba, ea, l, bi, ei;
+			//if this SpecialProp's value can contain a comma-delimited list of values (like boxShadow or textShadow), we must parse them in a special way, and look for a keyword (like "inset" for boxShadow) and ensure that the beginning and ending BOTH have it if the end defines it as such. We also must ensure that there are an equal number of values specified (we can't tween 1 boxShadow to 3 for example)
+			if (this.multi) if (_commasOutsideParenExp.test(e) || _commasOutsideParenExp.test(b)) {
+				ba = b.replace(_commasOutsideParenExp, "|").split("|");
+				ea = e.replace(_commasOutsideParenExp, "|").split("|");
+			} else if (kwd) {
+				ba = [b];
+				ea = [e];
+			}
+			if (ea) {
+				l = (ea.length > ba.length) ? ea.length : ba.length;
+				for (i = 0; i < l; i++) {
+					b = ba[i] = ba[i] || this.dflt;
+					e = ea[i] = ea[i] || this.dflt;
+					if (kwd) {
+						bi = b.indexOf(kwd);
+						ei = e.indexOf(kwd);
+						if (bi !== ei) {
+							e = (ei === -1) ? ea : ba;
+							e[i] += " " + kwd;
+						}
+					}
+				}
+				b = ba.join(", ");
+				e = ea.join(", ");
+			}
 			return _parseComplex(t, this.p, b, e, this.clrs, this.dflt, pt, this.pr, plugin, setRatio);
 		};
 
@@ -948,12 +1020,12 @@
 		 * @param {number=} priority Priority that helps the engine determine the order in which to set the properties (default: 0). Higher priority properties will be updated before lower priority ones.
 		 */
 		CSSPlugin.registerSpecialProp = function(name, onInitTween, priority) {
-			_registerComplexSpecialProp(name, null, function(t, e, p, cssp, pt, plugin, vars) {
+			_registerComplexSpecialProp(name, {parser:function(t, e, p, cssp, pt, plugin, vars) {
 				var rv = new CSSPropTween(t, p, 0, 0, pt, 2, p, false, priority);
 				rv.plugin = plugin;
 				rv.setRatio = onInitTween(t, e, cssp._tween, p);
 				return rv;
-			}, false, false, null, priority);
+			}, priority:priority});
 		};
 		
 		
@@ -964,7 +1036,7 @@
 
 
 		//transform-related methods and properties
-		var _transformProps = ["scaleX","scaleY","scaleZ","x","y","z","skewX","rotation","rotationX","rotationY","perspective"],
+		var _transformProps = ("scaleX,scaleY,scaleZ,x,y,z,skewX,rotation,rotationX,rotationY,perspective").split(","),
 			_transformProp = _checkPropPrefix("transform"), //the Javascript (camelCase) transform property, like msTransform, WebkitTransform, MozTransform, or OTransform.
 			_transformPropCSS = _prefixCSS + "transform",
 			_transformOriginProp = _checkPropPrefix("transformOrigin"),
@@ -1294,50 +1366,6 @@
 				a34 = (t1 = (a34 += t.z) - (a34 |= 0)) ? ((t1 * rnd + (t1 < 0 ? -0.5 : 0.5)) | 0) / rnd + a34 : a34;
 
 				style[_transformProp] = "matrix3d(" + (((a11 * rnd) >> 0) / rnd) + cma + (((a21 * rnd) >> 0) / rnd) + cma + (((a31 * rnd) >> 0) / rnd) + cma + (((a41 * rnd) >> 0) / rnd) + cma	+ (((a12 * rnd) >> 0) / rnd) + cma + (((a22 * rnd) >> 0) / rnd) + cma + (((a32 * rnd) >> 0) / rnd) + cma + (((a42 * rnd) >> 0) / rnd) + cma + (((a13 * rnd) >> 0) / rnd) + cma + (((a23 * rnd) >> 0) / rnd) + cma + (((a33 * rnd) >> 0) / rnd) + cma + (((a43 * rnd) >> 0) / rnd) + cma + a14 + cma + a24 + cma + a34 + cma + (perspective ? (1 + (-a34 / perspective)) : 1) + ")";
-
-				/* alternate version that is more concise but not as fast in most scenarios. We chose the more verbose matrix3d() technique for maximum performance.
-				var t = this.data, //refers to the element's _gsTransform object
-					style = this.t.style,
-					s = "",
-					rnd = 10000,
-					zOrigin = (((t.zOrigin * rnd) >> 0) / rnd),
-					top, n, sfx;
-				if (_isFirefox) { //Firefox has a bug that causes 3D elements to randomly disappear during animation unless a repaint is forced. One way to do this is change "top" by 0.05 which is imperceptible, so we go back and forth. Another way is to change the display to "none", read the clientTop, and then revert the display but that is much slower.
-					top = style.top + "";
-					n = parseFloat(top) || 0;
-					sfx = top.substr((n + "").length);
-					t._ffFix = !t._ffFix;
-					style.top = (t._ffFix ? n + 0.05 : n - 0.05) + ((sfx === "") ? "px" : sfx);
-				}
-				if (t.perspective) {
-					s = "perspective(" + t.perspective + ") ";
-				}
-				if (t.x || t.y || t.z) {
-					s += "translate3d(" + (((t.x * rnd) >> 0) / rnd)  + "px," + (((t.y * rnd) >> 0) / rnd)  + "px," + (((t.z * rnd) >> 0) / rnd)  + "px) ";
-				}
-				if (zOrigin) {
-					s += "translateZ(" + zOrigin + "px) ";
-				}
-				if (t.scaleX !== 1 || t.scaleY !== 1 || t.scaleZ !== 1) {
-					s += "scale3d(" + (((t.scaleX * rnd) >> 0) / rnd)  + "," + (((t.scaleY * rnd) >> 0) / rnd)  + "," + (((t.scaleZ * rnd) >> 0) / rnd)  + ") ";
-				}
-				if (t.rotation) {
-					s += "rotateZ(" + (((t.rotation * rnd) >> 0) / rnd)  + "rad) ";
-				}
-				if (t.rotationY) {
-					s += "rotateY(" + (((t.rotationY * rnd) >> 0) / rnd) + "rad) ";
-				}
-				if (t.rotationX) {
-					s += "rotateX(" + (((t.rotationX * rnd) >> 0) / rnd) + "rad) ";
-				}
-				if (zOrigin) {
-					s += "translateZ(" + -zOrigin + "px)";
-				}
-				style[_transformProp] = s;
-				*/
-
-				//alternate way of applying the values (slightly slower but slightly more accurate, although I doubt anyone could ever tell a difference) (add a var min = 0.000001)
-				//style[_transformProp] = "matrix3d(" + ((a11 < min && a11 > -min) ? 0 : a11) + cma + ((a21 < min && a21 > -min) ? 0 : a21) + cma + ((a31 < min && a31 > -min) ? 0 : a31) + cma + ((a41 < min && a41 > -min) ? 0 : a41) + cma	+ ((a12 < min && a12 > -min) ? 0 : a12) + cma	+ ((a22 < min && a22 > -min) ? 0 : a22) + cma	+ ((a32 < min && a32 > -min) ? 0 : a32) + cma	+ ((a42 < min && a42 > -min) ? 0 : a42) + cma	+ ((a13 < min && a13 > -min) ? 0 : a13) + cma	+ ((a23 < min && a23 > -min) ? 0 : a23) + cma	+ ((a33 < min && a33 > -min) ? 0 : a33) + cma	+ ((a43 < min && a43 > -min) ? 0 : a43) + cma	+ ((a14 < min && a14 > -min) ? 0 : a14) + cma + ((a24 < min && a24 > -min) ? 0 : a24) + cma + a34 + cma + (perspective ? (1 + (-a34 / perspective)) : 1) + ")";
 			},
 			_set2DTransformRatio = function(v) {
 				var t = this.data, //refers to the element's _gsTransform object
@@ -1363,13 +1391,14 @@
 				}
 			};
 
-		_registerComplexSpecialProp("transform,scale,scaleX,scaleY,scaleZ,x,y,z,rotation,rotationX,rotationY,rotationZ,skewX,skewY,shortRotation,shortRotationX,shortRotationY,shortRotationZ,transformOrigin,transformPerspective,directionalRotation", null, function(t, e, p, cssp, pt, plugin, vars) {
+		_registerComplexSpecialProp("transform,scale,scaleX,scaleY,scaleZ,x,y,z,rotation,rotationX,rotationY,rotationZ,skewX,skewY,shortRotation,shortRotationX,shortRotationY,shortRotationZ,transformOrigin,transformPerspective,directionalRotation", {parser:function(t, e, p, cssp, pt, plugin, vars) {
 			if (cssp._transform) { return pt; } //only need to parse the transform once, and only if the browser supports it.
 			var m1 = cssp._transform = _getTransform(t, _cs, true),
 				style = t.style,
 				min = 0.000001,
 				i = _transformProps.length,
 				v = vars,
+				endRotations = {},
 				m2, skewY, copy, orig, has3D, hasChange, dr;
 
 			if (typeof(v.transform) === "string" && _transformProp) { //for values like transform:"rotate(60deg) scale(0.5, 0.8)"
@@ -1396,10 +1425,10 @@
 						v.rotation = dr;
 					}
 				}
-				m2.rotation = _parseAngle(("rotation" in v) ? v.rotation : ("shortRotation" in v) ? v.shortRotation + "_short" : ("rotationZ" in v) ? v.rotationZ : (m1.rotation * _RAD2DEG), m1.rotation);
+				m2.rotation = _parseAngle(("rotation" in v) ? v.rotation : ("shortRotation" in v) ? v.shortRotation + "_short" : ("rotationZ" in v) ? v.rotationZ : (m1.rotation * _RAD2DEG), m1.rotation, "rotation", endRotations);
 				if (_supports3D) {
-					m2.rotationX = _parseAngle(("rotationX" in v) ? v.rotationX : ("shortRotationX" in v) ? v.shortRotationX + "_short" : (m1.rotationX * _RAD2DEG) || 0, m1.rotationX);
-					m2.rotationY = _parseAngle(("rotationY" in v) ? v.rotationY : ("shortRotationY" in v) ? v.shortRotationY + "_short" : (m1.rotationY * _RAD2DEG) || 0, m1.rotationY);
+					m2.rotationX = _parseAngle(("rotationX" in v) ? v.rotationX : ("shortRotationX" in v) ? v.shortRotationX + "_short" : (m1.rotationX * _RAD2DEG) || 0, m1.rotationX, "rotationX", endRotations);
+					m2.rotationY = _parseAngle(("rotationY" in v) ? v.rotationY : ("shortRotationY" in v) ? v.shortRotationY + "_short" : (m1.rotationY * _RAD2DEG) || 0, m1.rotationY, "rotationY", endRotations);
 				}
 				m2.skewX = (v.skewX == null) ? m1.skewX : _parseAngle(v.skewX, m1.skewX);
 
@@ -1422,6 +1451,9 @@
 				if (orig > min || orig < -min || _forcePT[p] != null) {
 					hasChange = true;
 					pt = new CSSPropTween(m1, p, m1[p], orig, pt);
+					if (p in endRotations) {
+						pt.e = endRotations[p]; //directional rotations typically have compensated values during the tween, but we need to make sure they end at exactly what the user requested
+					}
 					pt.xs0 = 0; //ensures the value stays numeric in setRatio()
 					pt.plugin = plugin;
 					cssp._overwriteProps.push(pt.n);
@@ -1459,45 +1491,11 @@
 				cssp._transformType = (has3D || this._transformType === 3) ? 3 : 2; //quicker than calling cssp._enableTransforms();
 			}
 			return pt;
-		}, true);
+		}, prefix:true});
 
-		/* [unused] multiplies 4x4 matricies
-		function multiply3D(a, b) {
-			var c = [],
-				a11 = a[0], a21 = a[1], a31 = a[2], a41 = a[3],
-				a12 = a[4], a22 = a[5], a32 = a[6], a42 = a[7],
-				a13 = a[8], a23 = a[9], a33 = a[10], a43 = a[11],
-				a14 = a[12], a24 = a[13], a34 = a[14], a44 = a[15],
-				b11 = b[0], b21 = b[1], b31 = b[2], b41 = b[3],
-				b12 = b[4], b22 = b[5], b32 = b[6], b42 = b[7],
-				b13 = b[8], b23 = b[9], b33 = b[10], b43 = b[11],
-				b14 = b[12], b24 = b[13], b34 = b[14], b44 = b[15];
-			c[0] = a11*b11+a12*b21+a13*b31+a14*b41; //a11
-			c[1] = a21*b11+a22*b21+a23*b31+a24*b41; //a21
-			c[2] = a31*b11+a32*b21+a33*b31+a34*b41; //a31
-			c[3] = a41*b11+a42*b21+a43*b31+a44*b41; //a41
-			c[4] = a11*b12+a12*b22+a13*b32+a14*b42; //a12
-			c[5] = a21*b12+a22*b22+a23*b32+a24*b42; //a22
-			c[6] = a31*b12+a32*b22+a33*b32+a34*b42; //a32
-			c[7] = a41*b12+a42*b22+a43*b32+a44*b42; //a42
-			c[8] = a11*b13+a12*b23+a13*b33+a14*b43; //a13
-			c[9] = a21*b13+a22*b23+a23*b33+a24*b43; //a23
-			c[10] = a31*b13+a32*b23+a33*b33+a34*b43; //a33
-			c[11] = a41*b13+a42*b23+a43*b33+a44*b43; //a43
-			c[12] = a11*b14+a12*b24+a13*b34+a14*b44; //a14
-			c[13] = a21*b14+a22*b24+a23*b34+a24*b44; //a24
-			c[14] = a31*b14+a32*b24+a33*b34+a34*b44; //a34
-			c[15] = a41*b14+a42*b24+a43*b34+a44*b44; //a44
-			return c;
-		}
-		*/
+		_registerComplexSpecialProp("boxShadow", {defaultValue:"0px 0px 0px 0px #999", prefix:true, color:true, multi:true, keyword:"inset"});
 
-		_registerComplexSpecialProp("boxShadow", "0px 0px 0px 0px #999", function(t, e, p, cssp, pt, plugin) {
-			var inset = ((e+"").indexOf("inset") !== -1) ? " inset" : "";
-			return this.parseComplex(t.style, this.format(_getStyle(t, this.p, _cs, false, this.dflt)) + inset, this.format(e) + inset, pt, plugin);
-		}, true, true);
-
-		_registerComplexSpecialProp("borderRadius", "0px", function(t, e, p, cssp, pt, plugin) {
+		_registerComplexSpecialProp("borderRadius", {defaultValue:"0px", parser:function(t, e, p, cssp, pt, plugin) {
 			e = this.format(e);
 			var props = ["borderTopLeftRadius","borderTopRightRadius","borderBottomRightRadius","borderBottomLeftRadius"],
 				style = t.style,
@@ -1553,8 +1551,8 @@
 				pt = _parseComplex(style, props[i], bs + " " + bs2, es + " " + es2, false, "0px", pt);
 			}
 			return pt;
-		}, true, false, _getFormatter("0px 0px 0px 0px", false, true));
-		_registerComplexSpecialProp("backgroundPosition", "0 0", function(t, e, p, cssp, pt, plugin) {
+		}, prefix:true, formatter:_getFormatter("0px 0px 0px 0px", false, true)});
+		_registerComplexSpecialProp("backgroundPosition", {defaultValue:"0 0", parser:function(t, e, p, cssp, pt, plugin) {
 			var bp = "background-position",
 				cs = (_cs || _getComputedStyle(t, null)),
 				bs = this.format( ((cs) ? _ieVers ? cs.getPropertyValue(bp + "-x") + " " + cs.getPropertyValue(bp + "-y") : cs.getPropertyValue(bp) : t.currentStyle.backgroundPositionX + " " + t.currentStyle.backgroundPositionY) || "0 0"), //Internet Explorer doesn't report background-position correctly - we must query background-position-x and background-position-y and combine them (even in IE10). Before IE9, we must do the same with the currentStyle object and use camelCase
@@ -1579,28 +1577,28 @@
 				}
 			}
 			return this.parseComplex(t.style, bs, es, pt, plugin);
-		}, false, false, _parsePosition); //note: backgroundPosition doesn't support interpreting between px and % (start and end values should use the same units) because doing so would require determining the size of the image itself and that can't be done quickly.
-		_registerComplexSpecialProp("backgroundSize", "0 0", null, false, false, _parsePosition);
-		_registerComplexSpecialProp("perspective", "0px", null, true);
-		_registerComplexSpecialProp("perspectiveOrigin", "50% 50%", null, true);
-		_registerComplexSpecialProp("transformStyle", null, null, true);
-		_registerComplexSpecialProp("backfaceVisibility", null, null, true);
-		_registerComplexSpecialProp("margin", null, _getEdgeParser("marginTop,marginRight,marginBottom,marginLeft"));
-		_registerComplexSpecialProp("padding", null, _getEdgeParser("paddingTop,paddingRight,paddingBottom,paddingLeft"));
-		_registerComplexSpecialProp("clip", "rect(0px,0px,0px,0px)");
-		_registerComplexSpecialProp("textShadow", "0px 0px 0px #999", null, false, true);
-		_registerComplexSpecialProp("autoRound,strictUnits", null, function(t, e, p, cssp, pt) {return pt;}); //just so that we can ignore these properties (not tween them)
-		_registerComplexSpecialProp("border", "0px solid #000", function(t, e, p, cssp, pt, plugin) {
+		}, formatter:_parsePosition}); //note: backgroundPosition doesn't support interpreting between px and % (start and end values should use the same units) because doing so would require determining the size of the image itself and that can't be done quickly.
+		_registerComplexSpecialProp("backgroundSize", {defaultValue:"0 0", formatter:_parsePosition});
+		_registerComplexSpecialProp("perspective", {defaultValue:"0px", prefix:true});
+		_registerComplexSpecialProp("perspectiveOrigin", {defaultValue:"50% 50%", prefix:true});
+		_registerComplexSpecialProp("transformStyle", {prefix:true});
+		_registerComplexSpecialProp("backfaceVisibility", {prefix:true});
+		_registerComplexSpecialProp("margin", {parser:_getEdgeParser("marginTop,marginRight,marginBottom,marginLeft")});
+		_registerComplexSpecialProp("padding", {parser:_getEdgeParser("paddingTop,paddingRight,paddingBottom,paddingLeft")});
+		_registerComplexSpecialProp("clip", {defaultValue:"rect(0px,0px,0px,0px)"});
+		_registerComplexSpecialProp("textShadow", {defaultValue:"0px 0px 0px #999", color:true, multi:true});
+		_registerComplexSpecialProp("autoRound,strictUnits", {parser:function(t, e, p, cssp, pt) {return pt;}}); //just so that we can ignore these properties (not tween them)
+		_registerComplexSpecialProp("border", {defaultValue:"0px solid #000", parser:function(t, e, p, cssp, pt, plugin) {
 				return this.parseComplex(t.style, this.format(_getStyle(t, "borderTopWidth", _cs, false, "0px") + " " + _getStyle(t, "borderTopStyle", _cs, false, "solid") + " " + _getStyle(t, "borderTopColor", _cs, false, "#000")), this.format(e), pt, plugin);
-			}, false, true, function(v) {
+			}, color:true, formatter:function(v) {
 				var a = v.split(" ");
 				return a[0] + " " + (a[1] || "solid") + " " + (v.match(_colorExp) || ["#000"])[0];
-			});
-		_registerComplexSpecialProp("float,cssFloat,styleFloat", null, function(t, e, p, cssp, pt, plugin) {
+			}});
+		_registerComplexSpecialProp("float,cssFloat,styleFloat", {parser:function(t, e, p, cssp, pt, plugin) {
 			var s = t.style,
 				prop = ("cssFloat" in s) ? "cssFloat" : "styleFloat";
 			return new CSSPropTween(s, prop, 0, 0, pt, -1, p, false, 0, s[prop], e);
-		});
+		}});
 
 		//opacity-related
 		var _setIEOpacityRatio = function(v) {
@@ -1628,7 +1626,7 @@
 					}
 				}
 			};
-		_registerComplexSpecialProp("opacity,alpha,autoAlpha", "1", function(t, e, p, cssp, pt, plugin) {
+		_registerComplexSpecialProp("opacity,alpha,autoAlpha", {defaultValue:"1", parser:function(t, e, p, cssp, pt, plugin) {
 			var b = parseFloat(_getStyle(t, "opacity", _cs, false, "1")),
 				style = t.style,
 				vb;
@@ -1656,7 +1654,7 @@
 				pt.setRatio = _setIEOpacityRatio;
 			}
 			return pt;
-		});
+		}});
 
 
 		var _setClassNameRatio = function(v) {
@@ -1677,7 +1675,7 @@
 				this.t.className = this.b;
 			}
 		};
-		_registerComplexSpecialProp("className", null, function(t, e, p, cssp, pt, plugin, vars) {
+		_registerComplexSpecialProp("className", {parser:function(t, e, p, cssp, pt, plugin, vars) {
 			var b = t.className,
 				cssText = t.style.cssText,
 				difData, bs;
@@ -1697,7 +1695,7 @@
 				pt = pt.xfirst = cssp.parse(t, difData.difs, pt, plugin); //we record the CSSPropTween as the xfirst so that we can handle overwriting propertly (if "className" gets overwritten, we must kill all the properties associated with the className part of the tween, so we can loop through from xfirst to the pt itself)
 			}
 			return pt;
-		});
+		}});
 
 
 		var _setClearPropsRatio = function(v) {
@@ -1723,7 +1721,7 @@
 				}
 			}
 		};
-		_registerComplexSpecialProp("clearProps", null, function(t, e, p, cssp, pt) {
+		_registerComplexSpecialProp("clearProps", {parser:function(t, e, p, cssp, pt) {
 			pt = new CSSPropTween(t, p, 0, 0, pt, 2);
 			pt.setRatio = _setClearPropsRatio;
 			pt.e = e;
@@ -1731,7 +1729,7 @@
 			pt.data = cssp._tween;
 			_hasPriority = true;
 			return pt;
-		});
+		}});
 
 		p = "bezier,throwProps,physicsProps,physics2D".split(",");
 		i = p.length;
@@ -1933,7 +1931,7 @@
 							pt.xs0 = esfx;
 							//DEBUG: _log("tween "+p+" from "+pt.b+" ("+bn+esfx+") to "+pt.e+" with suffix: "+pt.xs0);
 						} else if (!es && (es + "" === "NaN" || es == null)) {
-							_log("invalid " + p + " tween value. ");
+							_log("invalid " + p + " tween value: " + vars[p]);
 						} else {
 							pt = new CSSPropTween(style, p, en || bn || 0, 0, pt, -1, "css_" + p, false, 0, bs, es);
 							pt.xs0 = (p === "display" && es === "none") ? bs : es; //intermediate value is typically the same as the end value except for "display"
