@@ -1,6 +1,6 @@
 /*!
- * VERSION: beta 1.2.1
- * DATE: 2013-03-13
+ * VERSION: beta 1.2.2
+ * DATE: 2013-03-25
  * JavaScript (also available in AS3 and AS2)
  * UPDATES AND DOCS AT: http://www.greensock.com
  *
@@ -469,7 +469,7 @@
 								val = Math.atan2(y2 - y1, x2 - x1) * conv + add;
 
 								if (func[p]) {
-									func[p].call(target, val);
+									target[p](val);
 								} else {
 									target[p] = val;
 								}

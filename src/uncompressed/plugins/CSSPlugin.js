@@ -1,6 +1,6 @@
 /*!
- * VERSION: beta 1.9.1
- * DATE: 2013-03-18
+ * VERSION: beta 1.9.2
+ * DATE: 2013-03-25
  * JavaScript 
  * UPDATES AND DOCS AT: http://www.greensock.com
  *
@@ -29,7 +29,7 @@
 			p = CSSPlugin.prototype = new TweenPlugin("css");
 
 		p.constructor = CSSPlugin;
-		CSSPlugin.version = "1.9.1";
+		CSSPlugin.version = "1.9.2";
 		CSSPlugin.API = 2;
 		CSSPlugin.defaultTransformPerspective = 0;
 		p = "px"; //we'll reuse the "p" variable to keep file size down
@@ -195,7 +195,7 @@
 				return s;
 			},
 
-			//@private analyzes two style objects (as returned by _getAllStyles()) and only looks for differences between them that contain tweenable values (like a number or color). It returns an object a "difs" property which refers to an object containing only those isolated properties and values for tweening, and a "firstMPT" property which refers to the first MiniPropTween instance in a linked list that recorded all the starting values of the different properties so that we can revert to them at the end or beginning of the tween - we don't want the cascading to get messed up
+			//@private analyzes two style objects (as returned by _getAllStyles()) and only looks for differences between them that contain tweenable values (like a number or color). It returns an object with a "difs" property which refers to an object containing only those isolated properties and values for tweening, and a "firstMPT" property which refers to the first MiniPropTween instance in a linked list that recorded all the starting values of the different properties so that we can revert to them at the end or beginning of the tween - we don't want the cascading to get messed up
 			_cssDif = function(t, s1, s2, vars) {
 				var difs = {},
 					style = t.style,
@@ -1302,13 +1302,14 @@
 					zOrigin = t.zOrigin,
 					cma = ",",
 					rnd = 100000,
-					cos, sin, t1, t2, t3, t4, top, n, sfx;
-				if (_isFirefox) { //Firefox has a bug that causes 3D elements to randomly disappear during animation unless a repaint is forced. One way to do this is change "top" by 0.05 which is imperceptible, so we go back and forth. Another way is to change the display to "none", read the clientTop, and then revert the display but that is much slower.
-					top = _getStyle(this.t, "top", null, false, "0");
-					n = parseFloat(top) || 0;
-					sfx = top.substr((n + "").length);
+					cos, sin, t1, t2, t3, t4, ffProp, n, sfx;
+				if (_isFirefox) { //Firefox has a bug that causes 3D elements to randomly disappear during animation unless a repaint is forced. One way to do this is change "top" or "bottom" by 0.05 which is imperceptible, so we go back and forth. Another way is to change the display to "none", read the clientTop, and then revert the display but that is much slower.
+					ffProp = style.top ? "top" : style.bottom ? "bottom" : parseFloat(_getStyle(this.t, "top", null, false)) ? "bottom" : "top";
+					t1 = _getStyle(this.t, ffProp, null, false);
+					n = parseFloat(t1) || 0;
+					sfx = t1.substr((n + "").length) || "px";
 					t._ffFix = !t._ffFix;
-					style.top = (t._ffFix ? n + 0.05 : n - 0.05) + ((sfx === "") ? "px" : sfx);
+					style[ffProp] = (t._ffFix ? n + 0.05 : n - 0.05) + sfx;
 				}
 
 				if (angle || t.skewX) {
@@ -1370,16 +1371,18 @@
 			_set2DTransformRatio = function(v) {
 				var t = this.data, //refers to the element's _gsTransform object
 					targ = this.t,
-					top, n, sfx, ang, skew, rnd, sx, sy;
-				if (_isFirefox) { //Firefox has a bug that causes transformed elements to randomly disappear during (or after) animation unless a repaint is forced. One way to do this is change "top" by 0.05 which is imperceptible, so we alternate back and forth. Another way is to change the display to "none", read the clientTop, and then revert the display but that is much slower. The bug is present in at least Firefox 17 and 18
-					top = _getStyle(targ, "top", null, false, "0");
-					n = parseFloat(top) || 0;
-					sfx = top.substr((n + "").length);
+					style = targ.style,
+					ffProp, t1, n, sfx, ang, skew, rnd, sx, sy;
+				if (_isFirefox) { //Firefox has a bug that causes elements to randomly disappear during animation unless a repaint is forced. One way to do this is change "top" or "bottom" by 0.05 which is imperceptible, so we go back and forth. Another way is to change the display to "none", read the clientTop, and then revert the display but that is much slower.
+					ffProp = style.top ? "top" : style.bottom ? "bottom" : parseFloat(_getStyle(targ, "top", null, false)) ? "bottom" : "top";
+					t1 = _getStyle(targ, ffProp, null, false);
+					n = parseFloat(t1) || 0;
+					sfx = t1.substr((n + "").length) || "px";
 					t._ffFix = !t._ffFix;
-					targ.style.top = (t._ffFix ? n + 0.05 : n - 0.05) + ((sfx === "") ? "px" : sfx);
+					style[ffProp] = (t._ffFix ? n + 0.05 : n - 0.05) + sfx;
 				}
 				if (!t.rotation && !t.skewX) {
-					targ.style[_transformProp] = "matrix(" + t.scaleX + ",0,0," + t.scaleY + "," + t.x + "," + t.y + ")";
+					style[_transformProp] = "matrix(" + t.scaleX + ",0,0," + t.scaleY + "," + t.x + "," + t.y + ")";
 				} else {
 					ang = t.rotation;
 					skew = ang - t.skewX;
@@ -1387,7 +1390,7 @@
 					sx = t.scaleX * rnd;
 					sy = t.scaleY * rnd;
 					//some browsers have a hard time with very small values like 2.4492935982947064e-16 (notice the "e-" towards the end) and would render the object slightly off. So we round to 5 decimal places.
-					targ.style[_transformProp] = "matrix(" + (((Math.cos(ang) * sx) >> 0) / rnd) + "," + (((Math.sin(ang) * sx) >> 0) / rnd) + "," + (((Math.sin(skew) * -sy) >> 0) / rnd) + "," + (((Math.cos(skew) * sy) >> 0) / rnd) + "," + t.x + "," + t.y + ")";
+					style[_transformProp] = "matrix(" + (((Math.cos(ang) * sx) >> 0) / rnd) + "," + (((Math.sin(ang) * sx) >> 0) / rnd) + "," + (((Math.sin(skew) * -sy) >> 0) / rnd) + "," + (((Math.cos(skew) * sy) >> 0) / rnd) + "," + t.x + "," + t.y + ")";
 				}
 			};
 
@@ -1585,7 +1588,19 @@
 		_registerComplexSpecialProp("backfaceVisibility", {prefix:true});
 		_registerComplexSpecialProp("margin", {parser:_getEdgeParser("marginTop,marginRight,marginBottom,marginLeft")});
 		_registerComplexSpecialProp("padding", {parser:_getEdgeParser("paddingTop,paddingRight,paddingBottom,paddingLeft")});
-		_registerComplexSpecialProp("clip", {defaultValue:"rect(0px,0px,0px,0px)"});
+		_registerComplexSpecialProp("clip", {defaultValue:"rect(0px,0px,0px,0px)", parser:function(t, e, p, cssp, pt, plugin){
+			var b, cs, delim;
+			if (_ieVers < 9) { //IE8 and earlier don't report a "clip" value in the currentStyle - instead, the values are split apart into clipTop, clipRight, clipBottom, and clipLeft. Also, in IE7 and earlier, the values inside rect() are space-delimited, not comma-delimited.
+				cs = t.currentStyle;
+				delim = _ieVers < 8 ? " " : ",";
+				b = "rect(" + cs.clipTop + delim + cs.clipRight + delim + cs.clipBottom + delim + cs.clipLeft + ")";
+				e = this.format(e).split(",").join(delim);
+			} else {
+				b = this.format(_getStyle(t, this.p, _cs, false, this.dflt));
+				e = this.format(e);
+			}
+			return this.parseComplex(t.style, b, e, pt, plugin);
+		}});
 		_registerComplexSpecialProp("textShadow", {defaultValue:"0px 0px 0px #999", color:true, multi:true});
 		_registerComplexSpecialProp("autoRound,strictUnits", {parser:function(t, e, p, cssp, pt) {return pt;}}); //just so that we can ignore these properties (not tween them)
 		_registerComplexSpecialProp("border", {defaultValue:"0px solid #000", parser:function(t, e, p, cssp, pt, plugin) {
@@ -2085,7 +2100,85 @@
 			}
 			return TweenPlugin.prototype._kill.call(this, copy) || changed;
 		};
-		
+
+
+
+
+		//used by cascadeTo() for gathering all the style properties of each child element into an array for comparison.
+		var _getChildStyles = function(e, props, targets) {
+				var children, i, child, type;
+				if (e.slice) {
+					i = e.length;
+					while (--i > -1) {
+						_getChildStyles(e[i], props, targets);
+					}
+					return;
+				}
+				children = e.childNodes;
+				i = children.length;
+				while (--i > -1) {
+					child = children[i];
+					type = child.type;
+					if (child.style) {
+						props.push(_getAllStyles(child));
+						if (targets) {
+							targets.push(child);
+						}
+					}
+					if ((type === 1 || type === 9 || type === 11) && child.childNodes.length) {
+						_getChildStyles(child, props, targets);
+					}
+				}
+			};
+
+		/**
+		 * Typically only useful for className tweens that may affect child elements, this method creates a TweenLite
+		 * and then compares the style properties of all the target's child elements at the tween's start and end, and
+		 * if any are different, it also creates tweens for those and returns an array containing ALL of the resulting
+		 * tweens (so that you can easily add() them to a TimelineLite, for example). The reason this functionality is
+		 * wrapped into a separate static method of CSSPlugin instead of being integrated into all regular className tweens
+		 * is because it creates entirely new tweens that may have completely different targets than the original tween,
+		 * so if they were all lumped into the original tween instance, it would be inconsistent with the rest of the API
+		 * and it would create other problems. For example:
+		 *  - If I create a tween of elementA, that tween instance may suddenly change its target to include 50 other elements (unintuitive if I specifically defined the target I wanted)
+		 *  - We can't just create new independent tweens because otherwise, what happens if the original/parent tween is reversed or pause or dropped into a TimelineLite for tight control? You'd expect that tween's behavior to affect all the others.
+		 *  - Analyzing every style property of every child before and after the tween is an expensive operation when there are many children, so this behavior shouldn't be imposed on all className tweens by default, especially since it's probably rare that this extra functionality is needed.
+		 *
+		 * @param {Object} target object to be tweened
+		 * @param {number} Duration in seconds (or frames for frames-based tweens)
+		 * @param {Object} Object containing the end values, like {className:"newClass", ease:Linear.easeNone}
+		 * @return {Array} An array of TweenLite instances
+		 */
+		CSSPlugin.cascadeTo = function(target, duration, vars) {
+			var tween = TweenLite.to(target, duration, vars),
+				results = [tween],
+				b = [],
+				e = [],
+				targets = [],
+				_reservedProps = TweenLite._internals.reservedProps,
+				i, difs, p;
+			target = tween._targets || tween.target;
+			_getChildStyles(target, b, targets);
+			tween.render(duration, true);
+			_getChildStyles(target, e);
+			tween.render(0, true);
+			tween._enabled(true);
+			i = targets.length;
+			while (--i > -1) {
+				difs = _cssDif(targets[i], b[i], e[i]);
+				if (difs.firstMPT) {
+					difs = difs.difs;
+					for (p in vars) {
+						if (_reservedProps[p]) {
+							difs[p] = vars[p];
+						}
+					}
+					results.push( TweenLite.to(targets[i], duration, difs) );
+				}
+			}
+			return results;
+		};
+
 		
 		TweenPlugin.activate([CSSPlugin]);
 		return CSSPlugin;

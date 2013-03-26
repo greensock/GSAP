@@ -1,6 +1,6 @@
 /**
- * VERSION: beta 0.1.0
- * DATE: 2013-02-28
+ * VERSION: beta 0.1.1
+ * DATE: 2013-03-25
  * JavaScript
  * UPDATES AND DOCS AT: http://www.greensock.com
  *
@@ -24,7 +24,6 @@
 				value = {rotation:value};
 			}
 			this.finals = {};
-			this._tween = tween;
 			var cap = (value.useRadians === true) ? Math.PI * 2 : 360,
 				p, v, start, end, dif, split, type;
 			for (p in value) {

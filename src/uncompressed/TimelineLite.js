@@ -1,6 +1,6 @@
 /*!
- * VERSION: beta 1.9.1
- * DATE: 2013-03-16
+ * VERSION: beta 1.9.2
+ * DATE: 2013-03-25
  * JavaScript (ActionScript 3 and 2 also available)
  * UPDATES AND DOCS AT: http://www.greensock.com
  *
@@ -54,7 +54,7 @@
 			},
 			p = TimelineLite.prototype = new SimpleTimeline();
 
-		TimelineLite.version = "1.9.1";
+		TimelineLite.version = "1.9.2";
 		p.constructor = TimelineLite;
 		p.kill()._gc = false;
 		
@@ -310,7 +310,7 @@
 				this._rawPrevTime = time;
 				time = totalDur + 0.000001; //to avoid occasional floating point rounding errors - sometimes child tweens/timelines were not being fully completed (their progress might be 0.999999999999998 instead of 1 because when _time - tween._startTime is performed, floating point errors would return a value that was SLIGHTLY off)
 
-			} else if (time <= 0) {
+			} else if (time < 0.0000001) { //to work around occasional floating point math artifacts, round super small values to 0.
 				this._totalTime = this._time = 0;
 				if (prevTime !== 0 || (this._duration === 0 && this._rawPrevTime > 0)) {
 					callback = "onReverseComplete";
@@ -318,15 +318,14 @@
 				}
 				if (time < 0) {
 					this._active = false;
-					if (this._duration === 0) if (this._rawPrevTime >= 0) { //zero-duration timelines are tricky because we must discern the momentum/direction of time in order to determine whether the starting values should be rendered or the ending values. If the "playhead" of its timeline goes past the zero-duration tween in the forward direction or lands directly on it, the end values should be rendered, but if the timeline's "playhead" moves past it in the backward direction (from a postitive time to a negative time), the starting values must be rendered.
+					if (this._duration === 0 && this._rawPrevTime >= 0) { //zero-duration timelines are tricky because we must discern the momentum/direction of time in order to determine whether the starting values should be rendered or the ending values. If the "playhead" of its timeline goes past the zero-duration tween in the forward direction or lands directly on it, the end values should be rendered, but if the timeline's "playhead" moves past it in the backward direction (from a postitive time to a negative time), the starting values must be rendered.
 						internalForce = true;
 					}
 				} else if (!this._initted) {
 					internalForce = true;
 				}
 				this._rawPrevTime = time;
-				time = -0.000001; //to avoid occasional floating point rounding errors in Flash - sometimes child tweens/timelines were not being rendered at the very beginning (their progress might be 0.000000000001 instead of 0 because when Flash performed _time - tween._startTime, floating point errors would return a value that was SLIGHTLY off)
-				
+
 			} else {
 				this._totalTime = this._time = this._rawPrevTime = time;
 			}
@@ -340,7 +339,7 @@
 				this.vars.onStart.apply(this.vars.onStartScope || this, this.vars.onStartParams || _blankArray);
 			}
 			
-			if (this._time > prevTime) {
+			if (this._time >= prevTime) {
 				tween = this._first;
 				while (tween) {
 					next = tween._next; //record it here because the value could change after rendering...
@@ -387,7 +386,7 @@
 					}
 					this._active = false;
 				}
-				if (!suppressEvents) if (this.vars[callback]) {
+				if (!suppressEvents && this.vars[callback]) {
 					this.vars[callback].apply(this.vars[callback + "Scope"] || this, this.vars[callback + "Params"] || _blankArray);
 				}
 			}

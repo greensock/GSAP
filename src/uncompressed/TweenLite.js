@@ -1,6 +1,6 @@
 /*!
- * VERSION: beta 1.9.1
- * DATE: 2013-03-19
+ * VERSION: beta 1.9.2
+ * DATE: 2013-03-25
  * JavaScript (ActionScript 3 and 2 also available)
  * UPDATES AND DOCS AT: http://www.greensock.com
  *
@@ -601,7 +601,8 @@
 			}
 			value = value || 0.000001; //can't allow zero because it'll throw the math off
 			if (this._timeline && this._timeline.smoothChildTiming) {
-				var t = (this._pauseTime || this._pauseTime === 0) ? this._pauseTime : this._timeline.totalTime();
+				var pauseTime = this._pauseTime,
+					t = (pauseTime || pauseTime === 0) ? pauseTime : this._timeline.totalTime();
 				this._startTime = t - ((t - this._startTime) * this._timeScale / value);
 			}
 			this._timeScale = value;
@@ -627,13 +628,18 @@
 				if (!_tickerActive && !value) {
 					_ticker.wake();
 				}
+				var raw = this._timeline.rawTime(),
+					elapsed = raw - this._pauseTime;
 				if (!value && this._timeline.smoothChildTiming) {
-					this._startTime += this._timeline.rawTime() - this._pauseTime;
+					this._startTime += elapsed;
 					this._uncache(false);
 				}
-				this._pauseTime = value ? this._timeline.rawTime() : null;
+				this._pauseTime = value ? raw : null;
 				this._paused = value;
-				this._active = (!this._paused && this._totalTime > 0 && this._totalTime < this._totalDuration);
+				this._active = (!value && this._totalTime > 0 && this._totalTime < this._totalDuration);
+				if (!value && elapsed !== 0) {
+					this.render(this._time, true, true);
+				}
 			}
 			if (this._gc && !value) {
 				this._enabled(true, false);
@@ -839,17 +845,18 @@
 		p._firstPT = p._targets = p._overwrittenProps = p._startAt = null;
 		p._notifyPluginsOfEnabled = false;
 		
-		TweenLite.version = "1.9.1";
+		TweenLite.version = "1.9.2";
 		TweenLite.defaultEase = p._ease = new Ease(null, null, 1, 1);
 		TweenLite.defaultOverwrite = "auto";
 		TweenLite.ticker = _ticker;
 		TweenLite.autoSleep = true;
 		TweenLite.selector = window.$ || window.jQuery || function(e) { if (window.$) { TweenLite.selector = window.$; return window.$(e); } return window.document ? window.document.getElementById((e.charAt(0) === "#") ? e.substr(1) : e) : e; };
-		
-		var _plugins = TweenLite._plugins = {},
+
+		var _internals = TweenLite._internals = {}, //gives us a way to expose certain private values to other GreenSock classes without contaminating tha main TweenLite object.
+			_plugins = TweenLite._plugins = {},
 			_tweenLookup = TweenLite._tweenLookup = {}, 
 			_tweenLookupNum = 0,
-			_reservedProps = {ease:1, delay:1, overwrite:1, onComplete:1, onCompleteParams:1, onCompleteScope:1, useFrames:1, runBackwards:1, startAt:1, onUpdate:1, onUpdateParams:1, onUpdateScope:1, onStart:1, onStartParams:1, onStartScope:1, onReverseComplete:1, onReverseCompleteParams:1, onReverseCompleteScope:1, onRepeat:1, onRepeatParams:1, onRepeatScope:1, easeParams:1, yoyo:1, orientToBezier:1, immediateRender:1, repeat:1, repeatDelay:1, data:1, paused:1, reversed:1, autoCSS:1},
+			_reservedProps = _internals.reservedProps = {ease:1, delay:1, overwrite:1, onComplete:1, onCompleteParams:1, onCompleteScope:1, useFrames:1, runBackwards:1, startAt:1, onUpdate:1, onUpdateParams:1, onUpdateScope:1, onStart:1, onStartParams:1, onStartScope:1, onReverseComplete:1, onReverseCompleteParams:1, onReverseCompleteScope:1, onRepeat:1, onRepeatParams:1, onRepeatScope:1, easeParams:1, yoyo:1, orientToBezier:1, immediateRender:1, repeat:1, repeatDelay:1, data:1, paused:1, reversed:1, autoCSS:1},
 			_overwriteLookup = {none:0, all:1, auto:2, concurrent:3, allOnStart:4, preexisting:5, "true":1, "false":0},
 			_rootFramesTimeline = Animation._rootFramesTimeline = new SimpleTimeline(), 
 			_rootTimeline = Animation._rootTimeline = new SimpleTimeline();
@@ -996,7 +1003,10 @@
 				}
 			} else if (v.runBackwards && v.immediateRender && dur !== 0) {
 				//from() tweens must be handled uniquely: their beginning values must be rendered but we don't want overwriting to occur yet (when time is still 0). Wait until the tween actually begins before doing all the routines like overwriting. At that time, we should render at the END of the tween to ensure that things initialize correctly (remember, from() tweens go backwards)
-				if (this._time === 0) {
+				if (this._startAt) {
+					this._startAt.render(-1, true);
+					this._startAt = null;
+				} else if (this._time === 0) {
 					v.overwrite = v.delay = 0;
 					v.runBackwards = false;
 					this._startAt = TweenLite.to(this.target, 0, v);
@@ -1004,9 +1014,6 @@
 					v.runBackwards = true;
 					v.delay = this._delay;
 					return;
-				} else if (this._startAt) {
-					this._startAt.render(-1, true);
-					this._startAt = null;
 				}
 			}
 			if (!ease) {
@@ -1129,7 +1136,7 @@
 					this._rawPrevTime = time;
 				}
 				
-			} else if (time <= 0) {
+			} else if (time < 0.0000001) { //to work around occasional floating point math artifacts, round super small values to 0.
 				this._totalTime = this._time = 0;
 				this.ratio = this._ease._calcEnd ? this._ease.getRatio(0) : 0;
 				if (prevTime !== 0 || (this._duration === 0 && this._rawPrevTime > 0)) {
@@ -1205,7 +1212,11 @@
 			}
 			if (prevTime === 0) {
 				if (this._startAt) {
-					this._startAt.render(time, suppressEvents, force);
+					if (time >= 0) {
+						this._startAt.render(time, suppressEvents, force);
+					} else if (!callback) {
+						callback = "_dummyGS"; //if no callback is defined, use a dummy value just so that the condition at the end evaluates as true because _startAt should render AFTER the normal render loop when the time is negative. We could handle this in a more intuitive way, of course, but the render loop is the MOST important thing to optimize, so this technique allows us to avoid adding extra conditional logic in a high-frequency area.
+					}
 				}
 				if (this.vars.onStart) if (this._time !== 0 || this._duration === 0) if (!suppressEvents) {
 					this.vars.onStart.apply(this.vars.onStartScope || this, this.vars.onStartParams || _blankArray);
@@ -1232,7 +1243,7 @@
 			}
 			
 			if (callback) if (!this._gc) { //check _gc because there's a chance that kill() could be called in an onUpdate
-				if (time < 0) if (this._startAt) if (!this._onUpdate) {
+				if (time < 0 && this._startAt && !this._onUpdate) {
 					this._startAt.render(time, suppressEvents, force);
 				}
 				if (isComplete) {
@@ -1241,7 +1252,7 @@
 					}
 					this._active = false;
 				}
-				if (!suppressEvents) if (this.vars[callback]) {
+				if (!suppressEvents && this.vars[callback]) {
 					this.vars[callback].apply(this.vars[callback + "Scope"] || this, this.vars[callback + "Params"] || _blankArray);
 				}
 			}
