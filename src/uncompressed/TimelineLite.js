@@ -1,6 +1,6 @@
 /*!
- * VERSION: beta 1.9.2
- * DATE: 2013-03-25
+ * VERSION: beta 1.9.3
+ * DATE: 2013-04-01
  * JavaScript (ActionScript 3 and 2 also available)
  * UPDATES AND DOCS AT: http://www.greensock.com
  *
@@ -54,7 +54,7 @@
 			},
 			p = TimelineLite.prototype = new SimpleTimeline();
 
-		TimelineLite.version = "1.9.2";
+		TimelineLite.version = "1.9.3";
 		p.constructor = TimelineLite;
 		p.kill()._gc = false;
 		

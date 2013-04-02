@@ -1,6 +1,6 @@
 /*!
- * VERSION: beta 1.9.2
- * DATE: 2013-03-25
+ * VERSION: beta 1.9.3
+ * DATE: 2013-04-02
  * JavaScript (ActionScript 3 and 2 also available)
  * UPDATES AND DOCS AT: http://www.greensock.com
  * 
@@ -40,7 +40,7 @@
 			p = TweenMax.prototype = TweenLite.to({}, 0.1, {}),
 			_blankArray = [];
 
-		TweenMax.version = "1.9.2";
+		TweenMax.version = "1.9.3";
 		p.constructor = TweenMax;
 		p.kill()._gc = false;
 		TweenMax.killTweensOf = TweenMax.killDelayedCallsTo = TweenLite.killTweensOf;
@@ -594,7 +594,7 @@
 			},
 			p = TimelineLite.prototype = new SimpleTimeline();
 
-		TimelineLite.version = "1.9.2";
+		TimelineLite.version = "1.9.3";
 		p.constructor = TimelineLite;
 		p.kill()._gc = false;
 
@@ -1179,7 +1179,7 @@
 
 		p.constructor = TimelineMax;
 		p.kill()._gc = false;
-		TimelineMax.version = "1.9.2";
+		TimelineMax.version = "1.9.3";
 
 		p.invalidate = function() {
 			this._yoyo = (this.vars.yoyo === true);
@@ -1638,9 +1638,9 @@
 						r1 = _r1[i];
 						r2 = _r2[i];
 						tl = ((r2 + r1) * curviness * 0.25) / (basic ? 0.5 : _r3[i] || 0.5);
-						m1 = p2 - (p2 - p1) * (basic ? curviness * 0.5 : tl / r1);
-						m2 = p2 + (p3 - p2) * (basic ? curviness * 0.5 : tl / r2);
-						mm = p2 - (m1 + (m2 - m1) * ((r1 * 3 / (r1 + r2)) + 0.5) / 4);
+						m1 = p2 - (p2 - p1) * (basic ? curviness * 0.5 : (r1 !== 0 ? tl / r1 : 0));
+						m2 = p2 + (p3 - p2) * (basic ? curviness * 0.5 : (r2 !== 0 ? tl / r2 : 0));
+						mm = p2 - (m1 + (((m2 - m1) * ((r1 * 3 / (r1 + r2)) + 0.5) / 4) || 0));
 					} else {
 						m1 = p2 - (p2 - p1) * curviness * 0.5;
 						m2 = p2 + (p3 - p2) * curviness * 0.5;
@@ -1882,6 +1882,7 @@
 					propName: "bezier",
 					priority: -1,
 					API: 2,
+					global:true,
 
 					//gets called when the tween renders for the first time. This is where initial values should be recorded and any setup routines should run.
 					init: function(target, vars, tween) {
@@ -2175,7 +2176,7 @@
 			p = CSSPlugin.prototype = new TweenPlugin("css");
 
 		p.constructor = CSSPlugin;
-		CSSPlugin.version = "1.9.2";
+		CSSPlugin.version = "1.9.3";
 		CSSPlugin.API = 2;
 		CSSPlugin.defaultTransformPerspective = 0;
 		p = "px"; //we'll reuse the "p" variable to keep file size down
@@ -2191,6 +2192,7 @@
 			_opacityExp = /opacity *= *([^)]*)/,
 			_opacityValExp = /opacity:([^;]*)/,
 			_alphaFilterExp = /alpha\(opacity *=.+?\)/i,
+			_rgbhslExp = /^(rgb|hsl)/,
 			_capsExp = /([A-Z])/g,
 			_camelExp = /-([a-z])/gi,
 			_urlExp = /(^(?:url\(\"|url\())|(?:(\"\))$|\)$)/gi, //for pulling out urls from url(...) or url("...") strings (some browsers wrap urls in quotes, some don't when reporting things like backgroundImage)
@@ -2290,20 +2292,56 @@
 				return (dflt != null && (!rv || rv === "none" || rv === "auto" || rv === "auto auto")) ? dflt : rv;
 			},
 
-			//@private returns at object containing ALL of the style properties in camelCase and their associated values.
-			_getAllStyles = function(t, cs, keepOverwritten) {
-				var s = {},
-					pt = t._gsOverwrittenClassNamePT,
-					i, tr;
-
-				if (pt && !keepOverwritten) {
-					while (pt) {
-						pt.setRatio(0);
-						pt = pt._next;
-					}
-					t._gsOverwrittenClassNamePT = null;
+			/**
+			 * @private Pass the target element, the property name, the numeric value, and the suffix (like "%", "em", "px", etc.) and it will spit back the equivalent pixel number.
+			 * @param {!Object} t Target element
+			 * @param {!string} p Property name (like "left", "top", "marginLeft", etc.)
+			 * @param {!number} v Value
+			 * @param {string=} sfx Suffix (like "px" or "%" or "em")
+			 * @param {boolean=} recurse If true, the call is a recursive one. In some browsers (like IE7/8), occasionally the value isn't accurately reported initially, but if we run the function again it will take effect.
+			 * @return {number} value in pixels
+			 */
+				_convertToPixels = function(t, p, v, sfx, recurse) {
+				if (sfx === "px" || !sfx) { return v; }
+				if (sfx === "auto" || !v) { return 0; }
+				var horiz = _horizExp.test(p),
+					node = t,
+					style = _tempDiv.style,
+					neg = (v < 0),
+					pix;
+				if (neg) {
+					v = -v;
 				}
+				if (sfx === "%" && p.indexOf("border") !== -1) {
+					pix = (v / 100) * (horiz ? t.clientWidth : t.clientHeight);
+				} else {
+					style.cssText = "border-style:solid; border-width:0; position:absolute; line-height:0;";
+					if (sfx === "%" || !node.appendChild) {
+						node = t.parentNode || _doc.body;
+						style[(horiz ? "width" : "height")] = v + sfx;
+					} else {
+						style[(horiz ? "borderLeftWidth" : "borderTopWidth")] = v + sfx;
+					}
+					node.appendChild(_tempDiv);
+					pix = parseFloat(_tempDiv[(horiz ? "offsetWidth" : "offsetHeight")]);
+					node.removeChild(_tempDiv);
+					if (pix === 0 && !recurse) {
+						pix = _convertToPixels(t, p, v, sfx, true);
+					}
+				}
+				return neg ? -pix : pix;
+			},
+			_calculateOffset = function(t, p, cs) { //for figuring out "top" or "left" in px when it's "auto". We need to factor in margin with the offsetLeft/offsetTop
+				if (_getStyle(t, "position", cs) !== "absolute") { return 0; }
+				var dim = ((p === "left") ? "Left" : "Top"),
+					v = _getStyle(t, "margin" + dim, cs);
+				return t["offset" + dim] - (_convertToPixels(t, p, parseFloat(v), v.replace(_suffixExp, "")) || 0);
+			},
 
+			//@private returns at object containing ALL of the style properties in camelCase and their associated values.
+			_getAllStyles = function(t, cs) {
+				var s = {},
+					i, tr;
 				if ((cs = cs || _getComputedStyle(t, null))) {
 					if ((i = cs.length)) {
 						while (--i > -1) {
@@ -2341,15 +2379,15 @@
 				return s;
 			},
 
-			//@private analyzes two style objects (as returned by _getAllStyles()) and only looks for differences between them that contain tweenable values (like a number or color). It returns an object with a "difs" property which refers to an object containing only those isolated properties and values for tweening, and a "firstMPT" property which refers to the first MiniPropTween instance in a linked list that recorded all the starting values of the different properties so that we can revert to them at the end or beginning of the tween - we don't want the cascading to get messed up
-			_cssDif = function(t, s1, s2, vars) {
+			//@private analyzes two style objects (as returned by _getAllStyles()) and only looks for differences between them that contain tweenable values (like a number or color). It returns an object with a "difs" property which refers to an object containing only those isolated properties and values for tweening, and a "firstMPT" property which refers to the first MiniPropTween instance in a linked list that recorded all the starting values of the different properties so that we can revert to them at the end or beginning of the tween - we don't want the cascading to get messed up. The forceLookup parameter is an optional generic object with properties that should be forced into the results - this is necessary for className tweens that are overwriting others because imagine a scenario where a rollover/rollout adds/removes a class and the user swipes the mouse over the target SUPER fast, thus nothing actually changed yet and the subsequent comparison of the properties would indicate they match (especially when px rounding is taken into consideration), thus no tweening is necessary even though it SHOULD tween and remove those properties after the tween (otherwise the inline styles will contaminate things). See the className SpecialProp code for details.
+			_cssDif = function(t, s1, s2, vars, forceLookup) {
 				var difs = {},
 					style = t.style,
 					val, p, mpt;
 				for (p in s2) {
-					if (p !== "cssText") if (p !== "length") if (isNaN(p)) if (s1[p] !== (val = s2[p])) if (p.indexOf("Origin") === -1) if (typeof(val) === "number" || typeof(val) === "string") {
-						difs[p] = ((val === "" || val === "auto" || val === "none") && typeof(s1[p]) === "string" && s1[p].replace(_NaNExp, "") !== "") ? 0 : val; //if the ending value is defaulting ("" or "auto"), we check the starting value and if it can be parsed into a number (a string which could have a suffix too, like 700px), then we swap in 0 for "" or "auto" so that things actually tween.
-						if (style[p] !== undefined) {
+					if (p !== "cssText") if (p !== "length") if (isNaN(p)) if (s1[p] !== (val = s2[p]) || (forceLookup && forceLookup[p])) if (p.indexOf("Origin") === -1) if (typeof(val) === "number" || typeof(val) === "string") {
+						difs[p] = (val === "auto" && (p === "left" || p === "top")) ? _calculateOffset(t, p) : ((val === "" || val === "auto" || val === "none") && typeof(s1[p]) === "string" && s1[p].replace(_NaNExp, "") !== "") ? 0 : val; //if the ending value is defaulting ("" or "auto"), we check the starting value and if it can be parsed into a number (a string which could have a suffix too, like 700px), then we swap in 0 for "" or "auto" so that things actually tween.
+						if (style[p] !== undefined) { //for className tweens, we must remember which properties already existed inline - the ones that didn't should be removed when the tween isn't in progress because they were only introduced to facilitate the transition between classes.
 							mpt = new MiniPropTween(style, p, style[p], mpt);
 						}
 					}
@@ -2383,46 +2421,6 @@
 					v -= parseFloat( _getStyle(t, "border" + a[i] + "Width", cs, true) ) || 0;
 				}
 				return v;
-			},
-
-			/**
-			 * @private Pass the target element, the property name, the numeric value, and the suffix (like "%", "em", "px", etc.) and it will spit back the equivalent pixel number.
-			 * @param {!Object} t Target element
-			 * @param {!string} p Property name (like "left", "top", "marginLeft", etc.)
-			 * @param {!number} v Value
-			 * @param {string=} sfx Suffix (like "px" or "%" or "em")
-			 * @param {boolean=} recurse If true, the call is a recursive one. In some browsers (like IE7/8), occasionally the value isn't accurately reported initially, but if we run the function again it will take effect.
-			 * @return {number} value in pixels
-			 */
-			_convertToPixels = function(t, p, v, sfx, recurse) {
-				if (sfx === "px" || !sfx) { return v; }
-				if (sfx === "auto" || !v) { return 0; }
-				var horiz = _horizExp.test(p),
-					node = t,
-					style = _tempDiv.style,
-					neg = (v < 0),
-					pix;
-				if (neg) {
-					v = -v;
-				}
-				if (sfx === "%" && p.indexOf("border") !== -1) {
-					pix = (v / 100) * (horiz ? t.clientWidth : t.clientHeight);
-				} else {
-					style.cssText = "border-style:solid; border-width:0; position:absolute; line-height:0;";
-					if (sfx === "%" || !node.appendChild) {
-						node = t.parentNode || _doc.body;
-						style[(horiz ? "width" : "height")] = v + sfx;
-					} else {
-						style[(horiz ? "borderLeftWidth" : "borderTopWidth")] = v + sfx;
-					}
-					node.appendChild(_tempDiv);
-					pix = parseFloat(_tempDiv[(horiz ? "offsetWidth" : "offsetHeight")]);
-					node.removeChild(_tempDiv);
-					if (pix === 0 && !recurse) {
-						pix = _convertToPixels(t, p, v, sfx, true);
-					}
-				}
-				return neg ? -pix : pix;
 			},
 
 			//@private Parses position-related complex strings like "top left" or "50px 10px" or "70% 20%", etc. which are used for things like transformOrigin or backgroundPosition. Optionally decorates a supplied object (recObj) with the following properties: "ox" (offsetX), "oy" (offsetY), "oxp" (if true, "ox" is a percentage not a pixel value), and "oxy" (if true, "oy" is a percentage not a pixel value)
@@ -2903,7 +2901,7 @@
 						pt.appendXtra("", bn, _parseChange(ev, bn), ev.replace(_relNumExp, ""), (autoRound && ev.indexOf("px") !== -1), true);
 
 					//if the value is a color
-					} else if (clrs && (bv.charAt(0) === "#" || bv.indexOf("rgb") === 0 || _colorLookup[bv] || bv.indexOf("hsl") === 0)) {
+					} else if (clrs && (bv.charAt(0) === "#" || _colorLookup[bv] || _rgbhslExp.test(bv))) {
 						str = ev.charAt(ev.length - 1) === "," ? ")," : ")"; //if there's a comma at the end, retain it.
 						bv = _parseColor(bv);
 						ev = _parseColor(ev);
@@ -3307,7 +3305,7 @@
 						tm.z = a34;
 					}
 
-				} else if (!_supports3D || m.length === 0 || tm.x !== m[4] || tm.y !== m[5] || (!tm.rotationX && !tm.rotationY)) { //sometimes a 6-element matrix is returned even when we performed 3D transforms, like if rotationX and rotationY are 180. In cases like this, we still need to honor the 3D transforms. If we just rely on the 2D info, it could affect how the data is interpreted, like scaleY might get set to -1 or rotation could get offset by 180 degrees. For example, do a TweenLite.to(element, 1, {css:{rotationX:180, rotationY:180}}) and then later, TweenLite.to(element, 1, {css:{rotationX:0}}) and without this conditional logic in place, it'd jump to a state of being unrotated when the 2nd tween starts. Then again, we need to honor the fact that the user COULD alter the transforms outside of CSSPlugin, like by manually applying new css, so we try to sense that by looking at x and y because if those changed, we know the changes were made outside CSSPlugin and we force a reinterpretation of the matrix values.
+				} else if ((!_supports3D || m.length === 0 || tm.x !== m[4] || tm.y !== m[5] || (!tm.rotationX && !tm.rotationY)) && !(tm.x !== undefined && _getStyle(t, "display", cs) === "none")) { //sometimes a 6-element matrix is returned even when we performed 3D transforms, like if rotationX and rotationY are 180. In cases like this, we still need to honor the 3D transforms. If we just rely on the 2D info, it could affect how the data is interpreted, like scaleY might get set to -1 or rotation could get offset by 180 degrees. For example, do a TweenLite.to(element, 1, {css:{rotationX:180, rotationY:180}}) and then later, TweenLite.to(element, 1, {css:{rotationX:0}}) and without this conditional logic in place, it'd jump to a state of being unrotated when the 2nd tween starts. Then again, we need to honor the fact that the user COULD alter the transforms outside of CSSPlugin, like by manually applying new css, so we try to sense that by looking at x and y because if those changed, we know the changes were made outside CSSPlugin and we force a reinterpretation of the matrix values. Also, in Webkit browsers, if the element's "display" is "none", its calculated style value will always return empty, so if we've already recorded the values in the _gsTransform object, we'll just rely on those.
 					var k = (m.length >= 6),
 						a = k ? m[0] : 1,
 						b = m[1] || 0,
@@ -3818,41 +3816,65 @@
 		}});
 
 
-		var _setClassNameRatio = function(v) {
-			if (v === 1 || v === 0) {
-				this.t.className = (v === 1) ? this.e : this.b;
-				var mpt = this.data, //first MiniPropTween
-					s = this.t.style,
-					removeProp = s.removeProperty ? "removeProperty" : "removeAttribute"; //note: old versions of IE use "removeAttribute()" instead of "removeProperty()"
-				while (mpt) {
-					if (!mpt.v) {
-						s[removeProp](mpt.p.replace(_capsExp, "-$1").toLowerCase());
-					} else {
-						s[mpt.p] = mpt.v;
+		var _removeProp = function(s, p) {
+				if (p) {
+					if (s.removeProperty) {
+						s.removeProperty(p.replace(_capsExp, "-$1").toLowerCase());
+					} else { //note: old versions of IE use "removeAttribute()" instead of "removeProperty()"
+						s.removeAttribute(p);
 					}
-					mpt = mpt._next;
 				}
-			} else if (this.t.className !== this.b) {
-				this.t.className = this.b;
-			}
-		};
+			},
+			_setClassNameRatio = function(v) {
+				this.t._gsClassPT = this;
+				if (v === 1 || v === 0) {
+					this.t.className = (v === 0) ? this.b : this.e;
+					var mpt = this.data, //first MiniPropTween
+						s = this.t.style;
+					while (mpt) {
+						if (!mpt.v) {
+							_removeProp(s, mpt.p);
+						} else {
+							s[mpt.p] = mpt.v;
+						}
+						mpt = mpt._next;
+					}
+					if (v === 1 && this.t._gsClassPT === this) {
+						this.t._gsClassPT = null;
+					}
+				} else if (this.t.className !== this.e) {
+					this.t.className = this.e;
+				}
+			};
 		_registerComplexSpecialProp("className", {parser:function(t, e, p, cssp, pt, plugin, vars) {
 			var b = t.className,
 				cssText = t.style.cssText,
-				difData, bs;
+				difData, bs, cnpt, cnptLookup, mpt;
 			pt = cssp._classNamePT = new CSSPropTween(t, p, 0, 0, pt, 2);
 			pt.setRatio = _setClassNameRatio;
 			pt.pr = -11;
 			_hasPriority = true;
 			pt.b = b;
-			pt.e = (e.charAt(1) !== "=") ? e : (e.charAt(0) === "+") ? b + " " + e.substr(2) : b.split(e.substr(2)).join("");
+			bs = _getAllStyles(t, _cs);
+			//if there's a className tween already operating on the target, force it to its end so that the necessary inline styles are removed and the class name is applied before we determine the end state (we don't want inline styles interfering that were there just for class-specific values)
+			cnpt = t._gsClassPT;
+			if (cnpt) {
+				cnptLookup = {};
+				mpt = cnpt.data; //first MiniPropTween which stores the inline styles - we need to force these so that the inline styles don't contaminate things. Otherwise, there's a small chance that a tween could start and the inline values match the destination values and they never get cleaned.
+				while (mpt) {
+					cnptLookup[mpt.p] = 1;
+					mpt = mpt._next;
+				}
+				cnpt.setRatio(1);
+			}
+			t._gsClassPT = pt;
+			pt.e = (e.charAt(1) !== "=") ? e : (e.charAt(0) === "+") ? b + " " + e.substr(2) : b.replace(new RegExp("\\s*\\b" + e.substr(2) + "\\b\\s*"), "");
 			if (cssp._tween._duration) { //if it's a zero-duration tween, there's no need to tween anything or parse the data. In fact, if we switch classes temporarily (which we must do for proper parsing) and the class has a transition applied, it could cause a quick flash to the end state and back again initially in some browsers.
-				bs = _getAllStyles(t, _cs, true);
 				t.className = pt.e;
-				difData = _cssDif(t, bs, _getAllStyles(t), vars);
+				difData = _cssDif(t, bs, _getAllStyles(t), vars, cnptLookup);
 				t.className = b;
 				pt.data = difData.firstMPT;
-				t.style.cssText = cssText; //we recorded cssText before we swapped classes and ran _getAllStyles() because in cases when a className tween is overwritten, we remove all the related tweening properties from that class change (otherwise class-specific stuff can't override properties we've directly set on the target's style object due to specificity). Note: see _getAllStyles() for the code that reverts things and makes the className CSSPropTween run its setRatio(0). Also, we record the className CSSPropTween instance in the element's _gsOverwrittenClassNamePT property (a linked list).
+				t.style.cssText = cssText; //we recorded cssText before we swapped classes and ran _getAllStyles() because in cases when a className tween is overwritten, we remove all the related tweening properties from that class change (otherwise class-specific stuff can't override properties we've directly set on the target's style object due to specificity).
 				pt = pt.xfirst = cssp.parse(t, difData.difs, pt, plugin); //we record the CSSPropTween as the xfirst so that we can handle overwriting propertly (if "className" gets overwritten, we must kill all the properties associated with the className part of the tween, so we can loop through from xfirst to the pt itself)
 			}
 			return pt;
@@ -3864,7 +3886,6 @@
 				var all = (this.e === "all"),
 					s = this.t.style,
 					a = all ? s.cssText.split(";") : this.e.split(","),
-					removeProp = s.removeProperty ? "removeProperty" : "removeAttribute", //note: old versions of IE use "removeAttribute()" instead of "removeProperty()"
 					i = a.length,
 					transformParse = _specialProps.transform.parse,
 					p;
@@ -3876,9 +3897,7 @@
 					if (_specialProps[p]) {
 						p = (_specialProps[p].parse === transformParse) ? _transformProp : _specialProps[p].p; //ensures that special properties use the proper browser-specific property name, like "scaleX" might be "-webkit-transform" or "boxShadow" might be "-moz-box-shadow"
 					}
-					if (p) {
-						s[removeProp](p.replace(_capsExp, "-$1").toLowerCase());
-					}
+					_removeProp(s, p);
 				}
 			}
 		};
@@ -4016,13 +4035,12 @@
 				} else {
 					bs = _getStyle(target, p, _cs) + "";
 					isStr = (typeof(es) === "string");
-					if (p === "color" || p === "fill" || p === "stroke" || p.indexOf("Color") !== -1 || (isStr && !es.indexOf("rgb"))) { //Opera uses background: to define color sometimes in addition to backgroundColor:
+					if (p === "color" || p === "fill" || p === "stroke" || p.indexOf("Color") !== -1 || (isStr && _rgbhslExp.test(es))) { //Opera uses background: to define color sometimes in addition to backgroundColor:
 						if (!isStr) {
 							es = _parseColor(es);
 							es = ((es.length > 3) ? "rgba(" : "rgb(") + es.join(",") + ")";
 						}
 						pt = _parseComplex(style, p, bs, es, true, "transparent", pt, 0, plugin);
-
 
 					} else if (isStr && (es.indexOf(" ") !== -1 || es.indexOf(",") !== -1)) {
 						pt = _parseComplex(style, p, bs, es, true, null, pt, 0, plugin);
@@ -4034,6 +4052,9 @@
 						if (bs === "" || bs === "auto") {
 							if (p === "width" || p === "height") {
 								bn = _getDimension(target, p, _cs);
+								bsfx = "px";
+							} else if (p === "left" || p === "top") {
+								bn = _calculateOffset(target, p, _cs);
 								bsfx = "px";
 							} else {
 								bn = (p !== "opacity") ? 0 : 1;
@@ -4095,7 +4116,7 @@
 							_log("invalid " + p + " tween value: " + vars[p]);
 						} else {
 							pt = new CSSPropTween(style, p, en || bn || 0, 0, pt, -1, "css_" + p, false, 0, bs, es);
-							pt.xs0 = (p === "display" && es === "none") ? bs : es; //intermediate value is typically the same as the end value except for "display"
+							pt.xs0 = (es === "none" && (p === "display" || p.indexOf("Style") !== -1)) ? bs : es; //intermediate value should typically be set immediately (end value) except for "display" or things like borderTopStyle, borderBottomStyle, etc. which should use the beginning value during the tween.
 							//DEBUG: _log("non-tweening value "+p+": "+pt.xs0);
 						}
 					}
@@ -4218,7 +4239,6 @@
 		//we need to make sure that if alpha or autoAlpha is killed, opacity is too. And autoAlpha affects the "visibility" property.
 		p._kill = function(lookup) {
 			var copy = lookup,
-				changed = false,
 				pt, p, xfirst;
 			if (lookup.css_autoAlpha || lookup.css_alpha) {
 				copy = {};
@@ -4230,21 +4250,19 @@
 					copy.css_visibility = 1;
 				}
 			}
-			if (lookup.css_className && (pt = this._classNamePT)) {
+			if (lookup.css_className && (pt = this._classNamePT)) { //for className tweens, we need to kill any associated CSSPropTweens too; a linked list starts at the className's "xfirst".
 				xfirst = pt.xfirst;
 				if (xfirst && xfirst._prev) {
 					this._linkCSSP(xfirst._prev, pt._next, xfirst._prev._prev); //break off the prev
 				} else if (xfirst === this._firstPT) {
-					this._firstPT = null;
+					this._firstPT = pt._next;
 				}
 				if (pt._next) {
 					this._linkCSSP(pt._next, pt._next._next, xfirst._prev);
 				}
-				this._target._gsOverwrittenClassNamePT = this._linkCSSP(pt, this._target._gsOverwrittenClassNamePT);
 				this._classNamePT = null;
-				changed = true;
 			}
-			return TweenPlugin.prototype._kill.call(this, copy) || changed;
+			return TweenPlugin.prototype._kill.call(this, copy);
 		};
 
 
@@ -4564,6 +4582,16 @@
 				_easeReg(C, name);
 				return C;
 			},
+			EasePoint = function(time, value, next) {
+				this.t = time;
+				this.v = value;
+				if (next) {
+					this.next = next;
+					next.prev = this;
+					this.c = next.v - value;
+					this.gap = next.t - time;
+				}
+			},
 
 			//Back
 			_createBack = function(n, f) {
@@ -4608,7 +4636,7 @@
 				this._calcEnd = (yoyoMode === true);
 			}, true),
 			p = SlowMo.prototype = new Ease(),
-			SteppedEase, _createElastic;
+			SteppedEase, RoughEase, _createElastic;
 
 		p.constructor = SlowMo;
 		p.getRatio = function(p) {
@@ -4646,6 +4674,88 @@
 		p.config = SteppedEase.config = function(steps) {
 			return new SteppedEase(steps);
 		};
+
+
+		//RoughEase
+		RoughEase = _class("easing.RoughEase", function(vars) {
+			vars = vars || {};
+			var taper = vars.taper || "none",
+				a = [],
+				cnt = 0,
+				points = (vars.points || 20) | 0,
+				i = points,
+				randomize = (vars.randomize !== false),
+				clamp = (vars.clamp === true),
+				template = (vars.template instanceof Ease) ? vars.template : null,
+				strength = (typeof(vars.strength) === "number") ? vars.strength * 0.4 : 0.4,
+				x, y, bump, invX, obj, pnt;
+			while (--i > -1) {
+				x = randomize ? Math.random() : (1 / points) * i;
+				y = template ? template.getRatio(x) : x;
+				if (taper === "none") {
+					bump = strength;
+				} else if (taper === "out") {
+					invX = 1 - x;
+					bump = invX * invX * strength;
+				} else if (taper === "in") {
+					bump = x * x * strength;
+				} else if (x < 0.5) {  //"both" (start)
+					invX = x * 2;
+					bump = invX * invX * 0.5 * strength;
+				} else {				//"both" (end)
+					invX = (1 - x) * 2;
+					bump = invX * invX * 0.5 * strength;
+				}
+				if (randomize) {
+					y += (Math.random() * bump) - (bump * 0.5);
+				} else if (i % 2) {
+					y += bump * 0.5;
+				} else {
+					y -= bump * 0.5;
+				}
+				if (clamp) {
+					if (y > 1) {
+						y = 1;
+					} else if (y < 0) {
+						y = 0;
+					}
+				}
+				a[cnt++] = {x:x, y:y};
+			}
+			a.sort(function(a, b) {
+				return a.x - b.x;
+			});
+
+			pnt = new EasePoint(1, 1, null);
+			i = points;
+			while (--i > -1) {
+				obj = a[i];
+				pnt = new EasePoint(obj.x, obj.y, pnt);
+			}
+
+			this._prev = new EasePoint(0, 0, (pnt.t !== 0) ? pnt : pnt.next);
+		}, true);
+		p = RoughEase.prototype = new Ease();
+		p.constructor = RoughEase;
+		p.getRatio = function(p) {
+			var pnt = this._prev;
+			if (p > pnt.t) {
+				while (pnt.next && p >= pnt.t) {
+					pnt = pnt.next;
+				}
+				pnt = pnt.prev;
+			} else {
+				while (pnt.prev && p <= pnt.t) {
+					pnt = pnt.prev;
+				}
+			}
+			this._prev = pnt;
+			return (pnt.v + ((p - pnt.t) / pnt.gap) * pnt.c);
+		};
+		p.config = function(vars) {
+			return new RoughEase(vars);
+		};
+		RoughEase.ease = new RoughEase();
 
 
 		//Bounce
@@ -4768,6 +4878,7 @@
 
 		//register the non-standard eases
 		_easeReg(w.SlowMo, "SlowMo", "ease,");
+		_easeReg(RoughEase, "RoughEase", "ease,");
 		_easeReg(SteppedEase, "SteppedEase", "ease,");
 
 		return Back;
@@ -5419,7 +5530,7 @@
 				this._pauseTime = value ? raw : null;
 				this._paused = value;
 				this._active = (!value && this._totalTime > 0 && this._totalTime < this._totalDuration);
-				if (!value && elapsed !== 0) {
+				if (!value && elapsed !== 0 && this._duration !== 0) {
 					this.render(this._time, true, true);
 				}
 			}
@@ -5627,7 +5738,7 @@
 		p._firstPT = p._targets = p._overwrittenProps = p._startAt = null;
 		p._notifyPluginsOfEnabled = false;
 
-		TweenLite.version = "1.9.2";
+		TweenLite.version = "1.9.3";
 		TweenLite.defaultEase = p._ease = new Ease(null, null, 1, 1);
 		TweenLite.defaultOverwrite = "auto";
 		TweenLite.ticker = _ticker;
@@ -6180,7 +6291,7 @@
 		};
 
 		TweenLite.getTweensOf = function(target) {
-			if (target == null) { return; }
+			if (target == null) { return []; }
 			target = (typeof(target) !== "string") ? target : TweenLite.selector(target) || target;
 			var i, a, j, t;
 			if ((target instanceof Array || _isSelector(target)) && typeof(target[0]) !== "number") {

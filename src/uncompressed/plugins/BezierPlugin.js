@@ -1,6 +1,6 @@
 /*!
- * VERSION: beta 1.2.2
- * DATE: 2013-03-25
+ * VERSION: beta 1.2.3
+ * DATE: 2013-04-02
  * JavaScript (also available in AS3 and AS2)
  * UPDATES AND DOCS AT: http://www.greensock.com
  *
@@ -65,9 +65,9 @@
 						r1 = _r1[i];
 						r2 = _r2[i];
 						tl = ((r2 + r1) * curviness * 0.25) / (basic ? 0.5 : _r3[i] || 0.5);
-						m1 = p2 - (p2 - p1) * (basic ? curviness * 0.5 : tl / r1);
-						m2 = p2 + (p3 - p2) * (basic ? curviness * 0.5 : tl / r2);
-						mm = p2 - (m1 + (m2 - m1) * ((r1 * 3 / (r1 + r2)) + 0.5) / 4);
+						m1 = p2 - (p2 - p1) * (basic ? curviness * 0.5 : (r1 !== 0 ? tl / r1 : 0));
+						m2 = p2 + (p3 - p2) * (basic ? curviness * 0.5 : (r2 !== 0 ? tl / r2 : 0));
+						mm = p2 - (m1 + (((m2 - m1) * ((r1 * 3 / (r1 + r2)) + 0.5) / 4) || 0));
 					} else {
 						m1 = p2 - (p2 - p1) * curviness * 0.5;
 						m2 = p2 + (p3 - p2) * curviness * 0.5;
@@ -309,6 +309,7 @@
 					propName: "bezier",
 					priority: -1,
 					API: 2,
+					global:true,
 
 					//gets called when the tween renders for the first time. This is where initial values should be recorded and any setup routines should run.
 					init: function(target, vars, tween) {

@@ -1,6 +1,6 @@
 /*!
- * VERSION: beta 1.9.2
- * DATE: 2013-03-25
+ * VERSION: beta 1.9.3
+ * DATE: 2013-04-01
  * JavaScript (ActionScript 3 and 2 also available)
  * UPDATES AND DOCS AT: http://www.greensock.com
  *
@@ -637,7 +637,7 @@
 				this._pauseTime = value ? raw : null;
 				this._paused = value;
 				this._active = (!value && this._totalTime > 0 && this._totalTime < this._totalDuration);
-				if (!value && elapsed !== 0) {
+				if (!value && elapsed !== 0 && this._duration !== 0) {
 					this.render(this._time, true, true);
 				}
 			}
@@ -845,7 +845,7 @@
 		p._firstPT = p._targets = p._overwrittenProps = p._startAt = null;
 		p._notifyPluginsOfEnabled = false;
 		
-		TweenLite.version = "1.9.2";
+		TweenLite.version = "1.9.3";
 		TweenLite.defaultEase = p._ease = new Ease(null, null, 1, 1);
 		TweenLite.defaultOverwrite = "auto";
 		TweenLite.ticker = _ticker;
@@ -1398,7 +1398,7 @@
 		};
 		
 		TweenLite.getTweensOf = function(target) {
-			if (target == null) { return; }
+			if (target == null) { return []; }
 			target = (typeof(target) !== "string") ? target : TweenLite.selector(target) || target;
 			var i, a, j, t;
 			if ((target instanceof Array || _isSelector(target)) && typeof(target[0]) !== "number") {

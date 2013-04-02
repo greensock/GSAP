@@ -1,6 +1,6 @@
 /*!
- * VERSION: beta 1.8.0
- * DATE: 2013-01-21
+ * VERSION: beta 1.9.3
+ * DATE: 2013-04-02
  * JavaScript (ActionScript 3 and 2 also available)
  * UPDATES AND DOCS AT: http://www.greensock.com
  *
@@ -37,6 +37,16 @@
 				}, true);
 				_easeReg(C, name);
 				return C;
+			},
+			EasePoint = function(time, value, next) {
+				this.t = time;
+				this.v = value;
+				if (next) {
+					this.next = next;
+					next.prev = this;
+					this.c = next.v - value;
+					this.gap = next.t - time;
+				}
 			},
 
 			//Back
@@ -82,7 +92,7 @@
 				this._calcEnd = (yoyoMode === true);
 			}, true),
 			p = SlowMo.prototype = new Ease(),
-			SteppedEase, _createElastic;
+			SteppedEase, RoughEase, _createElastic;
 			
 		p.constructor = SlowMo;
 		p.getRatio = function(p) {
@@ -120,6 +130,88 @@
 		p.config = SteppedEase.config = function(steps) {
 			return new SteppedEase(steps);
 		};
+
+
+		//RoughEase
+		RoughEase = _class("easing.RoughEase", function(vars) {
+			vars = vars || {};
+			var taper = vars.taper || "none",
+				a = [],
+				cnt = 0,
+				points = (vars.points || 20) | 0,
+				i = points,
+				randomize = (vars.randomize !== false),
+				clamp = (vars.clamp === true),
+				template = (vars.template instanceof Ease) ? vars.template : null,
+				strength = (typeof(vars.strength) === "number") ? vars.strength * 0.4 : 0.4,
+				x, y, bump, invX, obj, pnt;
+			while (--i > -1) {
+				x = randomize ? Math.random() : (1 / points) * i;
+				y = template ? template.getRatio(x) : x;
+				if (taper === "none") {
+					bump = strength;
+				} else if (taper === "out") {
+					invX = 1 - x;
+					bump = invX * invX * strength;
+				} else if (taper === "in") {
+					bump = x * x * strength;
+				} else if (x < 0.5) {  //"both" (start)
+					invX = x * 2;
+					bump = invX * invX * 0.5 * strength;
+				} else {				//"both" (end)
+					invX = (1 - x) * 2;
+					bump = invX * invX * 0.5 * strength;
+				}
+				if (randomize) {
+					y += (Math.random() * bump) - (bump * 0.5);
+				} else if (i % 2) {
+					y += bump * 0.5;
+				} else {
+					y -= bump * 0.5;
+				}
+				if (clamp) {
+					if (y > 1) {
+						y = 1;
+					} else if (y < 0) {
+						y = 0;
+					}
+				}
+				a[cnt++] = {x:x, y:y};
+			}
+			a.sort(function(a, b) {
+				return a.x - b.x;
+			});
+
+			pnt = new EasePoint(1, 1, null);
+			i = points;
+			while (--i > -1) {
+				obj = a[i];
+				pnt = new EasePoint(obj.x, obj.y, pnt);
+			}
+
+			this._prev = new EasePoint(0, 0, (pnt.t !== 0) ? pnt : pnt.next);
+		}, true);
+		p = RoughEase.prototype = new Ease();
+		p.constructor = RoughEase;
+		p.getRatio = function(p) {
+			var pnt = this._prev;
+			if (p > pnt.t) {
+				while (pnt.next && p >= pnt.t) {
+					pnt = pnt.next;
+				}
+				pnt = pnt.prev;
+			} else {
+				while (pnt.prev && p <= pnt.t) {
+					pnt = pnt.prev;
+				}
+			}
+			this._prev = pnt;
+			return (pnt.v + ((p - pnt.t) / pnt.gap) * pnt.c);
+		};
+		p.config = function(vars) {
+			return new RoughEase(vars);
+		};
+		RoughEase.ease = new RoughEase();
 
 
 		//Bounce
@@ -242,6 +334,7 @@
 
 		//register the non-standard eases
 		_easeReg(w.SlowMo, "SlowMo", "ease,");
+		_easeReg(RoughEase, "RoughEase", "ease,");
 		_easeReg(SteppedEase, "SteppedEase", "ease,");
 		
 		return Back;
