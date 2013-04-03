@@ -5749,7 +5749,7 @@
 			_plugins = TweenLite._plugins = {},
 			_tweenLookup = TweenLite._tweenLookup = {},
 			_tweenLookupNum = 0,
-			_reservedProps = _internals.reservedProps = {ease:1, delay:1, overwrite:1, onComplete:1, onCompleteParams:1, onCompleteScope:1, useFrames:1, runBackwards:1, startAt:1, onUpdate:1, onUpdateParams:1, onUpdateScope:1, onStart:1, onStartParams:1, onStartScope:1, onReverseComplete:1, onReverseCompleteParams:1, onReverseCompleteScope:1, onRepeat:1, onRepeatParams:1, onRepeatScope:1, easeParams:1, yoyo:1, orientToBezier:1, immediateRender:1, repeat:1, repeatDelay:1, data:1, paused:1, reversed:1, autoCSS:1},
+			_reservedProps = _internals.reservedProps = {ease:1, delay:1, overwrite:1, onComplete:1, onCompleteParams:1, onCompleteScope:1, useFrames:1, runBackwards:1, startAt:1, onUpdate:1, onUpdateParams:1, onUpdateScope:1, onStart:1, onStartParams:1, onStartScope:1, onReverseComplete:1, onReverseCompleteParams:1, onReverseCompleteScope:1, onRepeat:1, onRepeatParams:1, onRepeatScope:1, easeParams:1, yoyo:1, immediateRender:1, repeat:1, repeatDelay:1, data:1, paused:1, reversed:1, autoCSS:1},
 			_overwriteLookup = {none:0, all:1, auto:2, concurrent:3, allOnStart:4, preexisting:5, "true":1, "false":0},
 			_rootFramesTimeline = Animation._rootFramesTimeline = new SimpleTimeline(),
 			_rootTimeline = Animation._rootTimeline = new SimpleTimeline();
@@ -5883,7 +5883,7 @@
 				op = this._overwrittenProps,
 				dur = this._duration,
 				ease = v.ease,
-				i, initPlugins, pt;
+				i, initPlugins, pt, p;
 			if (v.startAt) {
 				v.startAt.overwrite = 0;
 				v.startAt.immediateRender = true;
@@ -5900,12 +5900,14 @@
 					this._startAt.render(-1, true);
 					this._startAt = null;
 				} else if (this._time === 0) {
-					v.overwrite = v.delay = 0;
-					v.runBackwards = false;
-					this._startAt = TweenLite.to(this.target, 0, v);
-					v.overwrite = this._overwrite;
-					v.runBackwards = true;
-					v.delay = this._delay;
+					pt = {};
+					for (p in v) { //copy props into a new object and skip any reserved props, otherwise onComplete or onUpdate or onStart could fire. We should, however, permit autoCSS to go through.
+						if (!_reservedProps[p] || p === "autoCSS") {
+							pt[p] = v[p];
+						}
+					}
+					pt.overwrite = 0;
+					this._startAt = TweenLite.to(this.target, 0, pt);
 					return;
 				}
 			}
