@@ -1721,7 +1721,7 @@
 				cnpt.setRatio(1);
 			}
 			t._gsClassPT = pt;
-			pt.e = (e.charAt(1) !== "=") ? e : (e.charAt(0) === "+") ? b + " " + e.substr(2) : b.replace(new RegExp("\\s*\\b" + e.substr(2) + "\\b\\s*"), " ");
+			pt.e = (e.charAt(1) !== "=") ? e : b.replace(new RegExp("\\s*\\b" + e.substr(2) + "\\b"), "") + ((e.charAt(0) === "+") ? " " + e.substr(2) : "");
 			if (cssp._tween._duration) { //if it's a zero-duration tween, there's no need to tween anything or parse the data. In fact, if we switch classes temporarily (which we must do for proper parsing) and the class has a transition applied, it could cause a quick flash to the end state and back again initially in some browsers.
 				t.className = pt.e;
 				difData = _cssDif(t, bs, _getAllStyles(t), vars, cnptLookup);
