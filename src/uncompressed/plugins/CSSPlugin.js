@@ -1,6 +1,6 @@
 /*!
- * VERSION: beta 1.9.3
- * DATE: 2013-04-04
+ * VERSION: beta 1.9.4
+ * DATE: 2013-04-18
  * JavaScript 
  * UPDATES AND DOCS AT: http://www.greensock.com
  *
@@ -29,7 +29,7 @@
 			p = CSSPlugin.prototype = new TweenPlugin("css");
 
 		p.constructor = CSSPlugin;
-		CSSPlugin.version = "1.9.3";
+		CSSPlugin.version = "1.9.4";
 		CSSPlugin.API = 2;
 		CSSPlugin.defaultTransformPerspective = 0;
 		p = "px"; //we'll reuse the "p" variable to keep file size down
@@ -154,7 +154,7 @@
 			 * @param {boolean=} recurse If true, the call is a recursive one. In some browsers (like IE7/8), occasionally the value isn't accurately reported initially, but if we run the function again it will take effect.
 			 * @return {number} value in pixels
 			 */
-				_convertToPixels = function(t, p, v, sfx, recurse) {
+			_convertToPixels = function(t, p, v, sfx, recurse) {
 				if (sfx === "px" || !sfx) { return v; }
 				if (sfx === "auto" || !v) { return 0; }
 				var horiz = _horizExp.test(p),

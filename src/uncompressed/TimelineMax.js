@@ -1,6 +1,6 @@
 /*!
- * VERSION: beta 1.9.3
- * DATE: 2013-04-01
+ * VERSION: beta 1.9.4
+ * DATE: 2013-04-18
  * JavaScript (ActionScript 3 and 2 also available)
  * UPDATES AND DOCS AT: http://www.greensock.com
  *
@@ -38,7 +38,7 @@
 			
 		p.constructor = TimelineMax;
 		p.kill()._gc = false;
-		TimelineMax.version = "1.9.3";
+		TimelineMax.version = "1.9.4";
 		
 		p.invalidate = function() {
 			this._yoyo = (this.vars.yoyo === true);
@@ -118,7 +118,7 @@
 				if (!this._reversed) if (!this._hasPausedChild()) {
 					isComplete = true;
 					callback = "onComplete";
-					if (dur === 0) if (time === 0 || this._rawPrevTime < 0) if (this._rawPrevTime !== time) { //In order to accommodate zero-duration timelines, we must discern the momentum/direction of time in order to render values properly when the "playhead" goes past 0 in the forward direction or lands directly on it, and also when it moves past it in the backward direction (from a postitive time to a negative time).
+					if (dur === 0) if (time === 0 || this._rawPrevTime < 0) if (this._rawPrevTime !== time && this._first) { //In order to accommodate zero-duration timelines, we must discern the momentum/direction of time in order to render values properly when the "playhead" goes past 0 in the forward direction or lands directly on it, and also when it moves past it in the backward direction (from a postitive time to a negative time).
 						internalForce = true;
 					}
 				}
@@ -141,7 +141,7 @@
 				}
 				if (time < 0) {
 					this._active = false;
-					if (dur === 0) if (this._rawPrevTime >= 0) { //zero-duration timelines are tricky because we must discern the momentum/direction of time in order to determine whether the starting values should be rendered or the ending values. If the "playhead" of its timeline goes past the zero-duration tween in the forward direction or lands directly on it, the end values should be rendered, but if the timeline's "playhead" moves past it in the backward direction (from a postitive time to a negative time), the starting values must be rendered.
+					if (dur === 0) if (this._rawPrevTime >= 0 && this._first) { //zero-duration timelines are tricky because we must discern the momentum/direction of time in order to determine whether the starting values should be rendered or the ending values. If the "playhead" of its timeline goes past the zero-duration tween in the forward direction or lands directly on it, the end values should be rendered, but if the timeline's "playhead" moves past it in the backward direction (from a postitive time to a negative time), the starting values must be rendered.
 						internalForce = true;
 					}
 				} else if (!this._initted) {
@@ -221,7 +221,7 @@
 				this._locked = false;
 			}
 
-			if (this._time === prevTime && !force && !internalForce) {
+			if ((this._time === prevTime || !this._first) && !force && !internalForce) {
 				if (prevTotalTime !== this._totalTime) if (this._onUpdate) if (!suppressEvents) { //so that onUpdate fires even during the repeatDelay - as long as the totalTime changed, we should trigger onUpdate.
 					this._onUpdate.apply(this.vars.onUpdateScope || this, this.vars.onUpdateParams || _blankArray);
 				}
@@ -479,7 +479,7 @@
 			},
 			p = TimelineLite.prototype = new SimpleTimeline();
 
-		TimelineLite.version = "1.9.3";
+		TimelineLite.version = "1.9.4";
 		p.constructor = TimelineLite;
 		p.kill()._gc = false;
 
@@ -728,7 +728,7 @@
 				if (!this._reversed) if (!this._hasPausedChild()) {
 					isComplete = true;
 					callback = "onComplete";
-					if (this._duration === 0) if (time === 0 || this._rawPrevTime < 0) if (this._rawPrevTime !== time) { //In order to accommodate zero-duration timelines, we must discern the momentum/direction of time in order to render values properly when the "playhead" goes past 0 in the forward direction or lands directly on it, and also when it moves past it in the backward direction (from a postitive time to a negative time).
+					if (this._duration === 0) if (time === 0 || this._rawPrevTime < 0) if (this._rawPrevTime !== time && this._first) { //In order to accommodate zero-duration timelines, we must discern the momentum/direction of time in order to render values properly when the "playhead" goes past 0 in the forward direction or lands directly on it, and also when it moves past it in the backward direction (from a postitive time to a negative time).
 						internalForce = true;
 					}
 				}
@@ -743,7 +743,7 @@
 				}
 				if (time < 0) {
 					this._active = false;
-					if (this._duration === 0 && this._rawPrevTime >= 0) { //zero-duration timelines are tricky because we must discern the momentum/direction of time in order to determine whether the starting values should be rendered or the ending values. If the "playhead" of its timeline goes past the zero-duration tween in the forward direction or lands directly on it, the end values should be rendered, but if the timeline's "playhead" moves past it in the backward direction (from a postitive time to a negative time), the starting values must be rendered.
+					if (this._duration === 0) if (this._rawPrevTime >= 0 && this._first) { //zero-duration timelines are tricky because we must discern the momentum/direction of time in order to determine whether the starting values should be rendered or the ending values. If the "playhead" of its timeline goes past the zero-duration tween in the forward direction or lands directly on it, the end values should be rendered, but if the timeline's "playhead" moves past it in the backward direction (from a postitive time to a negative time), the starting values must be rendered.
 						internalForce = true;
 					}
 				} else if (!this._initted) {
@@ -754,8 +754,7 @@
 			} else {
 				this._totalTime = this._time = this._rawPrevTime = time;
 			}
-
-			if (this._time === prevTime && !force && !internalForce) {
+			if ((this._time === prevTime || !this._first) && !force && !internalForce) {
 				return;
 			} else if (!this._initted) {
 				this._initted = true;

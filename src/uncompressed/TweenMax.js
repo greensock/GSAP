@@ -1,10 +1,10 @@
 /*!
- * VERSION: beta 1.9.3
- * DATE: 2013-04-04
+ * VERSION: beta 1.9.4
+ * DATE: 2013-04-18
  * JavaScript (ActionScript 3 and 2 also available)
  * UPDATES AND DOCS AT: http://www.greensock.com
  * 
- * Includes all of the following: TweenLite, TweenMax, TimelineLite, TimelineMax, easing.EasePack, plugins.CSSPlugin, plugins.RoundPropsPlugin, plugins.BezierPlugin
+ * Includes all of the following: TweenLite, TweenMax, TimelineLite, TimelineMax, easing.EasePack, plugins.CSSPlugin, plugins.RoundPropsPlugin, plugins.BezierPlugin, plugins.AttrPlugin
  *
  * @license Copyright (c) 2008-2013, GreenSock. All rights reserved.
  * This work is subject to the terms in http://www.greensock.com/terms_of_use.html or for 
@@ -40,7 +40,7 @@
 			p = TweenMax.prototype = TweenLite.to({}, 0.1, {}),
 			_blankArray = [];
 
-		TweenMax.version = "1.9.3";
+		TweenMax.version = "1.9.4";
 		p.constructor = TweenMax;
 		p.kill()._gc = false;
 		TweenMax.killTweensOf = TweenMax.killDelayedCallsTo = TweenLite.killTweensOf;
@@ -594,7 +594,7 @@
 			},
 			p = TimelineLite.prototype = new SimpleTimeline();
 
-		TimelineLite.version = "1.9.3";
+		TimelineLite.version = "1.9.4";
 		p.constructor = TimelineLite;
 		p.kill()._gc = false;
 
@@ -843,7 +843,7 @@
 				if (!this._reversed) if (!this._hasPausedChild()) {
 					isComplete = true;
 					callback = "onComplete";
-					if (this._duration === 0) if (time === 0 || this._rawPrevTime < 0) if (this._rawPrevTime !== time) { //In order to accommodate zero-duration timelines, we must discern the momentum/direction of time in order to render values properly when the "playhead" goes past 0 in the forward direction or lands directly on it, and also when it moves past it in the backward direction (from a postitive time to a negative time).
+					if (this._duration === 0) if (time === 0 || this._rawPrevTime < 0) if (this._rawPrevTime !== time && this._first) { //In order to accommodate zero-duration timelines, we must discern the momentum/direction of time in order to render values properly when the "playhead" goes past 0 in the forward direction or lands directly on it, and also when it moves past it in the backward direction (from a postitive time to a negative time).
 						internalForce = true;
 					}
 				}
@@ -858,7 +858,7 @@
 				}
 				if (time < 0) {
 					this._active = false;
-					if (this._duration === 0 && this._rawPrevTime >= 0) { //zero-duration timelines are tricky because we must discern the momentum/direction of time in order to determine whether the starting values should be rendered or the ending values. If the "playhead" of its timeline goes past the zero-duration tween in the forward direction or lands directly on it, the end values should be rendered, but if the timeline's "playhead" moves past it in the backward direction (from a postitive time to a negative time), the starting values must be rendered.
+					if (this._duration === 0) if (this._rawPrevTime >= 0 && this._first) { //zero-duration timelines are tricky because we must discern the momentum/direction of time in order to determine whether the starting values should be rendered or the ending values. If the "playhead" of its timeline goes past the zero-duration tween in the forward direction or lands directly on it, the end values should be rendered, but if the timeline's "playhead" moves past it in the backward direction (from a postitive time to a negative time), the starting values must be rendered.
 						internalForce = true;
 					}
 				} else if (!this._initted) {
@@ -869,8 +869,7 @@
 			} else {
 				this._totalTime = this._time = this._rawPrevTime = time;
 			}
-
-			if (this._time === prevTime && !force && !internalForce) {
+			if ((this._time === prevTime || !this._first) && !force && !internalForce) {
 				return;
 			} else if (!this._initted) {
 				this._initted = true;
@@ -1179,7 +1178,7 @@
 
 		p.constructor = TimelineMax;
 		p.kill()._gc = false;
-		TimelineMax.version = "1.9.3";
+		TimelineMax.version = "1.9.4";
 
 		p.invalidate = function() {
 			this._yoyo = (this.vars.yoyo === true);
@@ -1259,7 +1258,7 @@
 				if (!this._reversed) if (!this._hasPausedChild()) {
 					isComplete = true;
 					callback = "onComplete";
-					if (dur === 0) if (time === 0 || this._rawPrevTime < 0) if (this._rawPrevTime !== time) { //In order to accommodate zero-duration timelines, we must discern the momentum/direction of time in order to render values properly when the "playhead" goes past 0 in the forward direction or lands directly on it, and also when it moves past it in the backward direction (from a postitive time to a negative time).
+					if (dur === 0) if (time === 0 || this._rawPrevTime < 0) if (this._rawPrevTime !== time && this._first) { //In order to accommodate zero-duration timelines, we must discern the momentum/direction of time in order to render values properly when the "playhead" goes past 0 in the forward direction or lands directly on it, and also when it moves past it in the backward direction (from a postitive time to a negative time).
 						internalForce = true;
 					}
 				}
@@ -1282,7 +1281,7 @@
 				}
 				if (time < 0) {
 					this._active = false;
-					if (dur === 0) if (this._rawPrevTime >= 0) { //zero-duration timelines are tricky because we must discern the momentum/direction of time in order to determine whether the starting values should be rendered or the ending values. If the "playhead" of its timeline goes past the zero-duration tween in the forward direction or lands directly on it, the end values should be rendered, but if the timeline's "playhead" moves past it in the backward direction (from a postitive time to a negative time), the starting values must be rendered.
+					if (dur === 0) if (this._rawPrevTime >= 0 && this._first) { //zero-duration timelines are tricky because we must discern the momentum/direction of time in order to determine whether the starting values should be rendered or the ending values. If the "playhead" of its timeline goes past the zero-duration tween in the forward direction or lands directly on it, the end values should be rendered, but if the timeline's "playhead" moves past it in the backward direction (from a postitive time to a negative time), the starting values must be rendered.
 						internalForce = true;
 					}
 				} else if (!this._initted) {
@@ -1362,7 +1361,7 @@
 				this._locked = false;
 			}
 
-			if (this._time === prevTime && !force && !internalForce) {
+			if ((this._time === prevTime || !this._first) && !force && !internalForce) {
 				if (prevTotalTime !== this._totalTime) if (this._onUpdate) if (!suppressEvents) { //so that onUpdate fires even during the repeatDelay - as long as the totalTime changed, we should trigger onUpdate.
 					this._onUpdate.apply(this.vars.onUpdateScope || this, this.vars.onUpdateParams || _blankArray);
 				}
@@ -2176,7 +2175,7 @@
 			p = CSSPlugin.prototype = new TweenPlugin("css");
 
 		p.constructor = CSSPlugin;
-		CSSPlugin.version = "1.9.3";
+		CSSPlugin.version = "1.9.4";
 		CSSPlugin.API = 2;
 		CSSPlugin.defaultTransformPerspective = 0;
 		p = "px"; //we'll reuse the "p" variable to keep file size down
@@ -2301,7 +2300,7 @@
 			 * @param {boolean=} recurse If true, the call is a recursive one. In some browsers (like IE7/8), occasionally the value isn't accurately reported initially, but if we run the function again it will take effect.
 			 * @return {number} value in pixels
 			 */
-				_convertToPixels = function(t, p, v, sfx, recurse) {
+			_convertToPixels = function(t, p, v, sfx, recurse) {
 				if (sfx === "px" || !sfx) { return v; }
 				if (sfx === "auto" || !v) { return 0; }
 				var horiz = _horizExp.test(p),
@@ -5278,8 +5277,7 @@
 			if (arguments.length) {
 				this.seek(from, suppressEvents);
 			}
-			this.reversed(false);
-			return this.paused(false);
+			return this.reversed(false).paused(false);
 		};
 
 		p.pause = function(atTime, suppressEvents) {
@@ -5301,17 +5299,14 @@
 		};
 
 		p.restart = function(includeDelay, suppressEvents) {
-			this.reversed(false);
-			this.paused(false);
-			return this.totalTime(includeDelay ? -this._delay : 0, (suppressEvents !== false));
+			return this.reversed(false).paused(false).totalTime(includeDelay ? -this._delay : 0, (suppressEvents !== false), true);
 		};
 
 		p.reverse = function(from, suppressEvents) {
 			if (arguments.length) {
 				this.seek((from || this.totalDuration()), suppressEvents);
 			}
-			this.reversed(true);
-			return this.paused(false);
+			return this.reversed(true).paused(false);
 		};
 
 		p.render = function() {
@@ -5427,13 +5422,10 @@
 			if (this._dirty) {
 				this.totalDuration();
 			}
-			if (value > this._duration) {
-				value = this._duration;
-			}
-			return this.totalTime(value, suppressEvents);
+			return this.totalTime((value > this._duration) ? this._duration : value, suppressEvents);
 		};
 
-		p.totalTime = function(time, suppressEvents) {
+		p.totalTime = function(time, suppressEvents, uncapped) {
 			if (!_tickerActive) {
 				_ticker.wake();
 			}
@@ -5441,7 +5433,7 @@
 				return this._totalTime;
 			}
 			if (this._timeline) {
-				if (time < 0) {
+				if (time < 0 && !uncapped) {
 					time += this.totalDuration();
 				}
 				if (this._timeline.smoothChildTiming) {
@@ -5450,7 +5442,7 @@
 					}
 					var totalDuration = this._totalDuration,
 						tl = this._timeline;
-					if (time > totalDuration) {
+					if (time > totalDuration && !uncapped) {
 						time = totalDuration;
 					}
 					this._startTime = (this._paused ? this._pauseTime : tl._time) - ((!this._reversed ? time : totalDuration - time) / this._timeScale);
@@ -5531,7 +5523,7 @@
 				this._paused = value;
 				this._active = (!value && this._totalTime > 0 && this._totalTime < this._totalDuration);
 				if (!value && elapsed !== 0 && this._duration !== 0) {
-					this.render(this._time, true, true);
+					this.render(this._totalTime, true, true);
 				}
 			}
 			if (this._gc && !value) {
@@ -5557,7 +5549,7 @@
 		p._first = p._last = null;
 		p._sortChildren = false;
 
-		p.add = function(child, position, align, stagger) {
+		p.add = p.insert = function(child, position, align, stagger) {
 			var prevTween, st;
 			child._startTime = Number(position || 0) + child._delay;
 			if (child._paused) if (this !== child._timeline) { //we only adjust the _pauseTime if it wasn't in this timeline already. Remember, sometimes a tween will be inserted again into the same timeline when its startTime is changed so that the tweens in the TimelineLite/Max are re-ordered properly in the linked list (so everything renders in the proper order).
@@ -5595,9 +5587,6 @@
 			}
 			return this;
 		};
-
-		//alias for backwards compatibility
-		p.insert = p.add;
 
 		p._remove = function(tween, skipDisable) {
 			if (tween.timeline === this) {
@@ -5738,7 +5727,7 @@
 		p._firstPT = p._targets = p._overwrittenProps = p._startAt = null;
 		p._notifyPluginsOfEnabled = false;
 
-		TweenLite.version = "1.9.3";
+		TweenLite.version = "1.9.4";
 		TweenLite.defaultEase = p._ease = new Ease(null, null, 1, 1);
 		TweenLite.defaultOverwrite = "auto";
 		TweenLite.ticker = _ticker;

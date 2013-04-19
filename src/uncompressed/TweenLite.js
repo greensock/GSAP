@@ -1,6 +1,6 @@
 /*!
- * VERSION: beta 1.9.3
- * DATE: 2013-04-03
+ * VERSION: beta 1.9.4
+ * DATE: 2013-04-18
  * JavaScript (ActionScript 3 and 2 also available)
  * UPDATES AND DOCS AT: http://www.greensock.com
  *
@@ -385,8 +385,7 @@
 			if (arguments.length) {
 				this.seek(from, suppressEvents);
 			}
-			this.reversed(false);
-			return this.paused(false);
+			return this.reversed(false).paused(false);
 		};
 		
 		p.pause = function(atTime, suppressEvents) {
@@ -408,17 +407,14 @@
 		};
 		
 		p.restart = function(includeDelay, suppressEvents) {
-			this.reversed(false);
-			this.paused(false);
-			return this.totalTime(includeDelay ? -this._delay : 0, (suppressEvents !== false));
+			return this.reversed(false).paused(false).totalTime(includeDelay ? -this._delay : 0, (suppressEvents !== false), true);
 		};
 		
 		p.reverse = function(from, suppressEvents) {
 			if (arguments.length) {
 				this.seek((from || this.totalDuration()), suppressEvents);
 			}
-			this.reversed(true);
-			return this.paused(false);
+			return this.reversed(true).paused(false);
 		};
 		
 		p.render = function() {
@@ -534,13 +530,10 @@
 			if (this._dirty) {
 				this.totalDuration();
 			}
-			if (value > this._duration) {
-				value = this._duration;
-			}
-			return this.totalTime(value, suppressEvents);
+			return this.totalTime((value > this._duration) ? this._duration : value, suppressEvents);
 		};
 		
-		p.totalTime = function(time, suppressEvents) {
+		p.totalTime = function(time, suppressEvents, uncapped) {
 			if (!_tickerActive) {
 				_ticker.wake();
 			}
@@ -548,7 +541,7 @@
 				return this._totalTime;
 			}
 			if (this._timeline) {
-				if (time < 0) {
+				if (time < 0 && !uncapped) {
 					time += this.totalDuration();
 				}
 				if (this._timeline.smoothChildTiming) {
@@ -557,7 +550,7 @@
 					}
 					var totalDuration = this._totalDuration,
 						tl = this._timeline;
-					if (time > totalDuration) {
+					if (time > totalDuration && !uncapped) {
 						time = totalDuration;
 					}
 					this._startTime = (this._paused ? this._pauseTime : tl._time) - ((!this._reversed ? time : totalDuration - time) / this._timeScale);
@@ -638,7 +631,7 @@
 				this._paused = value;
 				this._active = (!value && this._totalTime > 0 && this._totalTime < this._totalDuration);
 				if (!value && elapsed !== 0 && this._duration !== 0) {
-					this.render(this._time, true, true);
+					this.render(this._totalTime, true, true);
 				}
 			}
 			if (this._gc && !value) {
@@ -664,7 +657,7 @@
 		p._first = p._last = null;
 		p._sortChildren = false;
 
-		p.add = function(child, position, align, stagger) {
+		p.add = p.insert = function(child, position, align, stagger) {
 			var prevTween, st;
 			child._startTime = Number(position || 0) + child._delay;
 			if (child._paused) if (this !== child._timeline) { //we only adjust the _pauseTime if it wasn't in this timeline already. Remember, sometimes a tween will be inserted again into the same timeline when its startTime is changed so that the tweens in the TimelineLite/Max are re-ordered properly in the linked list (so everything renders in the proper order).
@@ -702,9 +695,6 @@
 			}
 			return this;
 		};
-
-		//alias for backwards compatibility
-		p.insert = p.add;
 		
 		p._remove = function(tween, skipDisable) {
 			if (tween.timeline === this) {
@@ -845,7 +835,7 @@
 		p._firstPT = p._targets = p._overwrittenProps = p._startAt = null;
 		p._notifyPluginsOfEnabled = false;
 		
-		TweenLite.version = "1.9.3";
+		TweenLite.version = "1.9.4";
 		TweenLite.defaultEase = p._ease = new Ease(null, null, 1, 1);
 		TweenLite.defaultOverwrite = "auto";
 		TweenLite.ticker = _ticker;
