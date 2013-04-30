@@ -1,11 +1,10 @@
 /*!
- * VERSION: beta 1.9.4
- * DATE: 2013-04-18
- * JavaScript (ActionScript 3 and 2 also available)
+ * VERSION: beta 1.9.5
+ * DATE: 2013-04-29
  * UPDATES AND DOCS AT: http://www.greensock.com
  *
  * @license Copyright (c) 2008-2013, GreenSock. All rights reserved.
- * This work is subject to the terms in http://www.greensock.com/terms_of_use.html or for 
+ * This work is subject to the terms at http://www.greensock.com/terms_of_use.html or for
  * Club GreenSock members, the software agreement that was issued with your membership.
  * 
  * @author: Jack Doyle, jack@greensock.com
@@ -54,7 +53,7 @@
 			},
 			p = TimelineLite.prototype = new SimpleTimeline();
 
-		TimelineLite.version = "1.9.4";
+		TimelineLite.version = "1.9.5";
 		p.constructor = TimelineLite;
 		p.kill()._gc = false;
 		
@@ -305,6 +304,9 @@
 					callback = "onComplete";
 					if (this._duration === 0) if (time === 0 || this._rawPrevTime < 0) if (this._rawPrevTime !== time && this._first) { //In order to accommodate zero-duration timelines, we must discern the momentum/direction of time in order to render values properly when the "playhead" goes past 0 in the forward direction or lands directly on it, and also when it moves past it in the backward direction (from a postitive time to a negative time).
 						internalForce = true;
+						if (this._rawPrevTime > 0) {
+							callback = "onReverseComplete";
+						}
 					}
 				}
 				this._rawPrevTime = time;
@@ -325,6 +327,7 @@
 					internalForce = true;
 				}
 				this._rawPrevTime = time;
+				time = 0; //to avoid occasional floating point rounding errors (could cause problems especially with zero-duration tweens at the very beginning of the timeline)
 
 			} else {
 				this._totalTime = this._time = this._rawPrevTime = time;

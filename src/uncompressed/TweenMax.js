@@ -1,13 +1,12 @@
 /*!
- * VERSION: beta 1.9.4
- * DATE: 2013-04-18
- * JavaScript (ActionScript 3 and 2 also available)
+ * VERSION: beta 1.9.5
+ * DATE: 2013-04-29
  * UPDATES AND DOCS AT: http://www.greensock.com
  * 
- * Includes all of the following: TweenLite, TweenMax, TimelineLite, TimelineMax, easing.EasePack, plugins.CSSPlugin, plugins.RoundPropsPlugin, plugins.BezierPlugin, plugins.AttrPlugin
+ * Includes all of the following: TweenLite, TweenMax, TimelineLite, TimelineMax, EasePack, CSSPlugin, RoundPropsPlugin, BezierPlugin, AttrPlugin, DirectionalRotationPlugin
  *
  * @license Copyright (c) 2008-2013, GreenSock. All rights reserved.
- * This work is subject to the terms in http://www.greensock.com/terms_of_use.html or for 
+ * This work is subject to the terms at http://www.greensock.com/terms_of_use.html or for
  * Club GreenSock members, the software agreement that was issued with your membership.
  * 
  * @author: Jack Doyle, jack@greensock.com
@@ -40,7 +39,7 @@
 			p = TweenMax.prototype = TweenLite.to({}, 0.1, {}),
 			_blankArray = [];
 
-		TweenMax.version = "1.9.4";
+		TweenMax.version = "1.9.5";
 		p.constructor = TweenMax;
 		p.kill()._gc = false;
 		TweenMax.killTweensOf = TweenMax.killDelayedCallsTo = TweenLite.killTweensOf;
@@ -121,6 +120,9 @@
 				if (this._duration === 0) { //zero-duration tweens are tricky because we must discern the momentum/direction of time in order to determine whether the starting values should be rendered or the ending values. If the "playhead" of its timeline goes past the zero-duration tween in the forward direction or lands directly on it, the end values should be rendered, but if the timeline's "playhead" moves past it in the backward direction (from a postitive time to a negative time), the starting values must be rendered.
 					if (time === 0 || this._rawPrevTime < 0) if (this._rawPrevTime !== time) {
 						force = true;
+						if (this._rawPrevTime > 0) {
+							callback = "onReverseComplete";
+						}
 					}
 					this._rawPrevTime = time;
 				}
@@ -594,7 +596,7 @@
 			},
 			p = TimelineLite.prototype = new SimpleTimeline();
 
-		TimelineLite.version = "1.9.4";
+		TimelineLite.version = "1.9.5";
 		p.constructor = TimelineLite;
 		p.kill()._gc = false;
 
@@ -845,6 +847,9 @@
 					callback = "onComplete";
 					if (this._duration === 0) if (time === 0 || this._rawPrevTime < 0) if (this._rawPrevTime !== time && this._first) { //In order to accommodate zero-duration timelines, we must discern the momentum/direction of time in order to render values properly when the "playhead" goes past 0 in the forward direction or lands directly on it, and also when it moves past it in the backward direction (from a postitive time to a negative time).
 						internalForce = true;
+						if (this._rawPrevTime > 0) {
+							callback = "onReverseComplete";
+						}
 					}
 				}
 				this._rawPrevTime = time;
@@ -865,6 +870,7 @@
 					internalForce = true;
 				}
 				this._rawPrevTime = time;
+				time = 0; //to avoid occasional floating point rounding errors (could cause problems especially with zero-duration tweens at the very beginning of the timeline)
 
 			} else {
 				this._totalTime = this._time = this._rawPrevTime = time;
@@ -1178,7 +1184,7 @@
 
 		p.constructor = TimelineMax;
 		p.kill()._gc = false;
-		TimelineMax.version = "1.9.4";
+		TimelineMax.version = "1.9.5";
 
 		p.invalidate = function() {
 			this._yoyo = (this.vars.yoyo === true);
@@ -1230,9 +1236,11 @@
 
 		p.tweenFromTo = function(fromPosition, toPosition, vars) {
 			vars = vars || {};
-			vars.startAt = {time:this._parseTimeOrLabel(fromPosition)};
+			fromPosition = this._parseTimeOrLabel(fromPosition);
+			vars.startAt = {onComplete:this.seek, onCompleteParams:[fromPosition], onCompleteScope:this};
+			vars.immediateRender = (vars.immediateRender !== false);
 			var t = this.tweenTo(toPosition, vars);
-			return t.duration((Math.abs( t.vars.time - t.vars.startAt.time) / this._timeScale) || 0.001);
+			return t.duration((Math.abs( t.vars.time - fromPosition) / this._timeScale) || 0.001);
 		};
 
 		p.render = function(time, suppressEvents, force) {
@@ -1260,6 +1268,9 @@
 					callback = "onComplete";
 					if (dur === 0) if (time === 0 || this._rawPrevTime < 0) if (this._rawPrevTime !== time && this._first) { //In order to accommodate zero-duration timelines, we must discern the momentum/direction of time in order to render values properly when the "playhead" goes past 0 in the forward direction or lands directly on it, and also when it moves past it in the backward direction (from a postitive time to a negative time).
 						internalForce = true;
+						if (this._rawPrevTime > 0) {
+							callback = "onReverseComplete";
+						}
 					}
 				}
 				this._rawPrevTime = time;
@@ -1267,7 +1278,7 @@
 					this._time = time = 0;
 				} else {
 					this._time = dur;
-					time = dur + 0.000001; //to avoid occasional floating point rounding errors in Flash - sometimes child tweens/timelines were not being fully completed (their progress might be 0.999999999999998 instead of 1 because when Flash performed _time - tween._startTime, floating point errors would return a value that was SLIGHTLY off)
+					time = dur + 0.000001; //to avoid occasional floating point rounding errors
 				}
 
 			} else if (time < 0.0000001) { //to work around occasional floating point math artifacts, round super small values to 0.
@@ -1288,7 +1299,7 @@
 					internalForce = true;
 				}
 				this._rawPrevTime = time;
-				time = 0; //to avoid occasional floating point rounding errors - sometimes child tweens/timelines were not being rendered at the very beginning (their progress might be 0.000000000001 instead of 0 because when Flash performed _time - tween._startTime, floating point errors would return a value that was SLIGHTLY off)
+				time = 0;  //to avoid occasional floating point rounding errors (could cause problems especially with zero-duration tweens at the very beginning of the timeline)
 
 			} else {
 				this._time = this._rawPrevTime = time;
@@ -1296,7 +1307,7 @@
 					this._totalTime = time;
 					if (this._repeat !== 0) {
 						cycleDuration = dur + this._repeatDelay;
-						this._cycle = (this._totalTime / cycleDuration) >> 0; //originally _totalTime % cycleDuration but floating point errors caused problems, so I normalized it. (4 % 0.8 should be 0 but Flash reports it as 0.79999999!)
+						this._cycle = (this._totalTime / cycleDuration) >> 0; //originally _totalTime % cycleDuration but floating point errors caused problems, so I normalized it. (4 % 0.8 should be 0 but it gets reported as 0.79999999!)
 						if (this._cycle !== 0) if (this._cycle === this._totalTime / cycleDuration) {
 							this._cycle--; //otherwise when rendered exactly at the end time, it will act as though it is repeating (at the beginning)
 						}
@@ -1306,7 +1317,7 @@
 						}
 						if (this._time > dur) {
 							this._time = dur;
-							time = dur + 0.000001; //to avoid occasional floating point rounding errors in Flash - sometimes child tweens/timelines were not being fully completed (their progress might be 0.999999999999998 instead of 1 because when Flash performed _time - tween._startTime, floating point errors would return a value that was SLIGHTLY off)
+							time = dur + 0.000001; //to avoid occasional floating point rounding error
 						} else if (this._time < 0) {
 							this._time = time = 0;
 						} else {
@@ -2026,25 +2037,30 @@
 								p = ar[i][2];
 								add = ar[i][3] || 0;
 								conv = (ar[i][4] === true) ? 1 : _RAD2DEG;
-								b = this._beziers[ar[i][0]][curIndex];
-								b2 = this._beziers[ar[i][1]][curIndex];
+								b = this._beziers[ar[i][0]];
+								b2 = this._beziers[ar[i][1]];
 
-								x1 = b.a + (b.b - b.a) * t;
-								x2 = b.b + (b.c - b.b) * t;
-								x1 += (x2 - x1) * t;
-								x2 += ((b.c + (b.d - b.c) * t) - x2) * t;
+								if (b && b2) { //in case one of the properties got overwritten.
+									b = b[curIndex];
+									b2 = b2[curIndex];
 
-								y1 = b2.a + (b2.b - b2.a) * t;
-								y2 = b2.b + (b2.c - b2.b) * t;
-								y1 += (y2 - y1) * t;
-								y2 += ((b2.c + (b2.d - b2.c) * t) - y2) * t;
+									x1 = b.a + (b.b - b.a) * t;
+									x2 = b.b + (b.c - b.b) * t;
+									x1 += (x2 - x1) * t;
+									x2 += ((b.c + (b.d - b.c) * t) - x2) * t;
 
-								val = Math.atan2(y2 - y1, x2 - x1) * conv + add;
+									y1 = b2.a + (b2.b - b2.a) * t;
+									y2 = b2.b + (b2.c - b2.b) * t;
+									y1 += (y2 - y1) * t;
+									y2 += ((b2.c + (b2.d - b2.c) * t) - y2) * t;
 
-								if (func[p]) {
-									target[p](val);
-								} else {
-									target[p] = val;
+									val = Math.atan2(y2 - y1, x2 - x1) * conv + add;
+
+									if (func[p]) {
+										target[p](val);
+									} else {
+										target[p] = val;
+									}
 								}
 							}
 						}
@@ -2175,7 +2191,7 @@
 			p = CSSPlugin.prototype = new TweenPlugin("css");
 
 		p.constructor = CSSPlugin;
-		CSSPlugin.version = "1.9.4";
+		CSSPlugin.version = "1.9.5";
 		CSSPlugin.API = 2;
 		CSSPlugin.defaultTransformPerspective = 0;
 		p = "px"; //we'll reuse the "p" variable to keep file size down
@@ -2185,7 +2201,8 @@
 		var _numExp = /(?:\d|\-\d|\.\d|\-\.\d)+/g,
 			_relNumExp = /(?:\d|\-\d|\.\d|\-\.\d|\+=\d|\-=\d|\+=.\d|\-=\.\d)+/g,
 			_valuesExp = /(?:\+=|\-=|\-|\b)[\d\-\.]+[a-zA-Z0-9]*(?:%|\b)/gi, //finds all the values that begin with numbers or += or -= and then a number. Includes suffixes. We use this to split complex values apart like "1px 5px 20px rgb(255,102,51)"
-			//_clrNumExp = /(?:\b(?:(?:rgb|rgba)\(.+?\))|\B#.+?\b)/, //only finds rgb(), rgba(), and # (hexadecimal) values but NOT color names like red, blue, etc.
+			//_clrNumExp = /(?:\b(?:(?:rgb|rgba|hsl|hsla)\(.+?\))|\B#.+?\b)/, //only finds rgb(), rgba(), hsl(), hsla() and # (hexadecimal) values but NOT color names like red, blue, etc.
+			//_tinyNumExp = /\b\d+?e\-\d+?\b/g, //finds super small numbers in a string like 1e-20. could be used in matrix3d() to fish out invalid numbers and replace them with 0. After performing speed tests, however, we discovered it was slightly faster to just cut the numbers at 5 decimal places with a particular algorithm.
 			_NaNExp = /[^\d\-\.]/g,
 			_suffixExp = /(?:\d|\-|\+|=|#|\.)*/g,
 			_opacityExp = /opacity *= *([^)]*)/,
@@ -2635,7 +2652,7 @@
 						i = vals.length;
 						if (numVals > i--) {
 							while (++i < numVals) {
-								vals[i] = collapsible ? vals[(((i - 1) / 2) >> 0)] : dVals[i];
+								vals[i] = collapsible ? vals[(((i - 1) / 2) | 0)] : dVals[i];
 							}
 						}
 						return pfx + vals.join(delim) + delim + color + sfx + (v.indexOf("inset") !== -1 ? " inset" : "");
@@ -2658,7 +2675,7 @@
 					i = vals.length;
 					if (numVals > i--) {
 						while (++i < numVals) {
-							vals[i] = collapsible ? vals[(((i - 1) / 2) >> 0)] : dVals[i];
+							vals[i] = collapsible ? vals[(((i - 1) / 2) | 0)] : dVals[i];
 						}
 					}
 					return pfx + vals.join(delim) + sfx;
@@ -2695,7 +2712,7 @@
 				while (mpt) {
 					val = proxy[mpt.v];
 					if (mpt.r) {
-						val = (val > 0) ? (val + 0.5) >> 0 : (val - 0.5) >> 0;
+						val = (val > 0) ? (val + 0.5) | 0 : (val - 0.5) | 0;
 					} else if (val < min && val > -min) {
 						val = 0;
 					}
@@ -3263,7 +3280,7 @@
 							t1 = a11*cos-a13*sin;
 							t2 = a21*cos-a23*sin;
 							t3 = a31*cos-a33*sin;
-							t4 = a41*cos-a43*sin;
+							//t4 = a41*cos-a43*sin;
 							//a13 = a11*sin+a13*cos;
 							a23 = a21*sin+a23*cos;
 							a33 = a31*sin+a33*cos;
@@ -3294,9 +3311,9 @@
 							tm.rotationY = tm.rotationX = 0;
 						}
 
-						tm.scaleX = ((Math.sqrt(a11 * a11 + a21 * a21) * rnd + 0.5) >> 0) / rnd;
-						tm.scaleY = ((Math.sqrt(a22 * a22 + a23 * a23) * rnd + 0.5) >> 0) / rnd;
-						tm.scaleZ = ((Math.sqrt(a32 * a32 + a33 * a33) * rnd + 0.5) >> 0) / rnd;
+						tm.scaleX = ((Math.sqrt(a11 * a11 + a21 * a21) * rnd + 0.5) | 0) / rnd;
+						tm.scaleY = ((Math.sqrt(a22 * a22 + a23 * a23) * rnd + 0.5) | 0) / rnd;
+						tm.scaleZ = ((Math.sqrt(a32 * a32 + a33 * a33) * rnd + 0.5) | 0) / rnd;
 						tm.skewX = 0;
 						tm.perspective = a43 ? 1 / ((a43 < 0) ? -a43 : a43) : 0;
 						tm.x = a14;
@@ -3332,7 +3349,7 @@
 					difR = (rotation - tm.rotation) % Math.PI; //note: matching ranges would be very small (+/-0.0001) or very close to Math.PI (+/-3.1415).
 					difS = (skewX - tm.skewX) % Math.PI;
 					//if there's already a recorded _gsTransform in place for the target, we should leave those values in place unless we know things changed for sure (beyond a super small amount). This gets around ambiguous interpretations, like if scaleX and scaleY are both -1, the matrix would be the same as if the rotation was 180 with normal scaleX/scaleY. If the user tweened to particular values, those must be prioritized to ensure animation is consistent.
-					if (tm.skewX === undefined || difX > min || difX < -min || difY > min || difY < -min || (difR > minPI && difR < maxPI && (difR * rnd) >> 0 !== 0) || (difS > minPI && difS < maxPI && (difS * rnd) >> 0 !== 0)) {
+					if (tm.skewX === undefined || difX > min || difX < -min || difY > min || difY < -min || (difR > minPI && difR < maxPI && (difR * rnd) | 0 !== 0) || (difS > minPI && difS < maxPI && (difS * rnd) | 0 !== 0)) {
 						tm.scaleX = scaleX;
 						tm.scaleY = scaleY;
 						tm.rotation = rotation;
@@ -3365,10 +3382,10 @@
 					ang = -t.rotation,
 					skew = ang + t.skewX,
 					rnd = 100000,
-					a = ((Math.cos(ang) * t.scaleX * rnd) >> 0) / rnd,
-					b = ((Math.sin(ang) * t.scaleX * rnd) >> 0) / rnd,
-					c = ((Math.sin(skew) * -t.scaleY * rnd) >> 0) / rnd,
-					d = ((Math.cos(skew) * t.scaleY * rnd) >> 0) / rnd,
+					a = ((Math.cos(ang) * t.scaleX * rnd) | 0) / rnd,
+					b = ((Math.sin(ang) * t.scaleX * rnd) | 0) / rnd,
+					c = ((Math.sin(skew) * -t.scaleY * rnd) | 0) / rnd,
+					d = ((Math.cos(skew) * t.scaleY * rnd) | 0) / rnd,
 					style = this.t.style,
 					cs = this.t.currentStyle,
 					filters, val;
@@ -3443,9 +3460,9 @@
 					a41 = 0, a42 = 0, a43 = (perspective) ? -1 / perspective : 0,
 					angle = t.rotation,
 					zOrigin = t.zOrigin,
-					cma = ",",
 					rnd = 100000,
 					cos, sin, t1, t2, t3, t4, ffProp, n, sfx;
+
 				if (_isFirefox) { //Firefox has a bug that causes 3D elements to randomly disappear during animation unless a repaint is forced. One way to do this is change "top" or "bottom" by 0.05 which is imperceptible, so we go back and forth. Another way is to change the display to "none", read the clientTop, and then revert the display but that is much slower.
 					ffProp = style.top ? "top" : style.bottom ? "bottom" : parseFloat(_getStyle(this.t, "top", null, false)) ? "bottom" : "top";
 					t1 = _getStyle(this.t, ffProp, null, false);
@@ -3504,12 +3521,10 @@
 					a24 = a23*a34;
 					a34 = a33*a34+zOrigin;
 				}
-				//we round the x, y, and z slightly differently to allow even larger values.
 				a14 = (t1 = (a14 += t.x) - (a14 |= 0)) ? ((t1 * rnd + (t1 < 0 ? -0.5 : 0.5)) | 0) / rnd + a14 : a14;
 				a24 = (t1 = (a24 += t.y) - (a24 |= 0)) ? ((t1 * rnd + (t1 < 0 ? -0.5 : 0.5)) | 0) / rnd + a24 : a24;
 				a34 = (t1 = (a34 += t.z) - (a34 |= 0)) ? ((t1 * rnd + (t1 < 0 ? -0.5 : 0.5)) | 0) / rnd + a34 : a34;
-
-				style[_transformProp] = "matrix3d(" + (((a11 * rnd) >> 0) / rnd) + cma + (((a21 * rnd) >> 0) / rnd) + cma + (((a31 * rnd) >> 0) / rnd) + cma + (((a41 * rnd) >> 0) / rnd) + cma	+ (((a12 * rnd) >> 0) / rnd) + cma + (((a22 * rnd) >> 0) / rnd) + cma + (((a32 * rnd) >> 0) / rnd) + cma + (((a42 * rnd) >> 0) / rnd) + cma + (((a13 * rnd) >> 0) / rnd) + cma + (((a23 * rnd) >> 0) / rnd) + cma + (((a33 * rnd) >> 0) / rnd) + cma + (((a43 * rnd) >> 0) / rnd) + cma + a14 + cma + a24 + cma + a34 + cma + (perspective ? (1 + (-a34 / perspective)) : 1) + ")";
+				style[_transformProp] = "matrix3d(" + [ (((a11 * rnd) | 0) / rnd), (((a21 * rnd) | 0) / rnd), (((a31 * rnd) | 0) / rnd), (((a41 * rnd) | 0) / rnd), (((a12 * rnd) | 0) / rnd), (((a22 * rnd) | 0) / rnd), (((a32 * rnd) | 0) / rnd), (((a42 * rnd) | 0) / rnd), (((a13 * rnd) | 0) / rnd), (((a23 * rnd) | 0) / rnd), (((a33 * rnd) | 0) / rnd), (((a43 * rnd) | 0) / rnd), a14, a24, a34, (perspective ? (1 + (-a34 / perspective)) : 1) ].join(",") + ")";
 			},
 			_set2DTransformRatio = function(v) {
 				var t = this.data, //refers to the element's _gsTransform object
@@ -3533,7 +3548,7 @@
 					sx = t.scaleX * rnd;
 					sy = t.scaleY * rnd;
 					//some browsers have a hard time with very small values like 2.4492935982947064e-16 (notice the "e-" towards the end) and would render the object slightly off. So we round to 5 decimal places.
-					style[_transformProp] = "matrix(" + (((Math.cos(ang) * sx) >> 0) / rnd) + "," + (((Math.sin(ang) * sx) >> 0) / rnd) + "," + (((Math.sin(skew) * -sy) >> 0) / rnd) + "," + (((Math.cos(skew) * sy) >> 0) / rnd) + "," + t.x + "," + t.y + ")";
+					style[_transformProp] = "matrix(" + (((Math.cos(ang) * sx) | 0) / rnd) + "," + (((Math.sin(ang) * sx) | 0) / rnd) + "," + (((Math.sin(skew) * -sy) | 0) / rnd) + "," + (((Math.cos(skew) * sy) | 0) / rnd) + "," + t.x + "," + t.y + ")";
 				}
 			};
 
@@ -3762,7 +3777,7 @@
 		var _setIEOpacityRatio = function(v) {
 				var t = this.t, //refers to the element's style property
 					filters = t.filter,
-					val = (this.s + this.c * v) >> 0,
+					val = (this.s + this.c * v) | 0,
 					skip;
 				if (val === 100) { //for older versions of IE that need to use a filter to apply opacity, we should remove the filter if opacity hits 1 in order to improve performance, but make sure there isn't a transform (matrix) or gradient in the filters.
 					if (filters.indexOf("atrix(") === -1 && filters.indexOf("radient(") === -1) {
@@ -4149,7 +4164,7 @@
 				while (pt) {
 					val = pt.c * v + pt.s;
 					if (pt.r) {
-						val = (val > 0) ? (val + 0.5) >> 0 : (val - 0.5) >> 0;
+						val = (val > 0) ? (val + 0.5) | 0 : (val - 0.5) | 0;
 					} else if (val < min) if (val > -min) {
 						val = 0;
 					}
@@ -5162,12 +5177,14 @@
 				_fps, _req, _id, _gap, _nextTime,
 				_tick = function(manual) {
 					_self.time = (_getTime() - _startTime) / 1000;
-					if (!_fps || _self.time >= _nextTime || manual === true) {
+					var id = _id,
+						overlap = _self.time - _nextTime;
+					if (!_fps || overlap > 0 || manual === true) {
 						_self.frame++;
-						_nextTime = _self.time + _gap; //previously used a method that would vary the update time to try to reach the target fps, but visually it's actually better to just have a steady gap. Old: (_self.time > _nextTime) ? _self.time + _gap - (_self.time - _nextTime) : _self.time + _gap - 0.001;
+						_nextTime += overlap + (overlap >= _gap ? 0.004 : _gap - overlap);
 						_self.dispatchEvent("tick");
 					}
-					if (manual !== true) {
+					if (manual !== true && id === _id) { //make sure the ids match in case the "tick" dispatch triggered something that caused the ticker to shut down or change _useRAF or something like that.
 						_id = _req(_tick);
 					}
 				};
@@ -5198,7 +5215,7 @@
 				if (_id) {
 					_self.sleep();
 				}
-				_req = (_fps === 0) ? _emptyFunc : (!_useRAF || !_reqAnimFrame) ? function(f) { return setTimeout(f, _gap * 1000); } : _reqAnimFrame;
+				_req = (_fps === 0) ? _emptyFunc : (!_useRAF || !_reqAnimFrame) ? function(f) { return setTimeout(f, ((_nextTime - _self.time) * 1000 + 1) | 0); } : _reqAnimFrame;
 				if (_self === _ticker) {
 					_tickerActive = true;
 				}
@@ -5219,6 +5236,7 @@
 				if (!arguments.length) {
 					return _useRAF;
 				}
+				_self.sleep();
 				_useRAF = value;
 				_self.fps(_fps);
 			};
@@ -5226,7 +5244,7 @@
 
 			//a bug in iOS 6 Safari occasionally prevents the requestAnimationFrame from working initially, so we use a 1-second timeout that automatically falls back to setTimeout() if it senses this condition.
 			setTimeout(function() {
-				if (_useRAF && !_id) {
+				if (_useRAF && (!_id || _self.frame < 5)) {
 					_self.useRAF(false);
 				}
 			}, 1000);
@@ -5727,7 +5745,7 @@
 		p._firstPT = p._targets = p._overwrittenProps = p._startAt = null;
 		p._notifyPluginsOfEnabled = false;
 
-		TweenLite.version = "1.9.4";
+		TweenLite.version = "1.9.5";
 		TweenLite.defaultEase = p._ease = new Ease(null, null, 1, 1);
 		TweenLite.defaultOverwrite = "auto";
 		TweenLite.ticker = _ticker;
@@ -6016,6 +6034,9 @@
 				if (this._duration === 0) { //zero-duration tweens are tricky because we must discern the momentum/direction of time in order to determine whether the starting values should be rendered or the ending values. If the "playhead" of its timeline goes past the zero-duration tween in the forward direction or lands directly on it, the end values should be rendered, but if the timeline's "playhead" moves past it in the backward direction (from a postitive time to a negative time), the starting values must be rendered.
 					if (time === 0 || this._rawPrevTime < 0) if (this._rawPrevTime !== time) {
 						force = true;
+						if (this._rawPrevTime > 0) {
+							callback = "onReverseComplete";
+						}
 					}
 					this._rawPrevTime = time;
 				}

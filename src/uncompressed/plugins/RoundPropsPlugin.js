@@ -1,11 +1,10 @@
-/**
+/*!
  * VERSION: beta 1.4.0
  * DATE: 2013-02-27
- * JavaScript (ActionScript 3 and 2 also available)
  * UPDATES AND DOCS AT: http://www.greensock.com
  *
  * @license Copyright (c) 2008-2013, GreenSock. All rights reserved.
- * This work is subject to the terms in http://www.greensock.com/terms_of_use.html or for 
+ * This work is subject to the terms at http://www.greensock.com/terms_of_use.html or for
  * Club GreenSock members, the software agreement that was issued with your membership.
  * 
  * @author: Jack Doyle, jack@greensock.com

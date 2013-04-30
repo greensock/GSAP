@@ -1,7 +1,6 @@
-/**
+/*!
  * VERSION: 1.1.0
  * DATE: 2013-02-28
- * JavaScript 
  * UPDATES AND DOCS AT: http://www.greensock.com
  * 
  * This file is to be used as a simple template for writing your own plugin. See the 
@@ -12,7 +11,7 @@
  * of TweenLite won't work with this.
  *
  * @license Copyright (c) 2008-2013, GreenSock. All rights reserved.
- * This work is subject to the terms in http://www.greensock.com/terms_of_use.html or for 
+ * This work is subject to the terms at http://www.greensock.com/terms_of_use.html or for
  * Club GreenSock members, the software agreement that was issued with your membership.
  * 
  * @author: Jack Doyle, jack@greensock.com

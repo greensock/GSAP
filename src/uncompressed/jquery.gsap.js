@@ -1,14 +1,12 @@
 /*!
  * VERSION: 0.1.6
  * DATE: 2013-02-13
- * JavaScript
  * UPDATES AND DOCS AT: http://www.greensock.com/jquery-gsap-plugin/
  *
- * Requires TweenLite version 1.8.0 or higher and CSSPlugin. If TweenMax is loaded, it will be preferred over TweenLite
- * so that you get the most features possible (like repeat, yoyo, repeatDelay, etc.)
+ * Requires TweenLite version 1.8.0 or higher and CSSPlugin.
  *
  * @license Copyright (c) 2013, GreenSock. All rights reserved.
- * This work is subject to the terms in http://www.greensock.com/terms_of_use.html or for
+ * This work is subject to the terms at http://www.greensock.com/terms_of_use.html or for
  * Club GreenSock members, the software agreement that was issued with your membership.
  *
  * @author: Jack Doyle, jack@greensock.com

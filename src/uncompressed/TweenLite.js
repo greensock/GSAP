@@ -1,11 +1,10 @@
 /*!
- * VERSION: beta 1.9.4
- * DATE: 2013-04-18
- * JavaScript (ActionScript 3 and 2 also available)
+ * VERSION: beta 1.9.5
+ * DATE: 2013-04-29
  * UPDATES AND DOCS AT: http://www.greensock.com
  *
  * @license Copyright (c) 2008-2013, GreenSock. All rights reserved.
- * This work is subject to the terms in http://www.greensock.com/terms_of_use.html or for 
+ * This work is subject to the terms at http://www.greensock.com/terms_of_use.html or for
  * Club GreenSock members, the software agreement that was issued with your membership.
  * 
  * @author: Jack Doyle, jack@greensock.com
@@ -270,12 +269,14 @@
 				_fps, _req, _id, _gap, _nextTime,
 				_tick = function(manual) {
 					_self.time = (_getTime() - _startTime) / 1000;
-					if (!_fps || _self.time >= _nextTime || manual === true) {
+					var id = _id,
+						overlap = _self.time - _nextTime;
+					if (!_fps || overlap > 0 || manual === true) {
 						_self.frame++;
-						_nextTime = _self.time + _gap; //previously used a method that would vary the update time to try to reach the target fps, but visually it's actually better to just have a steady gap. Old: (_self.time > _nextTime) ? _self.time + _gap - (_self.time - _nextTime) : _self.time + _gap - 0.001;
+						_nextTime += overlap + (overlap >= _gap ? 0.004 : _gap - overlap);
 						_self.dispatchEvent("tick");
 					}
-					if (manual !== true) {
+					if (manual !== true && id === _id) { //make sure the ids match in case the "tick" dispatch triggered something that caused the ticker to shut down or change _useRAF or something like that.
 						_id = _req(_tick);
 					}
 				};
@@ -306,7 +307,7 @@
 				if (_id) {
 					_self.sleep();
 				}
-				_req = (_fps === 0) ? _emptyFunc : (!_useRAF || !_reqAnimFrame) ? function(f) { return setTimeout(f, _gap * 1000); } : _reqAnimFrame;
+				_req = (_fps === 0) ? _emptyFunc : (!_useRAF || !_reqAnimFrame) ? function(f) { return setTimeout(f, ((_nextTime - _self.time) * 1000 + 1) | 0); } : _reqAnimFrame;
 				if (_self === _ticker) {
 					_tickerActive = true;
 				}
@@ -327,6 +328,7 @@
 				if (!arguments.length) {
 					return _useRAF;
 				}
+				_self.sleep();
 				_useRAF = value;
 				_self.fps(_fps);
 			};
@@ -334,7 +336,7 @@
 
 			//a bug in iOS 6 Safari occasionally prevents the requestAnimationFrame from working initially, so we use a 1-second timeout that automatically falls back to setTimeout() if it senses this condition.
 			setTimeout(function() {
-				if (_useRAF && !_id) {
+				if (_useRAF && (!_id || _self.frame < 5)) {
 					_self.useRAF(false);
 				}
 			}, 1000);
@@ -835,7 +837,7 @@
 		p._firstPT = p._targets = p._overwrittenProps = p._startAt = null;
 		p._notifyPluginsOfEnabled = false;
 		
-		TweenLite.version = "1.9.4";
+		TweenLite.version = "1.9.5";
 		TweenLite.defaultEase = p._ease = new Ease(null, null, 1, 1);
 		TweenLite.defaultOverwrite = "auto";
 		TweenLite.ticker = _ticker;
@@ -1124,6 +1126,9 @@
 				if (this._duration === 0) { //zero-duration tweens are tricky because we must discern the momentum/direction of time in order to determine whether the starting values should be rendered or the ending values. If the "playhead" of its timeline goes past the zero-duration tween in the forward direction or lands directly on it, the end values should be rendered, but if the timeline's "playhead" moves past it in the backward direction (from a postitive time to a negative time), the starting values must be rendered.
 					if (time === 0 || this._rawPrevTime < 0) if (this._rawPrevTime !== time) {
 						force = true;
+						if (this._rawPrevTime > 0) {
+							callback = "onReverseComplete";
+						}
 					}
 					this._rawPrevTime = time;
 				}

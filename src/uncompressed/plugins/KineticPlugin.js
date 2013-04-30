@@ -1,11 +1,10 @@
 /*!
- * VERSION: 0.2.1
- * DATE: 2013-04-18
- * JavaScript 
+ * VERSION: 0.3.2
+ * DATE: 2013-04-26
  * UPDATES AND DOCS AT: http://www.greensock.com
  *
  * @license Copyright (c) 2008-2013, GreenSock. All rights reserved.
- * This work is subject to the terms in http://www.greensock.com/terms_of_use.html or for 
+ * This work is subject to the terms at http://www.greensock.com/terms_of_use.html or for
  * Club GreenSock members, the software agreement that was issued with your membership.
  * 
  * @author: Jack Doyle, jack@greensock.com
@@ -14,8 +13,10 @@
 	
 	"use strict";
 
-	var _specialProps = {setScale:1, setShadowOffset:1, setFillPatternOffset:1, setOffset:1, setFill:2, setStroke:2, setShadowColor:2},//type 1 is one that has "x" and "y" components that can be split apart but in order to set them, they must be combined into a single object and passed to one setter (like setScale({x:0.5, y:0.6})). Type 2 is for colors.
-		_getters = {},
+	var _specialProps = {setScale:1, setShadowOffset:1, setFillPatternOffset:1, setOffset:1, setFill:2, setStroke:2, setShadowColor:2}, //type 1 is one that has "x" and "y" components that can be split apart but in order to set them, they must be combined into a single object and passed to one setter (like setScale({x:0.5, y:0.6})). Type 2 is for colors.
+		_getterNames = {},
+		_getterFuncs = {},
+		_setterFuncs = {},
 		_numExp = /(\d|\.)+/g,
 		_colorLookup = {aqua:[0,255,255],
 			lime:[0,255,0],
@@ -80,19 +81,11 @@
 			}
 			return a;
 		},
-		SpecialProp = function(target, getter, next) {
-			this.target = target;
+		ColorProp = function(target, getter, setter, next) {
 			this.getter = getter;
-			this.setter = "set" + getter.substr(3);
-			this.type = _specialProps[this.setter];
-			var val = target[this.getter]();
-			if (this.type === 1) {
-				this.proxy = {x:val.x, y:val.y};
-				this.x = this.y = false;
-			} else {
-				val = _parseColor(val);
-				this.proxy = {r:val[0], g:val[1], b:val[2], a:(val.length > 3 ? val[3] : 1)};
-			}
+			this.setter = setter;
+			var val = _parseColor( target[getter]() );
+			this.proxy = {r:val[0], g:val[1], b:val[2], a:(val.length > 3 ? val[3] : 1)};
 			if (next) {
 				this._next = next;
 				next._prev = this;
@@ -113,12 +106,79 @@
 				_listening = false;
 			}
 		},
+		_prepDimensionProp = function(p, dimension) {
+			var alt = (dimension === "x") ? "y" : "x",
+				uc = dimension.toUpperCase(),
+				getter = "get" + p.substr(3),
+				proxyName = "_gs_" + p;
+			_getterNames[p + uc] = getter + uc;
+			_getterFuncs[p + uc] = function() {
+				return this[getter]()[dimension];
+			};
+			_setterFuncs[p + uc] =  function(value) {
+				var cur = this[getter](),
+					proxy = this[proxyName];
+				if (!proxy) {
+					proxy = this[proxyName] = {};
+				}
+				proxy[dimension] = value;
+				proxy[alt] = cur[alt];
+				this[p](proxy);
+				return this;
+			};
+		},
+		//looks at every property in the vars and converts them (when appropriate) to the KineticJS equivalent, like "x" would become "setX", "rotation" would be "setRotation", etc. If it finds a special property for which "x" and "y" must be split apart (like scale, offset, shadowOffset, etc.), it will do that as well, and if the getters and setters aren't already on the object (like setScaleX, setScaleY, getScaleX, and getScaleY), it'll add those to the target itself (actually, its prototype if available). This method returns an array of any names it had to change (like "x", "y", "scale", etc.) so that they can be used in the overwriteProps array.
+		_convertProps = function(target, vars) {
+			var converted = [],
+				p, gp, val, i, proto;
+			for (p in vars) {
+				val = vars[p];
+				if (p !== "bezier" && p !== "autoDraw" && p.substr(0,3) !== "set" && target[p] === undefined) {
+					converted.push(p);
+					delete vars[p];
+					p = "set" + p.charAt(0).toUpperCase() + p.substr(1);
+					vars[p] = val;
+				}
+				gp = _getterNames[p];
+				if (gp) {
+					if (_specialProps[p] === 1) {
+						vars[p + "X"] = vars[p + "Y"] = vars[p];
+						delete vars[p];
+						return _convertProps(target, vars);
+					} else if (!target[p] && _setterFuncs[p]) {
+						proto = target.prototype || target;
+						proto[p] = _setterFuncs[p];
+						proto[gp] = _getterFuncs[p];
+					}
+				} else if (p === "bezier") {
+					val = (val instanceof Array) ? val : val.values || [];
+					i = val.length;
+					while (--i > -1) {
+						if (i === 0) {
+							converted = converted.concat( _convertProps(target, val[i]) );
+						} else {
+							_convertProps(target, val[i]);
+						}
+					}
+				}
+			}
+			return converted;
+		},
+		_copy = function(obj) {
+			var result = {},
+				p;
+			for (p in obj) {
+				result[p] = obj[p];
+			}
+			return result;
+		},
 		p;
 
 	for (p in _specialProps) {
-		_getters[p] = "get" + p.substr(3);
+		_getterNames[p] = "get" + p.substr(3);
 		if (_specialProps[p] === 1) {
-			_getters[p + "X"] = _getters[p + "Y"] = _getters[p];
+			_prepDimensionProp(p, "x");
+			_prepDimensionProp(p, "y");
 		}
 	}
 
@@ -128,7 +188,8 @@
 
 		//called when the tween renders for the first time. This is where initial values should be recorded and any setup routines should run.
 		init: function(target, value, tween) {
-			var p, val, gp, sp;
+			var p, val, gp, sp, bezierPlugin, bp;
+			this._overwriteProps = _convertProps(target, value); //allow users to pass in shorter names like "x" instead of "setX" and "rotationDeg" instead of "setRotationDeg"
 			this._target = target;
 			this._layer = (value.autoDraw !== false) ? target.getLayer() : null;
 			if (!_ticker && this._layer) {
@@ -136,50 +197,60 @@
 			}
 			for (p in value) {
 				val = value[p];
-				//allow users to pass in shorter names like "x" instead of "setX" and "rotationDeg" instead of "setRotationDeg"
-				if (p.substr(0,3) !== "set" && target[p] === undefined) {
-					p = "set" + p.charAt(0).toUpperCase() + p.substr(1);
-				}
-				gp = _getters[p];
-				//some special properties need to be handled differently, like scale, scaleX, scaleY, shadowOffset, fill, stroke, etc.
-				if (gp) {
-					this._special = this._special || {};
-					sp = this._special[gp];
-					if (!sp) {
-						sp = this._special[gp] = this._firstSP = new SpecialProp(target, gp, this._firstSP);
+				//we must handle colors in a special way, splitting apart the red, green, blue, and alpha.
+				if (_specialProps[p] === 2) {
+					gp = _getterNames[p];
+					sp = this._firstSP = new ColorProp(target, gp, p, this._firstSP);
+					val = _parseColor(val);
+					if (sp.proxy.r !== val[0]) {
+						this._addTween(sp.proxy, "r", sp.proxy.r, val[0], p);
 					}
-					if (sp.type === 1) {
-						gp = p.substr(p.length - 1).toLowerCase();
-						if (_specialProps[p] || gp === "x") {
-							this._addTween(sp.proxy, "x", sp.proxy.x, val, p);
-							sp.x = true;
-						}
-						if (_specialProps[p] || gp === "y") {
-							this._addTween(sp.proxy, "y", sp.proxy.y, val, p);
-							sp.y = true;
-						}
-					} else {
-						val = _parseColor(val);
-						if (sp.proxy.r !== val[0]) {
-							this._addTween(sp.proxy, "r", sp.proxy.r, val[0], p);
-						}
-						if (sp.proxy.g !== val[1]) {
-							this._addTween(sp.proxy, "g", sp.proxy.g, val[1], p);
-						}
-						if (sp.proxy.b !== val[2]) {
-							this._addTween(sp.proxy, "b", sp.proxy.b, val[2], p);
-						}
-						if ((val.length > 3 || sp.proxy.a !== 1) && sp.proxy.a !== val[3]) {
-							this._addTween(sp.proxy, "a", sp.proxy.a, (val.length > 3 ? val[3] : 1), p);
-						}
+					if (sp.proxy.g !== val[1]) {
+						this._addTween(sp.proxy, "g", sp.proxy.g, val[1], p);
 					}
+					if (sp.proxy.b !== val[2]) {
+						this._addTween(sp.proxy, "b", sp.proxy.b, val[2], p);
+					}
+					if ((val.length > 3 || sp.proxy.a !== 1) && sp.proxy.a !== val[3]) {
+						this._addTween(sp.proxy, "a", sp.proxy.a, (val.length > 3 ? val[3] : 1), p);
+					}
+				} else if (p === "bezier") {
+					bezierPlugin = window._gsDefine.globals.BezierPlugin;
+					if (!bezierPlugin) {
+						throw("BezierPlugin not loaded");
+					}
+					bezierPlugin = this._bezier = new bezierPlugin();
+					if (typeof(val) === "object" && val.autoRotate === true) {
+						val.autoRotate = ["setX","setY","setRotation",0,true];
+					}
+					bezierPlugin._onInitTween(target, val, tween);
+					this._overwriteProps = this._overwriteProps.concat(bezierPlugin._overwriteProps);
+					this._addTween(bezierPlugin, "setRatio", 0, 1, p);
 
 				} else if (p !== "autoDraw") {
-					this._addTween(target, p, ((typeof(target[p]) === "function") ? target["get" + p.substr(3)]() || target[p]() : target[p]) || 0, val, p);
+					this._addTween(target, p, ((typeof(target[p]) === "function") ? target["get" + p.substr(3)]() : target[p]) || 0, val, p);
 				}
 				this._overwriteProps.push(p);
 			}
 			return true;
+		},
+
+		kill: function(lookup) {
+			lookup = _copy(lookup);
+			_convertProps(this._target, lookup);
+			if (this._bezier) {
+				this._bezier._kill(lookup);
+			}
+			return this._super._kill.call(this, lookup);
+		},
+
+		round:function(lookup, value) {
+			lookup = _copy(lookup);
+			_convertProps(this._target, lookup);
+			if (this._bezier) {
+				this._bezier._roundProps(lookup, value);
+			}
+			return this._super._roundProps.call(this, lookup, value);
 		},
 
 		//called each time the values should be updated, and the ratio gets passed as the only parameter (typically it's a value between 0 and 1, but it can exceed those when using an ease like Elastic.easeOut or Back.easeOut, etc.)
@@ -192,21 +263,7 @@
 				t = this._target;
 				while (sp) {
 					proxy = sp.proxy;
-
-					//positional (x/y)
-					if (sp.type === 1) {
-						if (!sp.x) {
-							proxy.x = t[sp.getter]().x;
-						}
-						if (!sp.y) {
-							proxy.y = t[sp.getter]().y;
-						}
-						t[sp.setter](proxy);
-
-					//color
-					} else {
-						t[sp.setter]( (proxy.a !== 1 ? "rgba(" : "rgb(") + (proxy.r | 0) + ", " + (proxy.g | 0) + ", " + (proxy.b | 0) + (proxy.a !== 1 ? ", " + proxy.a : "") + ")");
-					}
+					t[sp.setter]( (proxy.a !== 1 ? "rgba(" : "rgb(") + (proxy.r | 0) + ", " + (proxy.g | 0) + ", " + (proxy.b | 0) + (proxy.a !== 1 ? ", " + proxy.a : "") + ")");
 					sp = sp._next;
 				}
 			}
