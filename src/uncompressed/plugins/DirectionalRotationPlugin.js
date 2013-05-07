@@ -1,6 +1,6 @@
 /*!
- * VERSION: beta 0.1.1
- * DATE: 2013-03-25
+ * VERSION: beta 0.2.0
+ * DATE: 2013-05-07
  * UPDATES AND DOCS AT: http://www.greensock.com
  *
  * @license Copyright (c) 2008-2013, GreenSock. All rights reserved.
@@ -24,27 +24,33 @@
 			}
 			this.finals = {};
 			var cap = (value.useRadians === true) ? Math.PI * 2 : 360,
-				p, v, start, end, dif, split, type;
+				min = 0.000001,
+				p, v, start, end, dif, split;
 			for (p in value) {
 				if (p !== "useRadians") {
 					split = (value[p] + "").split("_");
 					v = split[0];
-					type = split[1];
 					start = parseFloat( (typeof(target[p]) !== "function") ? target[p] : target[ ((p.indexOf("set") || typeof(target["get" + p.substr(3)]) !== "function") ? p : "get" + p.substr(3)) ]() );
 					end = this.finals[p] = (typeof(v) === "string" && v.charAt(1) === "=") ? start + parseInt(v.charAt(0) + "1", 10) * Number(v.substr(2)) : Number(v) || 0;
 					dif = end - start;
-					if (type === "short") {
-						dif = dif % cap;
-						if (dif !== dif % (cap / 2)) {
-							dif = (dif < 0) ? dif + cap : dif - cap;
+					if (split.length) {
+						v = split.join("_");
+						if (v.indexOf("short") !== -1) {
+							dif = dif % cap;
+							if (dif !== dif % (cap / 2)) {
+								dif = (dif < 0) ? dif + cap : dif - cap;
+							}
 						}
-					} else if (type === "cw" && dif < 0) {
-						dif = ((dif + cap * 9999999999) % cap) - ((dif / cap) | 0) * cap;
-					} else if (type === "ccw" && dif > 0) {
-						dif = ((dif - cap * 9999999999) % cap) - ((dif / cap) | 0) * cap;
+						if (v.indexOf("_cw") !== -1 && dif < 0) {
+							dif = ((dif + cap * 9999999999) % cap) - ((dif / cap) | 0) * cap;
+						} else if (v.indexOf("ccw") !== -1 && dif > 0) {
+							dif = ((dif - cap * 9999999999) % cap) - ((dif / cap) | 0) * cap;
+						}
 					}
-					this._addTween(target, p, start, start + dif, p);
-					this._overwriteProps.push(p);
+					if (dif > min || dif < -min) {
+						this._addTween(target, p, start, start + dif, p);
+						this._overwriteProps.push(p);
+					}
 				}
 			}
 			return true;

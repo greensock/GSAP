@@ -1,6 +1,6 @@
 /*!
- * VERSION: beta 1.9.5
- * DATE: 2013-04-29
+ * VERSION: beta 1.9.6
+ * DATE: 2013-05-07
  * UPDATES AND DOCS AT: http://www.greensock.com
  * 
  * Includes all of the following: TweenLite, TweenMax, TimelineLite, TimelineMax, EasePack, CSSPlugin, RoundPropsPlugin, BezierPlugin, AttrPlugin, DirectionalRotationPlugin
@@ -39,7 +39,7 @@
 			p = TweenMax.prototype = TweenLite.to({}, 0.1, {}),
 			_blankArray = [];
 
-		TweenMax.version = "1.9.5";
+		TweenMax.version = "1.9.6";
 		p.constructor = TweenMax;
 		p.kill()._gc = false;
 		TweenMax.killTweensOf = TweenMax.killDelayedCallsTo = TweenLite.killTweensOf;
@@ -122,6 +122,9 @@
 						force = true;
 						if (this._rawPrevTime > 0) {
 							callback = "onReverseComplete";
+							if (suppressEvents) {
+								time = -1; //when a callback is placed at the VERY beginning of a timeline and it repeats (or if timeline.seek(0) is called), events are normally suppressed during those behaviors (repeat or seek()) and without adjusting the _rawPrevTime back slightly, the onComplete wouldn't get called on the next render. This only applies to zero-duration tweens/callbacks of course.
+							}
 						}
 					}
 					this._rawPrevTime = time;
@@ -2191,7 +2194,7 @@
 			p = CSSPlugin.prototype = new TweenPlugin("css");
 
 		p.constructor = CSSPlugin;
-		CSSPlugin.version = "1.9.5";
+		CSSPlugin.version = "1.9.6";
 		CSSPlugin.API = 2;
 		CSSPlugin.defaultTransformPerspective = 0;
 		p = "px"; //we'll reuse the "p" variable to keep file size down
@@ -2496,7 +2499,7 @@
 			 */
 			_parseAngle = function(v, d, p, directionalEnd) {
 				var min = 0.000001,
-					cap, split, dif, type, result;
+					cap, split, dif, result;
 				if (v == null) {
 					result = d;
 				} else if (typeof(v) === "number") {
@@ -2505,19 +2508,21 @@
 					cap = Math.PI * 2;
 					split = v.split("_");
 					dif = Number(split[0].replace(_NaNExp, "")) * ((v.indexOf("rad") === -1) ? _DEG2RAD : 1) - ((v.charAt(1) === "=") ? 0 : d);
-					type = split[1];
-					if (type && directionalEnd) {
-						directionalEnd[p] = d + dif;
-					}
-					if (type === "short") {
-						dif = dif % cap;
-						if (dif !== dif % (cap / 2)) {
-							dif = (dif < 0) ? dif + cap : dif - cap;
+					if (split.length) {
+						if (directionalEnd) {
+							directionalEnd[p] = d + dif;
 						}
-					} else if (type === "cw" && dif < 0) {
-						dif = ((dif + cap * 9999999999) % cap) - ((dif / cap) | 0) * cap;
-					} else if (type === "ccw" && dif > 0) {
-						dif = ((dif - cap * 9999999999) % cap) - ((dif / cap) | 0) * cap;
+						if (v.indexOf("short") !== -1) {
+							dif = dif % cap;
+							if (dif !== dif % (cap / 2)) {
+								dif = (dif < 0) ? dif + cap : dif - cap;
+							}
+						}
+						if (v.indexOf("_cw") !== -1 && dif < 0) {
+							dif = ((dif + cap * 9999999999) % cap) - ((dif / cap) | 0) * cap;
+						} else if (v.indexOf("ccw") !== -1 && dif > 0) {
+							dif = ((dif - cap * 9999999999) % cap) - ((dif / cap) | 0) * cap;
+						}
 					}
 					result = d + dif;
 				}
@@ -3223,7 +3228,13 @@
 				} else if (t.currentStyle) {
 					//for older versions of IE, we need to interpret the filter portion that is in the format: progid:DXImageTransform.Microsoft.Matrix(M11=6.123233995736766e-17, M12=-1, M21=1, M22=6.123233995736766e-17, sizingMethod='auto expand') Notice that we need to swap b and c compared to a normal matrix.
 					s = t.currentStyle.filter.match(_ieGetMatrixExp);
-					s = (s && s.length === 4) ? s[0].substr(4) + "," + Number(s[2].substr(4)) + "," + Number(s[1].substr(4)) + "," + s[3].substr(4) + "," + (tm ? tm.x : 0) + "," + (tm ? tm.y : 0) : null;
+					if (s && s.length === 4) {
+						s = [s[0].substr(4), Number(s[2].substr(4)), Number(s[1].substr(4)), s[3].substr(4), (tm.x || 0), (tm.y || 0)].join(",");
+					} else if (tm.x != null) { //if the element already has a _gsTransform, use that.
+						return tm;
+					} else {
+						s = "";
+					}
 				}
 				//split the matrix values out into an array (m for matrix)
 				m = (s || "").match(/(?:\-|\b)[\d\-\.e]+\b/gi) || [];
@@ -3247,13 +3258,13 @@
 					}
 
 					//only parse from the matrix if we MUST because not only is it usually unnecessary due to the fact that we store the values in the _gsTransform object, but also because it's impossible to accurately interpret rotationX, rotationY, and rotationZ if all are applied, so it's much better to rely on what we store. However, we must parse the first time that an object is tweened. We also assume that if the position has changed, the user must have done some styling changes outside of CSSPlugin, thus we force a parse in that scenario.
-					if (!rec || a14 !== tm.x || a24 !== tm.y || a34 !== tm.z) {
+					if (!rec || tm.rotationX == null) {
 						var a11 = m[0], a21 = m[1], a31 = m[2], a41 = m[3],
 							a12 = m[4], a22 = m[5], a32 = m[6], a42 = m[7],
 							a43 = m[11],
 							angle = tm.rotationX = Math.atan2(a32, a33),
 							xFlip = (angle < minPI || angle > maxPI),
-							t1, t2, t3, t4, cos, sin, yFlip, zFlip;
+							t1, t2, t3, cos, sin, yFlip, zFlip;
 						//rotationX
 						if (angle) {
 							cos = Math.cos(-angle);
@@ -3261,7 +3272,7 @@
 							t1 = a12*cos+a13*sin;
 							t2 = a22*cos+a23*sin;
 							t3 = a32*cos+a33*sin;
-							t4 = a42*cos+a43*sin;
+							//t4 = a42*cos+a43*sin;
 							a13 = a12*-sin+a13*cos;
 							a23 = a22*-sin+a23*cos;
 							a33 = a32*-sin+a33*cos;
@@ -3368,7 +3379,6 @@
 					if (tm[i] < min) if (tm[i] > -min) {
 						tm[i] = 0;
 					}
-					//alternate method rounds to 5 decimal places: tm[i] = ((tm[i] * rnd) >> 0) / rnd;
 				}
 				//DEBUG: _log("parsed rotation: "+(tm.rotationX*_RAD2DEG)+", "+(tm.rotationY*_RAD2DEG)+", "+(tm.rotation*_RAD2DEG)+", scale: "+tm.scaleX+", "+tm.scaleY+", "+tm.scaleZ+", position: "+tm.x+", "+tm.y+", "+tm.z+", perspective: "+tm.perspective);
 				if (rec) {
@@ -3521,6 +3531,7 @@
 					a24 = a23*a34;
 					a34 = a33*a34+zOrigin;
 				}
+				//we round the x, y, and z slightly differently to allow even larger values.
 				a14 = (t1 = (a14 += t.x) - (a14 |= 0)) ? ((t1 * rnd + (t1 < 0 ? -0.5 : 0.5)) | 0) / rnd + a14 : a14;
 				a24 = (t1 = (a24 += t.y) - (a24 |= 0)) ? ((t1 * rnd + (t1 < 0 ? -0.5 : 0.5)) | 0) / rnd + a24 : a24;
 				a34 = (t1 = (a34 += t.z) - (a34 |= 0)) ? ((t1 * rnd + (t1 < 0 ? -0.5 : 0.5)) | 0) / rnd + a34 : a34;
@@ -4511,27 +4522,33 @@
 			}
 			this.finals = {};
 			var cap = (value.useRadians === true) ? Math.PI * 2 : 360,
-				p, v, start, end, dif, split, type;
+				min = 0.000001,
+				p, v, start, end, dif, split;
 			for (p in value) {
 				if (p !== "useRadians") {
 					split = (value[p] + "").split("_");
 					v = split[0];
-					type = split[1];
 					start = parseFloat( (typeof(target[p]) !== "function") ? target[p] : target[ ((p.indexOf("set") || typeof(target["get" + p.substr(3)]) !== "function") ? p : "get" + p.substr(3)) ]() );
 					end = this.finals[p] = (typeof(v) === "string" && v.charAt(1) === "=") ? start + parseInt(v.charAt(0) + "1", 10) * Number(v.substr(2)) : Number(v) || 0;
 					dif = end - start;
-					if (type === "short") {
-						dif = dif % cap;
-						if (dif !== dif % (cap / 2)) {
-							dif = (dif < 0) ? dif + cap : dif - cap;
+					if (split.length) {
+						v = split.join("_");
+						if (v.indexOf("short") !== -1) {
+							dif = dif % cap;
+							if (dif !== dif % (cap / 2)) {
+								dif = (dif < 0) ? dif + cap : dif - cap;
+							}
 						}
-					} else if (type === "cw" && dif < 0) {
-						dif = ((dif + cap * 9999999999) % cap) - ((dif / cap) | 0) * cap;
-					} else if (type === "ccw" && dif > 0) {
-						dif = ((dif - cap * 9999999999) % cap) - ((dif / cap) | 0) * cap;
+						if (v.indexOf("_cw") !== -1 && dif < 0) {
+							dif = ((dif + cap * 9999999999) % cap) - ((dif / cap) | 0) * cap;
+						} else if (v.indexOf("ccw") !== -1 && dif > 0) {
+							dif = ((dif - cap * 9999999999) % cap) - ((dif / cap) | 0) * cap;
+						}
 					}
-					this._addTween(target, p, start, start + dif, p);
-					this._overwriteProps.push(p);
+					if (dif > min || dif < -min) {
+						this._addTween(target, p, start, start + dif, p);
+						this._overwriteProps.push(p);
+					}
 				}
 			}
 			return true;
@@ -5745,7 +5762,7 @@
 		p._firstPT = p._targets = p._overwrittenProps = p._startAt = null;
 		p._notifyPluginsOfEnabled = false;
 
-		TweenLite.version = "1.9.5";
+		TweenLite.version = "1.9.6";
 		TweenLite.defaultEase = p._ease = new Ease(null, null, 1, 1);
 		TweenLite.defaultOverwrite = "auto";
 		TweenLite.ticker = _ticker;
@@ -6036,6 +6053,9 @@
 						force = true;
 						if (this._rawPrevTime > 0) {
 							callback = "onReverseComplete";
+							if (suppressEvents) {
+								time = -1; //when a callback is placed at the VERY beginning of a timeline and it repeats (or if timeline.seek(0) is called), events are normally suppressed during those behaviors (repeat or seek()) and without adjusting the _rawPrevTime back slightly, the onComplete wouldn't get called on the next render. This only applies to zero-duration tweens/callbacks of course.
+							}
 						}
 					}
 					this._rawPrevTime = time;

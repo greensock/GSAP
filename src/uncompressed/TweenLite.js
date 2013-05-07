@@ -1,6 +1,6 @@
 /*!
- * VERSION: beta 1.9.5
- * DATE: 2013-04-29
+ * VERSION: beta 1.9.6
+ * DATE: 2013-05-07
  * UPDATES AND DOCS AT: http://www.greensock.com
  *
  * @license Copyright (c) 2008-2013, GreenSock. All rights reserved.
@@ -837,7 +837,7 @@
 		p._firstPT = p._targets = p._overwrittenProps = p._startAt = null;
 		p._notifyPluginsOfEnabled = false;
 		
-		TweenLite.version = "1.9.5";
+		TweenLite.version = "1.9.6";
 		TweenLite.defaultEase = p._ease = new Ease(null, null, 1, 1);
 		TweenLite.defaultOverwrite = "auto";
 		TweenLite.ticker = _ticker;
@@ -1128,6 +1128,9 @@
 						force = true;
 						if (this._rawPrevTime > 0) {
 							callback = "onReverseComplete";
+							if (suppressEvents) {
+								time = -1; //when a callback is placed at the VERY beginning of a timeline and it repeats (or if timeline.seek(0) is called), events are normally suppressed during those behaviors (repeat or seek()) and without adjusting the _rawPrevTime back slightly, the onComplete wouldn't get called on the next render. This only applies to zero-duration tweens/callbacks of course.
+							}
 						}
 					}
 					this._rawPrevTime = time;
