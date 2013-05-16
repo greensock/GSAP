@@ -1,6 +1,6 @@
 /*!
- * VERSION: 0.3.2
- * DATE: 2013-04-26
+ * VERSION: 0.4.0
+ * DATE: 2013-05-16
  * UPDATES AND DOCS AT: http://www.greensock.com
  *
  * @license Copyright (c) 2008-2013, GreenSock. All rights reserved.
@@ -18,6 +18,8 @@
 		_getterFuncs = {},
 		_setterFuncs = {},
 		_numExp = /(\d|\.)+/g,
+		_directionalRotationExp = /(?:_cw|_ccw|_short)/g,
+		_plugins = window._gsDefine.globals.com.greensock.plugins,
 		_colorLookup = {aqua:[0,255,255],
 			lime:[0,255,0],
 			silver:[192,192,192],
@@ -188,7 +190,7 @@
 
 		//called when the tween renders for the first time. This is where initial values should be recorded and any setup routines should run.
 		init: function(target, value, tween) {
-			var p, val, gp, sp, bezierPlugin, bp;
+			var p, val, gp, sp, bezierPlugin, directionalRotationPlugin;
 			this._overwriteProps = _convertProps(target, value); //allow users to pass in shorter names like "x" instead of "setX" and "rotationDeg" instead of "setRotationDeg"
 			this._target = target;
 			this._layer = (value.autoDraw !== false) ? target.getLayer() : null;
@@ -215,7 +217,7 @@
 						this._addTween(sp.proxy, "a", sp.proxy.a, (val.length > 3 ? val[3] : 1), p);
 					}
 				} else if (p === "bezier") {
-					bezierPlugin = window._gsDefine.globals.BezierPlugin;
+					bezierPlugin = _plugins.BezierPlugin;
 					if (!bezierPlugin) {
 						throw("BezierPlugin not loaded");
 					}
@@ -226,6 +228,17 @@
 					bezierPlugin._onInitTween(target, val, tween);
 					this._overwriteProps = this._overwriteProps.concat(bezierPlugin._overwriteProps);
 					this._addTween(bezierPlugin, "setRatio", 0, 1, p);
+
+				} else if ((p === "setRotation" || p === "setRotationDeg") && typeof(val) === "string" && _directionalRotationExp.test(val)) {
+					directionalRotationPlugin = _plugins.DirectionalRotationPlugin;
+					if (!directionalRotationPlugin) {
+						throw("DirectionalRotationPlugin not loaded");
+					}
+					directionalRotationPlugin = this._directionalRotation = new directionalRotationPlugin();
+					gp = {useRadians:(p === "setRotation")};
+					gp[p] = val;
+					directionalRotationPlugin._onInitTween(target, gp, tween);
+					this._addTween(directionalRotationPlugin, "setRatio", 0, 1, p);
 
 				} else if (p !== "autoDraw") {
 					this._addTween(target, p, ((typeof(target[p]) === "function") ? target["get" + p.substr(3)]() : target[p]) || 0, val, p);
@@ -240,6 +253,9 @@
 			_convertProps(this._target, lookup);
 			if (this._bezier) {
 				this._bezier._kill(lookup);
+			}
+			if (this._directionalRotation) {
+				this._directionalRotation._kill(lookup);
 			}
 			return this._super._kill.call(this, lookup);
 		},

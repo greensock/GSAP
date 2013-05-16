@@ -1,6 +1,6 @@
 /*!
- * VERSION: 0.3.1
- * DATE: 2013-03-18
+ * VERSION: 0.4.0
+ * DATE: 2013-05-16
  * UPDATES AND DOCS AT: http://www.greensock.com
  *
  * @license Copyright (c) 2008-2013, GreenSock. All rights reserved.
@@ -42,6 +42,10 @@
 					if (typeof(value) !== "object") {
 						value = {value:value};
 					}
+					if (value.value === undefined) {
+						this._text = this._original = [""];
+						return true;
+					}
 					this._delimiter = value.delimiter || "";
 					this._original = _getText(target).replace(/\s+/g, " ").split(this._delimiter);
 					this._text = value.value.replace(/\s+/g, " ").split(this._delimiter);
@@ -55,7 +59,7 @@
 					}
 					var i = this._original.length - this._text.length,
 						shrt = (i < 0) ? this._original : this._text;
-					this._fillChar = value.fillChar || (i > 0 && this._delimiter === "") ? "&nbsp;" : "";
+					this._fillChar = value.fillChar || (value.padSpace ? "&nbsp;" : "");
 					if (i < 0) {
 						i = -i;
 					}
@@ -73,7 +77,7 @@
 						ratio = 0;
 					}
 					var l = this._text.length,
-						i = (ratio * l + 0.5) >> 0,
+						i = (ratio * l + 0.5) | 0,
 						applyNew, applyOld, str;
 					if (this._hasClass) {
 						applyNew = (this._newClass && i !== 0);
@@ -88,6 +92,6 @@
 			}),
 			p = TextPlugin.prototype;
 		
-		p._newClass = p._oldClass = "";
+		p._newClass = p._oldClass = p._delimiter = "";
 
 }); if (window._gsDefine) { window._gsQueue.pop()(); }

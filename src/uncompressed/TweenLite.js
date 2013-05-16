@@ -1,6 +1,6 @@
 /*!
- * VERSION: beta 1.9.6
- * DATE: 2013-05-07
+ * VERSION: beta 1.9.7
+ * DATE: 2013-05-16
  * UPDATES AND DOCS AT: http://www.greensock.com
  *
  * @license Copyright (c) 2008-2013, GreenSock. All rights reserved.
@@ -22,6 +22,7 @@
 				return p;
 			},
 			gs = _namespace("com.greensock"),
+			_slice = [].slice,
 			_emptyFunc = function() {},
 			a, i, p, _ticker, _tickerActive,
 			_defLookup = {},
@@ -304,14 +305,14 @@
 			};
 
 			this.wake = function() {
-				if (_id) {
+				if (_id !== null) {
 					_self.sleep();
 				}
 				_req = (_fps === 0) ? _emptyFunc : (!_useRAF || !_reqAnimFrame) ? function(f) { return setTimeout(f, ((_nextTime - _self.time) * 1000 + 1) | 0); } : _reqAnimFrame;
 				if (_self === _ticker) {
 					_tickerActive = true;
 				}
-				_tick();
+				_tick(2);
 			};
 
 			this.fps = function(value) {
@@ -334,12 +335,12 @@
 			};
 			_self.fps(fps);
 
-			//a bug in iOS 6 Safari occasionally prevents the requestAnimationFrame from working initially, so we use a 1-second timeout that automatically falls back to setTimeout() if it senses this condition.
+			//a bug in iOS 6 Safari occasionally prevents the requestAnimationFrame from working initially, so we use a 1.5-second timeout that automatically falls back to setTimeout() if it senses this condition.
 			setTimeout(function() {
 				if (_useRAF && (!_id || _self.frame < 5)) {
 					_self.useRAF(false);
 				}
-			}, 1000);
+			}, 1500);
 		});
 		
 		p = gs.Ticker.prototype = new gs.events.EventDispatcher();
@@ -762,14 +763,14 @@
 
 				this.target = target = (typeof(target) !== "string") ? target : TweenLite.selector(target) || target;
 
-				var isSelector = (target.jquery || (typeof(target.each) === "function" && target[0] && target[0].nodeType && target[0].style)),
+				var isSelector = (target.jquery || (target.length && target[0] && target[0].nodeType && target[0].style)),
 					overwrite = this.vars.overwrite,
 					i, targ, targets;
 
 				this._overwrite = overwrite = (overwrite == null) ? _overwriteLookup[TweenLite.defaultOverwrite] : (typeof(overwrite) === "number") ? overwrite >> 0 : _overwriteLookup[overwrite];
 
 				if ((isSelector || target instanceof Array) && typeof(target[0]) !== "number") {
-					this._targets = targets = (isSelector && !target.slice) ? _selectorToArray(target) : target.slice(0);
+					this._targets = targets = _slice.call(target, 0);
 					this._propLookup = [];
 					this._siblings = [];
 					for (i = 0; i < targets.length; i++) {
@@ -783,9 +784,9 @@
 								targets.splice(i+1, 1); //to avoid an endless loop (can't imagine why the selector would return a string, but just in case)
 							}
 							continue;
-						} else if (typeof(targ.each) === "function" && targ[0] && targ[0].nodeType && targ[0].style) { //in case the user is passing in an array of selector objects (like jQuery objects), we need to check one more level and pull things out if necessary...
+						} else if (targ.length && targ[0] && targ[0].nodeType && targ[0].style) { //in case the user is passing in an array of selector objects (like jQuery objects), we need to check one more level and pull things out if necessary...
 							targets.splice(i--, 1);
-							this._targets = targets = targets.concat(_selectorToArray(targ));
+							this._targets = targets = targets.concat(_slice.call(targ, 0));
 							continue;
 						}
 						this._siblings[i] = _register(targ, this, false);
@@ -806,14 +807,7 @@
 				}
 			}, true),
 			_isSelector = function(v) {
-				return (typeof(v.each) === "function" && v[0] && v[0].nodeType && v[0].style);
-			},
-			_selectorToArray = function(v) {
-				var a = [];
-				v.each(function() {
-					a.push(this);
-				});
-				return a;
+				return (v.length && v[0] && v[0].nodeType && v[0].style);
 			},
 			_autoCSS = function(vars, target) {
 				var css = {},
@@ -837,7 +831,7 @@
 		p._firstPT = p._targets = p._overwrittenProps = p._startAt = null;
 		p._notifyPluginsOfEnabled = false;
 		
-		TweenLite.version = "1.9.6";
+		TweenLite.version = "1.9.7";
 		TweenLite.defaultEase = p._ease = new Ease(null, null, 1, 1);
 		TweenLite.defaultOverwrite = "auto";
 		TweenLite.ticker = _ticker;
@@ -961,7 +955,8 @@
 			_checkOverlap = function(tween, reference, zeroDur) {
 				var tl = tween._timeline, 
 					ts = tl._timeScale, 
-					t = tween._startTime;
+					t = tween._startTime,
+					min = 0.0000000001; //we use this to protect from rounding errors.
 				while (tl._timeline) {
 					t += tl._startTime;
 					ts *= tl._timeScale;
@@ -971,7 +966,7 @@
 					tl = tl._timeline;
 				}
 				t /= ts;
-				return (t > reference) ? t - reference : ((zeroDur && t === reference) || (!tween._initted && t - reference < 0.0000000002)) ? 0.0000000001 : ((t = t + tween.totalDuration() / tween._timeScale / ts) > reference) ? 0 : t - reference - 0.0000000001;
+				return (t > reference) ? t - reference : ((zeroDur && t === reference) || (!tween._initted && t - reference < 2 * min)) ? min : ((t += tween.totalDuration() / tween._timeScale / ts) > reference + min) ? 0 : t - reference - min;
 			};
 
 	
@@ -1318,7 +1313,7 @@
 							overwrittenProps[p] = 1;
 						}
 					}
-					if (!this._firstPT) { //if all tweening properties are killed, kill the tween. Without this line, if there's a tween with multiple targets and then you killTweensOf() each target individually, the tween would technically still remain active and fire its onComplete even though there aren't any more properties tweening.
+					if (!this._firstPT && this._initted) { //if all tweening properties are killed, kill the tween. Without this line, if there's a tween with multiple targets and then you killTweensOf() each target individually, the tween would technically still remain active and fire its onComplete even though there aren't any more properties tweening.
 						this._enabled(false, false);
 					}
 				}

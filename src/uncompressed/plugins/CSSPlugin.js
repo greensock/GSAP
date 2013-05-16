@@ -1,6 +1,6 @@
 /*!
- * VERSION: beta 1.9.6
- * DATE: 2013-05-07
+ * VERSION: beta 1.9.7
+ * DATE: 2013-05-16
  * UPDATES AND DOCS AT: http://www.greensock.com
  *
  * @license Copyright (c) 2008-2013, GreenSock. All rights reserved.
@@ -28,7 +28,7 @@
 			p = CSSPlugin.prototype = new TweenPlugin("css");
 
 		p.constructor = CSSPlugin;
-		CSSPlugin.version = "1.9.6";
+		CSSPlugin.version = "1.9.7";
 		CSSPlugin.API = 2;
 		CSSPlugin.defaultTransformPerspective = 0;
 		p = "px"; //we'll reuse the "p" variable to keep file size down
@@ -727,6 +727,7 @@
 			 */
 			_parseComplex = CSSPlugin.parseComplex = function(t, p, b, e, clrs, dflt, pt, pr, plugin, setRatio) {
 				//DEBUG: _log("parseComplex: "+p+", b: "+b+", e: "+e);
+				b = b || dflt || "";
 				pt = new CSSPropTween(t, p, 0, 0, pt, (setRatio ? 2 : 1), null, false, pr, b, e);
 				e += ""; //ensures it's a string
 				var ba = b.split(", ").join(",").split(" "), //beginning array
@@ -1971,7 +1972,7 @@
 							pt = new CSSPropTween(style, p, bn, en - bn, pt, 0, "css_" + p, (_autoRound !== false && (esfx === "px" || p === "zIndex")), 0, bs, es);
 							pt.xs0 = esfx;
 							//DEBUG: _log("tween "+p+" from "+pt.b+" ("+bn+esfx+") to "+pt.e+" with suffix: "+pt.xs0);
-						} else if (!es && (es + "" === "NaN" || es == null)) {
+						} else if (style[p] === undefined || !es && (es + "" === "NaN" || es == null)) {
 							_log("invalid " + p + " tween value: " + vars[p]);
 						} else {
 							pt = new CSSPropTween(style, p, en || bn || 0, 0, pt, -1, "css_" + p, false, 0, bs, es);

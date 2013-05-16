@@ -1,6 +1,6 @@
 /*!
- * VERSION: beta 1.9.6
- * DATE: 2013-05-07
+ * VERSION: beta 1.9.7
+ * DATE: 2013-05-16
  * UPDATES AND DOCS AT: http://www.greensock.com
  * 
  * Includes all of the following: TweenLite, TweenMax, TimelineLite, TimelineMax, EasePack, CSSPlugin, RoundPropsPlugin, BezierPlugin, AttrPlugin, DirectionalRotationPlugin
@@ -18,7 +18,8 @@
 
 	window._gsDefine("TweenMax", ["core.Animation","core.SimpleTimeline","TweenLite"], function(Animation, SimpleTimeline, TweenLite) {
 		
-		var TweenMax = function(target, duration, vars) {
+		var _slice = [].slice,
+			TweenMax = function(target, duration, vars) {
 				TweenLite.call(this, target, duration, vars);
 				this._cycle = 0;
 				this._yoyo = (this.vars.yoyo === true);
@@ -27,19 +28,12 @@
 				this._dirty = true; //ensures that if there is any repeat, the totalDuration will get recalculated to accurately report it.
 			},
 			_isSelector = function(v) {
-				return (v.jquery || (typeof(v.each) === "function" && v[0] && v[0].nodeType && v[0].style));
-			},
-			_selectorToArray = function(v) {
-				var a = [];
-				v.each(function() {
-					a.push(this);
-				});
-				return a;
+				return (v.jquery || (v.length && v[0] && v[0].nodeType && v[0].style));
 			},
 			p = TweenMax.prototype = TweenLite.to({}, 0.1, {}),
 			_blankArray = [];
 
-		TweenMax.version = "1.9.6";
+		TweenMax.version = "1.9.7";
 		p.constructor = TweenMax;
 		p.kill()._gc = false;
 		TweenMax.killTweensOf = TweenMax.killDelayedCallsTo = TweenLite.killTweensOf;
@@ -309,7 +303,7 @@
 					targets = TweenLite.selector(targets) || targets;
 				}
 				if (_isSelector(targets)) {
-					targets = _selectorToArray(targets);
+					targets = _slice.call(targets, 0);
 				}
 			}
 			l = targets.length;
@@ -416,7 +410,7 @@
 				parent = TweenLite.selector(parent) || parent;
 			}
 			if (_isSelector(parent)) {
-				parent = _selectorToArray(parent);
+				parent = _slice(parent, 0);
 			}
 			if (parent instanceof Array) {
 				i = parent.length;
@@ -597,14 +591,15 @@
 				}
 				return copy;
 			},
+			_slice = _blankArray.slice,
 			p = TimelineLite.prototype = new SimpleTimeline();
 
-		TimelineLite.version = "1.9.5";
+		TimelineLite.version = "1.9.7";
 		p.constructor = TimelineLite;
 		p.kill()._gc = false;
 
 		p.to = function(target, duration, vars, position) {
-			return this.add( new TweenLite(target, duration, vars), position);
+			return duration ? this.add( new TweenLite(target, duration, vars), position) : this.set(target, vars, position);
 		};
 
 		p.from = function(target, duration, vars, position) {
@@ -612,28 +607,24 @@
 		};
 
 		p.fromTo = function(target, duration, fromVars, toVars, position) {
-			return this.add( TweenLite.fromTo(target, duration, fromVars, toVars), position);
+			return duration ? this.add( TweenLite.fromTo(target, duration, fromVars, toVars), position) : this.set(target, toVars, position);
 		};
 
 		p.staggerTo = function(targets, duration, vars, stagger, position, onCompleteAll, onCompleteAllParams, onCompleteAllScope) {
 			var tl = new TimelineLite({onComplete:onCompleteAll, onCompleteParams:onCompleteAllParams, onCompleteScope:onCompleteAllScope}),
-				i, a;
+				i;
 			if (typeof(targets) === "string") {
 				targets = TweenLite.selector(targets) || targets;
 			}
-			if (!(targets instanceof Array) && typeof(targets.each) === "function" && targets[0] && targets[0].nodeType && targets[0].style) { //senses if the targets object is a selector. If it is, we should translate it into an array.
-				a = [];
-				targets.each(function() {
-					a.push(this);
-				});
-				targets = a;
+			if (!(targets instanceof Array) && targets.length && targets[0] && targets[0].nodeType && targets[0].style) { //senses if the targets object is a selector. If it is, we should translate it into an array.
+				targets = _slice.call(targets, 0);
 			}
 			stagger = stagger || 0;
 			for (i = 0; i < targets.length; i++) {
 				if (vars.startAt) {
 					vars.startAt = _copy(vars.startAt);
 				}
-				tl.add( new TweenLite(targets[i], duration, _copy(vars)), i * stagger);
+				tl.to(targets[i], duration, _copy(vars), i * stagger);
 			}
 			return this.add(tl, position);
 		};
@@ -719,7 +710,7 @@
 				} else if (typeof(value) === "function") {
 					value = TweenLite.delayedCall(0, value);
 				} else {
-					throw("Cannot add " + value + " into the timeline: it is neither a tween, timeline, function, nor a string.");
+					throw("Cannot add " + value + " into the timeline; it is neither a tween, timeline, function, nor a string.");
 				}
 			}
 
@@ -1187,7 +1178,7 @@
 
 		p.constructor = TimelineMax;
 		p.kill()._gc = false;
-		TimelineMax.version = "1.9.5";
+		TimelineMax.version = "1.9.7";
 
 		p.invalidate = function() {
 			this._yoyo = (this.vars.yoyo === true);
@@ -2194,7 +2185,7 @@
 			p = CSSPlugin.prototype = new TweenPlugin("css");
 
 		p.constructor = CSSPlugin;
-		CSSPlugin.version = "1.9.6";
+		CSSPlugin.version = "1.9.7";
 		CSSPlugin.API = 2;
 		CSSPlugin.defaultTransformPerspective = 0;
 		p = "px"; //we'll reuse the "p" variable to keep file size down
@@ -2893,6 +2884,7 @@
 			 */
 			_parseComplex = CSSPlugin.parseComplex = function(t, p, b, e, clrs, dflt, pt, pr, plugin, setRatio) {
 				//DEBUG: _log("parseComplex: "+p+", b: "+b+", e: "+e);
+				b = b || dflt || "";
 				pt = new CSSPropTween(t, p, 0, 0, pt, (setRatio ? 2 : 1), null, false, pr, b, e);
 				e += ""; //ensures it's a string
 				var ba = b.split(", ").join(",").split(" "), //beginning array
@@ -4137,7 +4129,7 @@
 							pt = new CSSPropTween(style, p, bn, en - bn, pt, 0, "css_" + p, (_autoRound !== false && (esfx === "px" || p === "zIndex")), 0, bs, es);
 							pt.xs0 = esfx;
 							//DEBUG: _log("tween "+p+" from "+pt.b+" ("+bn+esfx+") to "+pt.e+" with suffix: "+pt.xs0);
-						} else if (!es && (es + "" === "NaN" || es == null)) {
+						} else if (style[p] === undefined || !es && (es + "" === "NaN" || es == null)) {
 							_log("invalid " + p + " tween value: " + vars[p]);
 						} else {
 							pt = new CSSPropTween(style, p, en || bn || 0, 0, pt, -1, "css_" + p, false, 0, bs, es);
@@ -4947,6 +4939,7 @@
 				return p;
 			},
 			gs = _namespace("com.greensock"),
+			_slice = [].slice,
 			_emptyFunc = function() {},
 			a, i, p, _ticker, _tickerActive,
 			_defLookup = {},
@@ -5229,14 +5222,14 @@
 			};
 
 			this.wake = function() {
-				if (_id) {
+				if (_id !== null) {
 					_self.sleep();
 				}
 				_req = (_fps === 0) ? _emptyFunc : (!_useRAF || !_reqAnimFrame) ? function(f) { return setTimeout(f, ((_nextTime - _self.time) * 1000 + 1) | 0); } : _reqAnimFrame;
 				if (_self === _ticker) {
 					_tickerActive = true;
 				}
-				_tick();
+				_tick(2);
 			};
 
 			this.fps = function(value) {
@@ -5259,12 +5252,12 @@
 			};
 			_self.fps(fps);
 
-			//a bug in iOS 6 Safari occasionally prevents the requestAnimationFrame from working initially, so we use a 1-second timeout that automatically falls back to setTimeout() if it senses this condition.
+			//a bug in iOS 6 Safari occasionally prevents the requestAnimationFrame from working initially, so we use a 1.5-second timeout that automatically falls back to setTimeout() if it senses this condition.
 			setTimeout(function() {
 				if (_useRAF && (!_id || _self.frame < 5)) {
 					_self.useRAF(false);
 				}
-			}, 1000);
+			}, 1500);
 		});
 
 		p = gs.Ticker.prototype = new gs.events.EventDispatcher();
@@ -5687,14 +5680,14 @@
 
 				this.target = target = (typeof(target) !== "string") ? target : TweenLite.selector(target) || target;
 
-				var isSelector = (target.jquery || (typeof(target.each) === "function" && target[0] && target[0].nodeType && target[0].style)),
+				var isSelector = (target.jquery || (target.length && target[0] && target[0].nodeType && target[0].style)),
 					overwrite = this.vars.overwrite,
 					i, targ, targets;
 
 				this._overwrite = overwrite = (overwrite == null) ? _overwriteLookup[TweenLite.defaultOverwrite] : (typeof(overwrite) === "number") ? overwrite >> 0 : _overwriteLookup[overwrite];
 
 				if ((isSelector || target instanceof Array) && typeof(target[0]) !== "number") {
-					this._targets = targets = (isSelector && !target.slice) ? _selectorToArray(target) : target.slice(0);
+					this._targets = targets = _slice.call(target, 0);
 					this._propLookup = [];
 					this._siblings = [];
 					for (i = 0; i < targets.length; i++) {
@@ -5708,9 +5701,9 @@
 								targets.splice(i+1, 1); //to avoid an endless loop (can't imagine why the selector would return a string, but just in case)
 							}
 							continue;
-						} else if (typeof(targ.each) === "function" && targ[0] && targ[0].nodeType && targ[0].style) { //in case the user is passing in an array of selector objects (like jQuery objects), we need to check one more level and pull things out if necessary...
+						} else if (targ.length && targ[0] && targ[0].nodeType && targ[0].style) { //in case the user is passing in an array of selector objects (like jQuery objects), we need to check one more level and pull things out if necessary...
 							targets.splice(i--, 1);
-							this._targets = targets = targets.concat(_selectorToArray(targ));
+							this._targets = targets = targets.concat(_slice.call(targ, 0));
 							continue;
 						}
 						this._siblings[i] = _register(targ, this, false);
@@ -5731,14 +5724,7 @@
 				}
 			}, true),
 			_isSelector = function(v) {
-				return (typeof(v.each) === "function" && v[0] && v[0].nodeType && v[0].style);
-			},
-			_selectorToArray = function(v) {
-				var a = [];
-				v.each(function() {
-					a.push(this);
-				});
-				return a;
+				return (v.length && v[0] && v[0].nodeType && v[0].style);
 			},
 			_autoCSS = function(vars, target) {
 				var css = {},
@@ -5762,7 +5748,7 @@
 		p._firstPT = p._targets = p._overwrittenProps = p._startAt = null;
 		p._notifyPluginsOfEnabled = false;
 
-		TweenLite.version = "1.9.6";
+		TweenLite.version = "1.9.7";
 		TweenLite.defaultEase = p._ease = new Ease(null, null, 1, 1);
 		TweenLite.defaultOverwrite = "auto";
 		TweenLite.ticker = _ticker;
@@ -5886,7 +5872,8 @@
 			_checkOverlap = function(tween, reference, zeroDur) {
 				var tl = tween._timeline,
 					ts = tl._timeScale,
-					t = tween._startTime;
+					t = tween._startTime,
+					min = 0.0000000001; //we use this to protect from rounding errors.
 				while (tl._timeline) {
 					t += tl._startTime;
 					ts *= tl._timeScale;
@@ -5896,7 +5883,7 @@
 					tl = tl._timeline;
 				}
 				t /= ts;
-				return (t > reference) ? t - reference : ((zeroDur && t === reference) || (!tween._initted && t - reference < 0.0000000002)) ? 0.0000000001 : ((t = t + tween.totalDuration() / tween._timeScale / ts) > reference) ? 0 : t - reference - 0.0000000001;
+				return (t > reference) ? t - reference : ((zeroDur && t === reference) || (!tween._initted && t - reference < 2 * min)) ? min : ((t += tween.totalDuration() / tween._timeScale / ts) > reference + min) ? 0 : t - reference - min;
 			};
 
 
@@ -6243,7 +6230,7 @@
 							overwrittenProps[p] = 1;
 						}
 					}
-					if (!this._firstPT) { //if all tweening properties are killed, kill the tween. Without this line, if there's a tween with multiple targets and then you killTweensOf() each target individually, the tween would technically still remain active and fire its onComplete even though there aren't any more properties tweening.
+					if (!this._firstPT && this._initted) { //if all tweening properties are killed, kill the tween. Without this line, if there's a tween with multiple targets and then you killTweensOf() each target individually, the tween would technically still remain active and fire its onComplete even though there aren't any more properties tweening.
 						this._enabled(false, false);
 					}
 				}

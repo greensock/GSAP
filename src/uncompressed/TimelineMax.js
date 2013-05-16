@@ -1,6 +1,6 @@
 /*!
- * VERSION: beta 1.9.5
- * DATE: 2013-04-29
+ * VERSION: beta 1.9.7
+ * DATE: 2013-05-16
  * UPDATES AND DOCS AT: http://www.greensock.com
  *
  * @license Copyright (c) 2008-2013, GreenSock. All rights reserved.
@@ -37,7 +37,7 @@
 			
 		p.constructor = TimelineMax;
 		p.kill()._gc = false;
-		TimelineMax.version = "1.9.5";
+		TimelineMax.version = "1.9.7";
 		
 		p.invalidate = function() {
 			this._yoyo = (this.vars.yoyo === true);
@@ -481,9 +481,10 @@
 				}
 				return copy;
 			},
+			_slice = _blankArray.slice,
 			p = TimelineLite.prototype = new SimpleTimeline();
 
-		TimelineLite.version = "1.9.5";
+		TimelineLite.version = "1.9.7";
 		p.constructor = TimelineLite;
 		p.kill()._gc = false;
 
@@ -501,16 +502,12 @@
 
 		p.staggerTo = function(targets, duration, vars, stagger, position, onCompleteAll, onCompleteAllParams, onCompleteAllScope) {
 			var tl = new TimelineLite({onComplete:onCompleteAll, onCompleteParams:onCompleteAllParams, onCompleteScope:onCompleteAllScope}),
-				i, a;
+				i;
 			if (typeof(targets) === "string") {
 				targets = TweenLite.selector(targets) || targets;
 			}
-			if (!(targets instanceof Array) && typeof(targets.each) === "function" && targets[0] && targets[0].nodeType && targets[0].style) { //senses if the targets object is a selector. If it is, we should translate it into an array.
-				a = [];
-				targets.each(function() {
-					a.push(this);
-				});
-				targets = a;
+			if (!(targets instanceof Array) && targets.length && targets[0] && targets[0].nodeType && targets[0].style) { //senses if the targets object is a selector. If it is, we should translate it into an array.
+				targets = _slice.call(targets, 0);
 			}
 			stagger = stagger || 0;
 			for (i = 0; i < targets.length; i++) {
@@ -603,7 +600,7 @@
 				} else if (typeof(value) === "function") {
 					value = TweenLite.delayedCall(0, value);
 				} else {
-					throw("Cannot add " + value + " into the timeline: it is neither a tween, timeline, function, nor a string.");
+					throw("Cannot add " + value + " into the timeline; it is neither a tween, timeline, function, nor a string.");
 				}
 			}
 
