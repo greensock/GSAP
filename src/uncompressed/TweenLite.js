@@ -1,6 +1,6 @@
 /*!
- * VERSION: beta 1.9.7
- * DATE: 2013-05-16
+ * VERSION: beta 1.9.8
+ * DATE: 2013-06-05
  * UPDATES AND DOCS AT: http://www.greensock.com
  *
  * @license Copyright (c) 2008-2013, GreenSock. All rights reserved.
@@ -763,7 +763,7 @@
 
 				this.target = target = (typeof(target) !== "string") ? target : TweenLite.selector(target) || target;
 
-				var isSelector = (target.jquery || (target.length && target[0] && target[0].nodeType && target[0].style)),
+				var isSelector = (target.jquery || (target.length && target[0] && target[0].nodeType && target[0].style && !target.nodeType)),
 					overwrite = this.vars.overwrite,
 					i, targ, targets;
 
@@ -784,7 +784,7 @@
 								targets.splice(i+1, 1); //to avoid an endless loop (can't imagine why the selector would return a string, but just in case)
 							}
 							continue;
-						} else if (targ.length && targ[0] && targ[0].nodeType && targ[0].style) { //in case the user is passing in an array of selector objects (like jQuery objects), we need to check one more level and pull things out if necessary...
+						} else if (targ.length && targ[0] && targ[0].nodeType && targ[0].style && !targ.nodeType) { //in case the user is passing in an array of selector objects (like jQuery objects), we need to check one more level and pull things out if necessary. Also note that <select> elements pass all the criteria regarding length and the first child having style, so we must also check to ensure the target isn't an HTML node itself.
 							targets.splice(i--, 1);
 							this._targets = targets = targets.concat(_slice.call(targ, 0));
 							continue;
@@ -807,7 +807,7 @@
 				}
 			}, true),
 			_isSelector = function(v) {
-				return (v.length && v[0] && v[0].nodeType && v[0].style);
+				return (v.length && v[0] && v[0].nodeType && v[0].style && !v.nodeType);
 			},
 			_autoCSS = function(vars, target) {
 				var css = {},
@@ -831,7 +831,7 @@
 		p._firstPT = p._targets = p._overwrittenProps = p._startAt = null;
 		p._notifyPluginsOfEnabled = false;
 		
-		TweenLite.version = "1.9.7";
+		TweenLite.version = "1.9.8";
 		TweenLite.defaultEase = p._ease = new Ease(null, null, 1, 1);
 		TweenLite.defaultOverwrite = "auto";
 		TweenLite.ticker = _ticker;

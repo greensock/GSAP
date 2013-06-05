@@ -1,6 +1,6 @@
 /*!
- * VERSION: beta 1.9.7
- * DATE: 2013-05-16
+ * VERSION: beta 1.9.8
+ * DATE: 2013-06-05
  * UPDATES AND DOCS AT: http://www.greensock.com
  *
  * @license Copyright (c) 2008-2013, GreenSock. All rights reserved.
@@ -54,7 +54,7 @@
 			_slice = _blankArray.slice,
 			p = TimelineLite.prototype = new SimpleTimeline();
 
-		TimelineLite.version = "1.9.7";
+		TimelineLite.version = "1.9.8";
 		p.constructor = TimelineLite;
 		p.kill()._gc = false;
 		
@@ -206,6 +206,17 @@
 				return this.removeLabel(value);
 			}
 			return this.kill(null, value);
+		};
+
+		p._remove = function(tween, skipDisable) {
+			SimpleTimeline.prototype._remove.call(this, tween, skipDisable);
+			if (!this._last) {
+				this._time = this._totalTime = 0;
+			} else if (this._time > this._last._startTime) {
+				this._time = this.duration();
+				this._totalTime = this._totalDuration;
+			}
+			return this;
 		};
 		
 		p.append = function(value, offsetOrLabel) {

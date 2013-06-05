@@ -1,6 +1,6 @@
 /*!
- * VERSION: beta 1.9.7
- * DATE: 2013-05-16
+ * VERSION: beta 1.9.8
+ * DATE: 2013-06-05
  * UPDATES AND DOCS AT: http://www.greensock.com
  *
  * @license Copyright (c) 2008-2013, GreenSock. All rights reserved.
@@ -37,7 +37,7 @@
 			
 		p.constructor = TimelineMax;
 		p.kill()._gc = false;
-		TimelineMax.version = "1.9.7";
+		TimelineMax.version = "1.9.8";
 		
 		p.invalidate = function() {
 			this._yoyo = (this.vars.yoyo === true);
@@ -52,15 +52,17 @@
 		};
 		
 		p.removeCallback = function(callback, position) {
-			if (position == null) {
-				this._kill(null, callback);
-			} else {
-				var a = this.getTweensOf(callback, false),
-					i = a.length,
-					time = this._parseTimeOrLabel(position);
-				while (--i > -1) {
-					if (a[i]._startTime === time) {
-						a[i]._enabled(false, false);
+			if (callback) {
+				if (position == null) {
+					this._kill(null, callback);
+				} else {
+					var a = this.getTweensOf(callback, false),
+						i = a.length,
+						time = this._parseTimeOrLabel(position);
+					while (--i > -1) {
+						if (a[i]._startTime === time) {
+							a[i]._enabled(false, false);
+						}
 					}
 				}
 			}
@@ -218,11 +220,14 @@
 					prevTime = (backwards) ? dur + 0.000001 : -0.000001;
 					this.render(prevTime, true, false);
 				}
+				this._locked = false;
+				if (this._paused && !prevPaused) { //if the render() triggered callback that paused this timeline, we should abort (very rare, but possible)
+					return;
+				}
 				this._time = recTime;
 				this._totalTime = recTotalTime;
 				this._cycle = recCycle;
 				this._rawPrevTime = recRawPrevTime;
-				this._locked = false;
 			}
 
 			if ((this._time === prevTime || !this._first) && !force && !internalForce) {
@@ -484,12 +489,12 @@
 			_slice = _blankArray.slice,
 			p = TimelineLite.prototype = new SimpleTimeline();
 
-		TimelineLite.version = "1.9.7";
+		TimelineLite.version = "1.9.8";
 		p.constructor = TimelineLite;
 		p.kill()._gc = false;
 
 		p.to = function(target, duration, vars, position) {
-			return this.add( new TweenLite(target, duration, vars), position);
+			return duration ? this.add( new TweenLite(target, duration, vars), position) : this.set(target, vars, position);
 		};
 
 		p.from = function(target, duration, vars, position) {
@@ -497,7 +502,7 @@
 		};
 
 		p.fromTo = function(target, duration, fromVars, toVars, position) {
-			return this.add( TweenLite.fromTo(target, duration, fromVars, toVars), position);
+			return duration ? this.add( TweenLite.fromTo(target, duration, fromVars, toVars), position) : this.set(target, toVars, position);
 		};
 
 		p.staggerTo = function(targets, duration, vars, stagger, position, onCompleteAll, onCompleteAllParams, onCompleteAllScope) {
@@ -514,7 +519,7 @@
 				if (vars.startAt) {
 					vars.startAt = _copy(vars.startAt);
 				}
-				tl.add( new TweenLite(targets[i], duration, _copy(vars)), i * stagger);
+				tl.to(targets[i], duration, _copy(vars), i * stagger);
 			}
 			return this.add(tl, position);
 		};
@@ -636,6 +641,17 @@
 				return this.removeLabel(value);
 			}
 			return this.kill(null, value);
+		};
+
+		p._remove = function(tween, skipDisable) {
+			SimpleTimeline.prototype._remove.call(this, tween, skipDisable);
+			if (!this._last) {
+				this._time = this._totalTime = 0;
+			} else if (this._time > this._last._startTime) {
+				this._time = this.duration();
+				this._totalTime = this._totalDuration;
+			}
+			return this;
 		};
 
 		p.append = function(value, offsetOrLabel) {

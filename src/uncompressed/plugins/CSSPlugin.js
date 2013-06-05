@@ -1,6 +1,6 @@
 /*!
- * VERSION: beta 1.9.7
- * DATE: 2013-05-16
+ * VERSION: beta 1.9.8
+ * DATE: 2013-06-05
  * UPDATES AND DOCS AT: http://www.greensock.com
  *
  * @license Copyright (c) 2008-2013, GreenSock. All rights reserved.
@@ -28,7 +28,7 @@
 			p = CSSPlugin.prototype = new TweenPlugin("css");
 
 		p.constructor = CSSPlugin;
-		CSSPlugin.version = "1.9.7";
+		CSSPlugin.version = "1.9.8";
 		CSSPlugin.API = 2;
 		CSSPlugin.defaultTransformPerspective = 0;
 		p = "px"; //we'll reuse the "p" variable to keep file size down
@@ -289,7 +289,7 @@
 				} else if (y === "center") {
 					y = "50%";
 				}
-				if (x === "center" || isNaN(parseFloat(x))) { //remember, the user could flip-flop the values and say "bottom center" or "center bottom", etc. "center" is ambiguous because it could be used to describe horizontal or vertical, hence the isNaN().
+				if (x === "center" || (isNaN(parseFloat(x)) && (x + "").indexOf("=") === -1)) { //remember, the user could flip-flop the values and say "bottom center" or "center bottom", etc. "center" is ambiguous because it could be used to describe horizontal or vertical, hence the isNaN(). If there's an "=" sign in the value, it's relative.
 					x = "50%";
 				}
 				if (recObj) {
@@ -689,7 +689,7 @@
 				this.p = p; //property
 				this.s = s; //starting value
 				this.c = c; //change value
-				this.n = n || "css_" + p; //name that this CSSPropTween should be associated to (usually the same as p, but not always - n is what overwriting looks at)
+				this.n = n || p; //name that this CSSPropTween should be associated to (usually the same as p, but not always - n is what overwriting looks at)
 				if (!(t instanceof CSSPropTween)) {
 					_overwriteProps.push(this.n);
 				}
@@ -1047,9 +1047,13 @@
 			 * @param {!Object} t target element
 			 * @param {Object=} cs computed style object (optional)
 			 * @param {boolean=} rec if true, the transform values will be recorded to the target element's _gsTransform object, like target._gsTransform = {x:0, y:0, z:0, scaleX:1...}
+			 * @param {boolean=} parse if true, we'll ignore any _gsTransform values that already exist on the element, and force a reparsing of the css (calculated style)
 			 * @return {object} object containing all of the transform properties/values like {x:0, y:0, z:0, scaleX:1...}
 			 */
-			_getTransform = function(t, cs, rec) {
+			_getTransform = function(t, cs, rec, parse) {
+				if (t._gsTransform && rec && !parse) {
+					return t._gsTransform; //if the element already has a _gsTransform, use that. Note: some browsers don't accurately return the calculated style for the transform (particularly for SVG), so it's almost always safest to just use the values we've already applied rather than re-parsing things.
+				}
 				var tm = rec ? t._gsTransform || {skewY:0} : {skewY:0},
 					invX = (tm.scaleX < 0), //in order to interpret things properly, we need to know if the user applied a negative scaleX previously so that we can adjust the rotation and skewX accordingly. Otherwise, if we always interpret a flipped matrix as affecting scaleY and the user only wants to tween the scaleX on multiple sequential tweens, it would keep the negative scaleY without that being the user's intent.
 					min = 0.00002,
@@ -1063,13 +1067,7 @@
 				} else if (t.currentStyle) {
 					//for older versions of IE, we need to interpret the filter portion that is in the format: progid:DXImageTransform.Microsoft.Matrix(M11=6.123233995736766e-17, M12=-1, M21=1, M22=6.123233995736766e-17, sizingMethod='auto expand') Notice that we need to swap b and c compared to a normal matrix.
 					s = t.currentStyle.filter.match(_ieGetMatrixExp);
-					if (s && s.length === 4) {
-						s = [s[0].substr(4), Number(s[2].substr(4)), Number(s[1].substr(4)), s[3].substr(4), (tm.x || 0), (tm.y || 0)].join(",");
-					} else if (tm.x != null) { //if the element already has a _gsTransform, use that.
-						return tm;
-					} else {
-						s = "";
-					}
+					s = (s && s.length === 4) ? [s[0].substr(4), Number(s[2].substr(4)), Number(s[1].substr(4)), s[3].substr(4), (tm.x || 0), (tm.y || 0)].join(",") : "";
 				}
 				//split the matrix values out into an array (m for matrix)
 				m = (s || "").match(/(?:\-|\b)[\d\-\.e]+\b/gi) || [];
@@ -1093,7 +1091,7 @@
 					}
 
 					//only parse from the matrix if we MUST because not only is it usually unnecessary due to the fact that we store the values in the _gsTransform object, but also because it's impossible to accurately interpret rotationX, rotationY, and rotationZ if all are applied, so it's much better to rely on what we store. However, we must parse the first time that an object is tweened. We also assume that if the position has changed, the user must have done some styling changes outside of CSSPlugin, thus we force a parse in that scenario.
-					if (!rec || tm.rotationX == null) {
+					if (!rec || parse || tm.rotationX == null) {
 						var a11 = m[0], a21 = m[1], a31 = m[2], a41 = m[3],
 							a12 = m[4], a22 = m[5], a32 = m[6], a42 = m[7],
 							a43 = m[11],
@@ -1167,13 +1165,12 @@
 						tm.z = a34;
 					}
 
-				} else if ((!_supports3D || m.length === 0 || tm.x !== m[4] || tm.y !== m[5] || (!tm.rotationX && !tm.rotationY)) && !(tm.x !== undefined && _getStyle(t, "display", cs) === "none")) { //sometimes a 6-element matrix is returned even when we performed 3D transforms, like if rotationX and rotationY are 180. In cases like this, we still need to honor the 3D transforms. If we just rely on the 2D info, it could affect how the data is interpreted, like scaleY might get set to -1 or rotation could get offset by 180 degrees. For example, do a TweenLite.to(element, 1, {css:{rotationX:180, rotationY:180}}) and then later, TweenLite.to(element, 1, {css:{rotationX:0}}) and without this conditional logic in place, it'd jump to a state of being unrotated when the 2nd tween starts. Then again, we need to honor the fact that the user COULD alter the transforms outside of CSSPlugin, like by manually applying new css, so we try to sense that by looking at x and y because if those changed, we know the changes were made outside CSSPlugin and we force a reinterpretation of the matrix values. Also, in Webkit browsers, if the element's "display" is "none", its calculated style value will always return empty, so if we've already recorded the values in the _gsTransform object, we'll just rely on those.
+				} else if ((!_supports3D || parse || !m.length || tm.x !== m[4] || tm.y !== m[5] || (!tm.rotationX && !tm.rotationY)) && !(tm.x !== undefined && _getStyle(t, "display", cs) === "none")) { //sometimes a 6-element matrix is returned even when we performed 3D transforms, like if rotationX and rotationY are 180. In cases like this, we still need to honor the 3D transforms. If we just rely on the 2D info, it could affect how the data is interpreted, like scaleY might get set to -1 or rotation could get offset by 180 degrees. For example, do a TweenLite.to(element, 1, {css:{rotationX:180, rotationY:180}}) and then later, TweenLite.to(element, 1, {css:{rotationX:0}}) and without this conditional logic in place, it'd jump to a state of being unrotated when the 2nd tween starts. Then again, we need to honor the fact that the user COULD alter the transforms outside of CSSPlugin, like by manually applying new css, so we try to sense that by looking at x and y because if those changed, we know the changes were made outside CSSPlugin and we force a reinterpretation of the matrix values. Also, in Webkit browsers, if the element's "display" is "none", its calculated style value will always return empty, so if we've already recorded the values in the _gsTransform object, we'll just rely on those.
 					var k = (m.length >= 6),
 						a = k ? m[0] : 1,
 						b = m[1] || 0,
 						c = m[2] || 0,
 						d = k ? m[3] : 1;
-
 					tm.x = m[4] || 0;
 					tm.y = m[5] || 0;
 					scaleX = Math.sqrt(a * a + b * b);
@@ -1325,6 +1322,9 @@
 					a22 = a22*Math.cos(angle);
 					a11 = t1;
 					a21 = t2;
+				} else if (!t.rotationY && !t.rotationX && a33 === 1) { //if we're only translating and/or 2D scaling, this is faster...
+					style[_transformProp] = "translate3d(" + t.x + "px," + t.y + "px," + t.z +"px)" + ((a11 !== 1 || a22 !== 1) ? " scale(" + a11 + "," + a22 + ")" : "");
+					return;
 				}
 				angle = t.rotationY;
 				if (angle) {
@@ -1398,9 +1398,9 @@
 				}
 			};
 
-		_registerComplexSpecialProp("transform,scale,scaleX,scaleY,scaleZ,x,y,z,rotation,rotationX,rotationY,rotationZ,skewX,skewY,shortRotation,shortRotationX,shortRotationY,shortRotationZ,transformOrigin,transformPerspective,directionalRotation", {parser:function(t, e, p, cssp, pt, plugin, vars) {
+		_registerComplexSpecialProp("transform,scale,scaleX,scaleY,scaleZ,x,y,z,rotation,rotationX,rotationY,rotationZ,skewX,skewY,shortRotation,shortRotationX,shortRotationY,shortRotationZ,transformOrigin,transformPerspective,directionalRotation,parseTransform", {parser:function(t, e, p, cssp, pt, plugin, vars) {
 			if (cssp._transform) { return pt; } //only need to parse the transform once, and only if the browser supports it.
-			var m1 = cssp._transform = _getTransform(t, _cs, true),
+			var m1 = cssp._transform = _getTransform(t, _cs, true, vars.parseTransform),
 				style = t.style,
 				min = 0.000001,
 				i = _transformProps.length,
@@ -1473,7 +1473,7 @@
 					hasChange = true;
 					orig = (orig || _getStyle(t, p, _cs, false, "50% 50%")) + ""; //cast as string to avoid errors
 					p = _transformOriginProp;
-					pt = new CSSPropTween(style, p, 0, 0, pt, -1, "css_transformOrigin");
+					pt = new CSSPropTween(style, p, 0, 0, pt, -1, "transformOrigin");
 					pt.b = style[p];
 					pt.plugin = plugin;
 					if (_supports3D) {
@@ -1584,7 +1584,7 @@
 				}
 			}
 			return this.parseComplex(t.style, bs, es, pt, plugin);
-		}, formatter:_parsePosition}); //note: backgroundPosition doesn't support interpreting between px and % (start and end values should use the same units) because doing so would require determining the size of the image itself and that can't be done quickly.
+		}, formatter:_parsePosition});
 		_registerComplexSpecialProp("backgroundSize", {defaultValue:"0 0", formatter:_parsePosition});
 		_registerComplexSpecialProp("perspective", {defaultValue:"0px", prefix:true});
 		_registerComplexSpecialProp("perspectiveOrigin", {defaultValue:"50% 50%", prefix:true});
@@ -1969,13 +1969,13 @@
 						}
 
 						if ((bn || bn === 0) && (en || en === 0)) { //faster than isNaN(). Also, previously we required en !== bn but that doesn't really gain much performance and it prevents _parseToProxy() from working properly if beginning and ending values match but need to get tweened by an external plugin anyway. For example, a bezier tween where the target starts at left:0 and has these points: [{left:50},{left:0}] wouldn't work properly because when parsing the last point, it'd match the first (current) one and a non-tweening CSSPropTween would be recorded when we actually need a normal tween (type:0) so that things get updated during the tween properly.
-							pt = new CSSPropTween(style, p, bn, en - bn, pt, 0, "css_" + p, (_autoRound !== false && (esfx === "px" || p === "zIndex")), 0, bs, es);
+							pt = new CSSPropTween(style, p, bn, en - bn, pt, 0, p, (_autoRound !== false && (esfx === "px" || p === "zIndex")), 0, bs, es);
 							pt.xs0 = esfx;
 							//DEBUG: _log("tween "+p+" from "+pt.b+" ("+bn+esfx+") to "+pt.e+" with suffix: "+pt.xs0);
 						} else if (style[p] === undefined || !es && (es + "" === "NaN" || es == null)) {
 							_log("invalid " + p + " tween value: " + vars[p]);
 						} else {
-							pt = new CSSPropTween(style, p, en || bn || 0, 0, pt, -1, "css_" + p, false, 0, bs, es);
+							pt = new CSSPropTween(style, p, en || bn || 0, 0, pt, -1, p, false, 0, bs, es);
 							pt.xs0 = (es === "none" && (p === "display" || p.indexOf("Style") !== -1)) ? bs : es; //intermediate value should typically be set immediately (end value) except for "display" or things like borderTopStyle, borderBottomStyle, etc. which should use the beginning value during the tween.
 							//DEBUG: _log("non-tweening value "+p+": "+pt.xs0);
 						}
@@ -2069,6 +2069,7 @@
 		 */
 		p._enableTransforms = function(threeD) {
 			this._transformType = (threeD || this._transformType === 3) ? 3 : 2;
+			this._transform = this._transform || _getTransform(this._target, _cs, true); //ensures that the element has a _gsTransform property with the appropriate values.
 		};
 
 		/** @private **/
@@ -2100,17 +2101,17 @@
 		p._kill = function(lookup) {
 			var copy = lookup,
 				pt, p, xfirst;
-			if (lookup.css_autoAlpha || lookup.css_alpha) {
+			if (lookup.autoAlpha || lookup.alpha) {
 				copy = {};
 				for (p in lookup) { //copy the lookup so that we're not changing the original which may be passed elsewhere.
 					copy[p] = lookup[p];
 				}
-				copy.css_opacity = 1;
-				if (copy.css_autoAlpha) {
-					copy.css_visibility = 1;
+				copy.opacity = 1;
+				if (copy.autoAlpha) {
+					copy.visibility = 1;
 				}
 			}
-			if (lookup.css_className && (pt = this._classNamePT)) { //for className tweens, we need to kill any associated CSSPropTweens too; a linked list starts at the className's "xfirst".
+			if (lookup.className && (pt = this._classNamePT)) { //for className tweens, we need to kill any associated CSSPropTweens too; a linked list starts at the className's "xfirst".
 				xfirst = pt.xfirst;
 				if (xfirst && xfirst._prev) {
 					this._linkCSSP(xfirst._prev, pt._next, xfirst._prev._prev); //break off the prev
