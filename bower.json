@@ -1,5 +1,5 @@
 {
-  "name": "greensock-js",
+  "name": "greensockjs",
   "version": "1.9.8",
   "main": "./src/minified/TweenLite.min.js",
   "dependencies": {
