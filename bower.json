@@ -1,0 +1,6 @@
+{    "name": "gsap",    "version": "1.9.8",
+    "description": "GreenSock Animation Platform which uses high-performance JavaScript to animate virtually anything including css properties, canvas library objects, generics, or whatever. See http://www.greensock.com/gsap-js/ for details.",
+    "author": {
+        "name": "Jack Doyle",
+        "url": "http://www.greensock.com/gsap-js/"
+    },    "main": "./src/minified/TweenMax.min.js",    "dependencies": {    }}
