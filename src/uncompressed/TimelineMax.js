@@ -1,6 +1,6 @@
 /*!
- * VERSION: beta 1.9.8
- * DATE: 2013-06-05
+ * VERSION: beta 1.10.0
+ * DATE: 2013-07-03
  * UPDATES AND DOCS AT: http://www.greensock.com
  *
  * @license Copyright (c) 2008-2013, GreenSock. All rights reserved.
@@ -11,6 +11,8 @@
  */
 	
 (window._gsQueue || (window._gsQueue = [])).push( function() {
+
+	"use strict";
 
 	window._gsDefine("TimelineMax", ["TimelineLite","TweenLite","easing.Ease"], function(TimelineLite, TweenLite, Ease) {
 		
@@ -37,7 +39,7 @@
 			
 		p.constructor = TimelineMax;
 		p.kill()._gc = false;
-		TimelineMax.version = "1.9.8";
+		TimelineMax.version = "1.10.0";
 		
 		p.invalidate = function() {
 			this._yoyo = (this.vars.yoyo === true);
@@ -102,7 +104,6 @@
 			if (this._gc) {
 				this._enabled(true, false);
 			}
-			this._active = !this._paused;
 			var totalDur = (!this._dirty) ? this._totalDuration : this.totalDuration(),
 				dur = this._duration,
 				prevTime = this._time, 
@@ -237,6 +238,10 @@
 				return;
 			} else if (!this._initted) {
 				this._initted = true;
+			}
+
+			if (!this._active) if (!this._paused && this._totalTime !== prevTotalTime && time > 0) {
+				this._active = true;  //so that if the user renders the timeline (as opposed to the parent timeline rendering it), it is forced to re-render and align it with the proper time/frame on the next rendering cycle. Maybe the timeline already finished but the user manually re-renders it as halfway done, for example.
 			}
 			
 			if (prevTotalTime === 0) if (this.vars.onStart) if (this._totalTime !== 0) if (!suppressEvents) {
@@ -486,10 +491,16 @@
 				}
 				return copy;
 			},
+			_pauseCallback = function(tween, callback, params, scope) {
+				tween._timeline.pause(tween._startTime);
+				if (callback) {
+					callback.apply(scope || tween._timeline, params || _blankArray);
+				}
+			},
 			_slice = _blankArray.slice,
 			p = TimelineLite.prototype = new SimpleTimeline();
 
-		TimelineLite.version = "1.9.8";
+		TimelineLite.version = "1.10.0";
 		p.constructor = TimelineLite;
 		p.kill()._gc = false;
 
@@ -511,7 +522,7 @@
 			if (typeof(targets) === "string") {
 				targets = TweenLite.selector(targets) || targets;
 			}
-			if (!(targets instanceof Array) && targets.length && targets[0] && targets[0].nodeType && targets[0].style) { //senses if the targets object is a selector. If it is, we should translate it into an array.
+			if (!(targets instanceof Array) && targets.length && targets !== window && targets[0] && (targets[0] === window || (targets[0].nodeType && targets[0].style && !targets.nodeType))) { //senses if the targets object is a selector. If it is, we should translate it into an array.
 				targets = _slice.call(targets, 0);
 			}
 			stagger = stagger || 0;
@@ -671,6 +682,10 @@
 			return this;
 		};
 
+		p.addPause = function(position, callback, params, scope) {
+			return this.call(_pauseCallback, ["{self}", callback, params, scope], position);
+		};
+
 		p.removeLabel = function(label) {
 			delete this._labels[label];
 			return this;
@@ -733,7 +748,6 @@
 			if (this._gc) {
 				this._enabled(true, false);
 			}
-			this._active = !this._paused;
 			var totalDur = (!this._dirty) ? this._totalDuration : this.totalDuration(),
 				prevTime = this._time,
 				prevStart = this._startTime,
@@ -780,6 +794,11 @@
 			} else if (!this._initted) {
 				this._initted = true;
 			}
+
+			if (!this._active) if (!this._paused && this._time !== prevTime && time > 0) {
+				this._active = true;  //so that if the user renders the timeline (as opposed to the parent timeline rendering it), it is forced to re-render and align it with the proper time/frame on the next rendering cycle. Maybe the timeline already finished but the user manually re-renders it as halfway done, for example.
+			}
+
 			if (prevTime === 0) if (this.vars.onStart) if (this._time !== 0) if (!suppressEvents) {
 				this.vars.onStart.apply(this.vars.onStartScope || this, this.vars.onStartParams || _blankArray);
 			}

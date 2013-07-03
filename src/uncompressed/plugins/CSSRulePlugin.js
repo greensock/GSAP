@@ -1,6 +1,6 @@
 /*!
- * VERSION: beta 0.5
- * DATE: 2012-12-20
+ * VERSION: beta 0.6.0
+ * DATE: 2013-07-03
  * UPDATES AND DOCS AT: http://www.greensock.com
  *
  * @license Copyright (c) 2008-2013, GreenSock. All rights reserved.
@@ -47,7 +47,13 @@
 				a = [];
 			}
 			while (--i > -1) {
-				curSS = ss[i][ruleProp];
+				//Firefox may throw insecure operation errors when css is loaded from other domains, so try/catch.
+				try {
+					curSS = ss[i][ruleProp];
+				} catch (e) {
+					console.log(e);
+					continue;
+				}
 				j = curSS.length;
 				while (--j > -1) {
 					cs = curSS[j];

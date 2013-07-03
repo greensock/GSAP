@@ -1,6 +1,6 @@
 /*!
- * VERSION: beta 1.9.8
- * DATE: 2013-06-05
+ * VERSION: beta 1.10.0
+ * DATE: 2013-07-03
  * UPDATES AND DOCS AT: http://www.greensock.com
  * 
  * Includes all of the following: TweenLite, TweenMax, TimelineLite, TimelineMax, EasePack, CSSPlugin, RoundPropsPlugin, BezierPlugin, AttrPlugin, DirectionalRotationPlugin
@@ -28,12 +28,12 @@
 				this._dirty = true; //ensures that if there is any repeat, the totalDuration will get recalculated to accurately report it.
 			},
 			_isSelector = function(v) {
-				return (v.jquery || (v.length && v[0] && v[0].nodeType && v[0].style && !v.nodeType));
+				return (v.jquery || (v.length && v !== window && v[0] && (v[0] === window || (v[0].nodeType && v[0].style && !v.nodeType)))); //note: we cannot check "nodeType" on window from inside an iframe (some browsers throw a security error)
 			},
 			p = TweenMax.prototype = TweenLite.to({}, 0.1, {}),
 			_blankArray = [];
 
-		TweenMax.version = "1.9.8";
+		TweenMax.version = "1.10.0";
 		p.constructor = TweenMax;
 		p.kill()._gc = false;
 		TweenMax.killTweensOf = TweenMax.killDelayedCallsTo = TweenLite.killTweensOf;
@@ -216,7 +216,7 @@
 				}
 			}
 			
-			if (!this._active) if (!this._paused) {
+			if (!this._active) if (!this._paused && this._time !== prevTime && time >= 0) {
 				this._active = true; //so that if the user renders a tween (as opposed to the timeline rendering it), the timeline is forced to re-render and align it with the proper time/frame on the next rendering cycle. Maybe the tween already finished but the user manually re-renders it as halfway done.
 			}
 			if (prevTotalTime === 0) {
@@ -439,12 +439,9 @@
 		};
 
 		var _changePause = function(pause, tweens, delayedCalls, timelines) {
-			if (tweens === undefined) {
-				tweens = true;
-			}
-			if (delayedCalls === undefined) {
-				delayedCalls = true;
-			}
+			tweens = (tweens !== false);
+			delayedCalls = (delayedCalls !== false);
+			timelines = (timelines !== false);
 			var a = getAllTweens(timelines),
 				allTrue = (tweens && delayedCalls && timelines),
 				i = a.length,
@@ -591,10 +588,16 @@
 				}
 				return copy;
 			},
+			_pauseCallback = function(tween, callback, params, scope) {
+				tween._timeline.pause(tween._startTime);
+				if (callback) {
+					callback.apply(scope || tween._timeline, params || _blankArray);
+				}
+			},
 			_slice = _blankArray.slice,
 			p = TimelineLite.prototype = new SimpleTimeline();
 
-		TimelineLite.version = "1.9.8";
+		TimelineLite.version = "1.10.0";
 		p.constructor = TimelineLite;
 		p.kill()._gc = false;
 
@@ -616,7 +619,7 @@
 			if (typeof(targets) === "string") {
 				targets = TweenLite.selector(targets) || targets;
 			}
-			if (!(targets instanceof Array) && targets.length && targets[0] && targets[0].nodeType && targets[0].style) { //senses if the targets object is a selector. If it is, we should translate it into an array.
+			if (!(targets instanceof Array) && targets.length && targets !== window && targets[0] && (targets[0] === window || (targets[0].nodeType && targets[0].style && !targets.nodeType))) { //senses if the targets object is a selector. If it is, we should translate it into an array.
 				targets = _slice.call(targets, 0);
 			}
 			stagger = stagger || 0;
@@ -776,6 +779,10 @@
 			return this;
 		};
 
+		p.addPause = function(position, callback, params, scope) {
+			return this.call(_pauseCallback, ["{self}", callback, params, scope], position);
+		};
+
 		p.removeLabel = function(label) {
 			delete this._labels[label];
 			return this;
@@ -838,7 +845,6 @@
 			if (this._gc) {
 				this._enabled(true, false);
 			}
-			this._active = !this._paused;
 			var totalDur = (!this._dirty) ? this._totalDuration : this.totalDuration(),
 				prevTime = this._time,
 				prevStart = this._startTime,
@@ -885,6 +891,11 @@
 			} else if (!this._initted) {
 				this._initted = true;
 			}
+
+			if (!this._active) if (!this._paused && this._time !== prevTime && time > 0) {
+				this._active = true;  //so that if the user renders the timeline (as opposed to the parent timeline rendering it), it is forced to re-render and align it with the proper time/frame on the next rendering cycle. Maybe the timeline already finished but the user manually re-renders it as halfway done, for example.
+			}
+
 			if (prevTime === 0) if (this.vars.onStart) if (this._time !== 0) if (!suppressEvents) {
 				this.vars.onStart.apply(this.vars.onStartScope || this, this.vars.onStartParams || _blankArray);
 			}
@@ -1189,7 +1200,7 @@
 
 		p.constructor = TimelineMax;
 		p.kill()._gc = false;
-		TimelineMax.version = "1.9.8";
+		TimelineMax.version = "1.10.0";
 
 		p.invalidate = function() {
 			this._yoyo = (this.vars.yoyo === true);
@@ -1254,7 +1265,6 @@
 			if (this._gc) {
 				this._enabled(true, false);
 			}
-			this._active = !this._paused;
 			var totalDur = (!this._dirty) ? this._totalDuration : this.totalDuration(),
 				dur = this._duration,
 				prevTime = this._time,
@@ -1389,6 +1399,10 @@
 				return;
 			} else if (!this._initted) {
 				this._initted = true;
+			}
+
+			if (!this._active) if (!this._paused && this._totalTime !== prevTotalTime && time > 0) {
+				this._active = true;  //so that if the user renders the timeline (as opposed to the parent timeline rendering it), it is forced to re-render and align it with the proper time/frame on the next rendering cycle. Maybe the timeline already finished but the user manually re-renders it as halfway done, for example.
 			}
 
 			if (prevTotalTime === 0) if (this.vars.onStart) if (this._totalTime !== 0) if (!suppressEvents) {
@@ -2201,7 +2215,7 @@
 			p = CSSPlugin.prototype = new TweenPlugin("css");
 
 		p.constructor = CSSPlugin;
-		CSSPlugin.version = "1.9.8";
+		CSSPlugin.version = "1.10.0";
 		CSSPlugin.API = 2;
 		CSSPlugin.defaultTransformPerspective = 0;
 		p = "px"; //we'll reuse the "p" variable to keep file size down
@@ -2312,8 +2326,7 @@
 					t = cs.getPropertyValue(p.replace(_capsExp, "-$1").toLowerCase());
 					rv = (t || cs.length) ? t : cs[p]; //Opera behaves VERY strangely - length is usually 0 and cs[p] is the only way to get accurate results EXCEPT when checking for -o-transform which only works with cs.getPropertyValue()!
 				} else if (t.currentStyle) {
-					cs = t.currentStyle;
-					rv = cs[p];
+					rv = t.currentStyle[p];
 				}
 				return (dflt != null && (!rv || rv === "none" || rv === "auto" || rv === "auto auto")) ? dflt : rv;
 			},
@@ -3263,7 +3276,7 @@
 						a34 = a33*a34+tm.zOrigin-m[14];
 					}
 
-					//only parse from the matrix if we MUST because not only is it usually unnecessary due to the fact that we store the values in the _gsTransform object, but also because it's impossible to accurately interpret rotationX, rotationY, and rotationZ if all are applied, so it's much better to rely on what we store. However, we must parse the first time that an object is tweened. We also assume that if the position has changed, the user must have done some styling changes outside of CSSPlugin, thus we force a parse in that scenario.
+					//only parse from the matrix if we MUST because not only is it usually unnecessary due to the fact that we store the values in the _gsTransform object, but also because it's impossible to accurately interpret rotationX, rotationY, rotationZ, scaleX, and scaleY if all are applied, so it's much better to rely on what we store. However, we must parse the first time that an object is tweened. We also assume that if the position has changed, the user must have done some styling changes outside of CSSPlugin, thus we force a parse in that scenario.
 					if (!rec || parse || tm.rotationX == null) {
 						var a11 = m[0], a21 = m[1], a31 = m[2], a41 = m[3],
 							a12 = m[4], a22 = m[5], a32 = m[6], a42 = m[7],
@@ -3278,7 +3291,6 @@
 							t1 = a12*cos+a13*sin;
 							t2 = a22*cos+a23*sin;
 							t3 = a32*cos+a33*sin;
-							//t4 = a42*cos+a43*sin;
 							a13 = a12*-sin+a13*cos;
 							a23 = a22*-sin+a23*cos;
 							a33 = a32*-sin+a33*cos;
@@ -3286,7 +3298,6 @@
 							a12 = t1;
 							a22 = t2;
 							a32 = t3;
-							//a42 = t4;
 						}
 						//rotationY
 						angle = tm.rotationY = Math.atan2(a13, a11);
@@ -3297,15 +3308,12 @@
 							t1 = a11*cos-a13*sin;
 							t2 = a21*cos-a23*sin;
 							t3 = a31*cos-a33*sin;
-							//t4 = a41*cos-a43*sin;
-							//a13 = a11*sin+a13*cos;
 							a23 = a21*sin+a23*cos;
 							a33 = a31*sin+a33*cos;
 							a43 = a41*sin+a43*cos;
 							a11 = t1;
 							a21 = t2;
 							a31 = t3;
-							//a41 = t4;
 						}
 						//rotationZ
 						angle = tm.rotation = Math.atan2(a21, a22);
@@ -3465,19 +3473,21 @@
 					style.removeAttribute("filter");
 				}
 			},
+
 			_set3DTransformRatio = function(v) {
 				var t = this.data, //refers to the element's _gsTransform object
 					style = this.t.style,
 					perspective = t.perspective,
-					a11 = t.scaleX, a12 = 0, a13 = 0, a14 = 0,
-					a21 = 0, a22 = t.scaleY, a23 = 0, a24 = 0,
+					a11 = 1, a12 = 0, a13 = 0, a14 = 0,
+					a21 = 0, a22 = 1, a23 = 0, a24 = 0,
 					a31 = 0, a32 = 0, a33 = t.scaleZ, a34 = 0,
 					a41 = 0, a42 = 0, a43 = (perspective) ? -1 / perspective : 0,
 					angle = t.rotation,
 					zOrigin = t.zOrigin,
 					rnd = 100000,
+					sx = t.scaleX,
+					sy = t.scaleY,
 					cos, sin, t1, t2, t3, t4, ffProp, n, sfx;
-
 				if (_isFirefox) { //Firefox has a bug that causes 3D elements to randomly disappear during animation unless a repaint is forced. One way to do this is change "top" or "bottom" by 0.05 which is imperceptible, so we go back and forth. Another way is to change the display to "none", read the clientTop, and then revert the display but that is much slower.
 					ffProp = style.top ? "top" : style.bottom ? "bottom" : parseFloat(_getStyle(this.t, "top", null, false)) ? "bottom" : "top";
 					t1 = _getStyle(this.t, ffProp, null, false);
@@ -3486,35 +3496,34 @@
 					t._ffFix = !t._ffFix;
 					style[ffProp] = (t._ffFix ? n + 0.05 : n - 0.05) + sfx;
 				}
-
 				if (angle || t.skewX) {
-					t1 = a11*Math.cos(angle);
-					t2 = a22*Math.sin(angle);
-					angle -= t.skewX;
-					a12 = a11*-Math.sin(angle);
-					a22 = a22*Math.cos(angle);
-					a11 = t1;
-					a21 = t2;
+					cos = Math.cos(angle);
+					sin = Math.sin(angle);
+					a11 = cos;
+					a21 = sin;
+					if (t.skewX) {
+						angle -= t.skewX;
+						cos = Math.cos(angle);
+						sin = Math.sin(angle);
+					}
+					a12 = -sin;
+					a22 = cos;
 				} else if (!t.rotationY && !t.rotationX && a33 === 1) { //if we're only translating and/or 2D scaling, this is faster...
-					style[_transformProp] = "translate3d(" + t.x + "px," + t.y + "px," + t.z +"px)" + ((a11 !== 1 || a22 !== 1) ? " scale(" + a11 + "," + a22 + ")" : "");
+					style[_transformProp] = "translate3d(" + t.x + "px," + t.y + "px," + t.z +"px)" + ((sx !== 1 || sy !== 1) ? " scale(" + sx + "," + sy + ")" : "");
 					return;
 				}
 				angle = t.rotationY;
 				if (angle) {
 					cos = Math.cos(angle);
 					sin = Math.sin(angle);
-					t1 = a11*cos;
-					t2 = a21*cos;
-					t3 = a33*-sin;
-					t4 = a43*-sin;
+					a31 = a33*-sin;
+					a41 = a43*-sin;
 					a13 = a11*sin;
 					a23 = a21*sin;
-					a33 = a33*cos;
+					a33 *= cos;
 					a43 *= cos;
-					a11 = t1;
-					a21 = t2;
-					a31 = t3;
-					a41 = t4;
+					a11 *= cos;
+					a21 *= cos;
 				}
 				angle = t.rotationX;
 				if (angle) {
@@ -3533,6 +3542,18 @@
 					a32 = t3;
 					a42 = t4;
 				}
+				if (sy !== 1) {
+					a12*=sy;
+					a22*=sy;
+					a32*=sy;
+					a42*=sy;
+				}
+				if (sx !== 1) {
+					a11*=sx;
+					a21*=sx;
+					a31*=sx;
+					a41*=sx;
+				}
 				if (zOrigin) {
 					a34 -= zOrigin;
 					a14 = a13*a34;
@@ -3545,6 +3566,7 @@
 				a34 = (t1 = (a34 += t.z) - (a34 |= 0)) ? ((t1 * rnd + (t1 < 0 ? -0.5 : 0.5)) | 0) / rnd + a34 : a34;
 				style[_transformProp] = "matrix3d(" + [ (((a11 * rnd) | 0) / rnd), (((a21 * rnd) | 0) / rnd), (((a31 * rnd) | 0) / rnd), (((a41 * rnd) | 0) / rnd), (((a12 * rnd) | 0) / rnd), (((a22 * rnd) | 0) / rnd), (((a32 * rnd) | 0) / rnd), (((a42 * rnd) | 0) / rnd), (((a13 * rnd) | 0) / rnd), (((a23 * rnd) | 0) / rnd), (((a33 * rnd) | 0) / rnd), (((a43 * rnd) | 0) / rnd), a14, a24, a34, (perspective ? (1 + (-a34 / perspective)) : 1) ].join(",") + ")";
 			},
+
 			_set2DTransformRatio = function(v) {
 				var t = this.data, //refers to the element's _gsTransform object
 					targ = this.t,
@@ -3590,7 +3612,7 @@
 			} else if (typeof(v) === "object") { //for values like scaleX, scaleY, rotation, x, y, skewX, and skewY or transform:{...} (object)
 				m2 = {scaleX:_parseVal((v.scaleX != null) ? v.scaleX : v.scale, m1.scaleX),
 					scaleY:_parseVal((v.scaleY != null) ? v.scaleY : v.scale, m1.scaleY),
-					scaleZ:_parseVal((v.scaleZ != null) ? v.scaleZ : v.scale, m1.scaleZ),
+					scaleZ:_parseVal(v.scaleZ, m1.scaleZ),
 					x:_parseVal(v.x, m1.x),
 					y:_parseVal(v.y, m1.y),
 					z:_parseVal(v.z, m1.z),
@@ -3644,15 +3666,15 @@
 			if (orig || (_supports3D && has3D && m1.zOrigin)) { //if anything 3D is happening and there's a transformOrigin with a z component that's non-zero, we must ensure that the transformOrigin's z-component is set to 0 so that we can manually do those calculations to get around Safari bugs. Even if the user didn't specifically define a "transformOrigin" in this particular tween (maybe they did it via css directly).
 				if (_transformProp) {
 					hasChange = true;
-					orig = (orig || _getStyle(t, p, _cs, false, "50% 50%")) + ""; //cast as string to avoid errors
 					p = _transformOriginProp;
+					orig = (orig || _getStyle(t, p, _cs, false, "50% 50%")) + ""; //cast as string to avoid errors
 					pt = new CSSPropTween(style, p, 0, 0, pt, -1, "transformOrigin");
 					pt.b = style[p];
 					pt.plugin = plugin;
 					if (_supports3D) {
 						copy = m1.zOrigin;
 						orig = orig.split(" ");
-						m1.zOrigin = ((orig.length > 2) ? parseFloat(orig[2]) : copy) || 0; //Safari doesn't handle the z part of transformOrigin correctly, so we'll manually handle it in the _set3DTransformRatio() method.
+						m1.zOrigin = ((orig.length > 2 && !(copy !== 0 && orig[2] === "0px")) ? parseFloat(orig[2]) : copy) || 0; //Safari doesn't handle the z part of transformOrigin correctly, so we'll manually handle it in the _set3DTransformRatio() method.
 						pt.xs0 = pt.e = style[p] = orig[0] + " " + (orig[1] || "50%") + " 0px"; //we must define a z value of 0px specifically otherwise iOS 5 Safari will stick with the old one (if one was defined)!
 						pt = new CSSPropTween(m1, "zOrigin", 0, 0, pt, -1, pt.n); //we must create a CSSPropTween for the _gsTransform.zOrigin so that it gets reset properly at the beginning if the tween runs backward (as opposed to just setting m1.zOrigin here)
 						pt.b = copy;
@@ -3795,7 +3817,7 @@
 		//opacity-related
 		var _setIEOpacityRatio = function(v) {
 				var t = this.t, //refers to the element's style property
-					filters = t.filter,
+					filters = t.filter || _getStyle(this.data, "filter"),
 					val = (this.s + this.c * v) | 0,
 					skip;
 				if (val === 100) { //for older versions of IE that need to use a filter to apply opacity, we should remove the filter if opacity hits 1 in order to improve performance, but make sure there isn't a transform (matrix) or gradient in the filters.
@@ -3809,10 +3831,12 @@
 				}
 				if (!skip) {
 					if (this.xn1) {
-						t.filter = filters = filters || "alpha(opacity=100)"; //works around bug in IE7/8 that prevents changes to "visibility" from being applied properly if the filter is changed to a different alpha on the same frame.
+						t.filter = filters = filters || ("alpha(opacity=" + val + ")"); //works around bug in IE7/8 that prevents changes to "visibility" from being applied properly if the filter is changed to a different alpha on the same frame.
 					}
 					if (filters.indexOf("opacity") === -1) { //only used if browser doesn't support the standard opacity style property (IE 7 and 8)
-						t.filter += " alpha(opacity=" + val + ")"; //we round the value because otherwise, bugs in IE7/8 can prevent "visibility" changes from being applied properly.
+						if (val !== 0 || !this.xn1) { //bugs in IE7/8 won't render the filter properly if opacity is ADDED on the same frame/render as "visibility" changes (this.xn1 is 1 if this tween is an "autoAlpha" tween)
+							t.filter += " alpha(opacity=" + val + ")"; //we round the value because otherwise, bugs in IE7/8 can prevent "visibility" changes from being applied properly.
+						}
 					} else {
 						t.filter = filters.replace(_opacityExp, "opacity=" + val);
 					}
@@ -3821,22 +3845,16 @@
 		_registerComplexSpecialProp("opacity,alpha,autoAlpha", {defaultValue:"1", parser:function(t, e, p, cssp, pt, plugin) {
 			var b = parseFloat(_getStyle(t, "opacity", _cs, false, "1")),
 				style = t.style,
-				vb;
+				isAutoAlpha = (p === "autoAlpha");
 			e = parseFloat(e);
-			if (p === "autoAlpha") {
-				vb = _getStyle(t, "visibility", _cs);
-				if (b === 1 && vb === "hidden" && e !== 0) { //if visibility is initially set to "hidden", we should interpret that as intent to make opacity 0 (a convenience)
-					b = 0;
-				}
-				pt = new CSSPropTween(style, "visibility", 0, 0, pt, -1, null, false, 0, ((b !== 0) ? "visible" : "hidden"), ((e === 0) ? "hidden" : "visible"));
-				pt.xs0 = "visible";
-				cssp._overwriteProps.push(pt.n);
+			if (isAutoAlpha && b === 1 && _getStyle(t, "visibility", _cs) === "hidden" && e !== 0) { //if visibility is initially set to "hidden", we should interpret that as intent to make opacity 0 (a convenience)
+				b = 0;
 			}
 			if (_supportsOpacity) {
 				pt = new CSSPropTween(style, "opacity", b, e - b, pt);
 			} else {
 				pt = new CSSPropTween(style, "opacity", b * 100, (e - b) * 100, pt);
-				pt.xn1 = (p === "autoAlpha") ? 1 : 0; //we need to record whether or not this is an autoAlpha so that in the setRatio(), we know to duplicate the setting of the alpha in order to work around a bug in IE7 and IE8 that prevents changes to "visibility" from taking effect if the filter is changed to a different alpha(opacity) at the same time. Setting it to the SAME value first, then the new value works around the IE7/8 bug.
+				pt.xn1 = isAutoAlpha ? 1 : 0; //we need to record whether or not this is an autoAlpha so that in the setRatio(), we know to duplicate the setting of the alpha in order to work around a bug in IE7 and IE8 that prevents changes to "visibility" from taking effect if the filter is changed to a different alpha(opacity) at the same time. Setting it to the SAME value first, then the new value works around the IE7/8 bug.
 				style.zoom = 1; //helps correct an IE issue.
 				pt.type = 2;
 				pt.b = "alpha(opacity=" + pt.s + ")";
@@ -3844,6 +3862,11 @@
 				pt.data = t;
 				pt.plugin = plugin;
 				pt.setRatio = _setIEOpacityRatio;
+			}
+			if (isAutoAlpha) { //we have to create the "visibility" PropTween after the opacity one in the linked list so that they run in the order that works properly in IE8 and earlier
+				pt = new CSSPropTween(style, "visibility", 0, 0, pt, -1, null, false, 0, ((b !== 0) ? "visible" : "hidden"), ((e === 0) ? "hidden" : "visible"));
+				pt.xs0 = "visible";
+				cssp._overwriteProps.push(pt.n);
 			}
 			return pt;
 		}});
@@ -3916,17 +3939,20 @@
 
 		var _setClearPropsRatio = function(v) {
 			if (v === 1 || v === 0) if (this.data._totalTime === this.data._totalDuration) { //this.data refers to the tween. Only clear at the END of the tween (remember, from() tweens make the ratio go from 1 to 0, so we can't just check that).
-				var all = (this.e === "all"),
-					s = this.t.style,
-					a = all ? s.cssText.split(";") : this.e.split(","),
+				if (this.e === "all") {
+					this.t.style.cssText = "";
+					if (this.t._gsTransform) {
+						delete this.t._gsTransform;
+					}
+					return;
+				}
+				var s = this.t.style,
+					a = this.e.split(","),
 					i = a.length,
 					transformParse = _specialProps.transform.parse,
 					p;
 				while (--i > -1) {
 					p = a[i];
-					if (all) {
-						p = p.substr(0, p.indexOf(":")).split(" ").join("");
-					}
 					if (_specialProps[p]) {
 						p = (_specialProps[p].parse === transformParse) ? _transformProp : _specialProps[p].p; //ensures that special properties use the proper browser-specific property name, like "scaleX" might be "-webkit-transform" or "boxShadow" might be "-moz-box-shadow"
 					}
@@ -3975,7 +4001,6 @@
 			_overwriteProps = this._overwriteProps;
 			var style = target.style,
 				v, pt, pt2, first, last, next, zIndex, tpt, threeD;
-
 			if (_reqSafariFix) if (style.zIndex === "") {
 				v = _getStyle(target, "zIndex", _cs);
 				if (v === "auto" || v === "") {
@@ -4376,7 +4401,6 @@
 			}
 			return results;
 		};
-
 
 		TweenPlugin.activate([CSSPlugin]);
 		return CSSPlugin;
@@ -5491,13 +5515,15 @@
 						time = totalDuration;
 					}
 					this._startTime = (this._paused ? this._pauseTime : tl._time) - ((!this._reversed ? time : totalDuration - time) / this._timeScale);
-					if (!tl._dirty) { //for performance improvement. If the parent's cache is already dirty, it already took care of marking the anscestors as dirty too, so skip the function call here.
+					if (!tl._dirty) { //for performance improvement. If the parent's cache is already dirty, it already took care of marking the ancestors as dirty too, so skip the function call here.
 						this._uncache(false);
 					}
-					if (!tl._active) {
-						//in case any of the anscestors had completed but should now be enabled...
+					//in case any of the ancestor timelines had completed but should now be enabled, we should reset their totalTime() which will also ensure that they're lined up properly and enabled. Skip for animations that are on the root (wasteful). Example: a TimelineLite.exportRoot() is performed when there's a paused tween on the root, the export will not complete until that tween is unpaused, but imagine a child gets restarted later, after all [unpaused] tweens have completed. The startTime of that child would get pushed out, but one of the ancestors may have completed.
+					if (tl._timeline) {
 						while (tl._timeline) {
-							tl.totalTime(tl._totalTime, true);
+							if (tl._timeline._time !== (tl._startTime + tl._totalTime) / tl._timeScale) {
+								tl.totalTime(tl._totalTime, true);
+							}
 							tl = tl._timeline;
 						}
 					}
@@ -5558,9 +5584,10 @@
 				if (!_tickerActive && !value) {
 					_ticker.wake();
 				}
-				var raw = this._timeline.rawTime(),
+				var tl = this._timeline,
+					raw = tl.rawTime(),
 					elapsed = raw - this._pauseTime;
-				if (!value && this._timeline.smoothChildTiming) {
+				if (!value && tl.smoothChildTiming) {
 					this._startTime += elapsed;
 					this._uncache(false);
 				}
@@ -5568,7 +5595,7 @@
 				this._paused = value;
 				this._active = (!value && this._totalTime > 0 && this._totalTime < this._totalDuration);
 				if (!value && elapsed !== 0 && this._duration !== 0) {
-					this.render(this._totalTime, true, true);
+					this.render((tl.smoothChildTiming ? this._totalTime : (raw - this._startTime) / this._timeScale), true, true); //in case the target's properties changed via some other tween or manual update by the user, we should force a render.
 				}
 			}
 			if (this._gc && !value) {
@@ -5697,7 +5724,7 @@
 
 				this.target = target = (typeof(target) !== "string") ? target : TweenLite.selector(target) || target;
 
-				var isSelector = (target.jquery || (target.length && target[0] && target[0].nodeType && target[0].style && !target.nodeType)),
+				var isSelector = (target.jquery || (target.length && target !== window && target[0] && (target[0] === window || (target[0].nodeType && target[0].style && !target.nodeType)))),
 					overwrite = this.vars.overwrite,
 					i, targ, targets;
 
@@ -5718,7 +5745,7 @@
 								targets.splice(i+1, 1); //to avoid an endless loop (can't imagine why the selector would return a string, but just in case)
 							}
 							continue;
-						} else if (targ.length && targ[0] && targ[0].nodeType && targ[0].style && !targ.nodeType) { //in case the user is passing in an array of selector objects (like jQuery objects), we need to check one more level and pull things out if necessary. Also note that <select> elements pass all the criteria regarding length and the first child having style, so we must also check to ensure the target isn't an HTML node itself.
+						} else if (targ.length && targ !== window && targ[0] && (targ[0] === window || (targ[0].nodeType && targ[0].style && !targ.nodeType))) { //in case the user is passing in an array of selector objects (like jQuery objects), we need to check one more level and pull things out if necessary. Also note that <select> elements pass all the criteria regarding length and the first child having style, so we must also check to ensure the target isn't an HTML node itself.
 							targets.splice(i--, 1);
 							this._targets = targets = targets.concat(_slice.call(targ, 0));
 							continue;
@@ -5741,13 +5768,13 @@
 				}
 			}, true),
 			_isSelector = function(v) {
-				return (v.length && v[0] && v[0].nodeType && v[0].style && !v.nodeType);
+				return (v.length && v !== window && v[0] && (v[0] === window || (v[0].nodeType && v[0].style && !v.nodeType))); //we cannot check "nodeType" if the target is window from within an iframe, otherwise it will trigger a security error in some browsers like Firefox.
 			},
 			_autoCSS = function(vars, target) {
 				var css = {},
 					p;
 				for (p in vars) {
-					if (!_reservedProps[p] && (!(p in target) || p === "x" || p === "y" || p === "width" || p === "height" || p === "className") && (!_plugins[p] || (_plugins[p] && _plugins[p]._autoCSS))) { //note: <img> elements contain read-only "x" and "y" properties. We should also prioritize editing css width/height rather than the element's properties.
+					if (!_reservedProps[p] && (!(p in target) || p === "x" || p === "y" || p === "width" || p === "height" || p === "className" || p === "border") && (!_plugins[p] || (_plugins[p] && _plugins[p]._autoCSS))) { //note: <img> elements contain read-only "x" and "y" properties. We should also prioritize editing css width/height rather than the element's properties.
 						css[p] = vars[p];
 						delete vars[p];
 					}
@@ -5765,7 +5792,7 @@
 		p._firstPT = p._targets = p._overwrittenProps = p._startAt = null;
 		p._notifyPluginsOfEnabled = false;
 
-		TweenLite.version = "1.9.8";
+		TweenLite.version = "1.10.0";
 		TweenLite.defaultEase = p._ease = new Ease(null, null, 1, 1);
 		TweenLite.defaultOverwrite = "auto";
 		TweenLite.ticker = _ticker;
@@ -5984,7 +6011,7 @@
 			if (target == null) {
 				return false;
 			}
-			if (!this.vars.css) if (target.style) if (target.nodeType) if (_plugins.css) if (this.vars.autoCSS !== false) { //it's so common to use TweenLite/Max to animate the css of DOM elements, we assume that if the target is a DOM element, that's what is intended (a convenience so that users don't have to wrap things in css:{}, although we still recommend it for a slight performance boost and better specificity)
+			if (!this.vars.css) if (target.style) if (target !== window && target.nodeType) if (_plugins.css) if (this.vars.autoCSS !== false) { //it's so common to use TweenLite/Max to animate the css of DOM elements, we assume that if the target is a DOM element, that's what is intended (a convenience so that users don't have to wrap things in css:{}, although we still recommend it for a slight performance boost and better specificity). Note: we cannot check "nodeType" on the window inside an iframe.
 				_autoCSS(this.vars, target);
 			}
 			for (p in this.vars) {
@@ -6136,9 +6163,10 @@
 				}
 			}
 
-			if (!this._active) if (!this._paused) {
+			if (!this._active) if (!this._paused && this._time !== prevTime && time >= 0) {
 				this._active = true;  //so that if the user renders a tween (as opposed to the timeline rendering it), the timeline is forced to re-render and align it with the proper time/frame on the next rendering cycle. Maybe the tween already finished but the user manually re-renders it as halfway done.
 			}
+
 			if (prevTime === 0) {
 				if (this._startAt) {
 					if (time >= 0) {
