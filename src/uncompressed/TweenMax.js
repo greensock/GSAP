@@ -780,7 +780,7 @@
 		};
 
 		p.addPause = function(position, callback, params, scope) {
-			return this.call(_pauseCallback, ["{self}", callback, params, scope], position);
+			return this.call(_pauseCallback, ["{self}", callback, params, scope], this, position);
 		};
 
 		p.removeLabel = function(label) {
