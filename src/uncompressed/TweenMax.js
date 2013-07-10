@@ -1,6 +1,6 @@
 /*!
- * VERSION: beta 1.10.0
- * DATE: 2013-07-03
+ * VERSION: beta 1.10.1
+ * DATE: 2013-07-10
  * UPDATES AND DOCS AT: http://www.greensock.com
  * 
  * Includes all of the following: TweenLite, TweenMax, TimelineLite, TimelineMax, EasePack, CSSPlugin, RoundPropsPlugin, BezierPlugin, AttrPlugin, DirectionalRotationPlugin
@@ -33,7 +33,7 @@
 			p = TweenMax.prototype = TweenLite.to({}, 0.1, {}),
 			_blankArray = [];
 
-		TweenMax.version = "1.10.0";
+		TweenMax.version = "1.10.1";
 		p.constructor = TweenMax;
 		p.kill()._gc = false;
 		TweenMax.killTweensOf = TweenMax.killDelayedCallsTo = TweenLite.killTweensOf;
@@ -293,7 +293,7 @@
 				a = [],
 				finalComplete = function() {
 					if (vars.onComplete) {
-						vars.onComplete.apply(vars.onCompleteScope || this, vars.onCompleteParams || _blankArray);
+						vars.onComplete.apply(vars.onCompleteScope || this, arguments);
 					}
 					onCompleteAll.apply(onCompleteAllScope || this, onCompleteAllParams || _blankArray);
 				},
@@ -561,25 +561,17 @@
 				this._sortChildren = true;
 				this._onUpdate = this.vars.onUpdate;
 				var v = this.vars,
-					i = _paramProps.length,
-					j, a;
-				while (--i > -1) {
-					a = v[_paramProps[i]];
-					if (a) {
-						j = a.length;
-						while (--j > -1) {
-							if (a[j] === "{self}") {
-								a = v[_paramProps[i]] = a.concat(); //copy the array in case the user referenced the same array in multiple timelines/tweens (each {self} should be unique)
-								a[j] = this;
-							}
-						}
+					val, p;
+				for (p in v) {
+					val = v[p];
+					if (val instanceof Array) if (val.join("").indexOf("{self}") !== -1) {
+						v[p] = this._swapSelfInParams(val);
 					}
 				}
 				if (v.tweens instanceof Array) {
 					this.add(v.tweens, 0, v.align, v.stagger);
 				}
 			},
-			_paramProps = ["onStartParams","onUpdateParams","onCompleteParams","onReverseCompleteParams","onRepeatParams"],
 			_blankArray = [],
 			_copy = function(vars) {
 				var copy = {}, p;
@@ -597,7 +589,7 @@
 			_slice = _blankArray.slice,
 			p = TimelineLite.prototype = new SimpleTimeline();
 
-		TimelineLite.version = "1.10.0";
+		TimelineLite.version = "1.10.1";
 		p.constructor = TimelineLite;
 		p.kill()._gc = false;
 
@@ -1200,7 +1192,7 @@
 
 		p.constructor = TimelineMax;
 		p.kill()._gc = false;
-		TimelineMax.version = "1.10.0";
+		TimelineMax.version = "1.10.1";
 
 		p.invalidate = function() {
 			this._yoyo = (this.vars.yoyo === true);
@@ -2215,7 +2207,7 @@
 			p = CSSPlugin.prototype = new TweenPlugin("css");
 
 		p.constructor = CSSPlugin;
-		CSSPlugin.version = "1.10.0";
+		CSSPlugin.version = "1.10.1";
 		CSSPlugin.API = 2;
 		CSSPlugin.defaultTransformPerspective = 0;
 		p = "px"; //we'll reuse the "p" variable to keep file size down
@@ -3477,17 +3469,12 @@
 			_set3DTransformRatio = function(v) {
 				var t = this.data, //refers to the element's _gsTransform object
 					style = this.t.style,
-					perspective = t.perspective,
-					a11 = 1, a12 = 0, a13 = 0, a14 = 0,
-					a21 = 0, a22 = 1, a23 = 0, a24 = 0,
-					a31 = 0, a32 = 0, a33 = t.scaleZ, a34 = 0,
-					a41 = 0, a42 = 0, a43 = (perspective) ? -1 / perspective : 0,
 					angle = t.rotation,
-					zOrigin = t.zOrigin,
-					rnd = 100000,
 					sx = t.scaleX,
 					sy = t.scaleY,
-					cos, sin, t1, t2, t3, t4, ffProp, n, sfx;
+					sz = t.scaleZ,
+					a11, a12, a13, a14,	a21, a22, a23, a24, a31, a32, a33, a34,	a41, a42, a43,
+					perspective, zOrigin, rnd, cos, sin, t1, t2, t3, t4, ffProp, n, sfx;
 				if (_isFirefox) { //Firefox has a bug that causes 3D elements to randomly disappear during animation unless a repaint is forced. One way to do this is change "top" or "bottom" by 0.05 which is imperceptible, so we go back and forth. Another way is to change the display to "none", read the clientTop, and then revert the display but that is much slower.
 					ffProp = style.top ? "top" : style.bottom ? "bottom" : parseFloat(_getStyle(this.t, "top", null, false)) ? "bottom" : "top";
 					t1 = _getStyle(this.t, ffProp, null, false);
@@ -3508,10 +3495,19 @@
 					}
 					a12 = -sin;
 					a22 = cos;
-				} else if (!t.rotationY && !t.rotationX && a33 === 1) { //if we're only translating and/or 2D scaling, this is faster...
+				} else if (!t.rotationY && !t.rotationX && sz === 1) { //if we're only translating and/or 2D scaling, this is faster...
 					style[_transformProp] = "translate3d(" + t.x + "px," + t.y + "px," + t.z +"px)" + ((sx !== 1 || sy !== 1) ? " scale(" + sx + "," + sy + ")" : "");
 					return;
+				} else {
+					a11 = a22 = 1;
+					a12 = a21 = 0;
 				}
+				a33 = 1;
+				a13 = a14 = a23 = a24 = a31 = a32 = a34 = a41 = a42 = 0;
+				perspective = t.perspective;
+				a43 = (perspective) ? -1 / perspective : 0;
+				zOrigin = t.zOrigin;
+				rnd = 100000;
 				angle = t.rotationY;
 				if (angle) {
 					cos = Math.cos(angle);
@@ -3541,6 +3537,12 @@
 					a22 = t2;
 					a32 = t3;
 					a42 = t4;
+				}
+				if (sz !== 1) {
+					a13*=sz;
+					a23*=sz;
+					a33*=sz;
+					a43*=sz;
 				}
 				if (sy !== 1) {
 					a12*=sy;
@@ -3593,7 +3595,7 @@
 				}
 			};
 
-		_registerComplexSpecialProp("transform,scale,scaleX,scaleY,scaleZ,x,y,z,rotation,rotationX,rotationY,rotationZ,skewX,skewY,shortRotation,shortRotationX,shortRotationY,shortRotationZ,transformOrigin,transformPerspective,directionalRotation,parseTransform", {parser:function(t, e, p, cssp, pt, plugin, vars) {
+		_registerComplexSpecialProp("transform,scale,scaleX,scaleY,scaleZ,x,y,z,rotation,rotationX,rotationY,rotationZ,skewX,skewY,shortRotation,shortRotationX,shortRotationY,shortRotationZ,transformOrigin,transformPerspective,directionalRotation,parseTransform,force3D", {parser:function(t, e, p, cssp, pt, plugin, vars) {
 			if (cssp._transform) { return pt; } //only need to parse the transform once, and only if the browser supports it.
 			var m1 = cssp._transform = _getTransform(t, _cs, true, vars.parseTransform),
 				style = t.style,
@@ -3612,7 +3614,7 @@
 			} else if (typeof(v) === "object") { //for values like scaleX, scaleY, rotation, x, y, skewX, and skewY or transform:{...} (object)
 				m2 = {scaleX:_parseVal((v.scaleX != null) ? v.scaleX : v.scale, m1.scaleX),
 					scaleY:_parseVal((v.scaleY != null) ? v.scaleY : v.scale, m1.scaleY),
-					scaleZ:_parseVal(v.scaleZ, m1.scaleZ),
+					scaleZ:_parseVal((v.scaleZ != null) ? v.scaleZ : v.scale, m1.scaleZ),
 					x:_parseVal(v.x, m1.x),
 					y:_parseVal(v.y, m1.y),
 					z:_parseVal(v.z, m1.z),
@@ -3642,7 +3644,12 @@
 				}
 			}
 
-			has3D = (m1.z || m1.rotationX || m1.rotationY || m2.z || m2.rotationX || m2.rotationY || m2.perspective);
+			if (v.force3D != null) {
+				m1.force3D = v.force3D;
+				hasChange = true;
+			}
+
+			has3D = (m1.force3D || m1.z || m1.rotationX || m1.rotationY || m2.z || m2.rotationX || m2.rotationY || m2.perspective);
 			if (!has3D && v.scale != null) {
 				m2.scaleZ = 1; //no need to tween scaleZ.
 			}
@@ -4510,8 +4517,9 @@
 			this._target = target;
 			this._proxy = {};
 			for (p in value) {
-				this._addTween(this._proxy, p, parseFloat(target.getAttribute(p)), value[p], p);
-				this._overwriteProps.push(p);
+				if ( this._addTween(this._proxy, p, parseFloat(target.getAttribute(p)), value[p], p) ) {
+					this._overwriteProps.push(p);
+				}
 			}
 			return true;
 		},
@@ -5421,14 +5429,22 @@
 			return this;
 		};
 
+		p._swapSelfInParams = function(params) {
+			var i = params.length,
+				copy = params.concat();
+			while (--i > -1) {
+				if (params[i] === "{self}") {
+					copy[i] = this;
+				}
+			}
+			return copy;
+		};
+
 //----Animation getters/setters --------------------------------------------------------
 
 		p.eventCallback = function(type, callback, params, scope) {
-			if (type == null) {
-				return null;
-			} else if (type.substr(0,2) === "on") {
-				var v = this.vars,
-					i;
+			if ((type || "").substr(0,2) === "on") {
+				var v = this.vars;
 				if (arguments.length === 1) {
 					return v[type];
 				}
@@ -5436,17 +5452,8 @@
 					delete v[type];
 				} else {
 					v[type] = callback;
-					v[type + "Params"] = params;
+					v[type + "Params"] = ((params instanceof Array) && params.join("").indexOf("{self}") !== -1) ? this._swapSelfInParams(params) : params;
 					v[type + "Scope"] = scope;
-					if (params) {
-						i = params.length;
-						while (--i > -1) {
-							if (params[i] === "{self}") {
-								params = v[type + "Params"] = params.concat(); //copying the array avoids situations where the same array is passed to multiple tweens/timelines and {self} doesn't correctly point to each individual instance.
-								params[i] = this;
-							}
-						}
-					}
 				}
 				if (type === "onUpdate") {
 					this._onUpdate = callback;
@@ -5792,7 +5799,7 @@
 		p._firstPT = p._targets = p._overwrittenProps = p._startAt = null;
 		p._notifyPluginsOfEnabled = false;
 
-		TweenLite.version = "1.10.0";
+		TweenLite.version = "1.10.1";
 		TweenLite.defaultEase = p._ease = new Ease(null, null, 1, 1);
 		TweenLite.defaultOverwrite = "auto";
 		TweenLite.ticker = _ticker;
@@ -6015,15 +6022,10 @@
 				_autoCSS(this.vars, target);
 			}
 			for (p in this.vars) {
+				v = this.vars[p];
 				if (_reservedProps[p]) {
-					if (p === "onStartParams" || p === "onUpdateParams" || p === "onCompleteParams" || p === "onReverseCompleteParams" || p === "onRepeatParams") if ((a = this.vars[p])) {
-						i = a.length;
-						while (--i > -1) {
-							if (a[i] === "{self}") {
-								a = this.vars[p] = a.concat(); //copy the array in case the user referenced the same array in multiple tweens/timelines (each {self} should be unique)
-								a[i] = this;
-							}
-						}
+					if (v instanceof Array) if (v.join("").indexOf("{self}") !== -1) {
+						this.vars[p] = v = this._swapSelfInParams(v, this);
 					}
 
 				} else if (_plugins[p] && (plugin = new _plugins[p]())._onInitTween(target, this.vars[p], this)) {
@@ -6051,7 +6053,6 @@
 				} else {
 					this._firstPT = propLookup[p] = pt = {_next:this._firstPT, t:target, p:p, f:(typeof(target[p]) === "function"), n:p, pg:false, pr:0};
 					pt.s = (!pt.f) ? parseFloat(target[p]) : target[ ((p.indexOf("set") || typeof(target["get" + p.substr(3)]) !== "function") ? p : "get" + p.substr(3)) ]();
-					v = this.vars[p];
 					pt.c = (typeof(v) === "string" && v.charAt(1) === "=") ? parseInt(v.charAt(0) + "1", 10) * Number(v.substr(2)) : (Number(v) - pt.s) || 0;
 				}
 				if (pt) if (pt._next) {
@@ -6402,17 +6403,18 @@
 				}, true);
 
 		p = TweenPlugin.prototype;
-		TweenPlugin.version = "1.9.1";
+		TweenPlugin.version = "1.10.1";
 		TweenPlugin.API = 2;
 		p._firstPT = null;
 
 		p._addTween = function(target, prop, start, end, overwriteProp, round) {
 			var c, pt;
-			if (end != null && (c = (typeof(end) === "number" || end.charAt(1) !== "=") ? Number(end) - start : parseInt(end.charAt(0)+"1", 10) * Number(end.substr(2)))) {
+			if (end != null && (c = (typeof(end) === "number" || end.charAt(1) !== "=") ? Number(end) - start : parseInt(end.charAt(0) + "1", 10) * Number(end.substr(2)))) {
 				this._firstPT = pt = {_next:this._firstPT, t:target, p:prop, s:start, c:c, f:(typeof(target[prop]) === "function"), n:overwriteProp || prop, r:round};
 				if (pt._next) {
 					pt._next._prev = pt;
 				}
+				return pt;
 			}
 		};
 
@@ -6423,7 +6425,7 @@
 			while (pt) {
 				val = pt.c * v + pt.s;
 				if (pt.r) {
-					val = (val + ((val > 0) ? 0.5 : -0.5)) >> 0; //about 4x faster than Math.round()
+					val = (val + ((val > 0) ? 0.5 : -0.5)) | 0; //about 4x faster than Math.round()
 				} else if (val < min) if (val > -min) { //prevents issues with converting very small numbers to strings in the browser
 					val = 0;
 				}

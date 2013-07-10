@@ -1,5 +1,5 @@
 /*!
- * VERSION: beta 1.10.0
+ * VERSION: beta 1.10.1
  * DATE: 2013-07-03
  * UPDATES AND DOCS AT: http://www.greensock.com
  *
@@ -28,7 +28,7 @@
 			p = CSSPlugin.prototype = new TweenPlugin("css");
 
 		p.constructor = CSSPlugin;
-		CSSPlugin.version = "1.10.0";
+		CSSPlugin.version = "1.10.1";
 		CSSPlugin.API = 2;
 		CSSPlugin.defaultTransformPerspective = 0;
 		p = "px"; //we'll reuse the "p" variable to keep file size down
@@ -1026,8 +1026,8 @@
 				return rv;
 			}, priority:priority});
 		};
-		
-		
+
+
 
 
 
@@ -1290,17 +1290,12 @@
 			_set3DTransformRatio = function(v) {
 				var t = this.data, //refers to the element's _gsTransform object
 					style = this.t.style,
-					perspective = t.perspective,
-					a11 = 1, a12 = 0, a13 = 0, a14 = 0,
-					a21 = 0, a22 = 1, a23 = 0, a24 = 0,
-					a31 = 0, a32 = 0, a33 = t.scaleZ, a34 = 0,
-					a41 = 0, a42 = 0, a43 = (perspective) ? -1 / perspective : 0,
 					angle = t.rotation,
-					zOrigin = t.zOrigin,
-					rnd = 100000,
 					sx = t.scaleX,
 					sy = t.scaleY,
-					cos, sin, t1, t2, t3, t4, ffProp, n, sfx;
+					sz = t.scaleZ,
+					a11, a12, a13, a14,	a21, a22, a23, a24, a31, a32, a33, a34,	a41, a42, a43,
+					perspective, zOrigin, rnd, cos, sin, t1, t2, t3, t4, ffProp, n, sfx;
 				if (_isFirefox) { //Firefox has a bug that causes 3D elements to randomly disappear during animation unless a repaint is forced. One way to do this is change "top" or "bottom" by 0.05 which is imperceptible, so we go back and forth. Another way is to change the display to "none", read the clientTop, and then revert the display but that is much slower.
 					ffProp = style.top ? "top" : style.bottom ? "bottom" : parseFloat(_getStyle(this.t, "top", null, false)) ? "bottom" : "top";
 					t1 = _getStyle(this.t, ffProp, null, false);
@@ -1321,10 +1316,19 @@
 					}
 					a12 = -sin;
 					a22 = cos;
-				} else if (!t.rotationY && !t.rotationX && a33 === 1) { //if we're only translating and/or 2D scaling, this is faster...
+				} else if (!t.rotationY && !t.rotationX && sz === 1) { //if we're only translating and/or 2D scaling, this is faster...
 					style[_transformProp] = "translate3d(" + t.x + "px," + t.y + "px," + t.z +"px)" + ((sx !== 1 || sy !== 1) ? " scale(" + sx + "," + sy + ")" : "");
 					return;
+				} else {
+					a11 = a22 = 1;
+					a12 = a21 = 0;
 				}
+				a33 = 1;
+				a13 = a14 = a23 = a24 = a31 = a32 = a34 = a41 = a42 = 0;
+				perspective = t.perspective;
+				a43 = (perspective) ? -1 / perspective : 0;
+				zOrigin = t.zOrigin;
+				rnd = 100000;
 				angle = t.rotationY;
 				if (angle) {
 					cos = Math.cos(angle);
@@ -1354,6 +1358,12 @@
 					a22 = t2;
 					a32 = t3;
 					a42 = t4;
+				}
+				if (sz !== 1) {
+					a13*=sz;
+					a23*=sz;
+					a33*=sz;
+					a43*=sz;
 				}
 				if (sy !== 1) {
 					a12*=sy;
@@ -1406,7 +1416,7 @@
 				}
 			};
 
-		_registerComplexSpecialProp("transform,scale,scaleX,scaleY,scaleZ,x,y,z,rotation,rotationX,rotationY,rotationZ,skewX,skewY,shortRotation,shortRotationX,shortRotationY,shortRotationZ,transformOrigin,transformPerspective,directionalRotation,parseTransform", {parser:function(t, e, p, cssp, pt, plugin, vars) {
+		_registerComplexSpecialProp("transform,scale,scaleX,scaleY,scaleZ,x,y,z,rotation,rotationX,rotationY,rotationZ,skewX,skewY,shortRotation,shortRotationX,shortRotationY,shortRotationZ,transformOrigin,transformPerspective,directionalRotation,parseTransform,force3D", {parser:function(t, e, p, cssp, pt, plugin, vars) {
 			if (cssp._transform) { return pt; } //only need to parse the transform once, and only if the browser supports it.
 			var m1 = cssp._transform = _getTransform(t, _cs, true, vars.parseTransform),
 				style = t.style,
@@ -1425,7 +1435,7 @@
 			} else if (typeof(v) === "object") { //for values like scaleX, scaleY, rotation, x, y, skewX, and skewY or transform:{...} (object)
 				m2 = {scaleX:_parseVal((v.scaleX != null) ? v.scaleX : v.scale, m1.scaleX),
 					scaleY:_parseVal((v.scaleY != null) ? v.scaleY : v.scale, m1.scaleY),
-					scaleZ:_parseVal(v.scaleZ, m1.scaleZ),
+					scaleZ:_parseVal((v.scaleZ != null) ? v.scaleZ : v.scale, m1.scaleZ),
 					x:_parseVal(v.x, m1.x),
 					y:_parseVal(v.y, m1.y),
 					z:_parseVal(v.z, m1.z),
@@ -1455,7 +1465,12 @@
 				}
 			}
 
-			has3D = (m1.z || m1.rotationX || m1.rotationY || m2.z || m2.rotationX || m2.rotationY || m2.perspective);
+			if (v.force3D != null) {
+				m1.force3D = v.force3D;
+				hasChange = true;
+			}
+
+			has3D = (m1.force3D || m1.z || m1.rotationX || m1.rotationY || m2.z || m2.rotationX || m2.rotationY || m2.perspective);
 			if (!has3D && v.scale != null) {
 				m2.scaleZ = 1; //no need to tween scaleZ.
 			}
@@ -1798,8 +1813,8 @@
 
 		p = CSSPlugin.prototype;
 		p._firstPT = null;
-		
-		//gets called when the tween renders for the first time. This kicks everything off, recording start/end values, etc. 
+
+		//gets called when the tween renders for the first time. This kicks everything off, recording start/end values, etc.
 		p._onInitTween = function(target, vars, tween) {
 			if (!target.nodeType) { //css is only for dom elements
 				return false;
@@ -1821,7 +1836,7 @@
 					style.zIndex = 0;
 				}
 			}
-			
+
 			if (typeof(vars) === "string") {
 				first = style.cssText;
 				v = _getAllStyles(target, _cs);
@@ -1998,8 +2013,8 @@
 			}
 			return pt;
 		};
-		
-		
+
+
 		//gets called every time the tween updates, passing the new ratio (typically a value between 0 and 1, but not always (for example, if an Elastic.easeOut is used, the value can jump above 1 mid-tween). It will always start and 0 and end at 1.
 		p.setRatio = function(v) {
 			var pt = this._firstPT,
@@ -2107,7 +2122,7 @@
 			}
 			return pt;
 		};
-		
+
 		//we need to make sure that if alpha or autoAlpha is killed, opacity is too. And autoAlpha affects the "visibility" property.
 		p._kill = function(lookup) {
 			var copy = lookup,
@@ -2214,10 +2229,10 @@
 			}
 			return results;
 		};
-		
+
 		TweenPlugin.activate([CSSPlugin]);
 		return CSSPlugin;
-		
+
 	}, true);
 	
 }); if (window._gsDefine) { window._gsQueue.pop()(); }

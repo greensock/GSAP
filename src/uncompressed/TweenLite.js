@@ -1,6 +1,6 @@
 /*!
- * VERSION: beta 1.10.0
- * DATE: 2013-07-03
+ * VERSION: beta 1.10.1
+ * DATE: 2013-07-10
  * UPDATES AND DOCS AT: http://www.greensock.com
  *
  * @license Copyright (c) 2008-2013, GreenSock. All rights reserved.
@@ -462,15 +462,23 @@
 			}
 			return this;
 		};
+
+		p._swapSelfInParams = function(params) {
+			var i = params.length,
+				copy = params.concat();
+			while (--i > -1) {
+				if (params[i] === "{self}") {
+					copy[i] = this;
+				}
+			}
+			return copy;
+		};
 	
 //----Animation getters/setters --------------------------------------------------------
 		
 		p.eventCallback = function(type, callback, params, scope) {
-			if (type == null) {
-				return null;
-			} else if (type.substr(0,2) === "on") {
-				var v = this.vars,
-					i;
+			if ((type || "").substr(0,2) === "on") {
+				var v = this.vars;
 				if (arguments.length === 1) {
 					return v[type];
 				}
@@ -478,17 +486,8 @@
 					delete v[type];
 				} else {
 					v[type] = callback;
-					v[type + "Params"] = params;
+					v[type + "Params"] = ((params instanceof Array) && params.join("").indexOf("{self}") !== -1) ? this._swapSelfInParams(params) : params;
 					v[type + "Scope"] = scope;
-					if (params) {
-						i = params.length;
-						while (--i > -1) {
-							if (params[i] === "{self}") {
-								params = v[type + "Params"] = params.concat(); //copying the array avoids situations where the same array is passed to multiple tweens/timelines and {self} doesn't correctly point to each individual instance.
-								params[i] = this;
-							}
-						}
-					}
 				}
 				if (type === "onUpdate") {
 					this._onUpdate = callback;
@@ -834,7 +833,7 @@
 		p._firstPT = p._targets = p._overwrittenProps = p._startAt = null;
 		p._notifyPluginsOfEnabled = false;
 		
-		TweenLite.version = "1.10.0";
+		TweenLite.version = "1.10.1";
 		TweenLite.defaultEase = p._ease = new Ease(null, null, 1, 1);
 		TweenLite.defaultOverwrite = "auto";
 		TweenLite.ticker = _ticker;
@@ -1057,15 +1056,10 @@
 				_autoCSS(this.vars, target);
 			}
 			for (p in this.vars) {
-				if (_reservedProps[p]) { 
-					if (p === "onStartParams" || p === "onUpdateParams" || p === "onCompleteParams" || p === "onReverseCompleteParams" || p === "onRepeatParams") if ((a = this.vars[p])) {
-						i = a.length;
-						while (--i > -1) {
-							if (a[i] === "{self}") {
-								a = this.vars[p] = a.concat(); //copy the array in case the user referenced the same array in multiple tweens/timelines (each {self} should be unique)
-								a[i] = this;
-							}
-						}
+				v = this.vars[p];
+				if (_reservedProps[p]) {
+					if (v instanceof Array) if (v.join("").indexOf("{self}") !== -1) {
+						this.vars[p] = v = this._swapSelfInParams(v, this);
 					}
 					
 				} else if (_plugins[p] && (plugin = new _plugins[p]())._onInitTween(target, this.vars[p], this)) {
@@ -1093,7 +1087,6 @@
 				} else {
 					this._firstPT = propLookup[p] = pt = {_next:this._firstPT, t:target, p:p, f:(typeof(target[p]) === "function"), n:p, pg:false, pr:0};
 					pt.s = (!pt.f) ? parseFloat(target[p]) : target[ ((p.indexOf("set") || typeof(target["get" + p.substr(3)]) !== "function") ? p : "get" + p.substr(3)) ]();
-					v = this.vars[p];
 					pt.c = (typeof(v) === "string" && v.charAt(1) === "=") ? parseInt(v.charAt(0) + "1", 10) * Number(v.substr(2)) : (Number(v) - pt.s) || 0;
 				}
 				if (pt) if (pt._next) {
@@ -1444,17 +1437,18 @@
 				}, true);
 		
 		p = TweenPlugin.prototype;
-		TweenPlugin.version = "1.9.1";
+		TweenPlugin.version = "1.10.1";
 		TweenPlugin.API = 2;
 		p._firstPT = null;		
 			
 		p._addTween = function(target, prop, start, end, overwriteProp, round) {
 			var c, pt;
-			if (end != null && (c = (typeof(end) === "number" || end.charAt(1) !== "=") ? Number(end) - start : parseInt(end.charAt(0)+"1", 10) * Number(end.substr(2)))) {
+			if (end != null && (c = (typeof(end) === "number" || end.charAt(1) !== "=") ? Number(end) - start : parseInt(end.charAt(0) + "1", 10) * Number(end.substr(2)))) {
 				this._firstPT = pt = {_next:this._firstPT, t:target, p:prop, s:start, c:c, f:(typeof(target[prop]) === "function"), n:overwriteProp || prop, r:round};
 				if (pt._next) {
 					pt._next._prev = pt;
 				}
+				return pt;
 			}
 		};
 			
@@ -1465,7 +1459,7 @@
 			while (pt) {
 				val = pt.c * v + pt.s;
 				if (pt.r) {
-					val = (val + ((val > 0) ? 0.5 : -0.5)) >> 0; //about 4x faster than Math.round()
+					val = (val + ((val > 0) ? 0.5 : -0.5)) | 0; //about 4x faster than Math.round()
 				} else if (val < min) if (val > -min) { //prevents issues with converting very small numbers to strings in the browser
 					val = 0;
 				}

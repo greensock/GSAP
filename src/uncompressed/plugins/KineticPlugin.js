@@ -1,6 +1,6 @@
 /*!
- * VERSION: 0.4.0
- * DATE: 2013-05-16
+ * VERSION: 0.4.1
+ * DATE: 2013-07-10
  * UPDATES AND DOCS AT: http://www.greensock.com
  *
  * @license Copyright (c) 2008-2013, GreenSock. All rights reserved.
@@ -18,7 +18,7 @@
 		_getterFuncs = {},
 		_setterFuncs = {},
 		_numExp = /(\d|\.)+/g,
-		_directionalRotationExp = /(?:_cw|_ccw|_short)/g,
+		_directionalRotationExp = /(?:_cw|_ccw|_short)/,
 		_plugins = window._gsDefine.globals.com.greensock.plugins,
 		_colorLookup = {aqua:[0,255,255],
 			lime:[0,255,0],

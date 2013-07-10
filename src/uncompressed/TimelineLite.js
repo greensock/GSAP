@@ -1,6 +1,6 @@
 /*!
- * VERSION: beta 1.10.0
- * DATE: 2013-07-03
+ * VERSION: beta 1.10.1
+ * DATE: 2013-07-10
  * UPDATES AND DOCS AT: http://www.greensock.com
  *
  * @license Copyright (c) 2008-2013, GreenSock. All rights reserved.
@@ -24,25 +24,17 @@
 				this._sortChildren = true;
 				this._onUpdate = this.vars.onUpdate;
 				var v = this.vars,
-					i = _paramProps.length,
-					j, a;
-				while (--i > -1) {
-					a = v[_paramProps[i]];
-					if (a) {
-						j = a.length;
-						while (--j > -1) {
-							if (a[j] === "{self}") {
-								a = v[_paramProps[i]] = a.concat(); //copy the array in case the user referenced the same array in multiple timelines/tweens (each {self} should be unique)
-								a[j] = this;
-							}
-						}
+					val, p;
+				for (p in v) {
+					val = v[p];
+					if (val instanceof Array) if (val.join("").indexOf("{self}") !== -1) {
+						v[p] = this._swapSelfInParams(val);
 					}
 				}
 				if (v.tweens instanceof Array) {
 					this.add(v.tweens, 0, v.align, v.stagger);
 				}
 			},
-			_paramProps = ["onStartParams","onUpdateParams","onCompleteParams","onReverseCompleteParams","onRepeatParams"],
 			_blankArray = [],
 			_copy = function(vars) {
 				var copy = {}, p;
@@ -60,7 +52,7 @@
 			_slice = _blankArray.slice,
 			p = TimelineLite.prototype = new SimpleTimeline();
 
-		TimelineLite.version = "1.10.0";
+		TimelineLite.version = "1.10.1";
 		p.constructor = TimelineLite;
 		p.kill()._gc = false;
 		
