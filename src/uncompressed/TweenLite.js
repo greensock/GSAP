@@ -1,6 +1,6 @@
 /*!
- * VERSION: beta 1.10.1
- * DATE: 2013-07-10
+ * VERSION: beta 1.10.2
+ * DATE: 2013-08-05
  * UPDATES AND DOCS AT: http://www.greensock.com
  *
  * @license Copyright (c) 2008-2013, GreenSock. All rights reserved.
@@ -253,7 +253,8 @@
  */
  		var _reqAnimFrame = window.requestAnimationFrame, 
 			_cancelAnimFrame = window.cancelAnimationFrame, 
-			_getTime = Date.now || function() {return new Date().getTime();};
+			_getTime = Date.now || function() {return new Date().getTime();},
+			_lastUpdate = _getTime();
 		
 		//now try to determine the requestAnimationFrame and cancelAnimationFrame functions and if none are found, we'll use a setTimeout()/clearTimeout() polyfill.
 		a = ["ms","moz","webkit","o"];
@@ -269,16 +270,20 @@
 				_useRAF = (useRAF !== false && _reqAnimFrame),
 				_fps, _req, _id, _gap, _nextTime,
 				_tick = function(manual) {
-					_self.time = (_getTime() - _startTime) / 1000;
-					var id = _id,
-						overlap = _self.time - _nextTime;
+					_lastUpdate = _getTime();
+					_self.time = (_lastUpdate - _startTime) / 1000;
+					var overlap = _self.time - _nextTime,
+						dispatch;
 					if (!_fps || overlap > 0 || manual === true) {
 						_self.frame++;
 						_nextTime += overlap + (overlap >= _gap ? 0.004 : _gap - overlap);
-						_self.dispatchEvent("tick");
+						dispatch = true;
 					}
-					if (manual !== true && id === _id) { //make sure the ids match in case the "tick" dispatch triggered something that caused the ticker to shut down or change _useRAF or something like that.
+					if (manual !== true) { //make sure the request is made before we dispatch the "tick" event so that timing is maintained. Otherwise, if processing the "tick" requires a bunch of time (like 15ms) and we're using a setTimeout() that's based on 16.7ms, it'd technically take 31.7ms between frames otherwise.
 						_id = _req(_tick);
+					}
+					if (dispatch) {
+						_self.dispatchEvent("tick");
 					}
 				};
 
@@ -353,18 +358,18 @@
  * ----------------------------------------------------------------
  */
 		var Animation = _class("core.Animation", function(duration, vars) {
-				this.vars = vars || {};
+				this.vars = vars = vars || {};
 				this._duration = this._totalDuration = duration || 0;
-				this._delay = Number(this.vars.delay) || 0;
+				this._delay = Number(vars.delay) || 0;
 				this._timeScale = 1;
-				this._active = (this.vars.immediateRender === true);
-				this.data = this.vars.data;
-				this._reversed = (this.vars.reversed === true);
+				this._active = (vars.immediateRender === true);
+				this.data = vars.data;
+				this._reversed = (vars.reversed === true);
 				
 				if (!_rootTimeline) {
 					return;
 				}
-				if (!_tickerActive) {
+				if (!_tickerActive) { //some browsers (like iOS 6 Safari) shut down JavaScript execution when the tab is disabled and they [occasionally] neglect to start up requestAnimationFrame again when returning - this code ensures that the engine starts up again properly.
 					_ticker.wake();
 				}
 
@@ -383,6 +388,17 @@
 		p._rawPrevTime = -1;
 		p._next = p._last = p._onUpdate = p._timeline = p.timeline = null;
 		p._paused = false;
+
+
+		//some browsers (like iOS) occasionally drop the requestAnimationFrame event when the user switches to a different tab and then comes back again, so we use a 2-second setTimeout() to sense if/when that condition occurs and then wake() the ticker.
+		var _checkTimeout = function() {
+				if (_getTime() - _lastUpdate > 2000) {
+					_ticker.wake();
+				}
+				setTimeout(_checkTimeout, 2000);
+			};
+		_checkTimeout();
+
 		
 		p.play = function(from, suppressEvents) {
 			if (arguments.length) {
@@ -420,8 +436,8 @@
 			return this.reversed(true).paused(false);
 		};
 		
-		p.render = function() {
-			
+		p.render = function(time, suppressEvents, force) {
+			//stub - we override this method in subclasses.
 		};
 		
 		p.invalidate = function() {
@@ -758,6 +774,7 @@
  */
 		var TweenLite = _class("TweenLite", function(target, duration, vars) {
 				Animation.call(this, duration, vars);
+				this.render = TweenLite.prototype.render; //speed optimization (avoid prototype lookup on this "hot" method)
 
 				if (target == null) {
 					throw "Cannot tween a null target.";
@@ -833,7 +850,7 @@
 		p._firstPT = p._targets = p._overwrittenProps = p._startAt = null;
 		p._notifyPluginsOfEnabled = false;
 		
-		TweenLite.version = "1.10.1";
+		TweenLite.version = "1.10.2";
 		TweenLite.defaultEase = p._ease = new Ease(null, null, 1, 1);
 		TweenLite.defaultOverwrite = "auto";
 		TweenLite.ticker = _ticker;
@@ -978,15 +995,20 @@
 			var v = this.vars,
 				op = this._overwrittenProps,
 				dur = this._duration,
+				immediate = v.immediateRender,
 				ease = v.ease,
 				i, initPlugins, pt, p;
 			if (v.startAt) {
+				if (this._startAt) {
+					this._startAt.render(-1, true); //if we've run a startAt previously (when the tween instantiated), we should revert it so that the values re-instantiate correctly particularly for relative tweens. Without this, a TweenLite.fromTo(obj, 1, {x:"+=100"}, {x:"-=100"}), for example, would actually jump to +=200 because the startAt would run twice, doubling the relative change.
+				}
 				v.startAt.overwrite = 0;
 				v.startAt.immediateRender = true;
 				this._startAt = TweenLite.to(this.target, 0, v.startAt);
-				if (v.immediateRender) {
-					this._startAt = null; //tweens that render immediately (like most from() and fromTo() tweens) shouldn't revert when their parent timeline's playhead goes backward past the startTime because the initial render could have happened anytime and it shouldn't be directly correlated to this tween's startTime. Imagine setting up a complex animation where the beginning states of various objects are rendered immediately but the tween doesn't happen for quite some time - if we revert to the starting values as soon as the playhead goes backward past the tween's startTime, it will throw things off visually. Reversion should only happen in TimelineLite/Max instances where immediateRender was false (which is the default in the convenience methods like from()).
-					if (this._time === 0 && dur !== 0) {
+				if (immediate) {
+					if (this._time > 0) {
+						this._startAt = null; //tweens that render immediately (like most from() and fromTo() tweens) shouldn't revert when their parent timeline's playhead goes backward past the startTime because the initial render could have happened anytime and it shouldn't be directly correlated to this tween's startTime. Imagine setting up a complex animation where the beginning states of various objects are rendered immediately but the tween doesn't happen for quite some time - if we revert to the starting values as soon as the playhead goes backward past the tween's startTime, it will throw things off visually. Reversion should only happen in TimelineLite/Max instances where immediateRender was false (which is the default in the convenience methods like from()).
+					} else if (dur !== 0) {
 						return; //we skip initialization here so that overwriting doesn't occur until the tween actually begins. Otherwise, if you create several immediateRender:true tweens of the same target/properties to drop into a TimelineLite or TimelineMax, the last one created would overwrite the first ones because they didn't get placed into the timeline yet before the first render occurs and kicks in overwriting.
 					}
 				}

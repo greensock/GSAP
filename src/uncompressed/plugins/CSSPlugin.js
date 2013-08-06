@@ -1,6 +1,6 @@
 /*!
- * VERSION: beta 1.10.1
- * DATE: 2013-07-03
+ * VERSION: beta 1.10.2
+ * DATE: 2013-08-05
  * UPDATES AND DOCS AT: http://www.greensock.com
  *
  * @license Copyright (c) 2008-2013, GreenSock. All rights reserved.
@@ -19,6 +19,7 @@
 		var CSSPlugin = function() {
 				TweenPlugin.call(this, "css");
 				this._overwriteProps.length = 0;
+				this.setRatio = CSSPlugin.prototype.setRatio; //speed optimization (avoid prototype lookup on this "hot" method)
 			},
 			_hasPriority, //turns true whenever a CSSPropTween instance is created that has a priority other than 0. This helps us discern whether or not we should spend the time organizing the linked list or not after a CSSPlugin's _onInitTween() method is called.
 			_suffixMap, //we set this in _onInitTween() each time as a way to have a persistent variable we can use in other methods like _parse() without having to pass it around as a parameter and we keep _parse() decoupled from a particular CSSPlugin instance
@@ -28,7 +29,7 @@
 			p = CSSPlugin.prototype = new TweenPlugin("css");
 
 		p.constructor = CSSPlugin;
-		CSSPlugin.version = "1.10.1";
+		CSSPlugin.version = "1.10.2";
 		CSSPlugin.API = 2;
 		CSSPlugin.defaultTransformPerspective = 0;
 		p = "px"; //we'll reuse the "p" variable to keep file size down
@@ -1692,8 +1693,8 @@
 				pt.setRatio = _setIEOpacityRatio;
 			}
 			if (isAutoAlpha) { //we have to create the "visibility" PropTween after the opacity one in the linked list so that they run in the order that works properly in IE8 and earlier
-				pt = new CSSPropTween(style, "visibility", 0, 0, pt, -1, null, false, 0, ((b !== 0) ? "visible" : "hidden"), ((e === 0) ? "hidden" : "visible"));
-				pt.xs0 = "visible";
+				pt = new CSSPropTween(style, "visibility", 0, 0, pt, -1, null, false, 0, ((b !== 0) ? "inherit" : "hidden"), ((e === 0) ? "hidden" : "inherit"));
+				pt.xs0 = "inherit";
 				cssp._overwriteProps.push(pt.n);
 			}
 			return pt;
@@ -2107,15 +2108,16 @@
 				if (pt._next) {
 					pt._next._prev = pt._prev;
 				}
-				if (prev) {
-					prev._next = pt;
-				} else if (!remove && this._firstPT === null) {
-					this._firstPT = pt;
-				}
 				if (pt._prev) {
 					pt._prev._next = pt._next;
 				} else if (this._firstPT === pt) {
 					this._firstPT = pt._next;
+					remove = true; //just to prevent resetting this._firstPT 5 lines down in case pt._next is null. (optimized for speed)
+				}
+				if (prev) {
+					prev._next = pt;
+				} else if (!remove && this._firstPT === null) {
+					this._firstPT = pt;
 				}
 				pt._next = next;
 				pt._prev = prev;

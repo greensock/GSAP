@@ -1,6 +1,6 @@
 /*!
- * VERSION: beta 1.10.1
- * DATE: 2013-07-10
+ * VERSION: beta 1.10.2
+ * DATE: 2013-08-05
  * UPDATES AND DOCS AT: http://www.greensock.com
  *
  * @license Copyright (c) 2008-2013, GreenSock. All rights reserved.
@@ -52,7 +52,7 @@
 			_slice = _blankArray.slice,
 			p = TimelineLite.prototype = new SimpleTimeline();
 
-		TimelineLite.version = "1.10.1";
+		TimelineLite.version = "1.10.2";
 		p.constructor = TimelineLite;
 		p.kill()._gc = false;
 		
@@ -332,11 +332,14 @@
 					if (this._duration === 0) if (this._rawPrevTime >= 0 && this._first) { //zero-duration timelines are tricky because we must discern the momentum/direction of time in order to determine whether the starting values should be rendered or the ending values. If the "playhead" of its timeline goes past the zero-duration tween in the forward direction or lands directly on it, the end values should be rendered, but if the timeline's "playhead" moves past it in the backward direction (from a postitive time to a negative time), the starting values must be rendered.
 						internalForce = true;
 					}
-				} else if (!this._initted) {
-					internalForce = true;
+					this._rawPrevTime = time;
+				} else {
+					this._rawPrevTime = time;
+					time = 0; //to avoid occasional floating point rounding errors (could cause problems especially with zero-duration tweens at the very beginning of the timeline)
+					if (!this._initted) {
+						internalForce = true;
+					}
 				}
-				this._rawPrevTime = time;
-				time = 0; //to avoid occasional floating point rounding errors (could cause problems especially with zero-duration tweens at the very beginning of the timeline)
 
 			} else {
 				this._totalTime = this._time = this._rawPrevTime = time;
