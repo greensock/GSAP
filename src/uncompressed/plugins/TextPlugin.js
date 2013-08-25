@@ -1,6 +1,6 @@
 /*!
- * VERSION: 0.4.0
- * DATE: 2013-05-16
+ * VERSION: 0.5.0
+ * DATE: 2013-07-10
  * UPDATES AND DOCS AT: http://www.greensock.com
  *
  * @license Copyright (c) 2008-2013, GreenSock. All rights reserved.
@@ -35,6 +35,7 @@
 
 				//called when the tween renders for the first time. This is where initial values should be recorded and any setup routines should run.
 				init: function(target, value, tween) {
+					var i, shrt;
 					if (!("innerHTML" in target)) {
 						return false;
 					}
@@ -49,6 +50,12 @@
 					this._delimiter = value.delimiter || "";
 					this._original = _getText(target).replace(/\s+/g, " ").split(this._delimiter);
 					this._text = value.value.replace(/\s+/g, " ").split(this._delimiter);
+					this._runBackwards = (tween.vars.runBackwards === true);
+					if (this._runBackwards) {
+						i = this._original;
+						this._original = this._text;
+						this._text = i;
+					}
 					if (typeof(value.newClass) === "string") {
 						this._newClass = value.newClass;
 						this._hasClass = true;
@@ -57,8 +64,8 @@
 						this._oldClass = value.oldClass;
 						this._hasClass = true;
 					}
-					var i = this._original.length - this._text.length,
-						shrt = (i < 0) ? this._original : this._text;
+					i = this._original.length - this._text.length,
+					shrt = (i < 0) ? this._original : this._text;
 					this._fillChar = value.fillChar || (value.padSpace ? "&nbsp;" : "");
 					if (i < 0) {
 						i = -i;
@@ -75,6 +82,9 @@
 						ratio = 1;
 					} else if (ratio < 0) {
 						ratio = 0;
+					}
+					if (this._runBackwards) {
+						ratio = 1 - ratio;
 					}
 					var l = this._text.length,
 						i = (ratio * l + 0.5) | 0,
