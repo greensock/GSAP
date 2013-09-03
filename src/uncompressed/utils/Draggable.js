@@ -1,6 +1,6 @@
 /*!
- * VERSION: 0.7.0
- * DATE: 2013-08-18
+ * VERSION: 0.8.1
+ * DATE: 2013-09-02
  * UPDATES AND DOCS AT: http://www.greensock.com
  *
  * Requires TweenLite and CSSPlugin (or TweenMax which contains both of those). ThrowPropsPlugin is required for momentum-based continuation of movement after the mouse/touch is released (ThrowPropsPlugin is a membership benefit of Club GreenSock - http://www.greensock.com/club/).
@@ -23,13 +23,15 @@
 			_tempVarsRotation = {css:{}},
 			_tempEvent = {}, //for populating with pageX/pageY in old versions of IE
 			_doc = document,
-			_docElement = _doc.documentElement,
+			_docElement = _doc.documentElement || {},
 			_emptyArray = [],
 			_emptyFunc = function() { return false; },
 			_RAD2DEG = 180 / Math.PI,
 			_DEG2RAD = Math.PI / 180,
 			_isOldIE = (_doc.all && !_doc.addEventListener),
-			_updateQueue = [],
+			_renderQueue = [],
+			_lookup = {}, //when a Draggable is created, the target gets a unique _gsDragID property that allows gets associated with the Draggable instance for quick lookups in Draggable.get(). This avoids circular references that could cause gc problems.
+			_lookupCount = 0,
 			_isTouchDevice = (("ontouchstart" in _docElement) && ("orientation" in window)),
 			_prefix,
 			ThrowPropsPlugin,
@@ -130,28 +132,34 @@
 					instance.dispatchEvent(type);
 				}
 			},
-			_getBounds = function(e) {
+			_defaultTransform = {x:0, y:0},
+			_getBounds = function(e, unrotated) {
+				var scrollTop = (e.pageYOffset != null) ? e.pageYOffset : (_doc.scrollTop != null) ? _doc.scrollTop : _doc.body.scrollTop || _docElement.scrollTop || 0,
+					scrollLeft = (e.pageXOffset != null) ? e.pageXOffset : (_doc.scrollLeft != null) ? _doc.scrollLeft : _doc.body.scrollLeft || _docElement.scrollLeft || 0,
+					rect, transform, width, height, top, left;
 				if (e === window) {
 					return {
-						top:(e.pageYOffset != null) ? e.pageYOffset : (_doc.scrollTop != null) ? _doc.scrollTop : _doc.body.scrollTop || _docElement.scrollTop || 0,
-						left:(e.pageXOffset != null) ? e.pageXOffset : (_doc.scrollLeft != null) ? _doc.scrollLeft : _doc.body.scrollLeft || _docElement.scrollLeft || 0,
-						width:(_docElement ? _docElement.clientWidth : e.innerWidth),
-						height:(_docElement ? _docElement.clientHeight : e.innerHeight)
+						top:scrollTop,
+						left:scrollLeft,
+						width:_docElement.clientWidth || e.innerWidth || _doc.body.clientWidth || 0,
+						height:(e.innerHeight - 20 < _docElement.clientHeight) ? _docElement.clientHeight : e.innerHeight || _doc.body.clientHeight || 0 //some browsers (like Firefox) ignore absolutely positioned elements, and collapse the height of the documentElement, so it could be 8px, for example, if you have just an absolutely positioned div. In that case, we use the innerHeight to resolve this.
 					};
 				}
-				var width = e.offsetWidth,
-					height = e.offsetHeight,
-					top = e.offsetTop,
+				if (unrotated) {
+					width = e.offsetWidth;
+					height = e.offsetHeight;
+					top = e.offsetTop;
 					left = e.offsetLeft;
-				if (_isOldIE && e._gsTransform) {
-					top -= e._gsTransform.y;
-					left -= e._gsTransform.x;
+					while ((e = e.offsetParent)) {
+						top += e.offsetTop;
+						left += e.offsetLeft;
+					}
+					return {top:top, left:left, width:width, height:height};
+				} else {
+					rect = e.getBoundingClientRect();
+					transform = e._gsTransform || _defaultTransform;
+					return {top:rect.top - transform.y + scrollTop, left:rect.left - transform.x + scrollLeft, width:rect.right - rect.left, height:rect.bottom - rect.top};
 				}
-				while ((e = e.offsetParent)) {
-					top += e.offsetTop;
-					left += e.offsetLeft;
-				}
-				return {top:top, left:left, width:width, height:height};
 			},
 
 			_tempDiv = _doc.createElement("div"),
@@ -160,15 +168,13 @@
 			_supports3D = (_checkPrefix(_tempDiv, "perspective") !== ""),
 			_use3DTransform = (_transformProp && _supports3D),
 			_getTransformOriginOffset = function(e) {
-				var bounds = _getBounds(e),
+				var bounds = _getBounds(e, true),
 					cs = _getComputedStyle(e),
 					v = (_originProp && cs) ? cs.getPropertyValue(_originProp) : "50% 50%",
 					a = v.split(" "),
 					x = (v.indexOf("left") !== -1) ? "0%" : (v.indexOf("right") !== -1) ? "100%" : a[0],
 					y = (v.indexOf("top") !== -1) ? "0%" : (v.indexOf("bottom") !== -1) ? "100%" : a[1];
-				if (y == null) {
-					y = "0";
-				} else if (y === "center") {
+				if (y === "center" || y == null) {
 					y = "50%";
 				}
 				if (x === "center" || isNaN(parseFloat(x))) { //remember, the user could flip-flop the values and say "bottom center" or "center bottom", etc. "center" is ambiguous because it could be used to describe horizontal or vertical, hence the isNaN(). If there's an "=" sign in the value, it's relative.
@@ -198,7 +204,7 @@
 				}
 				return result;
 			},
-			_parseThrowProps = function(draggable, snap, max, min, factor) {
+			_parseThrowProps = function(draggable, snap, max, min, factor, forceZeroVelocity) {
 				var vars = {},
 					a, i, l;
 				if (snap) {
@@ -210,7 +216,7 @@
 						}
 					} else if (typeof(snap) === "function") {
 						vars.end = function(value) {
-							return snap.call(draggable, value); //we need to ensure that we can scope the function call to the Draggable instance itself so that users can access important values like xMax, xMin, yMax, yMin, x, and y from within that function.
+							return snap.call(draggable, value); //we need to ensure that we can scope the function call to the Draggable instance itself so that users can access important values like maxX, minX, maxY, minY, x, and y from within that function.
 						};
 					} else {
 						vars.end = snap;
@@ -221,6 +227,9 @@
 				}
 				if (min || min === 0) {
 					vars.min = min;
+				}
+				if (forceZeroVelocity) {
+					vars.velocity = 0;
 				}
 				return vars;
 			},
@@ -454,13 +463,22 @@
 					trigger = _unwrapElement(vars.trigger || target),
 					killProps = {},
 					edgeTolerance = parseFloat(vars.edgeTolerance) || (1 - ((vars.edgeResistance === undefined) ? 1 : parseFloat(vars.edgeResistance))), //legacy support for edgeTolerance (new, more intuitive name is edgeResistance which works the opposite)
-					scrollProxy, startMouseX, startMouseY, startElementX, startElementY, hasBounds, hasDragCallback, xMax, xMin, yMax, yMin, tempVars, cssVars, touch, touchID, rotationOffset, dirty,
+					scrollProxy, startMouseX, startMouseY, startElementX, startElementY, hasBounds, hasDragCallback, maxX, minX, maxY, minY, tempVars, cssVars, touch, touchID, rotationOffset, dirty, old,
 
-					//this method gets called on every tick of TweenLite.ticker which allows us to synchronize the updates to the core engine (which is typically synchronized with the display refresh via requestAnimationFrame). This is an optimization - it's better than applying the values inside the "mousemove" or "touchmove" event handler which may get called many times inbetween refreshes.
-					update = function() {
+					//this method gets called on every tick of TweenLite.ticker which allows us to synchronize the renders to the core engine (which is typically synchronized with the display refresh via requestAnimationFrame). This is an optimization - it's better than applying the values inside the "mousemove" or "touchmove" event handler which may get called many times inbetween refreshes.
+					render = function() {
 						if (dirty) {
 							var x = self.x,
-								y = self.y;
+								y = self.y,
+								min = 0.000001;
+							if (x < min && x > -min) { //browsers don't handle super small decimals well.
+								x = 0;
+							}
+							if (y < min && y > -min) {
+								y = 0;
+							}
+							self.endX = x;
+							self.endY = y;
 							if (rotationMode) {
 								cssVars.rotation = "+=" + ((rotationOffset - x) * _RAD2DEG);
 								TweenLite.set(target, tempVars);
@@ -496,10 +514,93 @@
 						}
 						dirty = false;
 					},
+
+					//just copies the x/y from the element (whether that be transforms, top/left, or ScrollProxy's top/left) to the Draggable's x and y properties so that they reflect reality. This is used by the ThrowPropsPlugin tween in an onUpdate to ensure things are synced
+					syncXY = function(skipOnUpdate) {
+						if (xyMode) {
+							self.y = target._gsTransform.y;
+							self.x = target._gsTransform.x;
+						} else if (rotationMode) {
+							self.x = target._gsTransform.rotation;
+						} else if (scrollProxy) {
+							self.y = scrollProxy.top();
+							self.x = scrollProxy.left();
+						} else {
+							self.y = parseInt(target.style.top, 10) || 0;
+							self.x = parseInt(target.style.left, 10) || 0;
+						}
+						if (vars.onThrowUpdate && !skipOnUpdate) {
+							vars.onThrowUpdate.apply(vars.onThrowUpdateScope || self, vars.onThrowUpdateParams || _emptyArray);
+						}
+					},
+
+					calculateBounds = function() {
+						hasBounds = false;
+						if (scrollProxy) {
+							scrollProxy.calibrate();
+							self.minX = minX = -scrollProxy.maxScrollLeft();
+							self.minY = minY = -scrollProxy.maxScrollTop();
+							self.maxX = maxX = self.maxY = maxY = 0;
+							hasBounds = true;
+						} else if (!!vars.bounds && !rotationMode) {
+							var targetBounds = _getBounds(target),
+								boundsElement = _unwrapElement(vars.bounds),
+								bounds = boundsElement ? _getBounds(boundsElement) : vars.bounds; //could be a selector/jQuery object or a DOM element or a generic object like {top:0, left:100, width:1000, height:800}
+							self.minX = minX = (xyMode ? 0 : _getStyle(target, "left")) + bounds.left - targetBounds.left;
+							self.minY = minY = (xyMode ? 0 : _getStyle(target, "top")) + bounds.top - targetBounds.top;
+							self.maxX = maxX = minX + (bounds.width - targetBounds.width);
+							self.maxY = maxY = minY + (bounds.height - targetBounds.height);
+							if (minX > maxX) {
+								self.minX = maxX;
+								self.maxX = maxX = minX;
+								minX = self.minX;
+							}
+							if (minY > maxY) {
+								self.minY = maxY;
+								self.maxY = maxY = minY;
+								minY = self.minY;
+							}
+							hasBounds = true;
+						}
+					},
+
+					animate = function(throwProps, forceZeroVelocity) {
+						var snap, snapIsRaw, tween;
+						if (throwProps && ThrowPropsPlugin) {
+							if (throwProps === true) {
+								snap = vars.snap || {};
+								snapIsRaw = (snap instanceof Array || typeof(snap) === "function");
+								throwProps = {resistance:(vars.resistance || 1000) / (rotationMode ? 100 : 1)};
+								if (rotationMode) {
+									throwProps.rotation = _parseThrowProps(self, snapIsRaw ? snap : snap.rotation, maxX, minX, vars.useRadians ? null : _DEG2RAD, forceZeroVelocity);
+								} else {
+									if (allowX) {
+										throwProps[xProp] = _parseThrowProps(self, snapIsRaw ? snap : snap.x || snap.left || snap.scrollLeft, maxX, minX, scrollProxy ? -1 : null, forceZeroVelocity);
+									}
+									if (allowY) {
+										throwProps[yProp] = _parseThrowProps(self, snapIsRaw ? snap : snap.y || snap.top || snap.scrollTop, maxY, minY, scrollProxy ? -1 : null, forceZeroVelocity);
+									}
+								}
+							}
+							self.tween = tween = ThrowPropsPlugin.to(scrollProxy || target, {throwProps:throwProps, ease:(vars.ease || Power3.easeOut), onComplete:vars.onThrowComplete, onCompleteScope:(vars.onThrowCompleteScope || self), onUpdate:(vars.fastMode ? vars.onThrowUpdate : syncXY), onUpdateScope:(vars.onThrowUpdateScope || self)}, vars.maxDuration || 2, vars.minDuration || 0.5, (vars.overshootTolerance === undefined) ? edgeTolerance + 0.2 : vars.overshootTolerance);
+							if (!vars.fastMode) {
+								//to populate the end values, we just scrub the tween to the end, record the values, and then jump back to the beginning.
+								tween.seek(tween.duration());
+								syncXY(true);
+								self.endX = self.x;
+								self.endY = self.y;
+								tween.play(0);
+							}
+						} else if (hasBounds) {
+							self.applyBounds();
+						}
+					},
+
+					//called when the mouse is pressed (or touch starts)
 					onPress = function(e) {
 						if (_isOldIE) {
 							e = _populateIEEvent(e, true);
-						} else {
+						} else if ((e.target.nodeName + "").toUpperCase() !== "A" && !e.target.onclick) { //in some mobile browsers, e.preventDefault() when pressing on a link (or element with an onclick) will cause the link not to work.
 							e.preventDefault();
 						}
 						if (self.isDragging) { //just in case the browser dispatches a "touchstart" and "mousedown" (some browsers emulate mouse events when using touches)
@@ -511,21 +612,28 @@
 						} else {
 							touch = null;
 						}
-						_updateQueue.push(update); //causes the Draggable to update on each "tick" of TweenLite.ticker (performance optimization - updating values in a mousemove can cause them to happen too frequently, like multiple times between frame redraws which is wasteful, and it also prevents values from updating properly in IE8)
+						_renderQueue.push(render); //causes the Draggable to render on each "tick" of TweenLite.ticker (performance optimization - updating values in a mousemove can cause them to happen too frequently, like multiple times between frame redraws which is wasteful, and it also prevents values from updating properly in IE8)
+						if (self.tween) {
+							self.tween.kill();
+						}
+						self.tween = null;
 						TweenLite.killTweensOf(scrollProxy || target, killProps); //in case the user tries to drag it before the last tween is done.
-						startMouseY = e.pageY; //record the starting x and y so that we can calculate the movement from the original in _onMouseMove
-						startMouseX = e.pageX;
+						startMouseY = self.pointerY = e.pageY; //record the starting x and y so that we can calculate the movement from the original in _onMouseMove
+						startMouseX = self.pointerX = e.pageX;
 						if (rotationMode) {
-							rotationOffset = _getTransformOriginOffset(target);
+							rotationOffset = _getTransformOriginOffset(target)
 							startElementX = rotationOffset.left;
 							startElementY = rotationOffset.top;
 							rotationOffset = Math.atan2(startElementY - startMouseY, startMouseX - startElementX);
-						} else if (scrollProxy) {
-							startElementY = scrollProxy.top();
-							startElementX = scrollProxy.left();
 						} else {
-							startElementY = _getStyle(target, yProp); //record the starting top and left values so that we can just add the mouse's movement to them later.
-							startElementX = _getStyle(target, xProp);
+							self.applyBounds();
+							if (scrollProxy) {
+								startElementY = scrollProxy.top();
+								startElementX = scrollProxy.left();
+							} else {
+								startElementY = _getStyle(target, yProp); //record the starting top and left values so that we can just add the mouse's movement to them later.
+								startElementX = _getStyle(target, xProp);
+							}
 						}
 						if (!rotationMode && !scrollProxy && vars.zIndexBoost !== false) {
 							target.style.zIndex = Draggable.zIndex++;
@@ -539,44 +647,17 @@
 						}
 						self.isDragging = true;
 						hasDragCallback = !!(vars.onDrag || self._listeners.drag);
-						hasBounds = dirty = false;
-						if (scrollProxy) {
-							scrollProxy.calibrate();
-							self.xMin = xMin = -scrollProxy.maxScrollLeft();
-							self.yMin = yMin = -scrollProxy.maxScrollTop();
-							self.xMax = xMax = self.yMax = yMax = 0;
-							hasBounds = true;
-
-						} else if (!!vars.bounds && !rotationMode) {
-							var targetBounds = _getBounds(target),
-								boundsElement = _unwrapElement(vars.bounds),
-								bounds = boundsElement ? _getBounds(boundsElement) : vars.bounds; //could be a selector/jQuery object or a DOM element or a generic object like {top:0, left:100, width:1000, height:800}
-							self.xMin = xMin = (xyMode ? 0 : _getStyle(target, "left")) + bounds.left - targetBounds.left;
-							self.yMin = yMin = (xyMode ? 0 : _getStyle(target, "top")) + bounds.top - targetBounds.top;
-							self.xMax = xMax = xMin + (bounds.width - target.offsetWidth);
-							self.yMax = yMax = yMin + (bounds.height - target.offsetHeight);
-							if (xMin > xMax) {
-								self.xMin = xMax;
-								self.xMax = xMax = xMin;
-								xMin = self.xMin;
+						dirty = false;
+						if (hasBounds && edgeTolerance) {
+							if (startElementX > maxX) {
+								startElementX = maxX + (startElementX - maxX) / edgeTolerance;
+							} else if (startElementX < minX) {
+								startElementX = minX - (minX - startElementX) / edgeTolerance;
 							}
-							if (yMin > yMax) {
-								self.yMin = yMax;
-								self.yMax = yMax = yMin;
-								yMin = self.yMin;
-							}
-							hasBounds = true;
-						}
-						if (hasBounds) {
-							if (startElementX > xMax) {
-								startElementX = xMax + (startElementX - xMax) / edgeTolerance;
-							} else if (startElementX < xMin) {
-								startElementX = xMin - (xMin - startElementX) / edgeTolerance;
-							}
-							if (startElementY > yMax) {
-								startElementY = yMax + (startElementY - yMax) / edgeTolerance;
-							} else if (startElementY < yMin) {
-								startElementY = yMin - (yMin - startElementY) / edgeTolerance;
+							if (startElementY > maxY) {
+								startElementY = maxY + (startElementY - maxY) / edgeTolerance;
+							} else if (startElementY < minY) {
+								startElementY = minY - (minY - startElementY) / edgeTolerance;
 							}
 						}
 
@@ -585,6 +666,8 @@
 						}
 						_dispatchEvent(self, "dragstart", "onDragStart");
 					},
+
+					//called every time the mouse/touch moves
 					onMove = function(e) {
 						if (_isOldIE) {
 							e = _populateIEEvent(e, true);
@@ -603,7 +686,9 @@
 								}
 							}
 						}
-						dirty = true; //a flag that indicates we need to update the target next time the TweenLite.ticker dispatches a "tick" event (typically on a requestAnimationFrame) - this is a performance optimization (we shouldn't update on every move because sometimes many move events can get dispatched between screen refreshes, and that'd be wasteful to update every time)
+						self.pointerX = e.pageX;
+						self.pointerY = e.pageY;
+						dirty = true; //a flag that indicates we need to render the target next time the TweenLite.ticker dispatches a "tick" event (typically on a requestAnimationFrame) - this is a performance optimization (we shouldn't render on every move because sometimes many move events can get dispatched between screen refreshes, and that'd be wasteful to render every time)
 						if (rotationMode) {
 							self.x = Math.atan2(startElementY - e.pageY, e.pageX - startElementX);
 						} else {
@@ -612,15 +697,15 @@
 							x = (xChange > 2 || xChange < -2) ? startElementX + xChange : startElementX;
 							y = (yChange > 2 || yChange < -2) ? startElementY + yChange : startElementY;
 							if (hasBounds) {
-								if (x > xMax) {
-									x = xMax + (x - xMax) * edgeTolerance;
-								} else if (x < xMin) {
-									x = xMin + (x - xMin) * edgeTolerance;
+								if (x > maxX) {
+									x = maxX + (x - maxX) * edgeTolerance;
+								} else if (x < minX) {
+									x = minX + (x - minX) * edgeTolerance;
 								}
-								if (y > yMax) {
-									y = yMax + (y - yMax) * edgeTolerance;
-								} else if (y < yMin) {
-									y = yMin + (y - yMin) * edgeTolerance;
+								if (y > maxY) {
+									y = maxY + (y - maxY) * edgeTolerance;
+								} else if (y < minY) {
+									y = minY + (y - minY) * edgeTolerance;
 								}
 							}
 							if (self.x !== x || self.y !== y) {
@@ -631,15 +716,15 @@
 							}
 						}
 					},
+
+					//called when the mouse/touch is released
 					onRelease = function(e) {
 						if (_isOldIE) {
-							e = _populateIEEvent(e, true);
-						} else {
-							e.preventDefault();
+							e = _populateIEEvent(e, false);
 						}
 						var touches = e.changedTouches,
-							throwProps = vars.throwProps,
-							xChange, yChange, i, snap, snapIsRaw;
+							originalEvent = e,
+							xChange, yChange, i;
 						if (touches) { //touch events store the data slightly differently
 							e = touches[0];
 							if (e !== touch && e.identifier !== touchID) { //Usually changedTouches[0] will be what we're looking for, but in case it's not, look through the rest of the array...(and Android browsers don't reuse the event like iOS)
@@ -650,11 +735,13 @@
 								}
 							}
 						}
+						self.pointerX = e.pageX;
+						self.pointerY = e.pageY;
 						dirty = false;
-						i = _updateQueue.length;
+						i = _renderQueue.length;
 						while (--i > -1) {
-							if (_updateQueue[i] === update) {
-								_updateQueue.splice(i, 1);
+							if (_renderQueue[i] === render) {
+								_renderQueue.splice(i, 1);
 							}
 						}
 						yChange = (e.pageY - startMouseY);
@@ -667,33 +754,60 @@
 							_removeListener(_doc, "mouseup", onRelease);
 							_removeListener(_doc, "mousemove", onMove);
 						}
-						if (throwProps && ThrowPropsPlugin) {
-							if (throwProps === true) {
-								snap = vars.snap || {};
-								snapIsRaw = (snap instanceof Array || typeof(snap) === "function");
-								throwProps = {resistance:(vars.resistance || 1000) / (rotationMode ? 100 : 1)};
-								if (rotationMode) {
-									throwProps.rotation = _parseThrowProps(self, snapIsRaw ? snap : snap.rotation, xMax, xMin, vars.useRadians ? null : _DEG2RAD);
-								} else {
-									if (allowX) {
-										throwProps[xProp] = _parseThrowProps(self, snapIsRaw ? snap : snap.x || snap.left || snap.scrollLeft, xMax, xMin, scrollProxy ? -1 : null);
-									}
-									if (allowY) {
-										throwProps[yProp] = _parseThrowProps(self, snapIsRaw ? snap : snap.y || snap.top || snap.scrollTop, yMax, yMin, scrollProxy ? -1 : null);
-									}
-								}
-							}
-							ThrowPropsPlugin.to(scrollProxy || target, {throwProps:throwProps, ease:(vars.ease || Power3.easeOut), onComplete:vars.onComplete, onUpdate:vars.onUpdate}, vars.maxDuration || 2, vars.minDuration || 0.5, (vars.overshootTolerance === undefined) ? edgeTolerance + 0.2 : vars.overshootTolerance);
-						}
+						animate(vars.throwProps); //will skip if throwProps isn't defined or ThrowPropsPlugin isn't loaded.
 						if (!rotationMode) {
 							_setStyle(trigger, "cursor", vars.cursor || "move");
 						}
 						if (xChange < 2 && xChange > -2 && yChange < 2 && yChange > -2) {
 							_dispatchEvent(self, "click", "onClick");
+						} else if (!_isOldIE) {
+							originalEvent.preventDefault();
 						}
 						_dispatchEvent(self, "dragend", "onDragEnd");
 						return true;
 					};
+
+				this.applyBounds = function() {
+					var x, y;
+					syncXY(true);
+					calculateBounds();
+					if (vars.snap && vars.throwProps && ThrowPropsPlugin) { //sometimes users apply some fancy throwProps snapping that could affect how the bounds act, so if we sense throwProps and snap, feed it through the throwProps so the logic runs and then jump to the end of that tween so that the bounds are imposed immediately. We're letting ThrowPropsPlugin do its magic in terms of parsing all the snapping logic.
+						animate(vars.throwProps, true);
+						this.tween.seek(this.tween.duration());
+						this.tween = null;
+					} else if (hasBounds) {
+						x = self.x;
+						y = self.y;
+						if (hasBounds) {
+							if (x > maxX) {
+								x = maxX;
+							} else if (x < minX) {
+								x = minX;
+							}
+							if (y > maxY) {
+								y = maxY;
+							} else if (y < minY) {
+								y = minY;
+							}
+						}
+						if (self.x !== x || self.y !== y) {
+							self.x = self.endX = x;
+							self.y = self.endY = y;
+							dirty = true;
+							render();
+						}
+					}
+					return self;
+				};
+				
+				this.update = function(applyBounds) {
+					if (applyBounds) {
+						self.applyBounds();
+					} else {
+						syncXY(true);
+					}
+					return self;
+				};
 
 				this.enable = function() {
 					_addListener(trigger, "mousedown", onPress);
@@ -709,6 +823,9 @@
 					if (scrollProxy) {
 						scrollProxy.enable();
 					}
+					target._gsDragID = "d" + (_lookupCount++);
+					_lookup[target._gsDragID] = this;
+					return self;
 				};
 
 				this.disable = function() {
@@ -732,16 +849,18 @@
 					if (scrollProxy) {
 						scrollProxy.disable();
 					}
-					i = _updateQueue.length;
+					i = _renderQueue.length;
 					while (--i > -1) {
-						if (_updateQueue[i] === update) {
-							_updateQueue.splice(i, 1);
+						if (_renderQueue[i] === render) {
+							_renderQueue.splice(i, 1);
 						}
 					}
+					delete _lookup[target._gsDragID];
 					this.isDragging = false;
 					if (dragging) {
 						_dispatchEvent(this, "dragend", "onDragEnd");
 					}
+					return self;
 				};
 
 				if (type.indexOf("scroll") !== -1) {
@@ -774,19 +893,25 @@
 					tempVars = (allowX && allowY) ? _tempVarsXY : allowX ? _tempVarsX : _tempVarsY;
 					cssVars = tempVars.css;
 				}
+				old = Draggable.get(this.target);
+				if (old) {
+					old.disable(); // avoids duplicates (an element can only be controlled by one Draggable)
+				}
+
 				this.isDragging = false;
 				this.enable();
 			},
 			p = Draggable.prototype = new EventDispatcher();
 
 		p.constructor = Draggable;
-		Draggable.version = "0.7.0";
+		p.pointerX = p.pointerY = 0;
+		Draggable.version = "0.8.1";
 		Draggable.zIndex = 1000;
 
 		TweenLite.ticker.addEventListener("tick", function() {
-			var i = _updateQueue.length;
+			var i = _renderQueue.length;
 			while (--i > -1) {
-				_updateQueue[i]();
+				_renderQueue[i]();
 			}
 		});
 
@@ -804,6 +929,10 @@
 				a[i] = new Draggable(a[i], vars);
 			}
 			return a;
+		};
+
+		Draggable.get = function(target) {
+			return _lookup[(_unwrapElement(target) || {})._gsDragID];
 		};
 
 		return Draggable;

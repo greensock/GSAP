@@ -1,6 +1,6 @@
 /*!
- * VERSION: beta 1.10.2
- * DATE: 2013-08-05
+ * VERSION: beta 1.10.3
+ * DATE: 2013-09-02
  * UPDATES AND DOCS AT: http://www.greensock.com
  *
  * @license Copyright (c) 2008-2013, GreenSock. All rights reserved.
@@ -39,7 +39,7 @@
 			
 		p.constructor = TimelineMax;
 		p.kill()._gc = false;
-		TimelineMax.version = "1.10.2";
+		TimelineMax.version = "1.10.3";
 		
 		p.invalidate = function() {
 			this._yoyo = (this.vars.yoyo === true);
@@ -495,7 +495,7 @@
 			_slice = _blankArray.slice,
 			p = TimelineLite.prototype = new SimpleTimeline();
 
-		TimelineLite.version = "1.10.2";
+		TimelineLite.version = "1.10.3";
 		p.constructor = TimelineLite;
 		p.kill()._gc = false;
 
@@ -581,7 +581,7 @@
 		};
 
 		p.add = function(value, position, align, stagger) {
-			var curTime, l, i, child, tl;
+			var curTime, l, i, child, tl, beforeRawTime;
 			if (typeof(position) !== "number") {
 				position = this._parseTimeOrLabel(position, 0, true, value);
 			}
@@ -611,19 +611,20 @@
 				} else if (typeof(value) === "function") {
 					value = TweenLite.delayedCall(0, value);
 				} else {
-					throw("Cannot add " + value + " into the timeline; it is neither a tween, timeline, function, nor a string.");
+					throw("Cannot add " + value + " into the timeline; it is not a tween, timeline, function, or string.");
 				}
 			}
 
 			SimpleTimeline.prototype.add.call(this, value, position);
 
 			//if the timeline has already ended but the inserted tween/timeline extends the duration, we should enable this timeline again so that it renders properly.
-			if (this._gc) if (!this._paused) if (this._time === this._duration) if (this._time < this.duration()) {
+			if (this._gc) if (!this._paused) if (this._duration < this.duration()) {
 				//in case any of the anscestors had completed but should now be enabled...
 				tl = this;
+				beforeRawTime = (tl.rawTime() > value._startTime); //if the tween is placed on the timeline so that it starts BEFORE the current rawTime, we should align the playhead (move the timeline). This is because sometimes users will create a timeline, let it finish, and much later append a tween and expect it to run instead of jumping to its end state. While technically one could argue that it should jump to its end state, that's not what users intuitively expect.
 				while (tl._gc && tl._timeline) {
-					if (tl._timeline.smoothChildTiming) {
-						tl.totalTime(tl._totalTime, true); //also enables them
+					if (tl._timeline.smoothChildTiming && beforeRawTime) {
+						tl.totalTime(tl._totalTime, true); //moves the timeline (shifts its startTime) if necessary, and also enables it.
 					} else {
 						tl._enabled(true, false);
 					}
@@ -1052,7 +1053,7 @@
 		};
 
 		p.rawTime = function() {
-			return (this._paused || (this._totalTime !== 0 && this._totalTime !== this._totalDuration)) ? this._totalTime : (this._timeline.rawTime() - this._startTime) * this._timeScale;
+			return this._paused ? this._totalTime : (this._timeline.rawTime() - this._startTime) * this._timeScale;
 		};
 
 		return TimelineLite;
