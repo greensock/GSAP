@@ -1,6 +1,6 @@
 /*!
- * VERSION: beta 1.10.2
- * DATE: 2013-08-05
+ * VERSION: beta 1.10.3
+ * DATE: 2013-09-02
  * UPDATES AND DOCS AT: http://www.greensock.com
  *
  * @license Copyright (c) 2008-2013, GreenSock. All rights reserved.
@@ -288,12 +288,12 @@
 				};
 
 			EventDispatcher.call(_self);
-			this.time = this.frame = 0;
-			this.tick = function() {
+			_self.time = _self.frame = 0;
+			_self.tick = function() {
 				_tick(true);
 			};
 
-			this.sleep = function() {
+			_self.sleep = function() {
 				if (_id == null) {
 					return;
 				}
@@ -309,7 +309,7 @@
 				}
 			};
 
-			this.wake = function() {
+			_self.wake = function() {
 				if (_id !== null) {
 					_self.sleep();
 				}
@@ -320,7 +320,7 @@
 				_tick(2);
 			};
 
-			this.fps = function(value) {
+			_self.fps = function(value) {
 				if (!arguments.length) {
 					return _fps;
 				}
@@ -330,7 +330,7 @@
 				_self.wake();
 			};
 
-			this.useRAF = function(value) {
+			_self.useRAF = function(value) {
 				if (!arguments.length) {
 					return _useRAF;
 				}
@@ -850,7 +850,7 @@
 		p._firstPT = p._targets = p._overwrittenProps = p._startAt = null;
 		p._notifyPluginsOfEnabled = false;
 		
-		TweenLite.version = "1.10.2";
+		TweenLite.version = "1.10.3";
 		TweenLite.defaultEase = p._ease = new Ease(null, null, 1, 1);
 		TweenLite.defaultOverwrite = "auto";
 		TweenLite.ticker = _ticker;

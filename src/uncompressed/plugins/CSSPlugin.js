@@ -1,6 +1,6 @@
 /*!
- * VERSION: beta 1.10.2
- * DATE: 2013-08-05
+ * VERSION: beta 1.10.3
+ * DATE: 2013-09-02
  * UPDATES AND DOCS AT: http://www.greensock.com
  *
  * @license Copyright (c) 2008-2013, GreenSock. All rights reserved.
@@ -29,7 +29,7 @@
 			p = CSSPlugin.prototype = new TweenPlugin("css");
 
 		p.constructor = CSSPlugin;
-		CSSPlugin.version = "1.10.2";
+		CSSPlugin.version = "1.10.3";
 		CSSPlugin.API = 2;
 		CSSPlugin.defaultTransformPerspective = 0;
 		p = "px"; //we'll reuse the "p" variable to keep file size down
@@ -168,7 +168,7 @@
 				if (sfx === "%" && p.indexOf("border") !== -1) {
 					pix = (v / 100) * (horiz ? t.clientWidth : t.clientHeight);
 				} else {
-					style.cssText = "border-style:solid; border-width:0; position:absolute; line-height:0;";
+					style.cssText = "border-style:solid;border-width:0;position:absolute;line-height:0;";
 					if (sfx === "%" || !node.appendChild) {
 						node = t.parentNode || _doc.body;
 						style[(horiz ? "width" : "height")] = v + sfx;
@@ -980,7 +980,7 @@
 		 * Accepts a target and end value and spits back a CSSPropTween that has been inserted into the CSSPlugin's linked list and conforms with all the conventions we use internally, like type:-1, 0, 1, or 2, setting up any extra property tweens, priority, etc. For example, if we have a boxShadow SpecialProp and call:
 		 * this._firstPT = sp.parse(element, "5px 10px 20px rgb(2550,102,51)", "boxShadow", this);
 		 * It should figure out the starting value of the element's boxShadow, compare it to the provided end value and create all the necessary CSSPropTweens of the appropriate types to tween the boxShadow. The CSSPropTween that gets spit back should already be inserted into the linked list (the 4th parameter is the current head, so prepend to that).
-		 * @param {!Object) t Target object whose property is being tweened
+		 * @param {!Object} t Target object whose property is being tweened
 		 * @param {Object} e End value as provided in the vars object (typically a string, but not always - like a throwProps would be an object).
 		 * @param {!string} p Property name
 		 * @param {!CSSPlugin} cssp The CSSPlugin instance that should be associated with this tween.
@@ -1251,6 +1251,26 @@
 				}
 
 				if (!clip) {
+					m += ", sizingMethod='auto expand')";
+				} else {
+					dx = (w / 2);
+					dy = (h / 2);
+					//translate to ensure that transformations occur around the correct origin (default is center).
+					m += ", Dx=" + (dx - (dx * a + dy * b) + ox) + ", Dy=" + (dy - (dx * c + dy * d) + oy) + ")";
+				}
+				if (filters.indexOf("DXImageTransform.Microsoft.Matrix(") !== -1) {
+					style.filter = filters.replace(_ieSetMatrixExp, m);
+				} else {
+					style.filter = m + " " + filters; //we must always put the transform/matrix FIRST (before alpha(opacity=xx)) to avoid an IE bug that slices part of the object when rotation is applied with alpha.
+				}
+
+				//at the end or beginning of the tween, if the matrix is normal (1, 0, 0, 1) and opacity is 100 (or doesn't exist), remove the filter to improve browser performance.
+				if (v === 0 || v === 1) if (a === 1) if (b === 0) if (c === 0) if (d === 1) if (!clip || m.indexOf("Dx=0, Dy=0") !== -1) if (!_opacityExp.test(filters) || parseFloat(RegExp.$1) === 100) if (filters.indexOf("gradient(" && filters.indexOf("Alpha")) === -1) {
+					style.removeAttribute("filter");
+				}
+
+				//we must set the margins AFTER applying the filter in order to avoid some bugs in IE8 that could (in rare scenarios) cause them to be ignored intermittently (vibration).
+				if (!clip) {
 					var mult = (_ieVers < 8) ? 1 : -1, //in Internet Explorer 7 and before, the box model is broken, causing the browser to treat the width/height of the actual rotated filtered image as the width/height of the box itself, but Microsoft corrected that in IE8. We must use a negative offset in IE8 on the right/bottom
 						marg, prop, dif;
 					dx = t.ieOffsetX || 0;
@@ -1269,22 +1289,6 @@
 						}
 						style[prop] = (t[prop] = Math.round( val - dif * ((i === 0 || i === 2) ? 1 : mult) )) + "px";
 					}
-					m += ", sizingMethod='auto expand')";
-				} else {
-					dx = (w / 2);
-					dy = (h / 2);
-					//translate to ensure that transformations occur around the correct origin (default is center).
-					m += ", Dx=" + (dx - (dx * a + dy * b) + ox) + ", Dy=" + (dy - (dx * c + dy * d) + oy) + ")";
-				}
-				if (filters.indexOf("DXImageTransform.Microsoft.Matrix(") !== -1) {
-					style.filter = filters.replace(_ieSetMatrixExp, m);
-				} else {
-					style.filter = m + " " + filters; //we must always put the transform/matrix FIRST (before alpha(opacity=xx)) to avoid an IE bug that slices part of the object when rotation is applied with alpha.
-				}
-
-				//at the end or beginning of the tween, if the matrix is normal (1, 0, 0, 1) and opacity is 100 (or doesn't exist), remove the filter to improve browser performance.
-				if (v === 0 || v === 1) if (a === 1) if (b === 0) if (c === 0) if (d === 1) if (!clip || m.indexOf("Dx=0, Dy=0") !== -1) if (!_opacityExp.test(filters) || parseFloat(RegExp.$1) === 100) if (filters.indexOf("gradient(") === -1) {
-					style.removeAttribute("filter");
 				}
 			},
 
@@ -1295,8 +1299,9 @@
 					sx = t.scaleX,
 					sy = t.scaleY,
 					sz = t.scaleZ,
+					perspective = t.perspective,
 					a11, a12, a13, a14,	a21, a22, a23, a24, a31, a32, a33, a34,	a41, a42, a43,
-					perspective, zOrigin, rnd, cos, sin, t1, t2, t3, t4, ffProp, n, sfx;
+					zOrigin, rnd, cos, sin, t1, t2, t3, t4, ffProp, n, sfx;
 				if (_isFirefox) { //Firefox has a bug that causes 3D elements to randomly disappear during animation unless a repaint is forced. One way to do this is change "top" or "bottom" by 0.05 which is imperceptible, so we go back and forth. Another way is to change the display to "none", read the clientTop, and then revert the display but that is much slower.
 					ffProp = style.top ? "top" : style.bottom ? "bottom" : parseFloat(_getStyle(this.t, "top", null, false)) ? "bottom" : "top";
 					t1 = _getStyle(this.t, ffProp, null, false);
@@ -1317,7 +1322,7 @@
 					}
 					a12 = -sin;
 					a22 = cos;
-				} else if (!t.rotationY && !t.rotationX && sz === 1) { //if we're only translating and/or 2D scaling, this is faster...
+				} else if (!t.rotationY && !t.rotationX && sz === 1 && !perspective) { //if we're only translating and/or 2D scaling, this is faster...
 					style[_transformProp] = "translate3d(" + t.x + "px," + t.y + "px," + t.z +"px)" + ((sx !== 1 || sy !== 1) ? " scale(" + sx + "," + sy + ")" : "");
 					return;
 				} else {
@@ -1326,7 +1331,6 @@
 				}
 				a33 = 1;
 				a13 = a14 = a23 = a24 = a31 = a32 = a34 = a41 = a42 = 0;
-				perspective = t.perspective;
 				a43 = (perspective) ? -1 / perspective : 0;
 				zOrigin = t.zOrigin;
 				rnd = 100000;
@@ -1650,7 +1654,7 @@
 					val = (this.s + this.c * v) | 0,
 					skip;
 				if (val === 100) { //for older versions of IE that need to use a filter to apply opacity, we should remove the filter if opacity hits 1 in order to improve performance, but make sure there isn't a transform (matrix) or gradient in the filters.
-					if (filters.indexOf("atrix(") === -1 && filters.indexOf("radient(") === -1) {
+					if (filters.indexOf("atrix(") === -1 && filters.indexOf("radient(") === -1 && filters.indexOf("oader(") === -1) {
 						t.removeAttribute("filter");
 						skip = (!_getStyle(this.data, "filter")); //if a class is applied that has an alpha filter, it will take effect (we don't want that), so re-apply our alpha filter in that case. We must first remove it and then check.
 					} else {
@@ -1664,7 +1668,7 @@
 					}
 					if (filters.indexOf("opacity") === -1) { //only used if browser doesn't support the standard opacity style property (IE 7 and 8)
 						if (val !== 0 || !this.xn1) { //bugs in IE7/8 won't render the filter properly if opacity is ADDED on the same frame/render as "visibility" changes (this.xn1 is 1 if this tween is an "autoAlpha" tween)
-							t.filter += " alpha(opacity=" + val + ")"; //we round the value because otherwise, bugs in IE7/8 can prevent "visibility" changes from being applied properly.
+							t.filter = filters + " alpha(opacity=" + val + ")"; //we round the value because otherwise, bugs in IE7/8 can prevent "visibility" changes from being applied properly.
 						}
 					} else {
 						t.filter = filters.replace(_opacityExp, "opacity=" + val);
@@ -1696,6 +1700,7 @@
 				pt = new CSSPropTween(style, "visibility", 0, 0, pt, -1, null, false, 0, ((b !== 0) ? "inherit" : "hidden"), ((e === 0) ? "hidden" : "inherit"));
 				pt.xs0 = "inherit";
 				cssp._overwriteProps.push(pt.n);
+				cssp._overwriteProps.push(p);
 			}
 			return pt;
 		}});
@@ -1768,25 +1773,34 @@
 
 		var _setClearPropsRatio = function(v) {
 			if (v === 1 || v === 0) if (this.data._totalTime === this.data._totalDuration) { //this.data refers to the tween. Only clear at the END of the tween (remember, from() tweens make the ratio go from 1 to 0, so we can't just check that).
+				var s = this.t.style,
+					transformParse = _specialProps.transform.parse,
+					a, p, i, clearTransform;
 				if (this.e === "all") {
-					this.t.style.cssText = "";
+					s.cssText = "";
+					clearTransform = true;
+				} else {
+					a = this.e.split(",");
+					i = a.length;
+					while (--i > -1) {
+						p = a[i];
+						if (_specialProps[p]) {
+							if (_specialProps[p].parse === transformParse) {
+								clearTransform = true;
+							} else {
+								p = (p === "transformOrigin") ? _transformOriginProp : _specialProps[p].p; //ensures that special properties use the proper browser-specific property name, like "scaleX" might be "-webkit-transform" or "boxShadow" might be "-moz-box-shadow"
+							}
+						}
+						_removeProp(s, p);
+					}
+				}
+				if (clearTransform) {
+					_removeProp(s, _transformProp);
 					if (this.t._gsTransform) {
 						delete this.t._gsTransform;
 					}
-					return;
 				}
-				var s = this.t.style,
-					a = this.e.split(","),
-					i = a.length,
-					transformParse = _specialProps.transform.parse,
-					p;
-				while (--i > -1) {
-					p = a[i];
-					if (_specialProps[p]) {
-						p = (_specialProps[p].parse === transformParse) ? _transformProp : _specialProps[p].p; //ensures that special properties use the proper browser-specific property name, like "scaleX" might be "-webkit-transform" or "boxShadow" might be "-moz-box-shadow"
-					}
-					_removeProp(s, p);
-				}
+
 			}
 		};
 		_registerComplexSpecialProp("clearProps", {parser:function(t, e, p, cssp, pt) {
@@ -2153,7 +2167,6 @@
 			}
 			return TweenPlugin.prototype._kill.call(this, copy);
 		};
-
 
 
 

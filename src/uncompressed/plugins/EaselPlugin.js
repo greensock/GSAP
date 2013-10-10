@@ -1,6 +1,6 @@
 /*!
- * VERSION: beta 0.1.4
- * DATE: 2013-02-28
+ * VERSION: beta 0.1.5
+ * DATE: 2013-08-29
  * UPDATES AND DOCS AT: http://www.greensock.com
  *
  * @license Copyright (c) 2008-2013, GreenSock. All rights reserved.
@@ -246,6 +246,13 @@
 					if (!colorMatrix) {
 						_parseColorMatrixFilter(target, value.colorMatrixFilter || value, this);
 						colorMatrix = true;
+					}
+
+				} else if (p === "frame") {
+					this._firstPT = pt = {_next:this._firstPT, t:target, p:"gotoAndStop", s:target.currentFrame, f:true, n:"frame", pr:0, type:0, r:true};
+					pt.c = (typeof(value[p]) === "number") ? value[p] - pt.s : (typeof(value[p]) === "string") ? parseFloat(value[p].split("=").join("")) : 0;
+					if (pt._next) {
+						pt._next._prev = pt;
 					}
 
 				} else if (target[p] != null) {
