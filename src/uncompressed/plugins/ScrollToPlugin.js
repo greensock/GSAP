@@ -1,6 +1,6 @@
 /*!
- * VERSION: beta 1.7.0
- * DATE: 2013-02-27
+ * VERSION: beta 1.7.1
+ * DATE: 2013-10-23
  * UPDATES AND DOCS AT: http://www.greensock.com
  *
  * @license Copyright (c) 2008-2013, GreenSock. All rights reserved.
@@ -20,7 +20,7 @@
 				scroll = "scroll" + dim,
 				client = "client" + dim,
 				body = document.body;
-			return (element === _window || element === _doc || element === body) ? Math.max(_doc[scroll], body[scroll]) - Math.max(_doc[client], body[client]) : element[scroll] - element["offset" + dim];
+			return (element === _window || element === _doc || element === body) ? Math.max(_doc[scroll], body[scroll]) - (_window["inner" + dim] || Math.max(_doc[client], body[client])) : element[scroll] - element["offset" + dim];
 		},
 
 		ScrollToPlugin = window._gsDefine.plugin({

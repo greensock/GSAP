@@ -1,6 +1,6 @@
 /*!
- * VERSION: beta 1.2.4
- * DATE: 2013-04-19
+ * VERSION: beta 1.3.0
+ * DATE: 2013-10-21
  * UPDATES AND DOCS AT: http://www.greensock.com
  *
  * @license Copyright (c) 2008-2013, GreenSock. All rights reserved.
@@ -14,7 +14,6 @@
 	"use strict";
 
 		var _RAD2DEG = 180 / Math.PI,
-			_DEG2RAD = Math.PI / 180,
 			_r1 = [],
 			_r2 = [],
 			_r3 = [],
@@ -530,8 +529,8 @@
 					v.autoRotate = true;
 				}
 				if (v.autoRotate && !(v.autoRotate instanceof Array)) {
-					i = (v.autoRotate === true) ? 0 : Number(v.autoRotate) * _DEG2RAD;
-					v.autoRotate = (data.end.left != null) ? [["left","top","rotation",i,true]] : (data.end.x != null) ? [["x","y","rotation",i,true]] : false;
+					i = (v.autoRotate === true) ? 0 : Number(v.autoRotate);
+					v.autoRotate = (data.end.left != null) ? [["left","top","rotation",i,false]] : (data.end.x != null) ? [["x","y","rotation",i,false]] : false;
 				}
 				if (v.autoRotate) {
 					if (!cssp._transform) {

@@ -1,6 +1,6 @@
 /*!
- * VERSION: beta 1.10.3
- * DATE: 2013-09-02
+ * VERSION: beta 1.11.0
+ * DATE: 2013-10-21
  * UPDATES AND DOCS AT: http://www.greensock.com
  *
  * @license Copyright (c) 2008-2013, GreenSock. All rights reserved.
@@ -29,7 +29,7 @@
 			p = CSSPlugin.prototype = new TweenPlugin("css");
 
 		p.constructor = CSSPlugin;
-		CSSPlugin.version = "1.10.3";
+		CSSPlugin.version = "1.11.0";
 		CSSPlugin.API = 2;
 		CSSPlugin.defaultTransformPerspective = 0;
 		p = "px"; //we'll reuse the "p" variable to keep file size down
@@ -39,8 +39,6 @@
 		var _numExp = /(?:\d|\-\d|\.\d|\-\.\d)+/g,
 			_relNumExp = /(?:\d|\-\d|\.\d|\-\.\d|\+=\d|\-=\d|\+=.\d|\-=\.\d)+/g,
 			_valuesExp = /(?:\+=|\-=|\-|\b)[\d\-\.]+[a-zA-Z0-9]*(?:%|\b)/gi, //finds all the values that begin with numbers or += or -= and then a number. Includes suffixes. We use this to split complex values apart like "1px 5px 20px rgb(255,102,51)"
-			//_clrNumExp = /(?:\b(?:(?:rgb|rgba|hsl|hsla)\(.+?\))|\B#.+?\b)/, //only finds rgb(), rgba(), hsl(), hsla() and # (hexadecimal) values but NOT color names like red, blue, etc.
-			//_tinyNumExp = /\b\d+?e\-\d+?\b/g, //finds super small numbers in a string like 1e-20. could be used in matrix3d() to fish out invalid numbers and replace them with 0. After performing speed tests, however, we discovered it was slightly faster to just cut the numbers at 5 decimal places with a particular algorithm.
 			_NaNExp = /[^\d\-\.]/g,
 			_suffixExp = /(?:\d|\-|\+|=|#|\.)*/g,
 			_opacityExp = /opacity *= *([^)]*)/,
@@ -207,23 +205,25 @@
 					}
 				} else if ((cs = t.currentStyle || t.style)) {
 					for (i in cs) {
-						s[i.replace(_camelExp, _camelFunc)] = cs[i];
+						if (typeof(i) === "string" && s[i] !== undefined) {
+							s[i.replace(_camelExp, _camelFunc)] = cs[i];
+						}
 					}
 				}
 				if (!_supportsOpacity) {
 					s.opacity = _getIEOpacity(t);
 				}
 				tr = _getTransform(t, cs, false);
-				s.rotation = tr.rotation * _RAD2DEG;
-				s.skewX = tr.skewX * _RAD2DEG;
+				s.rotation = tr.rotation;
+				s.skewX = tr.skewX;
 				s.scaleX = tr.scaleX;
 				s.scaleY = tr.scaleY;
 				s.x = tr.x;
 				s.y = tr.y;
 				if (_supports3D) {
 					s.z = tr.z;
-					s.rotationX = tr.rotationX * _RAD2DEG;
-					s.rotationY = tr.rotationY * _RAD2DEG;
+					s.rotationX = tr.rotationX;
+					s.rotationY = tr.rotationY;
 					s.scaleZ = tr.scaleZ;
 				}
 				if (s.filters) {
@@ -337,11 +337,11 @@
 				if (v == null) {
 					result = d;
 				} else if (typeof(v) === "number") {
-					result = v * _DEG2RAD;
+					result = v;
 				} else {
-					cap = Math.PI * 2;
+					cap = 360;
 					split = v.split("_");
-					dif = Number(split[0].replace(_NaNExp, "")) * ((v.indexOf("rad") === -1) ? _DEG2RAD : 1) - ((v.charAt(1) === "=") ? 0 : d);
+					dif = Number(split[0].replace(_NaNExp, "")) * ((v.indexOf("rad") === -1) ? 1 : _RAD2DEG) - ((v.charAt(1) === "=") ? 0 : d);
 					if (split.length) {
 						if (directionalEnd) {
 							directionalEnd[p] = d + dif;
@@ -1058,8 +1058,8 @@
 					invX = (tm.scaleX < 0), //in order to interpret things properly, we need to know if the user applied a negative scaleX previously so that we can adjust the rotation and skewX accordingly. Otherwise, if we always interpret a flipped matrix as affecting scaleY and the user only wants to tween the scaleX on multiple sequential tweens, it would keep the negative scaleY without that being the user's intent.
 					min = 0.00002,
 					rnd = 100000,
-					minPI = -Math.PI + 0.0001,
-					maxPI = Math.PI - 0.0001,
+					minAngle = 179.99,
+					minPI = minAngle * _DEG2RAD,
 					zOrigin = _supports3D ? parseFloat(_getStyle(t, _transformOriginProp, cs, false, "0 0 0").split(" ")[2]) || tm.zOrigin  || 0 : 0,
 					s, m, i, n, dec, scaleX, scaleY, rotation, skewX, difX, difY, difR, difS;
 				if (_transformProp) {
@@ -1095,9 +1095,10 @@
 						var a11 = m[0], a21 = m[1], a31 = m[2], a41 = m[3],
 							a12 = m[4], a22 = m[5], a32 = m[6], a42 = m[7],
 							a43 = m[11],
-							angle = tm.rotationX = Math.atan2(a32, a33),
-							xFlip = (angle < minPI || angle > maxPI),
+							angle = Math.atan2(a32, a33),
+							xFlip = (angle < -minPI || angle > minPI),
 							t1, t2, t3, cos, sin, yFlip, zFlip;
+						tm.rotationX = angle * _RAD2DEG;
 						//rotationX
 						if (angle) {
 							cos = Math.cos(-angle);
@@ -1114,9 +1115,10 @@
 							a32 = t3;
 						}
 						//rotationY
-						angle = tm.rotationY = Math.atan2(a13, a11);
+						angle = Math.atan2(a13, a11);
+						tm.rotationY = angle * _RAD2DEG;
 						if (angle) {
-							yFlip = (angle < minPI || angle > maxPI);
+							yFlip = (angle < -minPI || angle > minPI);
 							cos = Math.cos(-angle);
 							sin = Math.sin(-angle);
 							t1 = a11*cos-a13*sin;
@@ -1130,9 +1132,10 @@
 							a31 = t3;
 						}
 						//rotationZ
-						angle = tm.rotation = Math.atan2(a21, a22);
+						angle = Math.atan2(a21, a22);
+						tm.rotation = angle * _RAD2DEG;
 						if (angle) {
-							zFlip = (angle < minPI || angle > maxPI);
+							zFlip = (angle < -minPI || angle > minPI);
 							cos = Math.cos(-angle);
 							sin = Math.sin(-angle);
 							a11 = a11*cos+a12*sin;
@@ -1170,24 +1173,24 @@
 					tm.y = m[5] || 0;
 					scaleX = Math.sqrt(a * a + b * b);
 					scaleY = Math.sqrt(d * d + c * c);
-					rotation = (a || b) ? Math.atan2(b, a) : tm.rotation || 0; //note: if scaleX is 0, we cannot accurately measure rotation. Same for skewX with a scaleY of 0. Therefore, we default to the previously recorded value (or zero if that doesn't exist).
-					skewX = (c || d) ? Math.atan2(c, d) + rotation : tm.skewX || 0;
+					rotation = (a || b) ? Math.atan2(b, a) * _RAD2DEG : tm.rotation || 0; //note: if scaleX is 0, we cannot accurately measure rotation. Same for skewX with a scaleY of 0. Therefore, we default to the previously recorded value (or zero if that doesn't exist).
+					skewX = (c || d) ? Math.atan2(c, d) * _RAD2DEG + rotation : tm.skewX || 0;
 					difX = scaleX - Math.abs(tm.scaleX || 0);
 					difY = scaleY - Math.abs(tm.scaleY || 0);
-					if (Math.abs(skewX) > Math.PI / 2 && Math.abs(skewX) < Math.PI * 1.5) {
+					if (Math.abs(skewX) > 90 && Math.abs(skewX) < 270) {
 						if (invX) {
 							scaleX *= -1;
-							skewX += (rotation <= 0) ? Math.PI : -Math.PI;
-							rotation += (rotation <= 0) ? Math.PI : -Math.PI;
+							skewX += (rotation <= 0) ? 180 : -180;
+							rotation += (rotation <= 0) ? 180 : -180;
 						} else {
 							scaleY *= -1;
-							skewX += (skewX <= 0) ? Math.PI : -Math.PI;
+							skewX += (skewX <= 0) ? 180 : -180;
 						}
 					}
-					difR = (rotation - tm.rotation) % Math.PI; //note: matching ranges would be very small (+/-0.0001) or very close to Math.PI (+/-3.1415).
-					difS = (skewX - tm.skewX) % Math.PI;
+					difR = (rotation - tm.rotation) % 180; //note: matching ranges would be very small (+/-0.0001) or very close to 180.
+					difS = (skewX - tm.skewX) % 180;
 					//if there's already a recorded _gsTransform in place for the target, we should leave those values in place unless we know things changed for sure (beyond a super small amount). This gets around ambiguous interpretations, like if scaleX and scaleY are both -1, the matrix would be the same as if the rotation was 180 with normal scaleX/scaleY. If the user tweened to particular values, those must be prioritized to ensure animation is consistent.
-					if (tm.skewX === undefined || difX > min || difX < -min || difY > min || difY < -min || (difR > minPI && difR < maxPI && (difR * rnd) | 0 !== 0) || (difS > minPI && difS < maxPI && (difS * rnd) | 0 !== 0)) {
+					if (tm.skewX === undefined || difX > min || difX < -min || difY > min || difY < -min || (difR > -minAngle && difR < minAngle && (difR * rnd) | 0 !== 0) || (difS > -minAngle && difS < minAngle && (difS * rnd) | 0 !== 0)) {
 						tm.scaleX = scaleX;
 						tm.scaleY = scaleY;
 						tm.rotation = rotation;
@@ -1207,17 +1210,18 @@
 						tm[i] = 0;
 					}
 				}
-				//DEBUG: _log("parsed rotation: "+(tm.rotationX*_RAD2DEG)+", "+(tm.rotationY*_RAD2DEG)+", "+(tm.rotation*_RAD2DEG)+", scale: "+tm.scaleX+", "+tm.scaleY+", "+tm.scaleZ+", position: "+tm.x+", "+tm.y+", "+tm.z+", perspective: "+tm.perspective);
+				//DEBUG: _log("parsed rotation: "+(tm.rotationX)+", "+(tm.rotationY)+", "+(tm.rotation)+", scale: "+tm.scaleX+", "+tm.scaleY+", "+tm.scaleZ+", position: "+tm.x+", "+tm.y+", "+tm.z+", perspective: "+tm.perspective);
 				if (rec) {
 					t._gsTransform = tm; //record to the object's _gsTransform which we use so that tweens can control individual properties independently (we need all the properties to accurately recompose the matrix in the setRatio() method)
 				}
 				return tm;
 			},
+
 			//for setting 2D transforms in IE6, IE7, and IE8 (must use a "filter" to emulate the behavior of modern day browser transforms)
 			_setIETransformRatio = function(v) {
 				var t = this.data, //refers to the element's _gsTransform object
-					ang = -t.rotation,
-					skew = ang + t.skewX,
+					ang = -t.rotation * _DEG2RAD,
+					skew = ang + t.skewX * _DEG2RAD,
 					rnd = 100000,
 					a = ((Math.cos(ang) * t.scaleX * rnd) | 0) / rnd,
 					b = ((Math.sin(ang) * t.scaleX * rnd) | 0) / rnd,
@@ -1295,7 +1299,7 @@
 			_set3DTransformRatio = function(v) {
 				var t = this.data, //refers to the element's _gsTransform object
 					style = this.t.style,
-					angle = t.rotation,
+					angle = t.rotation * _DEG2RAD,
 					sx = t.scaleX,
 					sy = t.scaleY,
 					sz = t.scaleZ,
@@ -1316,7 +1320,7 @@
 					a11 = cos;
 					a21 = sin;
 					if (t.skewX) {
-						angle -= t.skewX;
+						angle -= t.skewX * _DEG2RAD;
 						cos = Math.cos(angle);
 						sin = Math.sin(angle);
 					}
@@ -1334,7 +1338,7 @@
 				a43 = (perspective) ? -1 / perspective : 0;
 				zOrigin = t.zOrigin;
 				rnd = 100000;
-				angle = t.rotationY;
+				angle = t.rotationY * _DEG2RAD;
 				if (angle) {
 					cos = Math.cos(angle);
 					sin = Math.sin(angle);
@@ -1347,7 +1351,7 @@
 					a11 *= cos;
 					a21 *= cos;
 				}
-				angle = t.rotationX;
+				angle = t.rotationX * _DEG2RAD;
 				if (angle) {
 					cos = Math.cos(angle);
 					sin = Math.sin(angle);
@@ -1411,8 +1415,8 @@
 				if (!t.rotation && !t.skewX) {
 					style[_transformProp] = "matrix(" + t.scaleX + ",0,0," + t.scaleY + "," + t.x + "," + t.y + ")";
 				} else {
-					ang = t.rotation;
-					skew = ang - t.skewX;
+					ang = t.rotation * _DEG2RAD;
+					skew = ang - t.skewX * _DEG2RAD;
 					rnd = 100000;
 					sx = t.scaleX * rnd;
 					sy = t.scaleY * rnd;
@@ -1455,10 +1459,10 @@
 						v.rotation = dr;
 					}
 				}
-				m2.rotation = _parseAngle(("rotation" in v) ? v.rotation : ("shortRotation" in v) ? v.shortRotation + "_short" : ("rotationZ" in v) ? v.rotationZ : (m1.rotation * _RAD2DEG), m1.rotation, "rotation", endRotations);
+				m2.rotation = _parseAngle(("rotation" in v) ? v.rotation : ("shortRotation" in v) ? v.shortRotation + "_short" : ("rotationZ" in v) ? v.rotationZ : m1.rotation, m1.rotation, "rotation", endRotations);
 				if (_supports3D) {
-					m2.rotationX = _parseAngle(("rotationX" in v) ? v.rotationX : ("shortRotationX" in v) ? v.shortRotationX + "_short" : (m1.rotationX * _RAD2DEG) || 0, m1.rotationX, "rotationX", endRotations);
-					m2.rotationY = _parseAngle(("rotationY" in v) ? v.rotationY : ("shortRotationY" in v) ? v.shortRotationY + "_short" : (m1.rotationY * _RAD2DEG) || 0, m1.rotationY, "rotationY", endRotations);
+					m2.rotationX = _parseAngle(("rotationX" in v) ? v.rotationX : ("shortRotationX" in v) ? v.shortRotationX + "_short" : m1.rotationX || 0, m1.rotationX, "rotationX", endRotations);
+					m2.rotationY = _parseAngle(("rotationY" in v) ? v.rotationY : ("shortRotationY" in v) ? v.shortRotationY + "_short" : m1.rotationY || 0, m1.rotationY, "rotationY", endRotations);
 				}
 				m2.skewX = (v.skewX == null) ? m1.skewX : _parseAngle(v.skewX, m1.skewX);
 
@@ -1618,6 +1622,7 @@
 		_registerComplexSpecialProp("perspectiveOrigin", {defaultValue:"50% 50%", prefix:true});
 		_registerComplexSpecialProp("transformStyle", {prefix:true});
 		_registerComplexSpecialProp("backfaceVisibility", {prefix:true});
+		_registerComplexSpecialProp("userSelect", {prefix:true});
 		_registerComplexSpecialProp("margin", {parser:_getEdgeParser("marginTop,marginRight,marginBottom,marginLeft")});
 		_registerComplexSpecialProp("padding", {parser:_getEdgeParser("paddingTop,paddingRight,paddingBottom,paddingLeft")});
 		_registerComplexSpecialProp("clip", {defaultValue:"rect(0px,0px,0px,0px)", parser:function(t, e, p, cssp, pt, plugin){
@@ -1679,7 +1684,9 @@
 			var b = parseFloat(_getStyle(t, "opacity", _cs, false, "1")),
 				style = t.style,
 				isAutoAlpha = (p === "autoAlpha");
-			e = parseFloat(e);
+			if (typeof(e) === "string" && e.charAt(1) === "=") {
+				e = ((e.charAt(0) === "-") ? -1 : 1) * parseFloat(e.substr(2)) + b;
+			}
 			if (isAutoAlpha && b === 1 && _getStyle(t, "visibility", _cs) === "hidden" && e !== 0) { //if visibility is initially set to "hidden", we should interpret that as intent to make opacity 0 (a convenience)
 				b = 0;
 			}
@@ -1772,7 +1779,7 @@
 
 
 		var _setClearPropsRatio = function(v) {
-			if (v === 1 || v === 0) if (this.data._totalTime === this.data._totalDuration) { //this.data refers to the tween. Only clear at the END of the tween (remember, from() tweens make the ratio go from 1 to 0, so we can't just check that).
+			if (v === 1 || v === 0) if (this.data._totalTime === this.data._totalDuration && this.data.data !== "isFromStart") { //this.data refers to the tween. Only clear at the END of the tween (remember, from() tweens make the ratio go from 1 to 0, so we can't just check that and if the tween is the zero-duration one that's created internally to render the starting values in a from() tween, ignore that because otherwise, for example, from(...{height:100, clearProps:"height", delay:1}) would wipe the height at the beginning of the tween and after 1 second, it'd kick back in).
 				var s = this.t.style,
 					transformParse = _specialProps.transform.parse,
 					a, p, i, clearTransform;
