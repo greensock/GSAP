@@ -1,6 +1,6 @@
 /*!
- * VERSION: 0.9.2
- * DATE: 2013-10-21
+ * VERSION: 0.9.4
+ * DATE: 2013-10-28
  * UPDATES AND DOCS AT: http://www.greensock.com
  *
  * Requires TweenLite and CSSPlugin version 1.11.0 or later (TweenMax contains both TweenLite and CSSPlugin). ThrowPropsPlugin is required for momentum-based continuation of movement after the mouse/touch is released (ThrowPropsPlugin is a membership benefit of Club GreenSock - http://www.greensock.com/club/).
@@ -31,14 +31,42 @@
 			_renderQueue = [],
 			_lookup = {}, //when a Draggable is created, the target gets a unique _gsDragID property that allows gets associated with the Draggable instance for quick lookups in Draggable.get(). This avoids circular references that could cause gc problems.
 			_lookupCount = 0,
-			_clickableTagExp = /(a|input|textarea|button|select)/i,
+			_clickableTagExp = /^(?:a|input|textarea|button|select)$/i,
 			_dragCount = 0, //total number of elements currently being dragged
 			_prefix,
 			_isMultiTouching,
 			ThrowPropsPlugin,
 
+			_renderQueueTick = function() {
+				var i = _renderQueue.length;
+				while (--i > -1) {
+					_renderQueue[i]();
+				}
+			},
+			_addToRenderQueue = function(func) {
+				_renderQueue.push(func);
+				if (_renderQueue.length === 1) {
+					TweenLite.ticker.addEventListener("tick", _renderQueueTick);
+				}
+			},
+			_removeFromRenderQueue = function(func) {
+				var i = _renderQueue.length;
+				while (--i > -1) {
+					if (_renderQueue[i] === func) {
+						_renderQueue.splice(i, 1);
+					}
+				}
+				TweenLite.to(_renderQueueTimeout, 0, {overwrite:"all", delay:15, onComplete:_renderQueueTimeout}); //remove the "tick" listener only after the render queue is empty for 15 seconds (to improve performance). Adding/removing it constantly for every click/touch wouldn't deliver optimal speed, and we also don't want the ticker to keep calling the render method when things are idle for long periods of time (we want to improve battery life on mobile devices).
+			},
+			_renderQueueTimeout = function() {
+				if (!_renderQueue.length) {
+					TweenLite.ticker.removeEventListener("tick", _renderQueueTick);
+				}
+			},
+
 			_extend = function(obj, defaults) {
-				for (var p in defaults) {
+				var p;
+				for (p in defaults) {
 					if (obj[p] === undefined) {
 						obj[p] = defaults[p];
 					}
@@ -714,7 +742,7 @@
 									}
 								}
 							}
-							self.tween = tween = ThrowPropsPlugin.to(scrollProxy || target, {throwProps:throwProps, ease:(vars.ease || Power3.easeOut), onComplete:vars.onThrowComplete, onCompleteScope:(vars.onThrowCompleteScope || self), onUpdate:(vars.fastMode ? vars.onThrowUpdate : syncXY), onUpdateScope:(vars.onThrowUpdateScope || self)}, (isNaN(vars.maxDuration) ? 2 : vars.maxDuration), (isNaN(vars.minDuration) ? 0.5 : vars.minDuration), (isNaN(vars.overshootTolerance) ? (1 - self.edgeResistance) + 0.2 : vars.overshootTolerance));
+							self.tween = tween = ThrowPropsPlugin.to(scrollProxy || target, {throwProps:throwProps, ease:(vars.ease || Power3.easeOut), onComplete:vars.onThrowComplete, onCompleteParams:vars.onThrowCompleteParams, onCompleteScope:(vars.onThrowCompleteScope || self), onUpdate:(vars.fastMode ? vars.onThrowUpdate : syncXY), onUpdateParams:vars.onThrowUpdateParams, onUpdateScope:(vars.onThrowUpdateScope || self)}, (isNaN(vars.maxDuration) ? 2 : vars.maxDuration), (isNaN(vars.minDuration) ? 0.5 : vars.minDuration), (isNaN(vars.overshootTolerance) ? (1 - self.edgeResistance) + 0.2 : vars.overshootTolerance));
 							if (!vars.fastMode) {
 								//to populate the end values, we just scrub the tween to the end, record the values, and then jump back to the beginning.
 								if (scrollProxy) {
@@ -851,7 +879,7 @@
 							touch = null;
 						}
 						_dragCount++;
-						_renderQueue.push(render); //causes the Draggable to render on each "tick" of TweenLite.ticker (performance optimization - updating values in a mousemove can cause them to happen too frequently, like multiple times between frame redraws which is wasteful, and it also prevents values from updating properly in IE8)
+						_addToRenderQueue(render); //causes the Draggable to render on each "tick" of TweenLite.ticker (performance optimization - updating values in a mousemove can cause them to happen too frequently, like multiple times between frame redraws which is wasteful, and it also prevents values from updating properly in IE8)
 						if (self.tween) {
 							self.tween.kill();
 						}
@@ -982,12 +1010,7 @@
 							isClicking = false;
 							return;
 						}
-						i = _renderQueue.length;
-						while (--i > -1) {
-							if (_renderQueue[i] === render) {
-								_renderQueue.splice(i, 1);
-							}
-						}
+						_removeFromRenderQueue(render);
 						if (!rotationMode) {
 							_setStyle(trigger, "cursor", vars.cursor || "move");
 						}
@@ -1035,8 +1058,12 @@
 					onRelease(e, true);
 				};
 
-				this.applyBounds = function() {
+				this.applyBounds = function(newBounds) {
 					var x, y;
+					if (newBounds && vars.bounds !== newBounds) {
+						vars.bounds = newBounds;
+						return self.update(true);
+					}
 					syncXY(true);
 					calculateBounds();
 					if (hasBounds) {
@@ -1133,12 +1160,7 @@
 					if (scrollProxy) {
 						scrollProxy.disable();
 					}
-					i = _renderQueue.length;
-					while (--i > -1) {
-						if (_renderQueue[i] === render) {
-							_renderQueue.splice(i, 1);
-						}
-					}
+					_removeFromRenderQueue(render);
 					delete _lookup[target._gsDragID];
 					this.isDragging = isClicking = false;
 					if (dragging) {
@@ -1194,15 +1216,8 @@
 
 		p.constructor = Draggable;
 		p.pointerX = p.pointerY = 0;
-		Draggable.version = "0.9.2";
+		Draggable.version = "0.9.4";
 		Draggable.zIndex = 1000;
-
-		TweenLite.ticker.addEventListener("tick", function() {
-			var i = _renderQueue.length;
-			while (--i > -1) {
-				_renderQueue[i]();
-			}
-		});
 
 		_addListener(_doc, "touchcancel", function() {
 			//some older Android devices intermittently stop dispatching "touchmove" events if we don't listen for "touchcancel" on the document. Very strange indeed.
