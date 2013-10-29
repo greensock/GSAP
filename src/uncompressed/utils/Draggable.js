@@ -1,6 +1,6 @@
 /*!
- * VERSION: 0.9.4
- * DATE: 2013-10-28
+ * VERSION: 0.9.5
+ * DATE: 2013-10-30
  * UPDATES AND DOCS AT: http://www.greensock.com
  *
  * Requires TweenLite and CSSPlugin version 1.11.0 or later (TweenMax contains both TweenLite and CSSPlugin). ThrowPropsPlugin is required for momentum-based continuation of movement after the mouse/touch is released (ThrowPropsPlugin is a membership benefit of Club GreenSock - http://www.greensock.com/club/).
@@ -1116,6 +1116,7 @@
 					if (!rotationMode) {
 						_setStyle(trigger, "cursor", vars.cursor || "move");
 					}
+					trigger.ondragstart = trigger.onselectstart = _emptyFunc; //prevent text selection (and prevent IE from dragging images)
 					_setStyle(trigger, "userSelect", "none");
 					_setStyle(trigger, "touchCallout", "none");
 					_setStyle(trigger, "touchAction", "none");
@@ -1136,12 +1137,12 @@
 				};
 
 				this.disable = function() {
-					var dragging = this.isDragging,
-						i;
+					var dragging = this.isDragging;
 					if (!rotationMode) {
 						_setStyle(trigger, "cursor", null);
 					}
 					TweenLite.killTweensOf(scrollProxy || target, true, killProps);
+					trigger.ondragstart = trigger.onselectstart = null;
 					_setStyle(trigger, "userSelect", "text");
 					_setStyle(trigger, "touchCallout", "default");
 					_setStyle(trigger, "MSTouchAction", "auto");
@@ -1180,8 +1181,6 @@
 					target = scrollProxy.content;
 				}
 
-				// prevent IE from trying to drag an image and prevent text selection in IE
-				trigger.ondragstart = trigger.onselectstart = _emptyFunc;
 				if (vars.force3D !== false) {
 					TweenLite.set(target, {force3D:true}); //improve performance by forcing a GPU layer when possible
 				}
@@ -1216,7 +1215,7 @@
 
 		p.constructor = Draggable;
 		p.pointerX = p.pointerY = 0;
-		Draggable.version = "0.9.4";
+		Draggable.version = "0.9.5";
 		Draggable.zIndex = 1000;
 
 		_addListener(_doc, "touchcancel", function() {
