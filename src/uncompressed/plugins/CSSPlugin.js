@@ -1,6 +1,6 @@
 /*!
- * VERSION: beta 1.11.0
- * DATE: 2013-10-21
+ * VERSION: beta 1.11.2
+ * DATE: 2013-11-20
  * UPDATES AND DOCS AT: http://www.greensock.com
  *
  * @license Copyright (c) 2008-2013, GreenSock. All rights reserved.
@@ -29,7 +29,7 @@
 			p = CSSPlugin.prototype = new TweenPlugin("css");
 
 		p.constructor = CSSPlugin;
-		CSSPlugin.version = "1.11.0";
+		CSSPlugin.version = "1.11.2";
 		CSSPlugin.API = 2;
 		CSSPlugin.defaultTransformPerspective = 0;
 		p = "px"; //we'll reuse the "p" variable to keep file size down
@@ -76,8 +76,9 @@
 				_isSafariLT6 = (_isSafari && (Number(_agent.substr(_agent.indexOf("Version/")+8, 1)) < 6));
 				_isFirefox = (_agent.indexOf("Firefox") !== -1);
 
-				(/MSIE ([0-9]{1,}[\.0-9]{0,})/).exec(_agent);
-				_ieVers = parseFloat( RegExp.$1 );
+				if ((/MSIE ([0-9]{1,}[\.0-9]{0,})/).exec(_agent)) {
+					_ieVers = parseFloat( RegExp.$1 );
+				}
 
 				d.innerHTML = "<a style='top:1px;opacity:.55;'>a</a>";
 				a = d.getElementsByTagName("a")[0];
@@ -166,7 +167,7 @@
 				if (sfx === "%" && p.indexOf("border") !== -1) {
 					pix = (v / 100) * (horiz ? t.clientWidth : t.clientHeight);
 				} else {
-					style.cssText = "border-style:solid;border-width:0;position:absolute;line-height:0;";
+					style.cssText = "border:0 solid red;position:" + _getStyle(t, "position") + ";line-height:0;";
 					if (sfx === "%" || !node.appendChild) {
 						node = t.parentNode || _doc.body;
 						style[(horiz ? "width" : "height")] = v + sfx;
@@ -1305,14 +1306,27 @@
 					sz = t.scaleZ,
 					perspective = t.perspective,
 					a11, a12, a13, a14,	a21, a22, a23, a24, a31, a32, a33, a34,	a41, a42, a43,
-					zOrigin, rnd, cos, sin, t1, t2, t3, t4, ffProp, n, sfx;
-				if (_isFirefox) { //Firefox has a bug that causes 3D elements to randomly disappear during animation unless a repaint is forced. One way to do this is change "top" or "bottom" by 0.05 which is imperceptible, so we go back and forth. Another way is to change the display to "none", read the clientTop, and then revert the display but that is much slower.
-					ffProp = style.top ? "top" : style.bottom ? "bottom" : parseFloat(_getStyle(this.t, "top", null, false)) ? "bottom" : "top";
+					zOrigin, rnd, cos, sin, t1, t2, t3, t4;
+				if (_isFirefox) { //Firefox has a
+					/*
+					// It seems Firefox fixed the bug that causes 3D elements to randomly disappear during animation unless a repaint is forced (in version 25), so we're commenting out the fix as of CSSPlugin version 1.11.2, but leaving it in the source in case it's useful later. One way we were working around this was change "top" or "bottom" by 0.05 which is imperceptible, so we go back and forth. Another way is to change the display to "none", read the clientTop, and then revert the display but that is much slower.
+					var ffProp = style.top ? "top" : style.bottom ? "bottom" : parseFloat(_getStyle(this.t, "top", null, false)) ? "bottom" : "top";
 					t1 = _getStyle(this.t, ffProp, null, false);
 					n = parseFloat(t1) || 0;
-					sfx = t1.substr((n + "").length) || "px";
+					var sfx = t1.substr((n + "").length) || "px";
 					t._ffFix = !t._ffFix;
 					style[ffProp] = (t._ffFix ? n + 0.05 : n - 0.05) + sfx;
+					*/
+					var n = 0.0001;
+					if (sx < n && sx > -n) { //Firefox has a bug (at least in v25) that causes it to render the transparent part of 32-bit PNG images as black when displayed inside an iframe and the 3D scale is very small and doesn't change sufficiently enough between renders (like if you use a Power4.easeInOut to scale from 0 to 1 where the beginning values only change a tiny amount to begin the tween before accelerating). In this case, we force the scale to be 0.00002 instead which is visually the same but works around the Firefox issue.
+						sx = sz = 0.00002;
+					}
+					if (sy < n && sy > -n) {
+						sy = sz = 0.00002;
+					}
+					if (perspective && !t.z && !t.rotationX && !t.rotationY) { //Firefox has a bug that causes elements to have an odd super-thin, broken/dotted black border on elements that have a perspective set but aren't utilizing 3D space (no rotationX, rotationY, or z).
+						perspective = 0;
+					}
 				}
 				if (angle || t.skewX) {
 					cos = Math.cos(angle);

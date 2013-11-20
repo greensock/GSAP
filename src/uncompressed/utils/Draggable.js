@@ -1,6 +1,6 @@
 /*!
- * VERSION: 0.9.5
- * DATE: 2013-10-30
+ * VERSION: 0.9.6
+ * DATE: 2013-11-20
  * UPDATES AND DOCS AT: http://www.greensock.com
  *
  * Requires TweenLite and CSSPlugin version 1.11.0 or later (TweenMax contains both TweenLite and CSSPlugin). ThrowPropsPlugin is required for momentum-based continuation of movement after the mouse/touch is released (ThrowPropsPlugin is a membership benefit of Club GreenSock - http://www.greensock.com/club/).
@@ -247,7 +247,7 @@
 			_isTouchDevice = (("ontouchstart" in _docElement) && ("orientation" in window)),
 			_touchEventLookup = (function(types) { //we create an object that makes it easy to translate touch event types into their "pointer" counterparts if we're in a browser that uses those instead. Like IE10 uses "MSPointerDown" instead of "touchstart", for example.
 				var standard = types.split(","),
-					converted = ((_tempDiv.onmspointerdown !== undefined) ? "MSPointerDown,MSPointerMove,MSPointerUp,MSPointerCancel" : (_tempDiv.onpointerdown !== undefined) ? "pointerdown,pointermove,pointerup,pointercancel" : types).split(","),
+					converted = ((_tempDiv.onpointerdown !== undefined) ? "pointerdown,pointermove,pointerup,pointercancel" : (_tempDiv.onmspointerdown !== undefined) ? "MSPointerDown,MSPointerMove,MSPointerUp,MSPointerCancel" : types).split(","),
 					obj = {},
 					i = 7;
 				while (--i > -1) {
@@ -565,6 +565,7 @@
 				this.x = this.y = this.rotation = 0;
 				this.dragResistance = parseFloat(vars.dragResistance) || 0;
 				this.edgeResistance = isNaN(vars.edgeResistance) ? 1 : parseFloat(vars.edgeResistance) || 0;
+				this.lockAxis = vars.lockAxis;
 				var type = (vars.type || (_isOldIE ? "top,left" : "x,y")).toLowerCase(),
 					xyMode = (type.indexOf("x") !== -1 || type.indexOf("y") !== -1),
 					rotationMode = (type.indexOf("rotation") !== -1),
@@ -573,9 +574,9 @@
 					allowX = (type.indexOf("x") !== -1 || type.indexOf("left") !== -1 || type === "scroll"),
 					allowY = (type.indexOf("y") !== -1 || type.indexOf("top") !== -1 || type === "scroll"),
 					self = this,
-					trigger = _unwrapElement(vars.trigger || target),
+					trigger = _unwrapElement(vars.trigger || vars.handle || target),
 					killProps = {},
-					scrollProxy, startMouseX, startMouseY, startElementX, startElementY, hasBounds, hasDragCallback, maxX, minX, maxY, minY, tempVars, cssVars, touch, touchID, rotationOrigin, dirty, old, snapX, snapY, isClicking, touchEventTarget,
+					scrollProxy, startMouseX, startMouseY, startElementX, startElementY, hasBounds, hasDragCallback, maxX, minX, maxY, minY, tempVars, cssVars, touch, touchID, rotationOrigin, dirty, old, snapX, snapY, isClicking, touchEventTarget, lockedAxis,
 
 					//this method gets called on every tick of TweenLite.ticker which allows us to synchronize the renders to the core engine (which is typically synchronized with the display refresh via requestAnimationFrame). This is an optimization - it's better than applying the values inside the "mousemove" or "touchmove" event handler which may get called many times inbetween refreshes.
 					render = function(suppressEvents) {
@@ -735,10 +736,10 @@
 									throwProps.rotation = _parseThrowProps(self, snapIsRaw ? snap : snap.rotation, maxX, minX, 1, forceZeroVelocity);
 								} else {
 									if (allowX) {
-										throwProps[xProp] = _parseThrowProps(self, snapIsRaw ? snap : snap.x || snap.left || snap.scrollLeft, maxX, minX, scrollProxy ? -1 : 1, forceZeroVelocity);
+										throwProps[xProp] = _parseThrowProps(self, snapIsRaw ? snap : snap.x || snap.left || snap.scrollLeft, maxX, minX, scrollProxy ? -1 : 1, forceZeroVelocity || (self.lockAxis && lockedAxis === "x"));
 									}
 									if (allowY) {
-										throwProps[yProp] = _parseThrowProps(self, snapIsRaw ? snap : snap.y || snap.top || snap.scrollTop, maxY, minY, scrollProxy ? -1 : 1, forceZeroVelocity);
+										throwProps[yProp] = _parseThrowProps(self, snapIsRaw ? snap : snap.y || snap.top || snap.scrollTop, maxY, minY, scrollProxy ? -1 : 1, forceZeroVelocity || (self.lockAxis && lockedAxis === "y"));
 									}
 								}
 							}
@@ -887,7 +888,7 @@
 						startMouseY = self.pointerY = e.pageY; //record the starting x and y so that we can calculate the movement from the original in _onMouseMove
 						startMouseX = self.pointerX = e.pageX;
 						recordStartPositions();
-						self.tween = null;
+						self.tween = lockedAxis = null;
 						if (!rotationMode && !scrollProxy && vars.zIndexBoost !== false) {
 							target.style.zIndex = Draggable.zIndex++;
 						}
@@ -948,8 +949,23 @@
 						} else {
 							yChange = (e.pageY - startMouseY);
 							xChange = (e.pageX - startMouseX);
-							x = (xChange > 2 || xChange < -2) ? startElementX + xChange * dragTolerance : startElementX;
-							y = (yChange > 2 || yChange < -2) ? startElementY + yChange * dragTolerance : startElementY;
+							if (yChange < 2 && yChange > -2) {
+								yChange = 0;
+							}
+							if (xChange < 2 && xChange > -2) {
+								xChange = 0;
+							}
+							if (self.lockAxis && (xChange || yChange)) {
+								if (lockedAxis === "y" || (!lockedAxis && Math.abs(xChange) > Math.abs(yChange) && allowX)) {
+									yChange = 0;
+									lockedAxis = "y";
+								} else if (allowY) {
+									xChange = 0;
+									lockedAxis = "x";
+								}
+							}
+							x = startElementX + xChange * dragTolerance;
+							y = startElementY + yChange * dragTolerance;
 						}
 
 						if (snapX || snapY) {
@@ -1215,7 +1231,7 @@
 
 		p.constructor = Draggable;
 		p.pointerX = p.pointerY = 0;
-		Draggable.version = "0.9.5";
+		Draggable.version = "0.9.6";
 		Draggable.zIndex = 1000;
 
 		_addListener(_doc, "touchcancel", function() {
