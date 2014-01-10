@@ -1,6 +1,6 @@
 /*!
- * VERSION: 0.9.6
- * DATE: 2013-11-20
+ * VERSION: 0.9.7
+ * DATE: 2014-01-10
  * UPDATES AND DOCS AT: http://www.greensock.com
  *
  * Requires TweenLite and CSSPlugin version 1.11.0 or later (TweenMax contains both TweenLite and CSSPlugin). ThrowPropsPlugin is required for momentum-based continuation of movement after the mouse/touch is released (ThrowPropsPlugin is a membership benefit of Club GreenSock - http://www.greensock.com/club/).
@@ -27,6 +27,7 @@
 			_emptyArray = [],
 			_emptyFunc = function() { return false; },
 			_RAD2DEG = 180 / Math.PI,
+			_max = 999999999999999,
 			_isOldIE = (_doc.all && !_doc.addEventListener),
 			_renderQueue = [],
 			_lookup = {}, //when a Draggable is created, the target gets a unique _gsDragID property that allows gets associated with the Draggable instance for quick lookups in Draggable.get(). This avoids circular references that could cause gc problems.
@@ -161,66 +162,147 @@
 				}
 			},
 
-			_defaultTransform = {x:0, y:0},
-
-			_getBounds = function(obj, unrotated) { //accepts any of the following: a DOM element, jQuery object, selector text, or an object defining bounds as {top, left, width, height} or {minX, maxX, minY, maxY}. Returns an object with left, top, width, and height properties.
+			_getBounds = function(obj, context) { //accepts any of the following: a DOM element, jQuery object, selector text, or an object defining bounds as {top, left, width, height} or {minX, maxX, minY, maxY}. Returns an object with left, top, width, and height properties.
 				var e = _unwrapElement(obj),
-					scrollTop, scrollLeft, rect, transform, width, height, top, left;
+					top, left;
 				if (!e) {
 					left = obj.min || obj.minX || obj.minRotation || 0;
 					top = obj.min || obj.minY || 0;
 					return (obj.left !== undefined) ? obj : {left:left, top:top, width:(obj.max || obj.maxX || obj.maxRotation || 0) - left, height:(obj.max || obj.maxY || 0) - top};
 				}
-				scrollTop = (e.pageYOffset != null) ? e.pageYOffset : (_doc.scrollTop != null) ? _doc.scrollTop : _doc.body.scrollTop || _docElement.scrollTop || 0;
-				scrollLeft = (e.pageXOffset != null) ? e.pageXOffset : (_doc.scrollLeft != null) ? _doc.scrollLeft : _doc.body.scrollLeft || _docElement.scrollLeft || 0;
-				if (e === window) {
-					return {
-						top:scrollTop,
-						left:scrollLeft,
-						width:_docElement.clientWidth || e.innerWidth || _doc.body.clientWidth || 0,
-						height:(e.innerHeight - 20 < _docElement.clientHeight) ? _docElement.clientHeight : e.innerHeight || _doc.body.clientHeight || 0 //some browsers (like Firefox) ignore absolutely positioned elements, and collapse the height of the documentElement, so it could be 8px, for example, if you have just an absolutely positioned div. In that case, we use the innerHeight to resolve this.
-					};
-				}
-				if (unrotated) {
-					width = e.offsetWidth;
-					height = e.offsetHeight;
-					top = e.offsetTop;
-					left = e.offsetLeft;
-					while ((e = e.offsetParent)) {
-						top += e.offsetTop;
-						left += e.offsetLeft;
-					}
-					return {top:top, left:left, width:width, height:height};
-				} else {
-					rect = e.getBoundingClientRect();
-					transform = e._gsTransform || _defaultTransform;
-					return {top:rect.top - transform.y + scrollTop, left:rect.left - transform.x + scrollLeft, width:rect.right - rect.left, height:rect.bottom - rect.top};
-				}
+				return _getElementBounds(e, context);
 			},
 
 			_tempDiv = _doc.createElement("div"),
-			_originProp = _checkPrefix(_tempDiv, "transformOrigin").replace(/([A-Z])/g, "-$1").toLowerCase(),
-			_transformProp = _checkPrefix(_tempDiv, "transform"),
 			_supports3D = (_checkPrefix(_tempDiv, "perspective") !== ""),
 
-			_getTransformOriginOffset = function(e) {
-				var bounds = _getBounds(e, true),
-					cs = _getComputedStyle(e),
+
+			// start matrix and point conversion methods...
+			_originProp = _checkPrefix(_tempDiv, "transformOrigin").replace(/^ms/g, "Ms").replace(/([A-Z])/g, "-$1").toLowerCase(),
+			_transformProp = _checkPrefix(_tempDiv, "transform"),
+			_transformCSSProp = _transformProp.replace(/^ms/g, "Ms").replace(/([A-Z])/g, "-$1").toLowerCase(),
+			_point1 = {}, //we reuse _point1 and _point2 objects inside matrix and point conversion methods to conserve memory and minimize garbage collection tasks.
+			_point2 = {},
+			_getOffsetTransformOrigin = function(e, decoratee) {
+				decoratee = decoratee || {};
+				if (!e || e === document.body || !e.parentNode) {
+					return {x:0, y:0};
+				}
+				var cs = _getComputedStyle(e),
 					v = (_originProp && cs) ? cs.getPropertyValue(_originProp) : "50% 50%",
 					a = v.split(" "),
 					x = (v.indexOf("left") !== -1) ? "0%" : (v.indexOf("right") !== -1) ? "100%" : a[0],
-					y = (v.indexOf("top") !== -1) ? "0%" : (v.indexOf("bottom") !== -1) ? "100%" : a[1],
-					transform = e._gsTransform || _defaultTransform;
+					y = (v.indexOf("top") !== -1) ? "0%" : (v.indexOf("bottom") !== -1) ? "100%" : a[1];
 				if (y === "center" || y == null) {
 					y = "50%";
 				}
 				if (x === "center" || isNaN(parseFloat(x))) { //remember, the user could flip-flop the values and say "bottom center" or "center bottom", etc. "center" is ambiguous because it could be used to describe horizontal or vertical, hence the isNaN(). If there's an "=" sign in the value, it's relative.
 					x = "50%";
 				}
-				bounds.left += transform.x + ((x.indexOf("%") !== -1) ? bounds.width * parseFloat(x) / 100 : parseFloat(x));
-				bounds.top += transform.y + ((y.indexOf("%") !== -1) ? bounds.height * parseFloat(y) / 100 : parseFloat(y));
-				return bounds;
+				decoratee.x = ((x.indexOf("%") !== -1) ? e.offsetWidth * parseFloat(x) / 100 : parseFloat(x));
+				decoratee.y = ((y.indexOf("%") !== -1) ? e.offsetHeight * parseFloat(y) / 100 : parseFloat(y));
+				return decoratee;
 			},
+			_getOffset2DMatrix = function(e, offsetOrigin, parentOffsetOrigin) {
+				var cs, m;
+				if (e === window || !e || !e.parentNode) {
+					return [1,0,0,1,0,0];
+				}
+				cs = _getComputedStyle(e);
+				m = cs ? cs.getPropertyValue(_transformCSSProp) : e.currentStyle ? e.currentStyle[_transformProp] : "1,0,0,1,0,0";
+				m = (m + "").match(/(?:\-|\b)[\d\-\.e]+\b/g) || [1,0,0,1,0,0];
+				if (m.length > 6) {
+					m = [m[0], m[1], m[4], m[5], m[12], m[13]];
+				}
+				if (offsetOrigin) {
+					m[4] = Number(m[4]) + offsetOrigin.x + e.offsetLeft - parentOffsetOrigin.x;
+					m[5] = Number(m[5]) + offsetOrigin.y + e.offsetTop - parentOffsetOrigin.y;
+				}
+				return m;
+			},
+			_getConcatenatedMatrix = function(e, invert) {
+				//note: we keep reusing _point1 and _point2 in order to minimize memory usage and garbage collection chores.
+				var originOffset = _getOffsetTransformOrigin(e, _point1),
+					parentOriginOffset = _getOffsetTransformOrigin(e.parentNode, _point2),
+					m = _getOffset2DMatrix(e, originOffset, parentOriginOffset),
+					a, b, c, d, tx, ty, m2, determinant;
+				while ((e = e.parentNode) && e.parentNode && e !== document.body) {
+					originOffset = parentOriginOffset;
+					parentOriginOffset = _getOffsetTransformOrigin(e.parentNode, (originOffset === _point1) ? _point2 : _point1);
+					m2 = _getOffset2DMatrix(e, originOffset, parentOriginOffset);
+					a = m[0];
+					b = m[1];
+					c = m[2];
+					d = m[3];
+					tx = m[4];
+					ty = m[5];
+					m[0] = a * m2[0] + b * m2[2];
+					m[1] = a * m2[1] + b * m2[3];
+					m[2] = c * m2[0] + d * m2[2];
+					m[3] = c * m2[1] + d * m2[3];
+					m[4] = tx * m2[0] + ty * m2[2] + m2[4];
+					m[5] = tx * m2[1] + ty * m2[3] + m2[5];
+				}
+				if (invert) {
+					a = m[0];
+					b = m[1];
+					c = m[2];
+					d = m[3];
+					tx = m[4];
+					ty = m[5];
+					determinant = (a * d - b * c);
+					m[0] = d / determinant;
+					m[1] = -b / determinant;
+					m[2] = -c / determinant;
+					m[3] = a / determinant;
+					m[4] = (c * ty - d * tx) / determinant;
+					m[5] = -(a * ty - b * tx) / determinant;
+				}
+				return m;
+			},
+			_localToGlobal = function(e, p, decoratee) {
+				var m = _getConcatenatedMatrix(e),
+					x = p.x,
+					y = p.y;
+				decoratee = (decoratee === true) ? p : decoratee || {};
+				decoratee.x = x * m[0] + y * m[2] + m[4];
+				decoratee.y = x * m[1] + y * m[3] + m[5];
+				return decoratee;
+			},
+			_localizePoint = function(p, localToGlobal, globalToLocal) {
+				var x = p.x * localToGlobal[0] + p.y * localToGlobal[2] + localToGlobal[4],
+					y = p.x * localToGlobal[1] + p.y * localToGlobal[3] + localToGlobal[5];
+				p.x = x * globalToLocal[0] + y * globalToLocal[2] + globalToLocal[4];
+				p.y = x * globalToLocal[1] + y * globalToLocal[3] + globalToLocal[5];
+				return p;
+			},
+			_getElementBounds = function(e, context) {
+				var origin, left, right, top, bottom, mLocalToGlobal, mGlobalToLocal, p1, p2, p3, p4;
+				if (e === window) {
+					top = (e.pageYOffset != null) ? e.pageYOffset : (_doc.scrollTop != null) ? _doc.scrollTop : _doc.body.scrollTop || _docElement.scrollTop || 0;
+					left = (e.pageXOffset != null) ? e.pageXOffset : (_doc.scrollLeft != null) ? _doc.scrollLeft : _doc.body.scrollLeft || _docElement.scrollLeft || 0;
+					right = left + (_docElement.clientWidth || e.innerWidth || _doc.body.clientWidth || 0);
+					bottom = top + ((e.innerHeight - 20 < _docElement.clientHeight) ? _docElement.clientHeight : e.innerHeight || _doc.body.clientHeight || 0); //some browsers (like Firefox) ignore absolutely positioned elements, and collapse the height of the documentElement, so it could be 8px, for example, if you have just an absolutely positioned div. In that case, we use the innerHeight to resolve this.
+				} else {
+					origin = _getOffsetTransformOrigin(e);
+					left = -origin.x;
+					right = left + e.offsetWidth;
+					top = -origin.y;
+					bottom = top + e.offsetHeight;
+				}
+				mLocalToGlobal = _getConcatenatedMatrix(e);
+				mGlobalToLocal = _getConcatenatedMatrix(context, true);
+				p1 = _localizePoint({x:left, y:top}, mLocalToGlobal, mGlobalToLocal);
+				p2 = _localizePoint({x:right, y:top}, mLocalToGlobal, mGlobalToLocal);
+				p3 = _localizePoint({x:right, y:bottom}, mLocalToGlobal, mGlobalToLocal);
+				p4 = _localizePoint({x:left, y:bottom}, mLocalToGlobal, mGlobalToLocal);
+				left = Math.min(p1.x, p2.x, p3.x, p4.x);
+				top = Math.min(p1.y, p2.y, p3.y, p4.y);
+				return {left:left, top:top, width:Math.max(p1.x, p2.x, p3.x, p4.x) - left, height:Math.max(p1.y, p2.y, p3.y, p4.y) - top};
+			},
+			// end matrix and point conversion methods
+
+
 
 			_isArrayLike = function(e) {
 				return (e.length && e[0] && ((e[0].nodeType && e[0].style && !e.nodeType) || (e[0].length && e[0][0]))) ? true : false; //could be an array of jQuery objects too, so accommodate that.
@@ -282,8 +364,6 @@
 				_isMultiTouching = (e.touches && _dragCount < e.touches.length);
 				_addListener(e.target, "touchend", _onMultiTouchDocumentEnd);
 			},
-
-			_max = 999999999999999,
 
 			_parseThrowProps = function(draggable, snap, max, min, factor, forceZeroVelocity) {
 				var vars = {},
@@ -576,7 +656,7 @@
 					self = this,
 					trigger = _unwrapElement(vars.trigger || vars.handle || target),
 					killProps = {},
-					scrollProxy, startMouseX, startMouseY, startElementX, startElementY, hasBounds, hasDragCallback, maxX, minX, maxY, minY, tempVars, cssVars, touch, touchID, rotationOrigin, dirty, old, snapX, snapY, isClicking, touchEventTarget, lockedAxis,
+					scrollProxy, startMouseX, startMouseY, startElementX, startElementY, hasBounds, hasDragCallback, maxX, minX, maxY, minY, tempVars, cssVars, touch, touchID, rotationOrigin, dirty, old, snapX, snapY, isClicking, touchEventTarget, lockedAxis, matrix, interrupted,
 
 					//this method gets called on every tick of TweenLite.ticker which allows us to synchronize the renders to the core engine (which is typically synchronized with the display refresh via requestAnimationFrame). This is an optimization - it's better than applying the values inside the "mousemove" or "touchmove" event handler which may get called many times inbetween refreshes.
 					render = function(suppressEvents) {
@@ -677,7 +757,7 @@
 							self.maxX = maxX = self.maxY = maxY = 0;
 							hasBounds = true;
 						} else if (!!vars.bounds) {
-							bounds = _getBounds(vars.bounds); //could be a selector/jQuery object or a DOM element or a generic object like {top:0, left:100, width:1000, height:800} or {minX:100, maxX:1100, minY:0, maxY:800}
+							bounds = _getBounds(vars.bounds, target.parentNode); //could be a selector/jQuery object or a DOM element or a generic object like {top:0, left:100, width:1000, height:800} or {minX:100, maxX:1100, minY:0, maxY:800}
 							if (rotationMode) {
 								self.minX = minX = bounds.left;
 								self.maxX = maxX = bounds.left + bounds.width;
@@ -689,9 +769,9 @@
 								self.maxX = maxX = bounds.maxX;
 								self.maxY = maxY = bounds.maxY;
 							} else {
-								targetBounds = _getBounds(target);
-								self.minX = minX = (xyMode ? 0 : _getStyle(target, "left")) + bounds.left - targetBounds.left;
-								self.minY = minY = (xyMode ? 0 : _getStyle(target, "top")) + bounds.top - targetBounds.top;
+								targetBounds = _getBounds(target, target.parentNode);
+								self.minX = minX = _getStyle(target, xProp) + bounds.left - targetBounds.left;
+								self.minY = minY = _getStyle(target, yProp) + bounds.top - targetBounds.top;
 								self.maxX = maxX = minX + (bounds.width - targetBounds.width);
 								self.maxY = maxY = minY + (bounds.height - targetBounds.height);
 							}
@@ -769,6 +849,10 @@
 
 					recordStartPositions = function() {
 						var edgeTolerance = 1 - self.edgeResistance;
+						matrix = _getConcatenatedMatrix(target.parentNode, true);
+						if (!matrix[1] && !matrix[2] && matrix[0] == 1 && matrix[3] == 1) { //if there are no transforms, we can optimize performance by not factoring in the matrix
+							matrix = null;
+						}
 						if (scrollProxy) {
 							calculateBounds();
 							startElementY = scrollProxy.top();
@@ -782,10 +866,10 @@
 								self.applyBounds();
 							}
 							if (rotationMode) {
-								rotationOrigin = _getTransformOriginOffset(target);
+								rotationOrigin = _localToGlobal(target, {x:0, y:0});
 								syncXY(true, true);
 								startElementX = self.x; //starting rotation (x always refers to rotation in type:"rotation", measured in degrees)
-								startElementY = self.y = Math.atan2(rotationOrigin.top - startMouseY, startMouseX - rotationOrigin.left) * _RAD2DEG;
+								startElementY = self.y = Math.atan2(rotationOrigin.y - startMouseY, startMouseX - rotationOrigin.x) * _RAD2DEG;
 							} else {
 								startElementY = _getStyle(target, yProp); //record the starting top and left values so that we can just add the mouse's movement to them later.
 								startElementX = _getStyle(target, xProp);
@@ -843,9 +927,11 @@
 
 					//called when the mouse is pressed (or touch starts)
 					onPress = function(e) {
+						var temp;
 						if (self.isDragging || !e) { //just in case the browser dispatches a "touchstart" and "mousedown" (some browsers emulate mouse events when using touches)
 							return;
 						}
+						interrupted = isTweening();
 						self.pointerEvent = e;
 						if (_touchEventLookup[e.type]) { //note: on iOS, BOTH touchmove and mousemove are dispatched, but the mousemove has pageY and pageX of 0 which would mess up the calculations and needlessly hurt performance.
 							touchEventTarget = (e.type.indexOf("touch") !== -1) ? trigger : _doc; //pointer-based touches (for Microsoft browsers) don't remain locked to the original target like other browsers, so we must use the document instead. The event type would be "MSPointerDown" or "pointerdown".
@@ -888,6 +974,11 @@
 						startMouseY = self.pointerY = e.pageY; //record the starting x and y so that we can calculate the movement from the original in _onMouseMove
 						startMouseX = self.pointerX = e.pageX;
 						recordStartPositions();
+						if (matrix) {
+							temp = startMouseX * matrix[0] + startMouseY * matrix[2] + matrix[4];
+							startMouseY = startMouseX * matrix[1] + startMouseY * matrix[3] + matrix[5];
+							startMouseX = temp;
+						}
 						self.tween = lockedAxis = null;
 						if (!rotationMode && !scrollProxy && vars.zIndexBoost !== false) {
 							target.style.zIndex = Draggable.zIndex++;
@@ -918,7 +1009,7 @@
 						var touches = e.changedTouches,
 							dragTolerance = 1 - self.dragResistance,
 							edgeTolerance = 1 - self.edgeResistance,
-							xChange, yChange, x, y, i, dif;
+							xChange, yChange, x, y, i, dif, mouseX, mouseY, temp;
 						if (touches) { //touch events store the data slightly differently
 							e = touches[0];
 							if (e !== touch && e.identifier !== touchID) { //Usually changedTouches[0] will be what we're looking for, but in case it's not, look through the rest of the array...(and Android browsers don't reuse the event like iOS)
@@ -931,12 +1022,12 @@
 						} else if (e.pointerId && touchID && e.pointerId !== touchID) { //for some Microsoft browsers, we must attach the listener to the doc rather than the trigger so that when the finger moves outside the bounds of the trigger, things still work. So if the event we're receiving has a pointerId that doesn't match the touchID, ignore it (for multi-touch)
 							return;
 						}
-						self.pointerX = e.pageX;
-						self.pointerY = e.pageY;
+						mouseX = self.pointerX = e.pageX;
+						mouseY = self.pointerY = e.pageY;
 						dirty = true; //a flag that indicates we need to render the target next time the TweenLite.ticker dispatches a "tick" event (typically on a requestAnimationFrame) - this is a performance optimization (we shouldn't render on every move because sometimes many move events can get dispatched between screen refreshes, and that'd be wasteful to render every time)
 
 						if (rotationMode) {
-							y = Math.atan2(rotationOrigin.top - e.pageY, e.pageX - rotationOrigin.left) * _RAD2DEG;
+							y = Math.atan2(rotationOrigin.y - e.pageY, e.pageX - rotationOrigin.x) * _RAD2DEG;
 							dif = self.y - y;
 							self.y = y;
 							if (dif > 180) {
@@ -947,8 +1038,13 @@
 							x = startElementX + (startElementY - y) * dragTolerance;
 
 						} else {
-							yChange = (e.pageY - startMouseY);
-							xChange = (e.pageX - startMouseX);
+							if (matrix) {
+								temp = mouseX * matrix[0] + mouseY * matrix[2] + matrix[4];
+								mouseY = mouseX * matrix[1] + mouseY * matrix[3] + matrix[5];
+								mouseX = temp;
+							}
+							yChange = (mouseY - startMouseY);
+							xChange = (mouseX - startMouseX);
 							if (yChange < 2 && yChange > -2) {
 								yChange = 0;
 							}
@@ -1054,6 +1150,9 @@
 							xChange = (e.pageX - startMouseX);
 						}
 						if (originalEvent && xChange < 2 && xChange > -2 && yChange < 2 && yChange > -2) {
+							if (interrupted && vars.snap) { //otherwise, if the user clicks on the object while it's animating to a snapped position, and then releases without moving 3 pixels, it will just stay there (it should animate/snap)
+								animate(vars.throwProps);
+							}
 							_dispatchEvent(self, "click", "onClick");
 						} else {
 							animate(vars.throwProps); //will skip if throwProps isn't defined or ThrowPropsPlugin isn't loaded.
@@ -1178,11 +1277,16 @@
 						scrollProxy.disable();
 					}
 					_removeFromRenderQueue(render);
-					delete _lookup[target._gsDragID];
 					this.isDragging = isClicking = false;
 					if (dragging) {
 						_dispatchEvent(this, "dragend", "onDragEnd");
 					}
+					return self;
+				};
+
+				this.kill = function() {
+					this.disable();
+					delete _lookup[target._gsDragID];
 					return self;
 				};
 
@@ -1231,7 +1335,7 @@
 
 		p.constructor = Draggable;
 		p.pointerX = p.pointerY = 0;
-		Draggable.version = "0.9.6";
+		Draggable.version = "0.9.7";
 		Draggable.zIndex = 1000;
 
 		_addListener(_doc, "touchcancel", function() {
