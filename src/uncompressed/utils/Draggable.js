@@ -1,6 +1,6 @@
 /*!
- * VERSION: 0.9.7
- * DATE: 2014-01-10
+ * VERSION: 0.9.8
+ * DATE: 2014-01-12
  * UPDATES AND DOCS AT: http://www.greensock.com
  *
  * Requires TweenLite and CSSPlugin version 1.11.0 or later (TweenMax contains both TweenLite and CSSPlugin). ThrowPropsPlugin is required for momentum-based continuation of movement after the mouse/touch is released (ThrowPropsPlugin is a membership benefit of Club GreenSock - http://www.greensock.com/club/).
@@ -559,7 +559,9 @@
 						element.appendChild(node);
 						node = nextNode;
 					}
-					element.removeChild(content);
+					if (element === content.parentNode) { //in case disable() is called when it's already disabled.
+						element.removeChild(content);
+					}
 				};
 
 				this.enable = function() {
@@ -1167,6 +1169,11 @@
 						return true;
 					};
 
+				old = Draggable.get(this.target);
+				if (old) {
+					old.kill(); // avoids duplicates (an element can only be controlled by one Draggable)
+				}
+
 				//give the user access to start/stop dragging...
 				this.startDrag = onPress;
 				this.endDrag = function(e) {
@@ -1285,7 +1292,7 @@
 				};
 
 				this.kill = function() {
-					this.disable();
+					self.disable();
 					delete _lookup[target._gsDragID];
 					return self;
 				};
@@ -1323,10 +1330,6 @@
 					cssVars = tempVars.css;
 					tempVars.overwrite = false;
 				}
-				old = Draggable.get(this.target);
-				if (old) {
-					old.disable(); // avoids duplicates (an element can only be controlled by one Draggable)
-				}
 
 				this.isDragging = false;
 				this.enable();
@@ -1335,7 +1338,7 @@
 
 		p.constructor = Draggable;
 		p.pointerX = p.pointerY = 0;
-		Draggable.version = "0.9.7";
+		Draggable.version = "0.9.8";
 		Draggable.zIndex = 1000;
 
 		_addListener(_doc, "touchcancel", function() {

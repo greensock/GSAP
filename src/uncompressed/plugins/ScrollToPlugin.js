@@ -1,6 +1,6 @@
 /*!
- * VERSION: beta 1.7.1
- * DATE: 2013-10-23
+ * VERSION: 1.7.2
+ * DATE: 2014-01-10
  * UPDATES AND DOCS AT: http://www.greensock.com
  *
  * @license Copyright (c) 2008-2013, GreenSock. All rights reserved.
@@ -40,11 +40,13 @@
 				this.y = this.yPrev = this.getY();
 				if (value.x != null) {
 					this._addTween(this, "x", this.x, (value.x === "max") ? _max(target, "x") : value.x, "scrollTo_x", true);
+					this._overwriteProps.push("scrollTo_x");
 				} else {
 					this.skipX = true;
 				}
 				if (value.y != null) {
 					this._addTween(this, "y", this.y, (value.y === "max") ? _max(target, "y") : value.y, "scrollTo_y", true);
+					this._overwriteProps.push("scrollTo_y");
 				} else {
 					this.skipY = true;
 				}
@@ -62,10 +64,10 @@
 
 				if (this._autoKill) {
 					//note: iOS has a bug that throws off the scroll by several pixels, so we need to check if it's within 7 pixels of the previous one that we set instead of just looking for an exact match.
-					if (!this.skipX && (xDif > 7 || xDif < -7)) {
+					if (!this.skipX && (xDif > 7 || xDif < -7) && x < _max(this._target, "x")) {
 						this.skipX = true; //if the user scrolls separately, we should stop tweening!
 					}
-					if (!this.skipY && (yDif > 7 || yDif < -7)) {
+					if (!this.skipY && (yDif > 7 || yDif < -7)) {//} && y < _max(this._target, "y")) {
 						this.skipY = true; //if the user scrolls separately, we should stop tweening!
 					}
 					if (this.skipX && this.skipY) {
