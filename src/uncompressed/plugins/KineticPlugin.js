@@ -1,9 +1,9 @@
 /*!
- * VERSION: 0.4.1
- * DATE: 2013-07-10
+ * VERSION: 0.5.0
+ * DATE: 2014-01-18
  * UPDATES AND DOCS AT: http://www.greensock.com
  *
- * @license Copyright (c) 2008-2013, GreenSock. All rights reserved.
+ * @license Copyright (c) 2008-2014, GreenSock. All rights reserved.
  * This work is subject to the terms at http://www.greensock.com/terms_of_use.html or for
  * Club GreenSock members, the software agreement that was issued with your membership.
  * 
@@ -13,8 +13,7 @@
 	
 	"use strict";
 
-	var _specialProps = {setScale:1, setShadowOffset:1, setFillPatternOffset:1, setOffset:1, setFill:2, setStroke:2, setShadowColor:2}, //type 1 is one that has "x" and "y" components that can be split apart but in order to set them, they must be combined into a single object and passed to one setter (like setScale({x:0.5, y:0.6})). Type 2 is for colors.
-		_getterNames = {},
+	var _specialProps = {scale:1, shadowOffset:1, fillPatternOffset:1, offset:1, fill:2, stroke:2, shadowColor:2}, //type 1 is one that has "x" and "y" components that can be split apart but in order to set them, they must be combined into a single object and passed to one setter (like setScale({x:0.5, y:0.6})). Type 2 is for colors.
 		_getterFuncs = {},
 		_setterFuncs = {},
 		_numExp = /(\d|\.)+/g,
@@ -110,15 +109,12 @@
 		},
 		_prepDimensionProp = function(p, dimension) {
 			var alt = (dimension === "x") ? "y" : "x",
-				uc = dimension.toUpperCase(),
-				getter = "get" + p.substr(3),
 				proxyName = "_gs_" + p;
-			_getterNames[p + uc] = getter + uc;
-			_getterFuncs[p + uc] = function() {
-				return this[getter]()[dimension];
+			_getterFuncs[p] = function() {
+				return this["get" + p]()[dimension];
 			};
-			_setterFuncs[p + uc] =  function(value) {
-				var cur = this[getter](),
+			_setterFuncs[p] = function(value) {
+				var cur = this["get" + p](),
 					proxy = this[proxyName];
 				if (!proxy) {
 					proxy = this[proxyName] = {};
@@ -129,10 +125,13 @@
 				return this;
 			};
 		},
+		_createGetterSetter = function(getter, setter) {
+			return function(value) {return (arguments.length) ? setter(value) : getter(); };
+		},
 		//looks at every property in the vars and converts them (when appropriate) to the KineticJS equivalent, like "x" would become "setX", "rotation" would be "setRotation", etc. If it finds a special property for which "x" and "y" must be split apart (like scale, offset, shadowOffset, etc.), it will do that as well, and if the getters and setters aren't already on the object (like setScaleX, setScaleY, getScaleX, and getScaleY), it'll add those to the target itself (actually, its prototype if available). This method returns an array of any names it had to change (like "x", "y", "scale", etc.) so that they can be used in the overwriteProps array.
 		_convertProps = function(target, vars) {
 			var converted = [],
-				p, gp, val, i, proto;
+				p, val, i, proto;
 			for (p in vars) {
 				val = vars[p];
 				if (p !== "bezier" && p !== "autoDraw" && p.substr(0,3) !== "set" && target[p] === undefined) {
@@ -141,16 +140,14 @@
 					p = "set" + p.charAt(0).toUpperCase() + p.substr(1);
 					vars[p] = val;
 				}
-				gp = _getterNames[p];
-				if (gp) {
+				if (_specialProps[p]) {
 					if (_specialProps[p] === 1) {
 						vars[p + "X"] = vars[p + "Y"] = vars[p];
 						delete vars[p];
 						return _convertProps(target, vars);
 					} else if (!target[p] && _setterFuncs[p]) {
 						proto = target.prototype || target;
-						proto[p] = _setterFuncs[p];
-						proto[gp] = _getterFuncs[p];
+						proto[p] = _createGetterSetter(_getterFuncs[p], _setterFuncs[p]);
 					}
 				} else if (p === "bezier") {
 					val = (val instanceof Array) ? val : val.values || [];
@@ -174,10 +171,9 @@
 			}
 			return result;
 		},
-		p;
+		versionValid, p;
 
 	for (p in _specialProps) {
-		_getterNames[p] = "get" + p.substr(3);
 		if (_specialProps[p] === 1) {
 			_prepDimensionProp(p, "x");
 			_prepDimensionProp(p, "y");
@@ -187,10 +183,14 @@
 	window._gsDefine.plugin({
 		propName: "kinetic",
 		API: 2,
+		version: "0.5.0",
 
 		//called when the tween renders for the first time. This is where initial values should be recorded and any setup routines should run.
 		init: function(target, value, tween) {
 			var p, val, gp, sp, bezierPlugin, directionalRotationPlugin;
+			if (!versionValid && (versionValid = (parseInt(Kinetic.version.split(".")[0], 10)) < 5)) {
+				throw ("The GSAP KineticPlugin that's loaded requires KineticJS version 5.0.0 or later. For earlier versions, use KineticPlugin from GSAP 1.11.3 or earlier.");
+			}
 			this._overwriteProps = _convertProps(target, value); //allow users to pass in shorter names like "x" instead of "setX" and "rotationDeg" instead of "setRotationDeg"
 			this._target = target;
 			this._layer = (value.autoDraw !== false) ? target.getLayer() : null;
@@ -201,8 +201,7 @@
 				val = value[p];
 				//we must handle colors in a special way, splitting apart the red, green, blue, and alpha.
 				if (_specialProps[p] === 2) {
-					gp = _getterNames[p];
-					sp = this._firstSP = new ColorProp(target, gp, p, this._firstSP);
+					sp = this._firstSP = new ColorProp(target, p, p, this._firstSP);
 					val = _parseColor(val);
 					if (sp.proxy.r !== val[0]) {
 						this._addTween(sp.proxy, "r", sp.proxy.r, val[0], p);
@@ -223,25 +222,26 @@
 					}
 					bezierPlugin = this._bezier = new bezierPlugin();
 					if (typeof(val) === "object" && val.autoRotate === true) {
-						val.autoRotate = ["setX","setY","setRotation",0,true];
+						val.autoRotate = ["x","y","rotation",0,false];
 					}
 					bezierPlugin._onInitTween(target, val, tween);
 					this._overwriteProps = this._overwriteProps.concat(bezierPlugin._overwriteProps);
 					this._addTween(bezierPlugin, "setRatio", 0, 1, p);
 
-				} else if ((p === "setRotation" || p === "setRotationDeg") && typeof(val) === "string" && _directionalRotationExp.test(val)) {
+				} else if ((p === "rotation" || p === "rotationDeg") && typeof(val) === "string" && _directionalRotationExp.test(val)) {
 					directionalRotationPlugin = _plugins.DirectionalRotationPlugin;
 					if (!directionalRotationPlugin) {
 						throw("DirectionalRotationPlugin not loaded");
 					}
 					directionalRotationPlugin = this._directionalRotation = new directionalRotationPlugin();
-					gp = {useRadians:(p === "setRotation")};
+					gp = {useRadians:false};
 					gp[p] = val;
 					directionalRotationPlugin._onInitTween(target, gp, tween);
 					this._addTween(directionalRotationPlugin, "setRatio", 0, 1, p);
 
 				} else if (p !== "autoDraw") {
-					this._addTween(target, p, ((typeof(target[p]) === "function") ? target["get" + p.substr(3)]() : target[p]) || 0, val, p);
+					gp = "get" + p.substr(3);
+					this._addTween(target, p, ((typeof(target[p]) === "function") ? target[( typeof(target[gp]) === "function" ? gp : p)]() : target[p]) || 0, val, p);
 				}
 				this._overwriteProps.push(p);
 			}

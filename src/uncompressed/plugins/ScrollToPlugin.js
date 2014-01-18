@@ -1,9 +1,9 @@
 /*!
- * VERSION: 1.7.2
- * DATE: 2014-01-10
+ * VERSION: 1.7.3
+ * DATE: 2014-01-14
  * UPDATES AND DOCS AT: http://www.greensock.com
  *
- * @license Copyright (c) 2008-2013, GreenSock. All rights reserved.
+ * @license Copyright (c) 2008-2014, GreenSock. All rights reserved.
  * This work is subject to the terms at http://www.greensock.com/terms_of_use.html or for
  * Club GreenSock members, the software agreement that was issued with your membership.
  * 
@@ -26,6 +26,7 @@
 		ScrollToPlugin = window._gsDefine.plugin({
 			propName: "scrollTo",
 			API: 2,
+			version:"1.7.3",
 
 			//called when the tween renders for the first time. This is where initial values should be recorded and any setup routines should run.
 			init: function(target, value, tween) {
@@ -67,7 +68,7 @@
 					if (!this.skipX && (xDif > 7 || xDif < -7) && x < _max(this._target, "x")) {
 						this.skipX = true; //if the user scrolls separately, we should stop tweening!
 					}
-					if (!this.skipY && (yDif > 7 || yDif < -7)) {//} && y < _max(this._target, "y")) {
+					if (!this.skipY && (yDif > 7 || yDif < -7) && y < _max(this._target, "y")) {
 						this.skipY = true; //if the user scrolls separately, we should stop tweening!
 					}
 					if (this.skipX && this.skipY) {

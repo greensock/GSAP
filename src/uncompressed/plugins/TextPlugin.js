@@ -3,7 +3,7 @@
  * DATE: 2013-07-10
  * UPDATES AND DOCS AT: http://www.greensock.com
  *
- * @license Copyright (c) 2008-2013, GreenSock. All rights reserved.
+ * @license Copyright (c) 2008-2014, GreenSock. All rights reserved.
  * This work is subject to the terms at http://www.greensock.com/terms_of_use.html or for
  * Club GreenSock members, the software agreement that was issued with your membership.
  * 
@@ -32,6 +32,7 @@
 			TextPlugin = window._gsDefine.plugin({
 				propName: "text",
 				API: 2,
+				version:"0.5.0",
 
 				//called when the tween renders for the first time. This is where initial values should be recorded and any setup routines should run.
 				init: function(target, value, tween) {

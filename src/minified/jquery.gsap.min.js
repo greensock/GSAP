@@ -5,7 +5,7 @@
  *
  * Requires TweenLite version 1.8.0 or higher and CSSPlugin.
  *
- * @license Copyright (c) 2013, GreenSock. All rights reserved.
+ * @license Copyright (c) 2014, GreenSock. All rights reserved.
  * This work is subject to the terms at http://www.greensock.com/terms_of_use.html or for
  * Club GreenSock members, the software agreement that was issued with your membership.
  *

@@ -1,11 +1,11 @@
 /*!
- * VERSION: 0.9.8
- * DATE: 2014-01-12
+ * VERSION: 0.9.9
+ * DATE: 2014-01-18
  * UPDATES AND DOCS AT: http://www.greensock.com
  *
  * Requires TweenLite and CSSPlugin version 1.11.0 or later (TweenMax contains both TweenLite and CSSPlugin). ThrowPropsPlugin is required for momentum-based continuation of movement after the mouse/touch is released (ThrowPropsPlugin is a membership benefit of Club GreenSock - http://www.greensock.com/club/).
  *
- * @license Copyright (c) 2008-2013, GreenSock. All rights reserved.
+ * @license Copyright (c) 2008-2014, GreenSock. All rights reserved.
  * This work is subject to the terms at http://www.greensock.com/terms_of_use.html or for
  * Club GreenSock members, the software agreement that was issued with your membership.
  * 
@@ -134,6 +134,45 @@
 			},
 
 			_getComputedStyle = _doc.defaultView ? _doc.defaultView.getComputedStyle : _emptyFunc,
+			_horizExp = /(?:Left|Right|Width)/i,
+			_suffixExp = /(?:\d|\-|\+|=|#|\.)*/g,
+			_convertToPixels = function(t, p, v, sfx, recurse) {
+				if (sfx === "px" || !sfx) { return v; }
+				if (sfx === "auto" || !v) { return 0; }
+				var horiz = _horizExp.test(p),
+					node = t,
+					style = _tempDiv.style,
+					neg = (v < 0),
+					pix;
+				if (neg) {
+					v = -v;
+				}
+				if (sfx === "%" && p.indexOf("border") !== -1) {
+					pix = (v / 100) * (horiz ? t.clientWidth : t.clientHeight);
+				} else {
+					style.cssText = "border:0 solid red;position:" + _getStyle(t, "position", true) + ";line-height:0;";
+					if (sfx === "%" || !node.appendChild) {
+						node = t.parentNode || _doc.body;
+						style[(horiz ? "width" : "height")] = v + sfx;
+					} else {
+						style[(horiz ? "borderLeftWidth" : "borderTopWidth")] = v + sfx;
+					}
+					node.appendChild(_tempDiv);
+					pix = parseFloat(_tempDiv[(horiz ? "offsetWidth" : "offsetHeight")]);
+					node.removeChild(_tempDiv);
+					if (pix === 0 && !recurse) {
+						pix = _convertToPixels(t, p, v, sfx, true);
+					}
+				}
+				return neg ? -pix : pix;
+			},
+			_calculateOffset = function(t, p) { //for figuring out "top" or "left" in px when it's "auto". We need to factor in margin with the offsetLeft/offsetTop
+				if (_getStyle(t, "position", true) !== "absolute") { return 0; }
+				var dim = ((p === "left") ? "Left" : "Top"),
+					v = _getStyle(t, "margin" + dim, true);
+				return t["offset" + dim] - (_convertToPixels(t, p, parseFloat(v), v.replace(_suffixExp, "")) || 0);
+			},
+
 			_getStyle = function(element, prop, keepUnits) {
 				var rv = (element._gsTransform || {})[prop],
 					cs;
@@ -142,10 +181,13 @@
 				} else if (element.style[prop]) {
 					rv = element.style[prop];
 				} else if ((cs = _getComputedStyle(element))) {
-					element = cs.getPropertyValue(prop.replace(/([A-Z])/g, "-$1").toLowerCase());
-					rv = (element || cs.length) ? element : cs[prop]; //Opera behaves VERY strangely - length is usually 0 and cs[prop] is the only way to get accurate results EXCEPT when checking for -o-transform which only works with cs.getPropertyValue()!
+					rv = cs.getPropertyValue(prop.replace(/([A-Z])/g, "-$1").toLowerCase());
+					rv = (rv || cs.length) ? rv : cs[prop]; //Opera behaves VERY strangely - length is usually 0 and cs[prop] is the only way to get accurate results EXCEPT when checking for -o-transform which only works with cs.getPropertyValue()!
 				} else if (element.currentStyle) {
 					rv = element.currentStyle[prop];
+				}
+				if (rv === "auto" && (prop === "top" || prop === "left")) {
+					rv = _calculateOffset(element, prop);
 				}
 				return keepUnits ? rv : parseFloat(rv) || 0;
 			},
@@ -161,14 +203,17 @@
 					instance.dispatchEvent(type);
 				}
 			},
-
 			_getBounds = function(obj, context) { //accepts any of the following: a DOM element, jQuery object, selector text, or an object defining bounds as {top, left, width, height} or {minX, maxX, minY, maxY}. Returns an object with left, top, width, and height properties.
 				var e = _unwrapElement(obj),
-					top, left;
+					top, left, offset;
 				if (!e) {
+					if (obj.left !== undefined) {
+						offset = _getOffsetTransformOrigin(context); //the bounds should be relative to the origin
+						return {left: obj.left - offset.x, top: obj.top - offset.y, width: obj.width, height: obj.height};
+					}
 					left = obj.min || obj.minX || obj.minRotation || 0;
 					top = obj.min || obj.minY || 0;
-					return (obj.left !== undefined) ? obj : {left:left, top:top, width:(obj.max || obj.maxX || obj.maxRotation || 0) - left, height:(obj.max || obj.maxY || 0) - top};
+					return {left:left, top:top, width:(obj.max || obj.maxX || obj.maxRotation || 0) - left, height:(obj.max || obj.maxY || 0) - top};
 				}
 				return _getElementBounds(e, context);
 			},
@@ -183,6 +228,7 @@
 			_transformCSSProp = _transformProp.replace(/^ms/g, "Ms").replace(/([A-Z])/g, "-$1").toLowerCase(),
 			_point1 = {}, //we reuse _point1 and _point2 objects inside matrix and point conversion methods to conserve memory and minimize garbage collection tasks.
 			_point2 = {},
+			_hasReparentBug, //we'll set this inside the _getOffset2DMatrix() method after the body has loaded.
 			_getOffsetTransformOrigin = function(e, decoratee) {
 				decoratee = decoratee || {};
 				if (!e || e === document.body || !e.parentNode) {
@@ -217,6 +263,26 @@
 				if (offsetOrigin) {
 					m[4] = Number(m[4]) + offsetOrigin.x + e.offsetLeft - parentOffsetOrigin.x;
 					m[5] = Number(m[5]) + offsetOrigin.y + e.offsetTop - parentOffsetOrigin.y;
+					//some browsers (like Chrome 31) have a bug that causes the offsetParent not to report correctly when a transform is applied to an element's parent, so the offsetTop and offsetLeft are measured from the parent instead of whatever the offsetParent reports as. For example, put an absolutely-positioned child div inside a position:static parent, then check the child's offsetTop before and after you apply a transform, like rotate(1deg). You'll see that it changes, but the offsetParent doesn't. So we must sense this condition here (and we can only do it after the body has loaded, as browsers don't accurately report offsets otherwise) and set a variable that we can easily reference later.
+					if (_hasReparentBug === undefined && _doc.body && _transformProp) {
+						_hasReparentBug = (function() {
+							var parent = _doc.createElement("div"),
+								child = _doc.createElement("div"),
+								oldOffsetParent, value;
+							child.style.position = "absolute";
+							_doc.body.appendChild(parent);
+							parent.appendChild(child);
+							oldOffsetParent = child.offsetParent;
+							parent.style[_transformProp] = "rotate(1deg)";
+							value = (child.offsetParent === oldOffsetParent);
+							_doc.body.removeChild(parent);
+							return value;
+						}());
+					}
+					if (e.parentNode && e.parentNode.offsetParent === e.offsetParent && (!_hasReparentBug || _getOffset2DMatrix(e.parentNode).join("") === "100100")) {
+						m[4] -= e.parentNode.offsetLeft;
+						m[5] -= e.parentNode.offsetTop;
+					}
 				}
 				return m;
 			},
@@ -279,8 +345,8 @@
 			_getElementBounds = function(e, context) {
 				var origin, left, right, top, bottom, mLocalToGlobal, mGlobalToLocal, p1, p2, p3, p4;
 				if (e === window) {
-					top = (e.pageYOffset != null) ? e.pageYOffset : (_doc.scrollTop != null) ? _doc.scrollTop : _doc.body.scrollTop || _docElement.scrollTop || 0;
-					left = (e.pageXOffset != null) ? e.pageXOffset : (_doc.scrollLeft != null) ? _doc.scrollLeft : _doc.body.scrollLeft || _docElement.scrollLeft || 0;
+					top = (e.pageYOffset != null) ? e.pageYOffset : (_doc.scrollTop != null) ? _doc.scrollTop : _docElement.scrollTop || _doc.body.scrollTop || 0;
+					left = (e.pageXOffset != null) ? e.pageXOffset : (_doc.scrollLeft != null) ? _doc.scrollLeft : _docElement.scrollLeft || _doc.body.scrollLeft || 0;
 					right = left + (_docElement.clientWidth || e.innerWidth || _doc.body.clientWidth || 0);
 					bottom = top + ((e.innerHeight - 20 < _docElement.clientHeight) ? _docElement.clientHeight : e.innerHeight || _doc.body.clientHeight || 0); //some browsers (like Firefox) ignore absolutely positioned elements, and collapse the height of the documentElement, so it could be 8px, for example, if you have just an absolutely positioned div. In that case, we use the innerHeight to resolve this.
 				} else {
@@ -289,6 +355,9 @@
 					right = left + e.offsetWidth;
 					top = -origin.y;
 					bottom = top + e.offsetHeight;
+				}
+				if (e === context) {
+					return {left:left, top:top, width: right - left, height: bottom - top};
 				}
 				mLocalToGlobal = _getConcatenatedMatrix(e);
 				mGlobalToLocal = _getConcatenatedMatrix(context, true);
@@ -1338,7 +1407,7 @@
 
 		p.constructor = Draggable;
 		p.pointerX = p.pointerY = 0;
-		Draggable.version = "0.9.8";
+		Draggable.version = "0.9.9";
 		Draggable.zIndex = 1000;
 
 		_addListener(_doc, "touchcancel", function() {
