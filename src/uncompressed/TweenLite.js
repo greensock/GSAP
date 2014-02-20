@@ -1,6 +1,6 @@
 /*!
- * VERSION: 1.11.4
- * DATE: 2014-01-18
+ * VERSION: 1.11.5
+ * DATE: 2014-02-20
  * UPDATES AND DOCS AT: http://www.greensock.com
  *
  * @license Copyright (c) 2008-2014, GreenSock. All rights reserved.
@@ -872,7 +872,7 @@
 		p._firstPT = p._targets = p._overwrittenProps = p._startAt = null;
 		p._notifyPluginsOfEnabled = false;
 		
-		TweenLite.version = "1.11.4";
+		TweenLite.version = "1.11.5";
 		TweenLite.defaultEase = p._ease = new Ease(null, null, 1, 1);
 		TweenLite.defaultOverwrite = "auto";
 		TweenLite.ticker = _ticker;

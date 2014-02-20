@@ -1,6 +1,6 @@
 /*!
- * VERSION: 0.5.0
- * DATE: 2014-01-18
+ * VERSION: 0.5.1
+ * DATE: 2014-02-14
  * UPDATES AND DOCS AT: http://www.greensock.com
  *
  * @license Copyright (c) 2008-2014, GreenSock. All rights reserved.
@@ -128,7 +128,7 @@
 		_createGetterSetter = function(getter, setter) {
 			return function(value) {return (arguments.length) ? setter(value) : getter(); };
 		},
-		//looks at every property in the vars and converts them (when appropriate) to the KineticJS equivalent, like "x" would become "setX", "rotation" would be "setRotation", etc. If it finds a special property for which "x" and "y" must be split apart (like scale, offset, shadowOffset, etc.), it will do that as well, and if the getters and setters aren't already on the object (like setScaleX, setScaleY, getScaleX, and getScaleY), it'll add those to the target itself (actually, its prototype if available). This method returns an array of any names it had to change (like "x", "y", "scale", etc.) so that they can be used in the overwriteProps array.
+		//looks at every property in the vars and converts them (when appropriate) to the KineticJS equivalent. If it finds a special property for which "x" and "y" must be split apart (like scale, offset, shadowOffset, etc.), it will do that as well. This method returns an array of any names it had to change (like "x", "y", "scale", etc.) so that they can be used in the overwriteProps array.
 		_convertProps = function(target, vars) {
 			var converted = [],
 				p, val, i, proto;
@@ -180,10 +180,10 @@
 		}
 	}
 
-	window._gsDefine.plugin({
+	var KineticPlugin = window._gsDefine.plugin({
 		propName: "kinetic",
 		API: 2,
-		version: "0.5.0",
+		version: "0.5.1",
 
 		//called when the tween renders for the first time. This is where initial values should be recorded and any setup routines should run.
 		init: function(target, value, tween) {
@@ -239,9 +239,12 @@
 					directionalRotationPlugin._onInitTween(target, gp, tween);
 					this._addTween(directionalRotationPlugin, "setRatio", 0, 1, p);
 
+				} else if (val instanceof Array) { //for array-based values like "points"
+					this._initArrayTween(target[p](), val, p);
+
 				} else if (p !== "autoDraw") {
 					gp = "get" + p.substr(3);
-					this._addTween(target, p, ((typeof(target[p]) === "function") ? target[( typeof(target[gp]) === "function" ? gp : p)]() : target[p]) || 0, val, p);
+					this._addTween(target, p, ((typeof(target[p]) === "function") ? target[( (gp !== "get" && typeof(target[gp]) === "function") ? gp : p)]() : target[p]) || 0, val, p);
 				}
 				this._overwriteProps.push(p);
 			}
@@ -274,13 +277,25 @@
 			this._super.setRatio.call(this, ratio);
 			var sp = this._firstSP,
 				layer = this._layer,
-				t, proxy;
+				arrayTweens = this._arrayTweens,
+				i, e, p, val, t, proxy;
 			if (sp) {
 				t = this._target;
 				while (sp) {
 					proxy = sp.proxy;
 					t[sp.setter]( (proxy.a !== 1 ? "rgba(" : "rgb(") + (proxy.r | 0) + ", " + (proxy.g | 0) + ", " + (proxy.b | 0) + (proxy.a !== 1 ? ", " + proxy.a : "") + ")");
 					sp = sp._next;
+				}
+			}
+			if (arrayTweens) {
+				i = arrayTweens.length;
+				while (--i > -1) {
+					e = arrayTweens[i];
+					val = e.s + e.c * ratio;
+					e.a[e.i] = (val < 0.000001 && val > -0.000001) ? 0 : val;
+				}
+				for (p in this._arrayProps) {
+					this._target[p](this._arrayProps[p]);
 				}
 			}
 			if (layer && !layer._gsDraw) {
@@ -294,5 +309,26 @@
 		}
 
 	});
+
+	p = KineticPlugin.prototype;
+	p._initArrayTween = function(a, b, prop) {
+		if (!this._arrayTweens) {
+			this._arrayTweens = []; //stores data about any elements that must tween (ones that match in a and b are ignored (no need to waste resources). For example, {a:array, i:0, s:100, c:50}
+			this._arrayProps = {}; //stores data about which properties are associted with which arrays so that we can apply them in the setRatio() method, like target[property](array), as in target.points([1,2,500,600]);
+		}
+		var i = a.length,
+			tweens = this._arrayTweens,
+			start, end;
+		while (--i > -1) {
+			start = a[i];
+			end = b[i];
+			if (start !== end) {
+				tweens.push({a:a, i:i, s:start, c:end - start});
+			}
+		}
+		if (tweens.length) {
+			this._arrayProps[prop] = a;
+		}
+	};
 
 }); if (window._gsDefine) { window._gsQueue.pop()(); }

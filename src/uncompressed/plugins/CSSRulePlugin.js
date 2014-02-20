@@ -1,6 +1,6 @@
 /*!
- * VERSION: beta 0.6.0
- * DATE: 2013-07-03
+ * VERSION: beta 0.6.1
+ * DATE: 2014-01-20
  * UPDATES AND DOCS AT: http://www.greensock.com
  *
  * @license Copyright (c) 2008-2014, GreenSock. All rights reserved.
@@ -26,6 +26,7 @@
 
 		p._propName = "cssRule";
 		p.constructor = CSSRulePlugin;
+		CSSRulePlugin.version = "0.6.1";
 		CSSRulePlugin.API = 2;
 
 		/**
@@ -70,12 +71,12 @@
 		};
 							
 		
-		//@private gets called when the tween renders for the first time. This kicks everything off, recording start/end values, etc.
+		// @private gets called when the tween renders for the first time. This kicks everything off, recording start/end values, etc.
 		p._onInitTween = function(target, value, tween) {
 			if (target.cssText === undefined) {
 				return false;
 			}
-			var div = _doc.createElement("div");
+			var div = target._gsProxy = target._gsProxy || _doc.createElement("div");
 			this._ss = target;
 			this._proxy = div.style;
 			div.style.cssText = target.cssText;
@@ -85,7 +86,7 @@
 
 		
 		
-		//@private gets called every time the tween updates, passing the new ratio (typically a value between 0 and 1, but not always (for example, if an Elastic.easeOut is used, the value can jump above 1 mid-tween). It will always start and 0 and end at 1.
+		// @private gets called every time the tween updates, passing the new ratio (typically a value between 0 and 1, but not always (for example, if an Elastic.easeOut is used, the value can jump above 1 mid-tween). It will always start and 0 and end at 1.
 		p.setRatio = function(v) {
 			_superSetRatio.call(this, v);
 			this._ss.cssText = this._proxy.cssText;

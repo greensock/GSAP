@@ -1,6 +1,6 @@
 /*!
- * VERSION: 0.9.9
- * DATE: 2014-01-18
+ * VERSION: 0.10.0
+ * DATE: 2014-02-20
  * UPDATES AND DOCS AT: http://www.greensock.com
  *
  * Requires TweenLite and CSSPlugin version 1.11.0 or later (TweenMax contains both TweenLite and CSSPlugin). ThrowPropsPlugin is required for momentum-based continuation of movement after the mouse/touch is released (ThrowPropsPlugin is a membership benefit of Club GreenSock - http://www.greensock.com/club/).
@@ -28,6 +28,7 @@
 			_emptyFunc = function() { return false; },
 			_RAD2DEG = 180 / Math.PI,
 			_max = 999999999999999,
+			_getTime = Date.now || function() {return new Date().getTime();},
 			_isOldIE = (_doc.all && !_doc.addEventListener),
 			_renderQueue = [],
 			_lookup = {}, //when a Draggable is created, the target gets a unique _gsDragID property that allows gets associated with the Draggable instance for quick lookups in Draggable.get(). This avoids circular references that could cause gc problems.
@@ -36,6 +37,7 @@
 			_dragCount = 0, //total number of elements currently being dragged
 			_prefix,
 			_isMultiTouching,
+			_lastDragTime = 0,
 			ThrowPropsPlugin,
 
 			_renderQueueTick = function() {
@@ -507,6 +509,8 @@
 					offsetLeft = 0,
 					prevTop = element.scrollTop,
 					prevLeft = element.scrollLeft,
+					scrollWidth = element.scrollWidth,
+					scrollHeight = element.scrollHeight,
 					extraPadRight = 0,
 					maxLeft = 0,
 					maxTop = 0,
@@ -652,7 +656,7 @@
 						x, y;
 					prevTop = element.scrollTop;
 					prevLeft = element.scrollLeft;
-					if (widthMatches && element.clientHeight === elementHeight && content.offsetHeight === contentHeight && !force) {
+					if (widthMatches && element.clientHeight === elementHeight && content.offsetHeight === contentHeight && scrollWidth === element.scrollWidth && scrollHeight === element.scrollHeight && !force) {
 						return; //no need to recalculate things if the width and height haven't changed.
 					}
 					if (offsetTop || offsetLeft) {
@@ -686,6 +690,8 @@
 					}
 					elementWidth = element.clientWidth;
 					elementHeight = element.clientHeight;
+					scrollWidth = element.scrollWidth;
+					scrollHeight = element.scrollHeight;
 					maxLeft = element.scrollWidth - elementWidth;
 					maxTop = element.scrollHeight - elementHeight;
 					contentHeight = content.offsetHeight;
@@ -727,6 +733,7 @@
 					self = this,
 					trigger = _unwrapElement(vars.trigger || vars.handle || target),
 					killProps = {},
+					dragEndTime = 0,
 					scrollProxy, startMouseX, startMouseY, startElementX, startElementY, hasBounds, hasDragCallback, maxX, minX, maxY, minY, tempVars, cssVars, touch, touchID, rotationOrigin, dirty, old, snapX, snapY, isClicking, touchEventTarget, lockedAxis, matrix, interrupted,
 
 					//this method gets called on every tick of TweenLite.ticker which allows us to synchronize the renders to the core engine (which is typically synchronized with the display refresh via requestAnimationFrame). This is an optimization - it's better than applying the values inside the "mousemove" or "touchmove" event handler which may get called many times inbetween refreshes.
@@ -969,7 +976,7 @@
 					buildSnapFunc = function(snap, min, max, factor) {
 						if (typeof(snap) === "function") {
 							return function(n) {
-								var edgeTolerance = !self.isDragging ? 1 : 1 - self.edgeResistance; //if we're tweening, disable the edgeTolerance because it's already factored into the tweening values (we don't want to apply it multiple times)
+								var edgeTolerance = !self.isPressed ? 1 : 1 - self.edgeResistance; //if we're tweening, disable the edgeTolerance because it's already factored into the tweening values (we don't want to apply it multiple times)
 								return snap.call(self, (n > max ? max + (n - max) * edgeTolerance : (n < min) ? min + (n - min) * edgeTolerance : n)) * factor;
 							};
 						}
@@ -999,7 +1006,7 @@
 					//called when the mouse is pressed (or touch starts)
 					onPress = function(e) {
 						var temp;
-						if (self.isDragging || !e) { //just in case the browser dispatches a "touchstart" and "mousedown" (some browsers emulate mouse events when using touches)
+						if (self.isPressed || !e) { //just in case the browser dispatches a "touchstart" and "mousedown" (some browsers emulate mouse events when using touches)
 							return;
 						}
 						interrupted = isTweening();
@@ -1054,18 +1061,17 @@
 						if (!rotationMode && !scrollProxy && vars.zIndexBoost !== false) {
 							target.style.zIndex = Draggable.zIndex++;
 						}
-						self.isDragging = true;
+						self.isPressed = true;
 						hasDragCallback = !!(vars.onDrag || self._listeners.drag);
-						dirty = false;
 						if (!rotationMode) {
 							_setStyle(trigger, "cursor", vars.cursor || "move");
 						}
-						_dispatchEvent(self, "dragstart", "onDragStart");
+						_dispatchEvent(self, "press", "onPress");
 					},
 
 					//called every time the mouse/touch moves
 					onMove = function(e) {
-						if (_isMultiTouching || !self.isDragging) {
+						if (_isMultiTouching || !self.isPressed) {
 							return;
 						}
 						if (_isOldIE) {
@@ -1095,7 +1101,6 @@
 						}
 						mouseX = self.pointerX = e.pageX;
 						mouseY = self.pointerY = e.pageY;
-						dirty = true; //a flag that indicates we need to render the target next time the TweenLite.ticker dispatches a "tick" event (typically on a requestAnimationFrame) - this is a performance optimization (we shouldn't render on every move because sometimes many move events can get dispatched between screen refreshes, and that'd be wasteful to render every time)
 
 						if (rotationMode) {
 							y = Math.atan2(rotationOrigin.y - e.pageY, e.pageX - rotationOrigin.x) * _RAD2DEG;
@@ -1163,8 +1168,11 @@
 							} else {
 								self.y = self.endY = y;
 							}
-						} else {
-							dirty = false;
+							dirty = true; //a flag that indicates we need to render the target next time the TweenLite.ticker dispatches a "tick" event (typically on a requestAnimationFrame) - this is a performance optimization (we shouldn't render on every move because sometimes many move events can get dispatched between screen refreshes, and that'd be wasteful to render every time)
+							if (!self.isDragging) {
+								self.isDragging = true;
+								_dispatchEvent(self, "dragstart", "onDragStart");
+							}
 						}
 					},
 
@@ -1173,8 +1181,10 @@
 						if (e && touchID && !force && e.pointerId && e.pointerId !== touchID) {  //for some Microsoft browsers, we must attach the listener to the doc rather than the trigger so that when the finger moves outside the bounds of the trigger, things still work. So if the event we're receiving has a pointerId that doesn't match the touchID, ignore it (for multi-touch)
 							return;
 						}
+						self.isPressed = false;
 						var originalEvent = e,
-							touches, xChange, yChange, i;
+							wasDragging = self.isDragging,
+							touches, i;
 						if (touchEventTarget) {
 							_removeListener(touchEventTarget, "touchend", onRelease);
 							_removeListener(touchEventTarget, "touchmove", onMove);
@@ -1189,6 +1199,7 @@
 							if (e) {
 								_removeListener(e.target, "change", onRelease);
 							}
+							_dispatchEvent(self, "release", "onRelease");
 							_dispatchEvent(self, "click", "onClick");
 							isClicking = false;
 							return;
@@ -1197,7 +1208,10 @@
 						if (!rotationMode) {
 							_setStyle(trigger, "cursor", vars.cursor || "move");
 						}
-						self.isDragging = false;
+						if (wasDragging) {
+							dragEndTime = _lastDragTime = _getTime();
+							self.isDragging = false;
+						}
 						_dragCount--;
 						if (e) {
 							if (_isOldIE) {
@@ -1217,13 +1231,12 @@
 							self.pointerEvent = originalEvent;
 							self.pointerX = e.pageX;
 							self.pointerY = e.pageY;
-							yChange = (e.pageY - startMouseY);
-							xChange = (e.pageX - startMouseX);
 						}
-						if (originalEvent && xChange < 2 && xChange > -2 && yChange < 2 && yChange > -2) {
+						if (originalEvent && !wasDragging) {
 							if (interrupted && vars.snap) { //otherwise, if the user clicks on the object while it's animating to a snapped position, and then releases without moving 3 pixels, it will just stay there (it should animate/snap)
 								animate(vars.throwProps);
 							}
+							_dispatchEvent(self, "release", "onRelease");
 							_dispatchEvent(self, "click", "onClick");
 						} else {
 							animate(vars.throwProps); //will skip if throwProps isn't defined or ThrowPropsPlugin isn't loaded.
@@ -1233,9 +1246,21 @@
 									originalEvent.preventManipulation();  //for some Microsoft browsers
 								}
 							}
+							_dispatchEvent(self, "release", "onRelease");
 						}
-						_dispatchEvent(self, "dragend", "onDragEnd");
+						if (wasDragging) {
+							_dispatchEvent(self, "dragend", "onDragEnd");
+						}
 						return true;
+					},
+
+					onClick = function(e) {
+						if (self.isPressed || _getTime() - dragEndTime < 20) {
+							e.preventDefault();
+							if (e.preventManipulation) {
+								e.preventManipulation();  //for some Microsoft browsers
+							}
+						}
 					};
 
 				old = Draggable.get(this.target);
@@ -1244,9 +1269,21 @@
 				}
 
 				//give the user access to start/stop dragging...
-				this.startDrag = onPress;
+				this.startDrag = function(e) {
+					onPress(e);
+					if (!self.isDragging) {
+						self.isDragging = true;
+						_dispatchEvent(self, "dragstart", "onDragStart");
+					}
+				};
 				this.endDrag = function(e) {
 					onRelease(e, true);
+				};
+				this.timeSinceDrag = function() {
+					return self.isDragging ? 0 : (_getTime() - dragEndTime) / 1000;
+				};
+				this.hitTest = function(target, threshold) {
+					return Draggable.hitTest(self.target, target, threshold);
 				};
 
 				this.applyBounds = function(newBounds) {
@@ -1294,7 +1331,7 @@
 					} else {
 						syncXY(true);
 					}
-					if (self.isDragging && (x !== self.x || (y !== self.y && !rotationMode))) {
+					if (self.isPressed && (x !== self.x || (y !== self.y && !rotationMode))) {
 						recordStartPositions();
 					}
 					return self;
@@ -1304,6 +1341,7 @@
 					var id;
 					_addListener(trigger, "mousedown", onPress);
 					_addListener(trigger, "touchstart", onPress);
+					_addListener(trigger, "click", onClick);
 					if (!rotationMode) {
 						_setStyle(trigger, "cursor", vars.cursor || "move");
 					}
@@ -1339,6 +1377,7 @@
 					_setStyle(trigger, "MSTouchAction", "auto");
 					_removeListener(trigger, "mousedown", onPress);
 					_removeListener(trigger, "touchstart", onPress);
+					_removeListener(trigger, "click", onClick);
 					if (touchEventTarget) {
 						_removeListener(touchEventTarget, "touchcancel", onRelease);
 						_removeListener(touchEventTarget, "touchend", onRelease);
@@ -1353,7 +1392,7 @@
 						scrollProxy.disable();
 					}
 					_removeFromRenderQueue(render);
-					this.isDragging = isClicking = false;
+					this.isDragging = this.isPressed = isClicking = false;
 					if (dragging) {
 						_dispatchEvent(this, "dragend", "onDragEnd");
 					}
@@ -1368,7 +1407,7 @@
 
 				if (type.indexOf("scroll") !== -1) {
 					scrollProxy = this.scrollProxy = new ScrollProxy(target, _extend({onKill:function() { //ScrollProxy's onKill() gets called if/when the ScrollProxy senses that the user interacted with the scroll position manually (like using the scrollbar). IE9 doesn't fire the "mouseup" properly when users drag the scrollbar of an element, so this works around that issue.
-						if (self.isDragging) {
+						if (self.isPressed) {
 							onRelease(null);
 						}}}, vars));
 					//a bug in many Android devices' stock browser causes scrollTop to get forced back to 0 after it is altered via JS, so we set overflow to "hidden" on mobile/touch devices (they hide the scroll bar anyway). That works around the bug. (This bug is discussed at https://code.google.com/p/android/issues/detail?id=19625)
@@ -1400,18 +1439,26 @@
 					tempVars.overwrite = false;
 				}
 
-				this.isDragging = false;
 				this.enable();
 			},
 			p = Draggable.prototype = new EventDispatcher();
 
 		p.constructor = Draggable;
 		p.pointerX = p.pointerY = 0;
-		Draggable.version = "0.9.9";
+		p.isDragging = p.isPressed = false;
+		Draggable.version = "0.10.0";
 		Draggable.zIndex = 1000;
 
 		_addListener(_doc, "touchcancel", function() {
 			//some older Android devices intermittently stop dispatching "touchmove" events if we don't listen for "touchcancel" on the document. Very strange indeed.
+		});
+		_addListener(_doc, "contextmenu", function(e) {
+			var p;
+			for (p in _lookup) {
+				if (_lookup[p].isPressed) {
+					_lookup[p].endDrag();
+				}
+			}
 		});
 
 		Draggable.create = function(targets, vars) {
@@ -1428,6 +1475,49 @@
 
 		Draggable.get = function(target) {
 			return _lookup[(_unwrapElement(target) || {})._gsDragID];
+		};
+
+		Draggable.timeSinceDrag = function() {
+			return (_getTime() - _lastDragTime) / 1000;
+		};
+
+		var _parseRect = function(e, undefined) { //accepts a DOM element, a mouse event, or a rectangle object and returns the corresponding rectangle with left, right, width, height, top, and bottom properties
+			var r = (e.pageX !== undefined) ? {left:e.pageX, top:e.pageY, right:e.pageX + 1, bottom:e.pageY + 1} : (!e.nodeType && e.left !== undefined && e.top !== undefined) ? e : _unwrapElement(e).getBoundingClientRect();
+			if (r.right === undefined && r.width !== undefined) {
+				r.right = r.left + r.width;
+				r.bottom = r.top + r.height;
+			} else if (!r.width) { //some browsers don't include width and height properties
+				r.width = r.right - r.left;
+				r.height = r.bottom - r.top;
+			}
+			return r;
+		};
+
+		Draggable.hitTest = function(obj1, obj2, threshold) { //
+			if (obj1 === obj2) {
+				return false;
+			}
+			var r1 = _parseRect(obj1),
+				r2 = _parseRect(obj2),
+				isOutside = (r2.left > r1.right || r2.right < r1.left || r2.top > r1.bottom || r2.bottom < r1.top),
+				overlap, area, isRatio;
+			if (isOutside || !threshold) {
+				return !isOutside;
+			}
+			isRatio = ((threshold + "").indexOf("%") !== -1);
+			threshold = parseFloat(threshold) || 0;
+			overlap = {left:Math.max(r1.left, r2.left), top:Math.max(r1.top, r2.top)};
+			overlap.width = Math.min(r1.right, r2.right) - overlap.left;
+			overlap.height = Math.min(r1.bottom, r2.bottom) - overlap.top;
+			if (overlap.width < 0 || overlap.height < 0) {
+				return false;
+			}
+			if (isRatio) {
+				threshold *= 0.01;
+				area = overlap.width * overlap.height;
+				return (area >= r1.width * r1.height * threshold || area >= r2.width * r2.height * threshold);
+			}
+			return (overlap.width > threshold && overlap.height > threshold);
 		};
 
 		return Draggable;
