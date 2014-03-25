@@ -1,0 +1,29 @@
+{
+    "name": "components/greenshock-js",
+    "description": "GSAP: Professional-Grade HTML5 Animation",
+    "keywords": [
+        "html5",
+        "gsap",
+        "js",
+        "animation",
+        "component"
+    ],
+    "type": "component",
+    "homepage": "http://www.greensock.com/gsap-js/",
+    "license": "NO CHARGE",
+    "require": {
+        "robloach/component-installer": "*"
+    },
+    "extra": {
+        "component": {
+            "scripts": [
+                "src/minified/*.js",
+                "src/minified/easing/*.js",
+                "src/minified/plugins/*.js",
+                "src/minified/utils/*.js"
+            ],
+            "files": [
+            ]
+        }
+    }
+}
