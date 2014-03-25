@@ -1,0 +1,22 @@
+{
+    "name": "greenshock-js",
+    "repo": "components/greenshock-js",
+    "version": "1.11.5",
+    "description": "GSAP: Professional-Grade HTML5 Animation",
+    "homepage": "http://www.greensock.com/gsap-js/",
+    "keywords": [
+        "html5",
+        "gsap",
+        "js",
+        "animation",
+        "component"
+    ],
+    "scripts": [
+        "src/minified/*.js",
+        "src/minified/easing/*.js",
+        "src/minified/plugins/*.js",
+        "src/minified/utils/*.js"
+    ],
+    "files": [
+    ]
+}
