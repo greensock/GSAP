@@ -1,6 +1,6 @@
 /*!
- * VERSION: 1.11.5
- * DATE: 2014-02-20
+ * VERSION: 1.11.6
+ * DATE: 2014-03-26
  * UPDATES AND DOCS AT: http://www.greensock.com
  *
  * @license Copyright (c) 2008-2014, GreenSock. All rights reserved.
@@ -29,9 +29,10 @@
 			p = CSSPlugin.prototype = new TweenPlugin("css");
 
 		p.constructor = CSSPlugin;
-		CSSPlugin.version = "1.11.5";
+		CSSPlugin.version = "1.11.6";
 		CSSPlugin.API = 2;
 		CSSPlugin.defaultTransformPerspective = 0;
+		CSSPlugin.defaultSkewType = "compensated";
 		p = "px"; //we'll reuse the "p" variable to keep file size down
 		CSSPlugin.suffixMap = {top:p, right:p, bottom:p, left:p, width:p, height:p, fontSize:p, padding:p, margin:p, perspective:p, lineHeight:""};
 
@@ -153,7 +154,7 @@
 			 * @param {boolean=} recurse If true, the call is a recursive one. In some browsers (like IE7/8), occasionally the value isn't accurately reported initially, but if we run the function again it will take effect.
 			 * @return {number} value in pixels
 			 */
-			_convertToPixels = function(t, p, v, sfx, recurse) {
+			_convertToPixels = _internals.convertToPixels = function(t, p, v, sfx, recurse) {
 				if (sfx === "px" || !sfx) { return v; }
 				if (sfx === "auto" || !v) { return 0; }
 				var horiz = _horizExp.test(p),
@@ -183,7 +184,7 @@
 				}
 				return neg ? -pix : pix;
 			},
-			_calculateOffset = function(t, p, cs) { //for figuring out "top" or "left" in px when it's "auto". We need to factor in margin with the offsetLeft/offsetTop
+			_calculateOffset = _internals.calculateOffset = function(t, p, cs) { //for figuring out "top" or "left" in px when it's "auto". We need to factor in margin with the offsetLeft/offsetTop
 				if (_getStyle(t, "position", cs) !== "absolute") { return 0; }
 				var dim = ((p === "left") ? "Left" : "Top"),
 					v = _getStyle(t, "margin" + dim, cs);
@@ -1042,6 +1043,9 @@
 			_transformPropCSS = _prefixCSS + "transform",
 			_transformOriginProp = _checkPropPrefix("transformOrigin"),
 			_supports3D = (_checkPropPrefix("perspective") !== null),
+			Transform = _internals.Transform = function() {
+				this.skewY = 0;
+			},
 
 			/**
 			 * Parses the transform values for an element, returning an object with x, y, z, scaleX, scaleY, scaleZ, rotation, rotationX, rotationY, skewX, and skewY properties. Note: by default (for performance reasons), all skewing is combined into skewX and rotation but skewY still has a place in the transform object so that we can record how much of the skew is attributed to skewX vs skewY. Remember, a skewY of 10 looks the same as a rotation of 10 and skewX of -10.
@@ -1051,11 +1055,11 @@
 			 * @param {boolean=} parse if true, we'll ignore any _gsTransform values that already exist on the element, and force a reparsing of the css (calculated style)
 			 * @return {object} object containing all of the transform properties/values like {x:0, y:0, z:0, scaleX:1...}
 			 */
-			_getTransform = function(t, cs, rec, parse) {
+			_getTransform = _internals.getTransform = function(t, cs, rec, parse) {
 				if (t._gsTransform && rec && !parse) {
 					return t._gsTransform; //if the element already has a _gsTransform, use that. Note: some browsers don't accurately return the calculated style for the transform (particularly for SVG), so it's almost always safest to just use the values we've already applied rather than re-parsing things.
 				}
-				var tm = rec ? t._gsTransform || {skewY:0} : {skewY:0},
+				var tm = rec ? t._gsTransform || new Transform() : new Transform(),
 					invX = (tm.scaleX < 0), //in order to interpret things properly, we need to know if the user applied a negative scaleX previously so that we can adjust the rotation and skewX accordingly. Otherwise, if we always interpret a flipped matrix as affecting scaleY and the user only wants to tween the scaleX on multiple sequential tweens, it would keep the negative scaleY without that being the user's intent.
 					min = 0.00002,
 					rnd = 100000,
@@ -1297,7 +1301,7 @@
 				}
 			},
 
-			_set3DTransformRatio = function(v) {
+			_set3DTransformRatio = _internals.set3DTransformRatio = function(v) {
 				var t = this.data, //refers to the element's _gsTransform object
 					style = this.t.style,
 					angle = t.rotation * _DEG2RAD,
@@ -1328,9 +1332,16 @@
 						angle -= t.skewX * _DEG2RAD;
 						cos = Math.cos(angle);
 						sin = Math.sin(angle);
+						if (t.skewType === "simple") { //by default, we compensate skewing on the other axis to make it look more natural, but you can set the skewType to "simple" to use the uncompensated skewing that CSS does
+							t1 = Math.tan(t.skewX * _DEG2RAD);
+							t1 = Math.sqrt(1 + t1 * t1);
+							cos *= t1;
+							sin *= t1;
+						}
 					}
 					a12 = -sin;
 					a22 = cos;
+
 				} else if (!t.rotationY && !t.rotationX && sz === 1 && !perspective) { //if we're only translating and/or 2D scaling, this is faster...
 					style[_transformProp] = "translate3d(" + t.x + "px," + t.y + "px," + t.z +"px)" + ((sx !== 1 || sy !== 1) ? " scale(" + sx + "," + sy + ")" : "");
 					return;
@@ -1404,7 +1415,7 @@
 				style[_transformProp] = "matrix3d(" + [ (((a11 * rnd) | 0) / rnd), (((a21 * rnd) | 0) / rnd), (((a31 * rnd) | 0) / rnd), (((a41 * rnd) | 0) / rnd), (((a12 * rnd) | 0) / rnd), (((a22 * rnd) | 0) / rnd), (((a32 * rnd) | 0) / rnd), (((a42 * rnd) | 0) / rnd), (((a13 * rnd) | 0) / rnd), (((a23 * rnd) | 0) / rnd), (((a33 * rnd) | 0) / rnd), (((a43 * rnd) | 0) / rnd), a14, a24, a34, (perspective ? (1 + (-a34 / perspective)) : 1) ].join(",") + ")";
 			},
 
-			_set2DTransformRatio = function(v) {
+			_set2DTransformRatio = _internals.set2DTransformRatio = function(v) {
 				var t = this.data, //refers to the element's _gsTransform object
 					targ = this.t,
 					style = targ.style,
@@ -1427,7 +1438,7 @@
 				}
 			};
 
-		_registerComplexSpecialProp("transform,scale,scaleX,scaleY,scaleZ,x,y,z,rotation,rotationX,rotationY,rotationZ,skewX,skewY,shortRotation,shortRotationX,shortRotationY,shortRotationZ,transformOrigin,transformPerspective,directionalRotation,parseTransform,force3D", {parser:function(t, e, p, cssp, pt, plugin, vars) {
+		_registerComplexSpecialProp("transform,scale,scaleX,scaleY,scaleZ,x,y,z,rotation,rotationX,rotationY,rotationZ,skewX,skewY,shortRotation,shortRotationX,shortRotationY,shortRotationZ,transformOrigin,transformPerspective,directionalRotation,parseTransform,force3D,skewType", {parser:function(t, e, p, cssp, pt, plugin, vars) {
 			if (cssp._transform) { return pt; } //only need to parse the transform once, and only if the browser supports it.
 			var m1 = cssp._transform = _getTransform(t, _cs, true, vars.parseTransform),
 				style = t.style,
@@ -1480,6 +1491,8 @@
 				m1.force3D = v.force3D;
 				hasChange = true;
 			}
+
+			m1.skewType = v.skewType || m1.skewType || CSSPlugin.defaultSkewType;
 
 			has3D = (m1.force3D || m1.z || m1.rotationX || m1.rotationY || m2.z || m2.rotationX || m2.rotationY || m2.perspective);
 			if (!has3D && v.scale != null) {

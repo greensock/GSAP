@@ -1,6 +1,6 @@
 /*!
- * VERSION: 0.10.0
- * DATE: 2014-02-20
+ * VERSION: 0.10.1
+ * DATE: 2014-03-26
  * UPDATES AND DOCS AT: http://www.greensock.com
  *
  * Requires TweenLite and CSSPlugin version 1.11.0 or later (TweenMax contains both TweenLite and CSSPlugin). ThrowPropsPlugin is required for momentum-based continuation of movement after the mouse/touch is released (ThrowPropsPlugin is a membership benefit of Club GreenSock - http://www.greensock.com/club/).
@@ -787,9 +787,15 @@
 					syncXY = function(skipOnUpdate, skipSnap) {
 						var snappedValue;
 						if (xyMode) {
+							if (!target._gsTransform) { //just in case the _gsTransform got wiped, like if the user called clearProps on the transform or something (very rare), doing an x tween forces a re-parsing of the transforms and population of the _gsTransform.
+								TweenLite.set(target, {x:"+=0"});
+							}
 							self.y = target._gsTransform.y;
 							self.x = target._gsTransform.x;
 						} else if (rotationMode) {
+							if (!target._gsTransform) { //just in case the _gsTransform got wiped, like if the user called clearProps on the transform or something (very rare), doing an x tween forces a re-parsing of the transforms and population of the _gsTransform.
+								TweenLite.set(target, {x:"+=0"});
+							}
 							self.x = self.rotation = target._gsTransform.rotation;
 						} else if (scrollProxy) {
 							self.y = scrollProxy.top();
@@ -1256,7 +1262,11 @@
 
 					onClick = function(e) {
 						if (self.isPressed || _getTime() - dragEndTime < 20) {
-							e.preventDefault();
+							if (e.preventDefault) {
+								e.preventDefault();
+							} else {
+								e.returnValue = false;
+							}
 							if (e.preventManipulation) {
 								e.preventManipulation();  //for some Microsoft browsers
 							}
@@ -1446,7 +1456,7 @@
 		p.constructor = Draggable;
 		p.pointerX = p.pointerY = 0;
 		p.isDragging = p.isPressed = false;
-		Draggable.version = "0.10.0";
+		Draggable.version = "0.10.1";
 		Draggable.zIndex = 1000;
 
 		_addListener(_doc, "touchcancel", function() {
