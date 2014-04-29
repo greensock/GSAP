@@ -1,6 +1,6 @@
 /*!
- * VERSION: 0.1.6
- * DATE: 2013-02-13
+ * VERSION: 0.1.7
+ * DATE: 2014-04-29
  * UPDATES AND DOCS AT: http://www.greensock.com/jquery-gsap-plugin/
  *
  * Requires TweenLite version 1.8.0 or higher and CSSPlugin.
@@ -18,21 +18,13 @@
 		_stop = $.fn.stop,
 		_enabled = true,
 		TweenLite, CSSPlugin, _warned,
-		_dequeue = function(func, next) {
-			if (typeof(func) === "function") {
-				this.each(func);
+		_copy = function(o) {
+			var copy = {},
+				p;
+			for (p in o) {
+				copy[p] = o[p];
 			}
-			next();
-		},
-		_addCallback = function(type, func, obj, vars, next) {
-			next = (typeof(next) === "function") ? next : null;
-			func = (typeof(func) === "function") ? func : null;
-			if (!func && !next) {
-				return;
-			}
-			vars[type] = next ? _dequeue : obj.each;
-			vars[type + "Scope"] = obj;
-			vars[type + "Params"] = next ? [func, next] : [func];
+			return copy;
 		},
 		_reserved = {overwrite:1, delay:1, useFrames:1, runBackwards:1, easeParams:1, yoyo:1, immediateRender:1, repeat:1, repeatDelay:1, autoCSS:1},
 		_copyCriticalReserved = function(main, sub) {
@@ -107,6 +99,7 @@
 		}
 
 		if (specEasing) {
+			vars = _copy(vars);
 			specEasingVars = [];
 			for (p in specEasing) {
 				val = specEasingVars[specEasingVars.length] = {};
@@ -116,6 +109,7 @@
 					p = $.camelCase(p);
 				}
 				val[p] = vars[p];
+				delete vars[p];
 			}
 			if (specEasingVars.length === 0) {
 				specEasingVars = null;
@@ -123,20 +117,34 @@
 		}
 
 		doAnimation = function(next) {
+			var varsCopy = _copy(vars),
+				i;
 			if (specEasingVars) {
-				var i = specEasingVars.length;
+				i = specEasingVars.length;
 				while (--i > -1) {
-					TweenLite.to(obj, $.fx.off ? 0 : config.duration / 1000, specEasingVars[i]);
+					TweenLite.to(this, $.fx.off ? 0 : config.duration / 1000, specEasingVars[i]);
 				}
 			}
-			_addCallback("onComplete", config.old, obj, vars, next);
-			TweenLite.to(obj, $.fx.off ? 0 : config.duration / 1000, vars);
+			varsCopy.onComplete = function() {
+				if (next) {
+					next();
+				} else if (config.old) {
+					$(this).each(config.old);
+				}
+			};
+			TweenLite.to(this, $.fx.off ? 0 : config.duration / 1000, varsCopy);
 		};
 
 		if (config.queue !== false) {
-			obj.queue(config.queue, doAnimation);
+			obj.queue(config.queue, doAnimation); //note: the queued function will get called once for each element in the jQuery collection.
+			if (config.old) {
+				obj.queue(config.queue, function(next) {
+					config.old();
+					next();
+				});
+			}
 		} else {
-			doAnimation();
+			doAnimation.call(obj);
 		}
 
 		return obj;
@@ -162,6 +170,6 @@
 		return this;
 	};
 
-	$.gsap = {enabled:function(value) {_enabled = value;}, version:"0.1.6"};
+	$.gsap = {enabled:function(value) {_enabled = value;}, version:"0.1.7"};
 
 }(jQuery));

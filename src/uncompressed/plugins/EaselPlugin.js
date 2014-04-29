@@ -1,6 +1,6 @@
 /*!
- * VERSION: beta 0.1.5
- * DATE: 2013-08-29
+ * VERSION: 0.1.6
+ * DATE: 2014-04-08
  * UPDATES AND DOCS AT: http://www.greensock.com
  *
  * @license Copyright (c) 2008-2014, GreenSock. All rights reserved.
@@ -228,6 +228,7 @@
 	window._gsDefine.plugin({
 		propName: "easel",
 		priority: -1,
+		version: "0.1.6",
 		API: 2,
 
 		//called when the tween renders for the first time. This is where initial values should be recorded and any setup routines should run.
@@ -277,7 +278,7 @@
 			while (pt) {
 				val = pt.c * v + pt.s;
 				if (pt.r) {
-					val = (val + ((val > 0) ? 0.5 : -0.5)) >> 0; //about 4x faster than Math.round()
+					val = Math.round(val);
 				} else if (val < min && val > -min) {
 					val = 0;
 				}

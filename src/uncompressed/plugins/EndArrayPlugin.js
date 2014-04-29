@@ -1,6 +1,6 @@
 /*!
- * VERSION: 0.1.0
- * DATE: 2014-02-20
+ * VERSION: 0.1.1
+ * DATE: 2014-04-08
  * UPDATES AND DOCS AT: http://www.greensock.com
  *
  * @license Copyright (c) 2008-2014, GreenSock. All rights reserved.
@@ -16,7 +16,7 @@
 	window._gsDefine.plugin({
 		propName: "endArray",
 		API: 2,
-		version: "0.1.0",
+		version: "0.1.1",
 
 		//called when the tween renders for the first time. This is where initial values should be recorded and any setup routines should run.
 		init: function(target, value, tween) {
@@ -53,8 +53,7 @@
 			if (this._round) {
 				while (--i > -1) {
 					e = a[i];
-					val = e.s + e.c * ratio;
-					target[e.i] = (val + ((val > 0) ? 0.5 : -0.5)) | 0; //about 4x faster than Math.round();
+					target[e.i] = Math.round(e.s + e.c * ratio);
 				}
 			} else {
 				while (--i > -1) {
