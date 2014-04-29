@@ -1,6 +1,6 @@
 /*!
- * VERSION: beta 0.2.0
- * DATE: 2013-02-27
+ * VERSION: 0.2.1
+ * DATE: 2014-04-08
  * UPDATES AND DOCS AT: http://www.greensock.com
  *
  * @license Copyright (c) 2008-2014, GreenSock. All rights reserved.
@@ -112,6 +112,7 @@
 
 		RaphaelPlugin = window._gsDefine.plugin({
 			propName: "raphael",
+			version: "0.2.1",
 			API: 2,
 
 			//called when the tween renders for the first time. This is where initial values should be recorded and any setup routines should run.
@@ -218,7 +219,7 @@
 				while (pt) {
 					val = pt.c * v + pt.s;
 					if (pt.r) {
-						val = (val > 0) ? (val + 0.5) >> 0 : (val - 0.5) >> 0;
+						val = Math.round(val);
 					}
 					if (!pt.type) {
 						pt.t[pt.p] = val;

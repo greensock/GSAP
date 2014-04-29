@@ -1,6 +1,6 @@
 /*!
- * VERSION: beta 1.3.1
- * DATE: 2014-03-26
+ * VERSION: beta 1.3.2
+ * DATE: 2014-04-08
  * UPDATES AND DOCS AT: http://www.greensock.com
  *
  * @license Copyright (c) 2008-2014, GreenSock. All rights reserved.
@@ -306,7 +306,7 @@
 			BezierPlugin = window._gsDefine.plugin({
 					propName: "bezier",
 					priority: -1,
-					version: "1.3.1",
+					version: "1.3.2",
 					API: 2,
 					global:true,
 
@@ -441,7 +441,7 @@
 							b = this._beziers[p][curIndex];
 							val = (t * t * b.da + 3 * inv * (t * b.ca + inv * b.ba)) * t + b.a;
 							if (this._round[p]) {
-								val = (val + ((val > 0) ? 0.5 : -0.5)) >> 0;
+								val = Math.round(val);
 							}
 							if (func[p]) {
 								target[p](val);

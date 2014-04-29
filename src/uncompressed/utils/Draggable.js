@@ -1,6 +1,6 @@
 /*!
- * VERSION: 0.10.1
- * DATE: 2014-03-26
+ * VERSION: 0.10.2
+ * DATE: 2014-04-18
  * UPDATES AND DOCS AT: http://www.greensock.com
  *
  * Requires TweenLite and CSSPlugin version 1.11.0 or later (TweenMax contains both TweenLite and CSSPlugin). ThrowPropsPlugin is required for momentum-based continuation of movement after the mouse/touch is released (ThrowPropsPlugin is a membership benefit of Club GreenSock - http://www.greensock.com/club/).
@@ -49,7 +49,7 @@
 			_addToRenderQueue = function(func) {
 				_renderQueue.push(func);
 				if (_renderQueue.length === 1) {
-					TweenLite.ticker.addEventListener("tick", _renderQueueTick);
+					TweenLite.ticker.addEventListener("tick", _renderQueueTick, this, false, 1);
 				}
 			},
 			_removeFromRenderQueue = function(func) {
@@ -233,7 +233,7 @@
 			_hasReparentBug, //we'll set this inside the _getOffset2DMatrix() method after the body has loaded.
 			_getOffsetTransformOrigin = function(e, decoratee) {
 				decoratee = decoratee || {};
-				if (!e || e === document.body || !e.parentNode) {
+				if (!e || e === _docElement || !e.parentNode) {
 					return {x:0, y:0};
 				}
 				var cs = _getComputedStyle(e),
@@ -252,10 +252,12 @@
 				return decoratee;
 			},
 			_getOffset2DMatrix = function(e, offsetOrigin, parentOffsetOrigin) {
-				var cs, m;
+				var cs, m, parent, offsetParent;
 				if (e === window || !e || !e.parentNode) {
 					return [1,0,0,1,0,0];
 				}
+				parent = e.parentNode;
+				offsetParent = e.offsetParent;
 				cs = _getComputedStyle(e);
 				m = cs ? cs.getPropertyValue(_transformCSSProp) : e.currentStyle ? e.currentStyle[_transformProp] : "1,0,0,1,0,0";
 				m = (m + "").match(/(?:\-|\b)[\d\-\.e]+\b/g) || [1,0,0,1,0,0];
@@ -263,8 +265,9 @@
 					m = [m[0], m[1], m[4], m[5], m[12], m[13]];
 				}
 				if (offsetOrigin) {
-					m[4] = Number(m[4]) + offsetOrigin.x + e.offsetLeft - parentOffsetOrigin.x;
-					m[5] = Number(m[5]) + offsetOrigin.y + e.offsetTop - parentOffsetOrigin.y;
+					m[4] = Number(m[4]) + offsetOrigin.x + e.offsetLeft - parentOffsetOrigin.x - (parent !== _doc.body ? parent.scrollLeft : 0) + (offsetParent ? parseInt(_getStyle(offsetParent, "borderLeftWidth"), 10) || 0 : 0);
+					m[5] = Number(m[5]) + offsetOrigin.y + e.offsetTop - parentOffsetOrigin.y - (parent !== _doc.body ? parent.scrollTop : 0) + (offsetParent ? parseInt(_getStyle(offsetParent, "borderTopWidth"), 10) || 0 : 0);
+
 					//some browsers (like Chrome 31) have a bug that causes the offsetParent not to report correctly when a transform is applied to an element's parent, so the offsetTop and offsetLeft are measured from the parent instead of whatever the offsetParent reports as. For example, put an absolutely-positioned child div inside a position:static parent, then check the child's offsetTop before and after you apply a transform, like rotate(1deg). You'll see that it changes, but the offsetParent doesn't. So we must sense this condition here (and we can only do it after the body has loaded, as browsers don't accurately report offsets otherwise) and set a variable that we can easily reference later.
 					if (_hasReparentBug === undefined && _doc.body && _transformProp) {
 						_hasReparentBug = (function() {
@@ -281,9 +284,9 @@
 							return value;
 						}());
 					}
-					if (e.parentNode && e.parentNode.offsetParent === e.offsetParent && (!_hasReparentBug || _getOffset2DMatrix(e.parentNode).join("") === "100100")) {
-						m[4] -= e.parentNode.offsetLeft;
-						m[5] -= e.parentNode.offsetTop;
+					if (parent && parent.offsetParent === e.offsetParent && (!_hasReparentBug || _getOffset2DMatrix(parent).join("") === "100100")) {
+						m[4] -= parent.offsetLeft;
+						m[5] -= parent.offsetTop;
 					}
 				}
 				return m;
@@ -294,7 +297,7 @@
 					parentOriginOffset = _getOffsetTransformOrigin(e.parentNode, _point2),
 					m = _getOffset2DMatrix(e, originOffset, parentOriginOffset),
 					a, b, c, d, tx, ty, m2, determinant;
-				while ((e = e.parentNode) && e.parentNode && e !== document.body) {
+				while ((e = e.parentNode) && e.parentNode && e !== _docElement) {
 					originOffset = parentOriginOffset;
 					parentOriginOffset = _getOffsetTransformOrigin(e.parentNode, (originOffset === _point1) ? _point2 : _point1);
 					m2 = _getOffset2DMatrix(e, originOffset, parentOriginOffset);
@@ -882,8 +885,12 @@
 								snapX = buildSnapFunc((snapIsRaw ? snap : snap.rotation), minX, maxX, 1);
 								snapY = null;
 							} else {
-								snapX = buildSnapFunc((snapIsRaw ? snap : snap.x || snap.left || snap.scrollLeft), minX, maxX, scrollProxy ? -1 : 1);
-								snapY = buildSnapFunc((snapIsRaw ? snap : snap.y || snap.top || snap.scrollTop), minY, maxY, scrollProxy ? -1 : 1);
+								if (allowX) {
+									snapX = buildSnapFunc((snapIsRaw ? snap : snap.x || snap.left || snap.scrollLeft), minX, maxX, scrollProxy ? -1 : 1);
+								}
+								if (allowY) {
+									snapY = buildSnapFunc((snapIsRaw ? snap : snap.y || snap.top || snap.scrollTop), minY, maxY, scrollProxy ? -1 : 1);
+								}
 							}
 						}
 
@@ -931,12 +938,16 @@
 						}
 					},
 
-					recordStartPositions = function() {
-						var edgeTolerance = 1 - self.edgeResistance;
+					updateMatrix = function() {
 						matrix = _getConcatenatedMatrix(target.parentNode, true);
-						if (!matrix[1] && !matrix[2] && matrix[0] == 1 && matrix[3] == 1) { //if there are no transforms, we can optimize performance by not factoring in the matrix
+						if (!matrix[1] && !matrix[2] && matrix[0] == 1 && matrix[3] == 1 && matrix[4] == 0 && matrix[5] == 0) { //if there are no transforms, we can optimize performance by not factoring in the matrix
 							matrix = null;
 						}
+					},
+
+					recordStartPositions = function() {
+						var edgeTolerance = 1 - self.edgeResistance;
+						updateMatrix();
 						if (scrollProxy) {
 							calculateBounds();
 							startElementY = scrollProxy.top();
@@ -1286,6 +1297,7 @@
 						_dispatchEvent(self, "dragstart", "onDragStart");
 					}
 				};
+				this.drag = onMove;
 				this.endDrag = function(e) {
 					onRelease(e, true);
 				};
@@ -1336,6 +1348,7 @@
 				this.update = function(applyBounds) {
 					var x = self.x,
 						y = self.y;
+					updateMatrix();
 					if (applyBounds) {
 						self.applyBounds();
 					} else {
@@ -1456,7 +1469,7 @@
 		p.constructor = Draggable;
 		p.pointerX = p.pointerY = 0;
 		p.isDragging = p.isPressed = false;
-		Draggable.version = "0.10.1";
+		Draggable.version = "0.10.2";
 		Draggable.zIndex = 1000;
 
 		_addListener(_doc, "touchcancel", function() {

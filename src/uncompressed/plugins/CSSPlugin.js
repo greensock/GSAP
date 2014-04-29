@@ -1,6 +1,6 @@
 /*!
- * VERSION: 1.11.6
- * DATE: 2014-03-26
+ * VERSION: 1.11.7
+ * DATE: 2014-04-29
  * UPDATES AND DOCS AT: http://www.greensock.com
  *
  * @license Copyright (c) 2008-2014, GreenSock. All rights reserved.
@@ -29,7 +29,7 @@
 			p = CSSPlugin.prototype = new TweenPlugin("css");
 
 		p.constructor = CSSPlugin;
-		CSSPlugin.version = "1.11.6";
+		CSSPlugin.version = "1.11.7";
 		CSSPlugin.API = 2;
 		CSSPlugin.defaultTransformPerspective = 0;
 		CSSPlugin.defaultSkewType = "compensated";
@@ -137,8 +137,7 @@
 				if (!calc && t.style[p]) {
 					rv = t.style[p];
 				} else if ((cs = cs || _getComputedStyle(t, null))) {
-					t = cs.getPropertyValue(p.replace(_capsExp, "-$1").toLowerCase());
-					rv = (t || cs.length) ? t : cs[p]; //Opera behaves VERY strangely - length is usually 0 and cs[p] is the only way to get accurate results EXCEPT when checking for -o-transform which only works with cs.getPropertyValue()!
+					rv = cs[p] || cs.getPropertyValue(p) || cs.getPropertyValue(p.replace(_capsExp, "-$1").toLowerCase());
 				} else if (t.currentStyle) {
 					rv = t.currentStyle[p];
 				}
@@ -161,7 +160,7 @@
 					node = t,
 					style = _tempDiv.style,
 					neg = (v < 0),
-					pix;
+					pix, cache, time;
 				if (neg) {
 					v = -v;
 				}
@@ -171,6 +170,11 @@
 					style.cssText = "border:0 solid red;position:" + _getStyle(t, "position") + ";line-height:0;";
 					if (sfx === "%" || !node.appendChild) {
 						node = t.parentNode || _doc.body;
+						cache = node._gsCache;
+						time = TweenLite.ticker.frame;
+						if (cache && horiz && cache.time === time) { //performance optimization: we record the width of elements along with the ticker frame so that we can quickly get it again on the same tick (seems relatively safe to assume it wouldn't change on the same tick)
+							return cache.width * v / 100;
+						}
 						style[(horiz ? "width" : "height")] = v + sfx;
 					} else {
 						style[(horiz ? "borderLeftWidth" : "borderTopWidth")] = v + sfx;
@@ -178,6 +182,11 @@
 					node.appendChild(_tempDiv);
 					pix = parseFloat(_tempDiv[(horiz ? "offsetWidth" : "offsetHeight")]);
 					node.removeChild(_tempDiv);
+					if (horiz && sfx === "%" && CSSPlugin.cacheWidths !== false) {
+						cache = node._gsCache = node._gsCache || {};
+						cache.time = time;
+						cache.width = pix / v * 100;
+					}
 					if (pix === 0 && !recurse) {
 						pix = _convertToPixels(t, p, v, sfx, true);
 					}
@@ -553,7 +562,7 @@
 				while (mpt) {
 					val = proxy[mpt.v];
 					if (mpt.r) {
-						val = (val > 0) ? (val + 0.5) | 0 : (val - 0.5) | 0;
+						val = Math.round(val);
 					} else if (val < min && val > -min) {
 						val = 0;
 					}
@@ -1447,7 +1456,6 @@
 				v = vars,
 				endRotations = {},
 				m2, skewY, copy, orig, has3D, hasChange, dr;
-
 			if (typeof(v.transform) === "string" && _transformProp) { //for values like transform:"rotate(60deg) scale(0.5, 0.8)"
 				copy = style.cssText;
 				style[_transformProp] = v.transform;
@@ -1732,6 +1740,9 @@
 		var _removeProp = function(s, p) {
 				if (p) {
 					if (s.removeProperty) {
+						if (p.substr(0,2) === "ms") { //Microsoft browsers don't conform to the standard of capping the first prefix character, so we adjust so that when we prefix the caps with a dash, it's correct (otherwise it'd be "ms-transform" instead of "-ms-transform" for IE9, for example)
+							p = "M" + p.substr(1);
+						}
 						s.removeProperty(p.replace(_capsExp, "-$1").toLowerCase());
 					} else { //note: old versions of IE use "removeAttribute()" instead of "removeProperty()"
 						s.removeAttribute(p);
@@ -2004,7 +2015,7 @@
 						es = (en || en === 0) ? (rel ? en + bn : en) + esfx : vars[p]; //ensures that any += or -= prefixes are taken care of. Record the end value before normalizing the suffix because we always want to end the tween on exactly what they intended even if it doesn't match the beginning value's suffix.
 
 						//if the beginning/ending suffixes don't match, normalize them...
-						if (bsfx !== esfx) if (esfx !== "") if (en || en === 0) if (bn || bn === 0) {
+						if (bsfx !== esfx) if (esfx !== "") if (en || en === 0) if (bn) { //note: if the beginning value (bn) is 0, we don't need to convert units!
 							bn = _convertToPixels(target, p, bn, bsfx);
 							if (esfx === "%") {
 								bn /= _convertToPixels(target, p, 100, "%") / 100;
@@ -2016,7 +2027,7 @@
 								bn /= _convertToPixels(target, p, 1, "em");
 
 							//otherwise convert to pixels.
-							} else {
+							} else if (esfx !== "px") {
 								en = _convertToPixels(target, p, en, esfx);
 								esfx = "px"; //we don't use bsfx after this, so we don't need to set it to px too.
 							}
@@ -2071,7 +2082,7 @@
 				while (pt) {
 					val = pt.c * v + pt.s;
 					if (pt.r) {
-						val = (val > 0) ? (val + 0.5) | 0 : (val - 0.5) | 0;
+						val = Math.round(val);
 					} else if (val < min) if (val > -min) {
 						val = 0;
 					}
