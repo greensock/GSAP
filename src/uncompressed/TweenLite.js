@@ -12,36 +12,33 @@
 
 (function(window) {
 
- 	// define the "window" in a local scope
- 	var self = { GreenSockGlobals: {} };
+	// define the "window" in a local scope
+	var self = {};
 
- 	// define the function to export
- 	var moduleName = 'TweenLite';
+	// define the function to export
+	var moduleName = 'TweenMax';
 
- 	// control the factory and use it depending on environment
- 	(function(factory) {
+	// control the factory and use it depending on environment
+	(function(factory) {
 
- 		var _modules = {};
+		// execute the factory with our own window object and place the modules in it’s GreenSocksGlobal
+		factory(self);
 
- 		// execute the factory with our own window object and place the modules in it’s GreenSocksGlobal
- 		factory(self);
- 		_modules = self.GreenSockGlobals;
+		if ( typeof define === "function" && define.amd ) { // AMD
+			return define(function() {
+				return self[moduleName];
+			});
+		} else if ( typeof module === "object" && typeof module.exports === "object" ) { // CommonJS
+			module.exports = self[moduleName];
+		} else if ( window && window.document ) {
+			for (var prop in self) { // Window - export everything
+				(window.GreenSockGlobals || window)[prop] = self[prop];
+			}
+		} else {
+			throw new Error('No environment found');
+		}
 
- 		if ( typeof define === "function" && define.amd ) { // AMD
- 			return define(function() {
- 				return _modules[moduleName];
- 			});
- 		} else if ( typeof module === "object" && typeof module.exports === "object" ) { // CommonJS
- 			module.exports = _modules[moduleName];
- 		} else if ( window && window.document ) {
- 			for (var prop in _modules) { // Window - export everything
- 				(window.GreenSockGlobals || window)[prop] = _modules[prop];
- 			}
- 		} else {
- 			throw new Error('No environment found');
- 		}
-
- 	}(function(window) {
+	}(function(window) {
 	
 		"use strict";
 		var _globals = window.GreenSockGlobals || window;
