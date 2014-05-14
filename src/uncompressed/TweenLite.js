@@ -1,6 +1,6 @@
 /*!
- * VERSION: 1.11.7
- * DATE: 2014-04-29
+ * VERSION: 1.11.8
+ * DATE: 2014-05-13
  * UPDATES AND DOCS AT: http://www.greensock.com
  *
  * @license Copyright (c) 2008-2014, GreenSock. All rights reserved.
@@ -872,7 +872,7 @@
 		p._firstPT = p._targets = p._overwrittenProps = p._startAt = null;
 		p._notifyPluginsOfEnabled = false;
 		
-		TweenLite.version = "1.11.7";
+		TweenLite.version = "1.11.8";
 		TweenLite.defaultEase = p._ease = new Ease(null, null, 1, 1);
 		TweenLite.defaultOverwrite = "auto";
 		TweenLite.ticker = _ticker;
@@ -1096,7 +1096,7 @@
 		};
 		
 		p._initProps = function(target, propLookup, siblings, overwrittenProps) {
-			var p, i, initPlugins, plugin, a, pt, v;
+			var p, i, initPlugins, plugin, pt, v;
 			if (target == null) {
 				return false;
 			}

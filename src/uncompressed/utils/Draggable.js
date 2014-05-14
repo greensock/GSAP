@@ -1,6 +1,6 @@
 /*!
- * VERSION: 0.10.2
- * DATE: 2014-04-18
+ * VERSION: 0.10.3
+ * DATE: 2014-05-13
  * UPDATES AND DOCS AT: http://www.greensock.com
  *
  * Requires TweenLite and CSSPlugin version 1.11.0 or later (TweenMax contains both TweenLite and CSSPlugin). ThrowPropsPlugin is required for momentum-based continuation of movement after the mouse/touch is released (ThrowPropsPlugin is a membership benefit of Club GreenSock - http://www.greensock.com/club/).
@@ -75,6 +75,12 @@
 					}
 				}
 				return obj;
+			},
+			_getDocScrollTop = function() {
+				return (window.pageYOffset != null) ? window.pageYOffset : (_doc.scrollTop != null) ? _doc.scrollTop : _docElement.scrollTop || _doc.body.scrollTop || 0;
+			},
+			_getDocScrollLeft = function() {
+				return (window.pageXOffset != null) ? window.pageXOffset : (_doc.scrollLeft != null) ? _doc.scrollLeft : _docElement.scrollLeft || _doc.body.scrollLeft || 0;
 			},
 
 			//just used for IE8 and earlier to normalize events and populate pageX/pageY
@@ -252,12 +258,10 @@
 				return decoratee;
 			},
 			_getOffset2DMatrix = function(e, offsetOrigin, parentOffsetOrigin) {
-				var cs, m, parent, offsetParent;
+				var cs, m, parent, offsetParent, isRoot;
 				if (e === window || !e || !e.parentNode) {
 					return [1,0,0,1,0,0];
 				}
-				parent = e.parentNode;
-				offsetParent = e.offsetParent;
 				cs = _getComputedStyle(e);
 				m = cs ? cs.getPropertyValue(_transformCSSProp) : e.currentStyle ? e.currentStyle[_transformProp] : "1,0,0,1,0,0";
 				m = (m + "").match(/(?:\-|\b)[\d\-\.e]+\b/g) || [1,0,0,1,0,0];
@@ -265,8 +269,15 @@
 					m = [m[0], m[1], m[4], m[5], m[12], m[13]];
 				}
 				if (offsetOrigin) {
-					m[4] = Number(m[4]) + offsetOrigin.x + e.offsetLeft - parentOffsetOrigin.x - (parent !== _doc.body ? parent.scrollLeft : 0) + (offsetParent ? parseInt(_getStyle(offsetParent, "borderLeftWidth"), 10) || 0 : 0);
-					m[5] = Number(m[5]) + offsetOrigin.y + e.offsetTop - parentOffsetOrigin.y - (parent !== _doc.body ? parent.scrollTop : 0) + (offsetParent ? parseInt(_getStyle(offsetParent, "borderTopWidth"), 10) || 0 : 0);
+					parent = e.parentNode;
+					offsetParent = e.offsetParent;
+					isRoot = (parent === _docElement || parent === _doc.body);
+					m[4] = Number(m[4]) + offsetOrigin.x + e.offsetLeft - parentOffsetOrigin.x - (isRoot ? 0 : parent.scrollLeft) + (offsetParent ? parseInt(_getStyle(offsetParent, "borderLeftWidth"), 10) || 0 : 0);
+					m[5] = Number(m[5]) + offsetOrigin.y + e.offsetTop - parentOffsetOrigin.y - (isRoot ? 0 : parent.scrollTop) + (offsetParent ? parseInt(_getStyle(offsetParent, "borderTopWidth"), 10) || 0 : 0);
+					if (!offsetParent && _getStyle(e, "position", cs) === "fixed") { //fixed position elements should factor in the scroll position of the document.
+						m[4] += _getDocScrollLeft();
+						m[5] += _getDocScrollTop();
+					}
 
 					//some browsers (like Chrome 31) have a bug that causes the offsetParent not to report correctly when a transform is applied to an element's parent, so the offsetTop and offsetLeft are measured from the parent instead of whatever the offsetParent reports as. For example, put an absolutely-positioned child div inside a position:static parent, then check the child's offsetTop before and after you apply a transform, like rotate(1deg). You'll see that it changes, but the offsetParent doesn't. So we must sense this condition here (and we can only do it after the body has loaded, as browsers don't accurately report offsets otherwise) and set a variable that we can easily reference later.
 					if (_hasReparentBug === undefined && _doc.body && _transformProp) {
@@ -350,8 +361,8 @@
 			_getElementBounds = function(e, context) {
 				var origin, left, right, top, bottom, mLocalToGlobal, mGlobalToLocal, p1, p2, p3, p4;
 				if (e === window) {
-					top = (e.pageYOffset != null) ? e.pageYOffset : (_doc.scrollTop != null) ? _doc.scrollTop : _docElement.scrollTop || _doc.body.scrollTop || 0;
-					left = (e.pageXOffset != null) ? e.pageXOffset : (_doc.scrollLeft != null) ? _doc.scrollLeft : _docElement.scrollLeft || _doc.body.scrollLeft || 0;
+					top = _getDocScrollTop();
+					left = _getDocScrollLeft();
 					right = left + (_docElement.clientWidth || e.innerWidth || _doc.body.clientWidth || 0);
 					bottom = top + ((e.innerHeight - 20 < _docElement.clientHeight) ? _docElement.clientHeight : e.innerHeight || _doc.body.clientHeight || 0); //some browsers (like Firefox) ignore absolutely positioned elements, and collapse the height of the documentElement, so it could be 8px, for example, if you have just an absolutely positioned div. In that case, we use the innerHeight to resolve this.
 				} else {
@@ -914,7 +925,7 @@
 									}
 								}
 							}
-							self.tween = tween = ThrowPropsPlugin.to(scrollProxy || target, {throwProps:throwProps, ease:(vars.ease || Power3.easeOut), onComplete:vars.onThrowComplete, onCompleteParams:vars.onThrowCompleteParams, onCompleteScope:(vars.onThrowCompleteScope || self), onUpdate:(vars.fastMode ? vars.onThrowUpdate : syncXY), onUpdateParams:vars.onThrowUpdateParams, onUpdateScope:(vars.onThrowUpdateScope || self)}, (isNaN(vars.maxDuration) ? 2 : vars.maxDuration), (isNaN(vars.minDuration) ? 0.5 : vars.minDuration), (isNaN(vars.overshootTolerance) ? (1 - self.edgeResistance) + 0.2 : vars.overshootTolerance));
+							self.tween = tween = ThrowPropsPlugin.to(scrollProxy || target, {throwProps:throwProps, ease:(vars.ease || Power3.easeOut), onComplete:vars.onThrowComplete, onCompleteParams:vars.onThrowCompleteParams, onCompleteScope:(vars.onThrowCompleteScope || self), onUpdate:(vars.fastMode ? vars.onThrowUpdate : syncXY), onUpdateParams:(vars.fastMode ? vars.onThrowUpdateParams : null), onUpdateScope:(vars.onThrowUpdateScope || self)}, (isNaN(vars.maxDuration) ? 2 : vars.maxDuration), (isNaN(vars.minDuration) ? 0.5 : vars.minDuration), (isNaN(vars.overshootTolerance) ? (1 - self.edgeResistance) + 0.2 : vars.overshootTolerance));
 							if (!vars.fastMode) {
 								//to populate the end values, we just scrub the tween to the end, record the values, and then jump back to the beginning.
 								if (scrollProxy) {
@@ -1066,6 +1077,9 @@
 							self.tween.kill();
 						}
 						TweenLite.killTweensOf(scrollProxy || target, true, killProps); //in case the user tries to drag it before the last tween is done.
+						if (scrollProxy) {
+							TweenLite.killTweensOf(target, true, {scrollTo:1}); //just in case the original target's scroll position is being tweened somewhere else.
+						}
 						startMouseY = self.pointerY = e.pageY; //record the starting x and y so that we can calculate the movement from the original in _onMouseMove
 						startMouseX = self.pointerX = e.pageX;
 						recordStartPositions();
@@ -1393,7 +1407,6 @@
 					if (!rotationMode) {
 						_setStyle(trigger, "cursor", null);
 					}
-					TweenLite.killTweensOf(scrollProxy || target, true, killProps);
 					trigger.ondragstart = trigger.onselectstart = null;
 					_setStyle(trigger, "userSelect", "text");
 					_setStyle(trigger, "touchCallout", "default");
@@ -1423,6 +1436,7 @@
 				};
 
 				this.kill = function() {
+					TweenLite.killTweensOf(scrollProxy || target, true, killProps);
 					self.disable();
 					delete _lookup[target._gsDragID];
 					return self;
@@ -1469,7 +1483,7 @@
 		p.constructor = Draggable;
 		p.pointerX = p.pointerY = 0;
 		p.isDragging = p.isPressed = false;
-		Draggable.version = "0.10.2";
+		Draggable.version = "0.10.3";
 		Draggable.zIndex = 1000;
 
 		_addListener(_doc, "touchcancel", function() {

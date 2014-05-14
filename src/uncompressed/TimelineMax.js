@@ -1,6 +1,6 @@
 /*!
- * VERSION: 1.11.7
- * DATE: 2014-04-29
+ * VERSION: 1.11.8
+ * DATE: 2014-05-13
  * UPDATES AND DOCS AT: http://www.greensock.com
  *
  * @license Copyright (c) 2008-2014, GreenSock. All rights reserved.
@@ -31,7 +31,7 @@
 			
 		p.constructor = TimelineMax;
 		p.kill()._gc = false;
-		TimelineMax.version = "1.11.7";
+		TimelineMax.version = "1.11.8";
 		
 		p.invalidate = function() {
 			this._yoyo = (this.vars.yoyo === true);
@@ -65,7 +65,7 @@
 		
 		p.tweenTo = function(position, vars) {
 			vars = vars || {};
-			var copy = {ease:_easeNone, overwrite:2, useFrames:this.usesFrames(), immediateRender:false},
+			var copy = {ease:_easeNone, overwrite:(vars.delay ? 2 : 1), useFrames:this.usesFrames(), immediateRender:false},//note: set overwrite to 1 (true/all) by default unless there's a delay so that we avoid a racing situation that could happen if, for example, an onmousemove creates the same tweenTo() over and over again.
 				duration, p, t;
 			for (p in vars) {
 				copy[p] = vars[p];
@@ -495,7 +495,7 @@
 			_slice = _blankArray.slice,
 			p = TimelineLite.prototype = new SimpleTimeline();
 
-		TimelineLite.version = "1.11.7";
+		TimelineLite.version = "1.11.8";
 		p.constructor = TimelineLite;
 		p.kill()._gc = false;
 

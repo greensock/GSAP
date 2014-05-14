@@ -1,6 +1,6 @@
 /*!
- * VERSION: 1.11.7
- * DATE: 2014-04-29
+ * VERSION: 1.11.8
+ * DATE: 2014-05-13
  * UPDATES AND DOCS AT: http://www.greensock.com
  * 
  * Includes all of the following: TweenLite, TweenMax, TimelineLite, TimelineMax, EasePack, CSSPlugin, RoundPropsPlugin, BezierPlugin, AttrPlugin, DirectionalRotationPlugin
@@ -34,7 +34,7 @@
 			p = TweenMax.prototype = TweenLite.to({}, 0.1, {}),
 			_blankArray = [];
 
-		TweenMax.version = "1.11.7";
+		TweenMax.version = "1.11.8";
 		p.constructor = TweenMax;
 		p.kill()._gc = false;
 		TweenMax.killTweensOf = TweenMax.killDelayedCallsTo = TweenLite.killTweensOf;
@@ -611,7 +611,7 @@
 			_slice = _blankArray.slice,
 			p = TimelineLite.prototype = new SimpleTimeline();
 
-		TimelineLite.version = "1.11.7";
+		TimelineLite.version = "1.11.8";
 		p.constructor = TimelineLite;
 		p.kill()._gc = false;
 
@@ -1210,7 +1210,7 @@
 
 		p.constructor = TimelineMax;
 		p.kill()._gc = false;
-		TimelineMax.version = "1.11.7";
+		TimelineMax.version = "1.11.8";
 
 		p.invalidate = function() {
 			this._yoyo = (this.vars.yoyo === true);
@@ -1244,7 +1244,7 @@
 
 		p.tweenTo = function(position, vars) {
 			vars = vars || {};
-			var copy = {ease:_easeNone, overwrite:2, useFrames:this.usesFrames(), immediateRender:false},
+			var copy = {ease:_easeNone, overwrite:(vars.delay ? 2 : 1), useFrames:this.usesFrames(), immediateRender:false},//note: set overwrite to 1 (true/all) by default unless there's a delay so that we avoid a racing situation that could happen if, for example, an onmousemove creates the same tweenTo() over and over again.
 				duration, p, t;
 			for (p in vars) {
 				copy[p] = vars[p];
@@ -2238,7 +2238,7 @@
 			p = CSSPlugin.prototype = new TweenPlugin("css");
 
 		p.constructor = CSSPlugin;
-		CSSPlugin.version = "1.11.7";
+		CSSPlugin.version = "1.11.8";
 		CSSPlugin.API = 2;
 		CSSPlugin.defaultTransformPerspective = 0;
 		CSSPlugin.defaultSkewType = "compensated";
@@ -3256,7 +3256,7 @@
 
 
 		//transform-related methods and properties
-		var _transformProps = ("scaleX,scaleY,scaleZ,x,y,z,skewX,rotation,rotationX,rotationY,perspective").split(","),
+		var _transformProps = ("scaleX,scaleY,scaleZ,x,y,z,skewX,skewY,rotation,rotationX,rotationY,perspective").split(","),
 			_transformProp = _checkPropPrefix("transform"), //the Javascript (camelCase) transform property, like msTransform, WebkitTransform, MozTransform, or OTransform.
 			_transformPropCSS = _prefixCSS + "transform",
 			_transformOriginProp = _checkPropPrefix("transformOrigin"),
@@ -3657,7 +3657,6 @@
 			};
 
 		_registerComplexSpecialProp("transform,scale,scaleX,scaleY,scaleZ,x,y,z,rotation,rotationX,rotationY,rotationZ,skewX,skewY,shortRotation,shortRotationX,shortRotationY,shortRotationZ,transformOrigin,transformPerspective,directionalRotation,parseTransform,force3D,skewType", {parser:function(t, e, p, cssp, pt, plugin, vars) {
-			//TODO: when plugins use this, don't assume we're done with all the transforms. If bezier handles x/y and the user does a separate rotation tween outside of the bezier, this would break it and ignore the rotation part.
 			if (cssp._transform) { return pt; } //only need to parse the transform once, and only if the browser supports it.
 			var m1 = cssp._transform = _getTransform(t, _cs, true, vars.parseTransform),
 				style = t.style,
@@ -4584,20 +4583,24 @@
 	window._gsDefine.plugin({
 		propName: "attr",
 		API: 2,
-		version: "0.2.0",
+		version: "0.3.0",
 
 		//called when the tween renders for the first time. This is where initial values should be recorded and any setup routines should run.
 		init: function(target, value, tween) {
-			var p;
+			var p, start, end;
 			if (typeof(target.setAttribute) !== "function") {
 				return false;
 			}
 			this._target = target;
 			this._proxy = {};
+			this._start = {}; // we record start and end values exactly as they are in case they're strings (not numbers) - we need to be able to revert to them cleanly.
+			this._end = {};
+			this._endRatio = tween.vars.runBackwards ? 0 : 1;
 			for (p in value) {
-				if ( this._addTween(this._proxy, p, parseFloat(target.getAttribute(p)), value[p], p) ) {
-					this._overwriteProps.push(p);
-				}
+				this._start[p] = this._proxy[p] = start = target.getAttribute(p);
+				this._end[p] = end = value[p];
+				this._addTween(this._proxy, p, parseFloat(start), end, p);
+				this._overwriteProps.push(p);
 			}
 			return true;
 		},
@@ -4607,14 +4610,15 @@
 			this._super.setRatio.call(this, ratio);
 			var props = this._overwriteProps,
 				i = props.length,
+				lookup = (ratio !== 0 && ratio !== 1) ? this._proxy : (ratio === this._endRatio) ? this._end : this._start,
 				p;
 			while (--i > -1) {
 				p = props[i];
-				this._target.setAttribute(p, this._proxy[p] + "");
+				this._target.setAttribute(p, lookup[p] + "");
 			}
 		}
 
-	});
+	})
 
 
 
@@ -5917,7 +5921,7 @@
 		p._firstPT = p._targets = p._overwrittenProps = p._startAt = null;
 		p._notifyPluginsOfEnabled = false;
 
-		TweenLite.version = "1.11.7";
+		TweenLite.version = "1.11.8";
 		TweenLite.defaultEase = p._ease = new Ease(null, null, 1, 1);
 		TweenLite.defaultOverwrite = "auto";
 		TweenLite.ticker = _ticker;
@@ -6141,7 +6145,7 @@
 		};
 
 		p._initProps = function(target, propLookup, siblings, overwrittenProps) {
-			var p, i, initPlugins, plugin, a, pt, v;
+			var p, i, initPlugins, plugin, pt, v;
 			if (target == null) {
 				return false;
 			}
