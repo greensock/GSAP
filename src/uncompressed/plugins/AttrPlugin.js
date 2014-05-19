@@ -1,6 +1,6 @@
 /*!
- * VERSION: 0.3.0
- * DATE: 2014-05-13
+ * VERSION: 0.3.1
+ * DATE: 2014-05-19
  * UPDATES AND DOCS AT: http://www.greensock.com
  *
  * @license Copyright (c) 2008-2014, GreenSock. All rights reserved.
@@ -16,7 +16,7 @@
 	window._gsDefine.plugin({
 		propName: "attr",
 		API: 2,
-		version: "0.3.0",
+		version: "0.3.1",
 
 		//called when the tween renders for the first time. This is where initial values should be recorded and any setup routines should run.
 		init: function(target, value, tween) {
@@ -28,7 +28,6 @@
 			this._proxy = {};
 			this._start = {}; // we record start and end values exactly as they are in case they're strings (not numbers) - we need to be able to revert to them cleanly.
 			this._end = {};
-			this._endRatio = tween.vars.runBackwards ? 0 : 1;
 			for (p in value) {
 				this._start[p] = this._proxy[p] = start = target.getAttribute(p);
 				this._end[p] = end = value[p];
@@ -43,7 +42,7 @@
 			this._super.setRatio.call(this, ratio);
 			var props = this._overwriteProps,
 				i = props.length,
-				lookup = (ratio !== 0 && ratio !== 1) ? this._proxy : (ratio === this._endRatio) ? this._end : this._start,
+				lookup = (ratio === 1) ? this._end : ratio ? this._proxy : this._start,
 				p;
 			while (--i > -1) {
 				p = props[i];
