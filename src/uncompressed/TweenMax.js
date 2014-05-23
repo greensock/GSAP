@@ -1,6 +1,6 @@
 /*!
- * VERSION: 1.11.8
- * DATE: 2014-05-13
+ * VERSION: 1.11.9
+ * DATE: 2014-05-23
  * UPDATES AND DOCS AT: http://www.greensock.com
  * 
  * Includes all of the following: TweenLite, TweenMax, TimelineLite, TimelineMax, EasePack, CSSPlugin, RoundPropsPlugin, BezierPlugin, AttrPlugin, DirectionalRotationPlugin
@@ -34,7 +34,7 @@
 			p = TweenMax.prototype = TweenLite.to({}, 0.1, {}),
 			_blankArray = [];
 
-		TweenMax.version = "1.11.8";
+		TweenMax.version = "1.11.9";
 		p.constructor = TweenMax;
 		p.kill()._gc = false;
 		TweenMax.killTweensOf = TweenMax.killDelayedCallsTo = TweenLite.killTweensOf;
@@ -611,7 +611,7 @@
 			_slice = _blankArray.slice,
 			p = TimelineLite.prototype = new SimpleTimeline();
 
-		TimelineLite.version = "1.11.8";
+		TimelineLite.version = "1.11.9";
 		p.constructor = TimelineLite;
 		p.kill()._gc = false;
 
@@ -1013,14 +1013,22 @@
 		};
 
 		p.getTweensOf = function(target, nested) {
-			var tweens = TweenLite.getTweensOf(target),
-				i = tweens.length,
+			var disabled = this._gc,
 				a = [],
-				cnt = 0;
+				cnt = 0,
+				tweens, i;
+			if (disabled) {
+				this._enabled(true, true); //getTweensOf() filters out disabled tweens, and we have to mark them as _gc = true when the timeline completes in order to allow clean garbage collection, so temporarily re-enable the timeline here.
+			}
+			tweens = TweenLite.getTweensOf(target);
+			i = tweens.length;
 			while (--i > -1) {
 				if (tweens[i].timeline === this || (nested && this._contains(tweens[i]))) {
 					a[cnt++] = tweens[i];
 				}
+			}
+			if (disabled) {
+				this._enabled(false, true);
 			}
 			return a;
 		};
@@ -4583,7 +4591,7 @@
 	window._gsDefine.plugin({
 		propName: "attr",
 		API: 2,
-		version: "0.3.1",
+		version: "0.3.2",
 
 		//called when the tween renders for the first time. This is where initial values should be recorded and any setup routines should run.
 		init: function(target, value, tween) {
@@ -4597,8 +4605,8 @@
 			this._end = {};
 			for (p in value) {
 				this._start[p] = this._proxy[p] = start = target.getAttribute(p);
-				this._end[p] = end = value[p];
-				this._addTween(this._proxy, p, parseFloat(start), end, p);
+				end = this._addTween(this._proxy, p, parseFloat(start), value[p], p);
+				this._end[p] = end ? end.s + end.c : value[p];
 				this._overwriteProps.push(p);
 			}
 			return true;

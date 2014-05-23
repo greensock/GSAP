@@ -1,6 +1,6 @@
 /*!
- * VERSION: 0.10.3
- * DATE: 2014-05-13
+ * VERSION: 0.10.4
+ * DATE: 2014-05-21
  * UPDATES AND DOCS AT: http://www.greensock.com
  *
  * Requires TweenLite and CSSPlugin version 1.11.0 or later (TweenMax contains both TweenLite and CSSPlugin). ThrowPropsPlugin is required for momentum-based continuation of movement after the mouse/touch is released (ThrowPropsPlugin is a membership benefit of Club GreenSock - http://www.greensock.com/club/).
@@ -748,7 +748,7 @@
 					trigger = _unwrapElement(vars.trigger || vars.handle || target),
 					killProps = {},
 					dragEndTime = 0,
-					scrollProxy, startMouseX, startMouseY, startElementX, startElementY, hasBounds, hasDragCallback, maxX, minX, maxY, minY, tempVars, cssVars, touch, touchID, rotationOrigin, dirty, old, snapX, snapY, isClicking, touchEventTarget, lockedAxis, matrix, interrupted,
+					enabled, scrollProxy, startMouseX, startMouseY, startElementX, startElementY, hasBounds, hasDragCallback, maxX, minX, maxY, minY, tempVars, cssVars, touch, touchID, rotationOrigin, dirty, old, snapX, snapY, isClicking, touchEventTarget, lockedAxis, matrix, interrupted,
 
 					//this method gets called on every tick of TweenLite.ticker which allows us to synchronize the renders to the core engine (which is typically synchronized with the display refresh via requestAnimationFrame). This is an optimization - it's better than applying the values inside the "mousemove" or "touchmove" event handler which may get called many times inbetween refreshes.
 					render = function(suppressEvents) {
@@ -1386,6 +1386,7 @@
 					_setStyle(trigger, "userSelect", "none");
 					_setStyle(trigger, "touchCallout", "none");
 					_setStyle(trigger, "touchAction", "none");
+					enabled = true;
 					if (ThrowPropsPlugin) {
 						ThrowPropsPlugin.track(scrollProxy || target, (xyMode ? "x,y" : rotationMode ? "rotation" : "top,left"));
 					}
@@ -1421,6 +1422,7 @@
 					}
 					_removeListener(_doc, "mouseup", onRelease);
 					_removeListener(_doc, "mousemove", onMove);
+					enabled = false;
 					if (ThrowPropsPlugin) {
 						ThrowPropsPlugin.untrack(scrollProxy || target, (xyMode ? "x,y" : rotationMode ? "rotation" : "top,left"));
 					}
@@ -1433,6 +1435,11 @@
 						_dispatchEvent(this, "dragend", "onDragEnd");
 					}
 					return self;
+				};
+
+
+				this.enabled = function(value) {
+					return arguments.length ? (value ? this.enable() : this.disable()) : enabled;
 				};
 
 				this.kill = function() {
@@ -1483,7 +1490,7 @@
 		p.constructor = Draggable;
 		p.pointerX = p.pointerY = 0;
 		p.isDragging = p.isPressed = false;
-		Draggable.version = "0.10.3";
+		Draggable.version = "0.10.4";
 		Draggable.zIndex = 1000;
 
 		_addListener(_doc, "touchcancel", function() {

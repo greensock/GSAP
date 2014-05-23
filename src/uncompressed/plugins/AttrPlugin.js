@@ -1,6 +1,6 @@
 /*!
- * VERSION: 0.3.1
- * DATE: 2014-05-19
+ * VERSION: 0.3.2
+ * DATE: 2014-05-23
  * UPDATES AND DOCS AT: http://www.greensock.com
  *
  * @license Copyright (c) 2008-2014, GreenSock. All rights reserved.
@@ -16,7 +16,7 @@
 	window._gsDefine.plugin({
 		propName: "attr",
 		API: 2,
-		version: "0.3.1",
+		version: "0.3.2",
 
 		//called when the tween renders for the first time. This is where initial values should be recorded and any setup routines should run.
 		init: function(target, value, tween) {
@@ -30,8 +30,8 @@
 			this._end = {};
 			for (p in value) {
 				this._start[p] = this._proxy[p] = start = target.getAttribute(p);
-				this._end[p] = end = value[p];
-				this._addTween(this._proxy, p, parseFloat(start), end, p);
+				end = this._addTween(this._proxy, p, parseFloat(start), value[p], p);
+				this._end[p] = end ? end.s + end.c : value[p];
 				this._overwriteProps.push(p);
 			}
 			return true;

@@ -495,7 +495,7 @@
 			_slice = _blankArray.slice,
 			p = TimelineLite.prototype = new SimpleTimeline();
 
-		TimelineLite.version = "1.11.8";
+		TimelineLite.version = "1.11.9";
 		p.constructor = TimelineLite;
 		p.kill()._gc = false;
 
@@ -897,14 +897,22 @@
 		};
 
 		p.getTweensOf = function(target, nested) {
-			var tweens = TweenLite.getTweensOf(target),
-				i = tweens.length,
+			var disabled = this._gc,
 				a = [],
-				cnt = 0;
+				cnt = 0,
+				tweens, i;
+			if (disabled) {
+				this._enabled(true, true); //getTweensOf() filters out disabled tweens, and we have to mark them as _gc = true when the timeline completes in order to allow clean garbage collection, so temporarily re-enable the timeline here.
+			}
+			tweens = TweenLite.getTweensOf(target);
+			i = tweens.length;
 			while (--i > -1) {
 				if (tweens[i].timeline === this || (nested && this._contains(tweens[i]))) {
 					a[cnt++] = tweens[i];
 				}
+			}
+			if (disabled) {
+				this._enabled(false, true);
 			}
 			return a;
 		};
