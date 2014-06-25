@@ -1,6 +1,6 @@
 /*!
- * VERSION: 1.11.8
- * DATE: 2014-05-13
+ * VERSION: 1.12.0
+ * DATE: 2014-06-25
  * UPDATES AND DOCS AT: http://www.greensock.com
  *
  * @license Copyright (c) 2008-2014, GreenSock. All rights reserved.
@@ -31,7 +31,7 @@
 			
 		p.constructor = TimelineMax;
 		p.kill()._gc = false;
-		TimelineMax.version = "1.11.8";
+		TimelineMax.version = "1.12.0";
 		
 		p.invalidate = function() {
 			this._yoyo = (this.vars.yoyo === true);
@@ -276,7 +276,6 @@
 						} else {
 							tween.render(((!tween._dirty) ? tween._totalDuration : tween.totalDuration()) - ((time - tween._startTime) * tween._timeScale), suppressEvents, force);
 						}
-						
 					}
 					tween = next;
 				}
@@ -495,7 +494,7 @@
 			_slice = _blankArray.slice,
 			p = TimelineLite.prototype = new SimpleTimeline();
 
-		TimelineLite.version = "1.11.9";
+		TimelineLite.version = "1.12.0";
 		p.constructor = TimelineLite;
 		p.kill()._gc = false;
 
@@ -813,13 +812,11 @@
 					if (this._paused && !prevPaused) { //in case a tween pauses the timeline when rendering
 						break;
 					} else if (tween._active || (tween._startTime <= this._time && !tween._paused && !tween._gc)) {
-
 						if (!tween._reversed) {
 							tween.render((time - tween._startTime) * tween._timeScale, suppressEvents, force);
 						} else {
 							tween.render(((!tween._dirty) ? tween._totalDuration : tween.totalDuration()) - ((time - tween._startTime) * tween._timeScale), suppressEvents, force);
 						}
-
 					}
 					tween = next;
 				}
@@ -830,13 +827,11 @@
 					if (this._paused && !prevPaused) { //in case a tween pauses the timeline when rendering
 						break;
 					} else if (tween._active || (tween._startTime <= prevTime && !tween._paused && !tween._gc)) {
-
 						if (!tween._reversed) {
 							tween.render((time - tween._startTime) * tween._timeScale, suppressEvents, force);
 						} else {
 							tween.render(((!tween._dirty) ? tween._totalDuration : tween.totalDuration()) - ((time - tween._startTime) * tween._timeScale), suppressEvents, force);
 						}
-
 					}
 					tween = next;
 				}

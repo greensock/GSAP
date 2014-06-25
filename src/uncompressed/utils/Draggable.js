@@ -1,6 +1,6 @@
 /*!
  * VERSION: 0.10.4
- * DATE: 2014-05-21
+ * DATE: 2014-06-25
  * UPDATES AND DOCS AT: http://www.greensock.com
  *
  * Requires TweenLite and CSSPlugin version 1.11.0 or later (TweenMax contains both TweenLite and CSSPlugin). ThrowPropsPlugin is required for momentum-based continuation of movement after the mouse/touch is released (ThrowPropsPlugin is a membership benefit of Club GreenSock - http://www.greensock.com/club/).
@@ -237,6 +237,47 @@
 			_point1 = {}, //we reuse _point1 and _point2 objects inside matrix and point conversion methods to conserve memory and minimize garbage collection tasks.
 			_point2 = {},
 			_hasReparentBug, //we'll set this inside the _getOffset2DMatrix() method after the body has loaded.
+			_dummySVGRect = (function() {
+				if (_isOldIE) {
+					return;
+				}
+				var url = "http://www.w3.org/2000/svg",
+					svg = _doc.createElementNS(url, "svg"),
+					e = _doc.createElementNS(url, "rect");
+				e.setAttributeNS(null, "width", "10");
+				e.setAttributeNS(null, "height", "10");
+				svg.appendChild(e);
+				return svg;
+			}()),
+			_getSVGOffsets = function(e) { //SVG elements don't always report offsetTop/offsetLeft/offsetParent at all (I'm looking at you, Firefox 29), so we have to do some work to manufacture those values.
+				if (!e.getBoundingClientRect || !e.parentNode) {
+					return {offsetTop:0, offsetLeft:0, offsetParent:_docElement};
+				}
+				var curElement = e,
+					prevCSS = e.style.cssText,
+					eRect, parentRect, offsetParent;
+				while (!curElement.offsetParent && curElement.parentNode) {
+					curElement = curElement.parentNode;
+				}
+				e.parentNode.insertBefore(_dummySVGRect, e); //Firefox measures things based NOT on the <svg> itself, but on the bounds of the child elements, so we add a dummy SVG object temporarily in the original one's spot which has a 1x1 <rect> in the upper left corner to make sure we're getting accurate results.
+				e.parentNode.removeChild(e);
+				_dummySVGRect.style.cssText = prevCSS;
+				_dummySVGRect.style[_transformProp] = "none";
+				_dummySVGRect.setAttribute("class", e.getAttribute("class"));
+				eRect = _dummySVGRect.getBoundingClientRect();
+				offsetParent = curElement.offsetParent;
+				if (offsetParent) {
+					if (offsetParent === _doc.body && _docElement) {
+						offsetParent = _docElement; //to avoid problems with margins/padding on the <body>
+					}
+					parentRect = offsetParent.getBoundingClientRect();
+				} else {
+					parentRect = {top:-_getDocScrollTop(), left:-_getDocScrollLeft()};
+				}
+				_dummySVGRect.parentNode.insertBefore(e, _dummySVGRect);
+				e.parentNode.removeChild(_dummySVGRect);
+				return {offsetLeft:eRect.left - parentRect.left, offsetTop:eRect.top - parentRect.top, offsetParent:curElement.offsetParent || _docElement};
+			},
 			_getOffsetTransformOrigin = function(e, decoratee) {
 				decoratee = decoratee || {};
 				if (!e || e === _docElement || !e.parentNode) {
@@ -258,7 +299,7 @@
 				return decoratee;
 			},
 			_getOffset2DMatrix = function(e, offsetOrigin, parentOffsetOrigin) {
-				var cs, m, parent, offsetParent, isRoot;
+				var cs, m, parent, offsetParent, isRoot, offsets;
 				if (e === window || !e || !e.parentNode) {
 					return [1,0,0,1,0,0];
 				}
@@ -270,10 +311,11 @@
 				}
 				if (offsetOrigin) {
 					parent = e.parentNode;
-					offsetParent = e.offsetParent;
+					offsets = (e.offsetLeft === undefined && e.nodeName.toLowerCase() === "svg") ? _getSVGOffsets(e) : e;
+					offsetParent = offsets.offsetParent;
 					isRoot = (parent === _docElement || parent === _doc.body);
-					m[4] = Number(m[4]) + offsetOrigin.x + e.offsetLeft - parentOffsetOrigin.x - (isRoot ? 0 : parent.scrollLeft) + (offsetParent ? parseInt(_getStyle(offsetParent, "borderLeftWidth"), 10) || 0 : 0);
-					m[5] = Number(m[5]) + offsetOrigin.y + e.offsetTop - parentOffsetOrigin.y - (isRoot ? 0 : parent.scrollTop) + (offsetParent ? parseInt(_getStyle(offsetParent, "borderTopWidth"), 10) || 0 : 0);
+					m[4] = Number(m[4]) + offsetOrigin.x + (offsets.offsetLeft || 0) - parentOffsetOrigin.x - (isRoot ? 0 : parent.scrollLeft) + (offsetParent ? parseInt(_getStyle(offsetParent, "borderLeftWidth"), 10) || 0 : 0);
+					m[5] = Number(m[5]) + offsetOrigin.y + (offsets.offsetTop || 0) - parentOffsetOrigin.y - (isRoot ? 0 : parent.scrollTop) + (offsetParent ? parseInt(_getStyle(offsetParent, "borderTopWidth"), 10) || 0 : 0);
 					if (!offsetParent && _getStyle(e, "position", cs) === "fixed") { //fixed position elements should factor in the scroll position of the document.
 						m[4] += _getDocScrollLeft();
 						m[5] += _getDocScrollTop();
@@ -295,9 +337,9 @@
 							return value;
 						}());
 					}
-					if (parent && parent.offsetParent === e.offsetParent && (!_hasReparentBug || _getOffset2DMatrix(parent).join("") === "100100")) {
-						m[4] -= parent.offsetLeft;
-						m[5] -= parent.offsetTop;
+					if (parent && parent.offsetParent === offsetParent && (!_hasReparentBug || _getOffset2DMatrix(parent).join("") === "100100")) {
+						m[4] -= parent.offsetLeft || 0;
+						m[5] -= parent.offsetTop || 0;
 					}
 				}
 				return m;
@@ -364,7 +406,8 @@
 					top = _getDocScrollTop();
 					left = _getDocScrollLeft();
 					right = left + (_docElement.clientWidth || e.innerWidth || _doc.body.clientWidth || 0);
-					bottom = top + ((e.innerHeight - 20 < _docElement.clientHeight) ? _docElement.clientHeight : e.innerHeight || _doc.body.clientHeight || 0); //some browsers (like Firefox) ignore absolutely positioned elements, and collapse the height of the documentElement, so it could be 8px, for example, if you have just an absolutely positioned div. In that case, we use the innerHeight to resolve this.
+
+					bottom = top + (((e.innerHeight || 0) - 20 < _docElement.clientHeight) ? _docElement.clientHeight : e.innerHeight || _doc.body.clientHeight || 0); //some browsers (like Firefox) ignore absolutely positioned elements, and collapse the height of the documentElement, so it could be 8px, for example, if you have just an absolutely positioned div. In that case, we use the innerHeight to resolve this. Also note that IE8 doesn't support window.innerHeight.
 				} else {
 					origin = _getOffsetTransformOrigin(e);
 					left = -origin.x;
@@ -931,7 +974,7 @@
 								if (scrollProxy) {
 									scrollProxy._suspendTransforms = true; //Microsoft browsers have a bug that causes them to briefly render the position incorrectly (it flashes to the end state when we seek() the tween even though we jump right back to the current position, and this only seems to happen when we're affecting both top and left), so we set a _suspendTransforms flag to prevent it from actually applying the values in the ScrollProxy.
 								}
-								tween.seek(tween.duration());
+								tween.render(tween.duration(), true, true);
 								syncXY(true, true);
 								self.endX = self.x;
 								self.endY = self.y;
@@ -1034,7 +1077,7 @@
 					//called when the mouse is pressed (or touch starts)
 					onPress = function(e) {
 						var temp;
-						if (self.isPressed || !e) { //just in case the browser dispatches a "touchstart" and "mousedown" (some browsers emulate mouse events when using touches)
+						if (!enabled || self.isPressed || !e) { //just in case the browser dispatches a "touchstart" and "mousedown" (some browsers emulate mouse events when using touches)
 							return;
 						}
 						interrupted = isTweening();
@@ -1057,7 +1100,7 @@
 						}
 						if (_isOldIE) {
 							e = _populateIEEvent(e, true);
-						} else if (!(e.touches && e.touches.length > _dragCount + 1)) { //in some mobile browsers, e.preventDefault() when pressing on a link (or element with an onclick) will cause the link not to work.
+						} else if (scrollProxy && !(e.touches && e.touches.length > _dragCount + 1)) { //in some mobile browsers, e.preventDefault() when pressing on a link (or element with an onclick) will cause the link not to work. Only preventDefault() on scroll-type interactions, otherwise things like touch checkboxes and inputs don't work.
 							e.preventDefault();
 							if (e.preventManipulation) {
 								e.preventManipulation();  //for some Microsoft browsers
@@ -1102,7 +1145,7 @@
 
 					//called every time the mouse/touch moves
 					onMove = function(e) {
-						if (_isMultiTouching || !self.isPressed) {
+						if (!enabled || _isMultiTouching || !self.isPressed) {
 							return;
 						}
 						if (_isOldIE) {
@@ -1209,7 +1252,7 @@
 
 					//called when the mouse/touch is released
 					onRelease = function(e, force) {
-						if (e && touchID && !force && e.pointerId && e.pointerId !== touchID) {  //for some Microsoft browsers, we must attach the listener to the doc rather than the trigger so that when the finger moves outside the bounds of the trigger, things still work. So if the event we're receiving has a pointerId that doesn't match the touchID, ignore it (for multi-touch)
+						if (!enabled || e && touchID && !force && e.pointerId && e.pointerId !== touchID) {  //for some Microsoft browsers, we must attach the listener to the doc rather than the trigger so that when the finger moves outside the bounds of the trigger, things still work. So if the event we're receiving has a pointerId that doesn't match the touchID, ignore it (for multi-touch)
 							return;
 						}
 						self.isPressed = false;
@@ -1271,7 +1314,7 @@
 							_dispatchEvent(self, "click", "onClick");
 						} else {
 							animate(vars.throwProps); //will skip if throwProps isn't defined or ThrowPropsPlugin isn't loaded.
-							if (!_isOldIE && originalEvent && (vars.dragClickables || !_isClickable(originalEvent.target))) {
+							if (!_isOldIE && originalEvent && (vars.dragClickables || !_isClickable(originalEvent.target)) && wasDragging) {
 								originalEvent.preventDefault();
 								if (originalEvent.preventManipulation) {
 									originalEvent.preventManipulation();  //for some Microsoft browsers
@@ -1368,26 +1411,28 @@
 					} else {
 						syncXY(true);
 					}
-					if (self.isPressed && (x !== self.x || (y !== self.y && !rotationMode))) {
+					if (self.isPressed && (Math.abs(x - self.x) > 0.01 || (Math.abs(y - self.y) > 0.01 && !rotationMode))) {
 						recordStartPositions();
 					}
 					return self;
 				};
 
-				this.enable = function() {
+				this.enable = function(type) {
 					var id;
-					_addListener(trigger, "mousedown", onPress);
-					_addListener(trigger, "touchstart", onPress);
-					_addListener(trigger, "click", onClick);
-					if (!rotationMode) {
-						_setStyle(trigger, "cursor", vars.cursor || "move");
+					if (type !== "soft") {
+						_addListener(trigger, "mousedown", onPress);
+						_addListener(trigger, "touchstart", onPress);
+						_addListener(trigger, "click", onClick);
+						if (!rotationMode) {
+							_setStyle(trigger, "cursor", vars.cursor || "move");
+						}
+						trigger.ondragstart = trigger.onselectstart = _emptyFunc; //prevent text selection (and prevent IE from dragging images)
+						_setStyle(trigger, "userSelect", "none");
+						_setStyle(trigger, "touchCallout", "none");
+						_setStyle(trigger, "touchAction", "none");
 					}
-					trigger.ondragstart = trigger.onselectstart = _emptyFunc; //prevent text selection (and prevent IE from dragging images)
-					_setStyle(trigger, "userSelect", "none");
-					_setStyle(trigger, "touchCallout", "none");
-					_setStyle(trigger, "touchAction", "none");
 					enabled = true;
-					if (ThrowPropsPlugin) {
+					if (ThrowPropsPlugin && type !== "soft") {
 						ThrowPropsPlugin.track(scrollProxy || target, (xyMode ? "x,y" : rotationMode ? "rotation" : "top,left"));
 					}
 					if (scrollProxy) {
@@ -1403,27 +1448,29 @@
 					return self;
 				};
 
-				this.disable = function() {
+				this.disable = function(type) {
 					var dragging = this.isDragging;
 					if (!rotationMode) {
 						_setStyle(trigger, "cursor", null);
 					}
-					trigger.ondragstart = trigger.onselectstart = null;
-					_setStyle(trigger, "userSelect", "text");
-					_setStyle(trigger, "touchCallout", "default");
-					_setStyle(trigger, "MSTouchAction", "auto");
-					_removeListener(trigger, "mousedown", onPress);
-					_removeListener(trigger, "touchstart", onPress);
-					_removeListener(trigger, "click", onClick);
-					if (touchEventTarget) {
-						_removeListener(touchEventTarget, "touchcancel", onRelease);
-						_removeListener(touchEventTarget, "touchend", onRelease);
-						_removeListener(touchEventTarget, "touchmove", onMove);
+					if (type !== "soft") {
+						trigger.ondragstart = trigger.onselectstart = null;
+						_setStyle(trigger, "userSelect", "text");
+						_setStyle(trigger, "touchCallout", "default");
+						_setStyle(trigger, "MSTouchAction", "auto");
+						_removeListener(trigger, "mousedown", onPress);
+						_removeListener(trigger, "touchstart", onPress);
+						_removeListener(trigger, "click", onClick);
+						if (touchEventTarget) {
+							_removeListener(touchEventTarget, "touchcancel", onRelease);
+							_removeListener(touchEventTarget, "touchend", onRelease);
+							_removeListener(touchEventTarget, "touchmove", onMove);
+						}
+						_removeListener(_doc, "mouseup", onRelease);
+						_removeListener(_doc, "mousemove", onMove);
 					}
-					_removeListener(_doc, "mouseup", onRelease);
-					_removeListener(_doc, "mousemove", onMove);
 					enabled = false;
-					if (ThrowPropsPlugin) {
+					if (ThrowPropsPlugin && type !== "soft") {
 						ThrowPropsPlugin.untrack(scrollProxy || target, (xyMode ? "x,y" : rotationMode ? "rotation" : "top,left"));
 					}
 					if (scrollProxy) {
@@ -1437,9 +1484,8 @@
 					return self;
 				};
 
-
-				this.enabled = function(value) {
-					return arguments.length ? (value ? this.enable() : this.disable()) : enabled;
+				this.enabled = function(value, type) {
+					return arguments.length ? (value ? this.enable(type) : this.disable(type)) : enabled;
 				};
 
 				this.kill = function() {
@@ -1530,9 +1576,8 @@
 			if (r.right === undefined && r.width !== undefined) {
 				r.right = r.left + r.width;
 				r.bottom = r.top + r.height;
-			} else if (!r.width) { //some browsers don't include width and height properties
-				r.width = r.right - r.left;
-				r.height = r.bottom - r.top;
+			} else if (r.width === undefined) { //some browsers don't include width and height properties. We can't just set them directly on r because some browsers throw errors, so create a new generic object.
+				r = {width: r.right - r.left, height: r.bottom - r.top, right: r.right, left: r.left, bottom: r.bottom, top: r.top};
 			}
 			return r;
 		};
