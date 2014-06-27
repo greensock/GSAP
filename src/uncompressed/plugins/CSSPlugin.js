@@ -1,6 +1,6 @@
 /*!
- * VERSION: 1.12.0
- * DATE: 2014-06-25
+ * VERSION: 1.12.1
+ * DATE: 2014-06-26
  * UPDATES AND DOCS AT: http://www.greensock.com
  *
  * @license Copyright (c) 2008-2014, GreenSock. All rights reserved.
@@ -29,7 +29,7 @@
 			p = CSSPlugin.prototype = new TweenPlugin("css");
 
 		p.constructor = CSSPlugin;
-		CSSPlugin.version = "1.12.0";
+		CSSPlugin.version = "1.12.1";
 		CSSPlugin.API = 2;
 		CSSPlugin.defaultTransformPerspective = 0;
 		CSSPlugin.defaultSkewType = "compensated";
@@ -1888,7 +1888,7 @@
 				v = _getStyle(target, "zIndex", _cs);
 				if (v === "auto" || v === "") {
 					//corrects a bug in [non-Android] Safari that prevents it from repainting elements in their new positions if they don't have a zIndex set. We also can't just apply this inside _parseTransform() because anything that's moved in any way (like using "left" or "top" instead of transforms like "x" and "y") can be affected, so it is best to ensure that anything that's tweening has a z-index. Setting "WebkitPerspective" to a non-zero value worked too except that on iOS Safari things would flicker randomly. Plus zIndex is less memory-intensive.
-					style.zIndex = 0;
+					this._addLazySet(style, "zIndex", 0);
 				}
 			}
 
@@ -2152,7 +2152,7 @@
 
 		var lazySet = function(v) {
 			this.t[this.p] = this.e;
-			this.data._linkCSSP(this, null, null, true);
+			this.data._linkCSSP(this, this._next, null, true); //we purposefully keep this._next even though it'd make sense to null it, but this is a performance optimization, as this happens during the while (pt) {} loop in setRatio() at the bottom of which it sets pt = pt._next, so if we null it, the linked list will be broken in that loop.
 		};
 		/** @private Gives us a way to set a value on the first render (and only the first render). **/
 		p._addLazySet = function(t, p, v) {

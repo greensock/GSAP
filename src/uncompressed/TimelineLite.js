@@ -1,6 +1,6 @@
 /*!
- * VERSION: 1.12.0
- * DATE: 2014-06-25
+ * VERSION: 1.12.1
+ * DATE: 2014-06-26
  * UPDATES AND DOCS AT: http://www.greensock.com
  *
  * @license Copyright (c) 2008-2014, GreenSock. All rights reserved.
@@ -56,7 +56,7 @@
 			_slice = _blankArray.slice,
 			p = TimelineLite.prototype = new SimpleTimeline();
 
-		TimelineLite.version = "1.12.0";
+		TimelineLite.version = "1.12.1";
 		p.constructor = TimelineLite;
 		p.kill()._gc = false;
 		
