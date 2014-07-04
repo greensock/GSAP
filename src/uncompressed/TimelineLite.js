@@ -50,7 +50,7 @@
 			_pauseCallback = function(tween, callback, params, scope) {
 				tween._timeline.pause(tween._startTime);
 				if (callback) {
-					callback.apply(scope || tween._timeline, params || _blankArray);
+					callback.apply(scope || this.vars.defaultScope || tween._timeline, params || _blankArray);
 				}
 			},
 			_slice = _blankArray.slice,
