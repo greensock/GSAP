@@ -364,7 +364,7 @@
 			}
 
 			if (prevTime === 0) if (this.vars.onStart) if (this._time !== 0) if (!suppressEvents) {
-				this.vars.onStart.apply(this.vars.onStartScope || this, this.vars.onStartParams || _blankArray);
+				this.vars.onStart.apply(this.vars.onStartScope || this.vars.defaultScope || this, this.vars.onStartParams || _blankArray);
 			}
 
 			if (this._time >= prevTime) {
@@ -400,7 +400,7 @@
 			}
 			
 			if (this._onUpdate) if (!suppressEvents) {
-				this._onUpdate.apply(this.vars.onUpdateScope || this, this.vars.onUpdateParams || _blankArray);
+				this._onUpdate.apply(this.vars.onUpdateScope || this.vars.defaultScope ||this, this.vars.onUpdateParams || _blankArray);
 			}
 			
 			if (callback) if (!this._gc) if (prevStart === this._startTime || prevTimeScale !== this._timeScale) if (this._time === 0 || totalDur >= this.totalDuration()) { //if one of the tweens that was rendered altered this timeline's startTime (like if an onComplete reversed the timeline), it probably isn't complete. If it is, don't worry, because whatever call altered the startTime would complete if it was necessary at the new time. The only exception is the timeScale property. Also check _gc because there's a chance that kill() could be called in an onUpdate
@@ -411,7 +411,7 @@
 					this._active = false;
 				}
 				if (!suppressEvents && this.vars[callback]) {
-					this.vars[callback].apply(this.vars[callback + "Scope"] || this, this.vars[callback + "Params"] || _blankArray);
+					this.vars[callback].apply(this.vars[callback + "Scope"] || this.vars.defaultScope || this, this.vars[callback + "Params"] || _blankArray);
 				}
 			}
 		};

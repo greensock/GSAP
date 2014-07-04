@@ -79,7 +79,7 @@
 					t.duration( Math.abs( t.vars.time - t.target.time()) / t.target._timeScale );
 				}
 				if (vars.onStart) { //in case the user had an onStart in the vars - we don't want to overwrite it.
-					vars.onStart.apply(vars.onStartScope || t, vars.onStartParams || _blankArray);
+					vars.onStart.apply(vars.onStartScope || this.vars.defaultScope || t, vars.onStartParams || _blankArray);
 				}
 			};
 			return t;
@@ -214,7 +214,7 @@
 				this.render(prevTime, suppressEvents, (dur === 0));
 				if (!suppressEvents) if (!this._gc) {
 					if (this.vars.onRepeat) {
-						this.vars.onRepeat.apply(this.vars.onRepeatScope || this, this.vars.onRepeatParams || _blankArray);
+						this.vars.onRepeat.apply(this.vars.onRepeatScope || this.vars.defaultScope || this, this.vars.onRepeatParams || _blankArray);
 					}
 				}
 				if (wrap) {
@@ -233,7 +233,7 @@
 
 			if ((this._time === prevTime || !this._first) && !force && !internalForce) {
 				if (prevTotalTime !== this._totalTime) if (this._onUpdate) if (!suppressEvents) { //so that onUpdate fires even during the repeatDelay - as long as the totalTime changed, we should trigger onUpdate.
-					this._onUpdate.apply(this.vars.onUpdateScope || this, this.vars.onUpdateParams || _blankArray);
+					this._onUpdate.apply(this.vars.onUpdateScope || this.vars.defaultScope || this, this.vars.onUpdateParams || _blankArray);
 				}
 				return;
 			} else if (!this._initted) {
@@ -245,7 +245,7 @@
 			}
 			
 			if (prevTotalTime === 0) if (this.vars.onStart) if (this._totalTime !== 0) if (!suppressEvents) {
-				this.vars.onStart.apply(this.vars.onStartScope || this, this.vars.onStartParams || _blankArray);
+				this.vars.onStart.apply(this.vars.onStartScope || this.vars.defaultScope || this, this.vars.onStartParams || _blankArray);
 			}
 
 			if (this._time >= prevTime) {
@@ -282,7 +282,7 @@
 			}
 			
 			if (this._onUpdate) if (!suppressEvents) {
-				this._onUpdate.apply(this.vars.onUpdateScope || this, this.vars.onUpdateParams || _blankArray);
+				this._onUpdate.apply(this.vars.onUpdateScope || this.vars.defaultScope || this, this.vars.onUpdateParams || _blankArray);
 			}
 			if (callback) if (!this._locked) if (!this._gc) if (prevStart === this._startTime || prevTimeScale !== this._timeScale) if (this._time === 0 || totalDur >= this.totalDuration()) { //if one of the tweens that was rendered altered this timeline's startTime (like if an onComplete reversed the timeline), it probably isn't complete. If it is, don't worry, because whatever call altered the startTime would complete if it was necessary at the new time. The only exception is the timeScale property. Also check _gc because there's a chance that kill() could be called in an onUpdate
 				if (isComplete) {
@@ -292,7 +292,7 @@
 					this._active = false;
 				}
 				if (!suppressEvents && this.vars[callback]) {
-					this.vars[callback].apply(this.vars[callback + "Scope"] || this, this.vars[callback + "Params"] || _blankArray);
+					this.vars[callback].apply(this.vars[callback + "Scope"] || this.vars.defaultScope || this, this.vars[callback + "Params"] || _blankArray);
 				}
 			}
 		};
@@ -802,7 +802,7 @@
 			}
 
 			if (prevTime === 0) if (this.vars.onStart) if (this._time !== 0) if (!suppressEvents) {
-				this.vars.onStart.apply(this.vars.onStartScope || this, this.vars.onStartParams || _blankArray);
+				this.vars.onStart.apply(this.vars.onStartScope || this.vars.defaultScope || this, this.vars.onStartParams || _blankArray);
 			}
 
 			if (this._time >= prevTime) {
@@ -838,7 +838,7 @@
 			}
 
 			if (this._onUpdate) if (!suppressEvents) {
-				this._onUpdate.apply(this.vars.onUpdateScope || this, this.vars.onUpdateParams || _blankArray);
+				this._onUpdate.apply(this.vars.onUpdateScope || this.vars.defaultScope || this, this.vars.onUpdateParams || _blankArray);
 			}
 
 			if (callback) if (!this._gc) if (prevStart === this._startTime || prevTimeScale !== this._timeScale) if (this._time === 0 || totalDur >= this.totalDuration()) { //if one of the tweens that was rendered altered this timeline's startTime (like if an onComplete reversed the timeline), it probably isn't complete. If it is, don't worry, because whatever call altered the startTime would complete if it was necessary at the new time. The only exception is the timeScale property. Also check _gc because there's a chance that kill() could be called in an onUpdate
@@ -849,7 +849,7 @@
 					this._active = false;
 				}
 				if (!suppressEvents && this.vars[callback]) {
-					this.vars[callback].apply(this.vars[callback + "Scope"] || this, this.vars[callback + "Params"] || _blankArray);
+					this.vars[callback].apply(this.vars[callback + "Scope"] || this.vars.defaultScope || this, this.vars[callback + "Params"] || _blankArray);
 				}
 			}
 		};
