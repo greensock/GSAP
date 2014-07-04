@@ -212,7 +212,7 @@
 				
 			if (prevTime === this._time && !force && prevCycle === this._cycle) {
 				if (prevTotalTime !== this._totalTime) if (this._onUpdate) if (!suppressEvents) { //so that onUpdate fires even during the repeatDelay - as long as the totalTime changed, we should trigger onUpdate.
-					this._onUpdate.apply(this.vars.onUpdateScope || this, this.vars.onUpdateParams || _blankArray);
+					this._onUpdate.apply(this.vars.onUpdateScope || this.vars.defaultScope || this, this.vars.onUpdateParams || _blankArray);
 				}
 				return;
 			} else if (!this._initted) {
@@ -255,7 +255,7 @@
 					}
 				}
 				if (this.vars.onStart) if (this._totalTime !== 0 || duration === 0) if (!suppressEvents) {
-					this.vars.onStart.apply(this.vars.onStartScope || this, this.vars.onStartParams || _blankArray);
+					this.vars.onStart.apply(this.vars.onStartScope || this.vars.defaultScope || this, this.vars.onStartParams || _blankArray);
 				}
 			}
 			
@@ -274,11 +274,11 @@
 					this._startAt.render(time, suppressEvents, force); //note: for performance reasons, we tuck this conditional logic inside less traveled areas (most tweens don't have an onUpdate). We'd just have it at the end before the onComplete, but the values should be updated before any onUpdate is called, so we ALSO put it here and then if it's not called, we do so later near the onComplete.
 				}
 				if (!suppressEvents) if (this._totalTime !== prevTotalTime || isComplete) {
-					this._onUpdate.apply(this.vars.onUpdateScope || this, this.vars.onUpdateParams || _blankArray);
+					this._onUpdate.apply(this.vars.onUpdateScope || this.vars.defaultScope || this, this.vars.onUpdateParams || _blankArray);
 				}
 			}
 			if (this._cycle !== prevCycle) if (!suppressEvents) if (!this._gc) if (this.vars.onRepeat) {
-				this.vars.onRepeat.apply(this.vars.onRepeatScope || this, this.vars.onRepeatParams || _blankArray);
+				this.vars.onRepeat.apply(this.vars.onRepeatScope || this.vars.defaultScope || this, this.vars.onRepeatParams || _blankArray);
 			}
 			if (callback) if (!this._gc) { //check gc because there's a chance that kill() could be called in an onUpdate
 				if (time < 0 && this._startAt && !this._onUpdate && this._startTime) { //if the tween is positioned at the VERY beginning (_startTime 0) of its parent timeline, it's illegal for the playhead to go back further, so we should not render the recorded startAt values.
@@ -291,7 +291,7 @@
 					this._active = false;
 				}
 				if (!suppressEvents && this.vars[callback]) {
-					this.vars[callback].apply(this.vars[callback + "Scope"] || this, this.vars[callback + "Params"] || _blankArray);
+					this.vars[callback].apply(this.vars[callback + "Scope"] || this.vars.defaultScope || this, this.vars[callback + "Params"] || _blankArray);
 				}
 				if (duration === 0 && this._rawPrevTime === _tinyNum && rawPrevTime !== _tinyNum) { //the onComplete or onReverseComplete could trigger movement of the playhead and for zero-duration tweens (which must discern direction) that land directly back on their start time, we don't want to fire again on the next render. Think of several addPause()'s in a timeline that forces the playhead to a certain spot, but what if it's already paused and another tween is tweening the "time" of the timeline? Each time it moves [forward] past that spot, it would move back, and since suppressEvents is true, it'd reset _rawPrevTime to _tinyNum so that when it begins again, the callback would fire (so ultimately it could bounce back and forth during that tween). Again, this is a very uncommon scenario, but possible nonetheless.
 					this._rawPrevTime = 0;
@@ -323,9 +323,9 @@
 				a = [],
 				finalComplete = function() {
 					if (vars.onComplete) {
-						vars.onComplete.apply(vars.onCompleteScope || this, arguments);
+						vars.onComplete.apply(vars.onCompleteScope || this.vars.defaultScope || this, arguments);
 					}
-					onCompleteAll.apply(onCompleteAllScope || this, onCompleteAllParams || _blankArray);
+					onCompleteAll.apply(onCompleteAllScope || this.vars.defaultScope || this, onCompleteAllParams || _blankArray);
 				},
 				l, copy, i, p;
 			if (!_isArray(targets)) {
@@ -679,7 +679,7 @@
 		};
 
 		p.call = function(callback, params, scope, position) {
-			return this.add( TweenLite.delayedCall(0, callback, params, scope), position);
+			return this.add( TweenLite.delayedCall(0, callback, params, scope || this.vars.defaultScope), position);
 		};
 
 		p.set = function(target, vars, position) {
@@ -816,7 +816,7 @@
 		};
 
 		p.addPause = function(position, callback, params, scope) {
-			return this.call(_pauseCallback, ["{self}", callback, params, scope], this, position);
+			return this.call(_pauseCallback, ["{self}", callback, params, scope || this.vars.defaultScope], this, position);
 		};
 
 		p.removeLabel = function(label) {
@@ -937,7 +937,7 @@
 			}
 
 			if (prevTime === 0) if (this.vars.onStart) if (this._time !== 0) if (!suppressEvents) {
-				this.vars.onStart.apply(this.vars.onStartScope || this, this.vars.onStartParams || _blankArray);
+				this.vars.onStart.apply(this.vars.onStartScope || this.vars.defaultScope || this.vars.defaultScope || this, this.vars.onStartParams || _blankArray);
 			}
 
 			if (this._time >= prevTime) {
@@ -973,7 +973,7 @@
 			}
 
 			if (this._onUpdate) if (!suppressEvents) {
-				this._onUpdate.apply(this.vars.onUpdateScope || this, this.vars.onUpdateParams || _blankArray);
+				this._onUpdate.apply(this.vars.onUpdateScope || this.vars.defaultScope || this, this.vars.onUpdateParams || _blankArray);
 			}
 
 			if (callback) if (!this._gc) if (prevStart === this._startTime || prevTimeScale !== this._timeScale) if (this._time === 0 || totalDur >= this.totalDuration()) { //if one of the tweens that was rendered altered this timeline's startTime (like if an onComplete reversed the timeline), it probably isn't complete. If it is, don't worry, because whatever call altered the startTime would complete if it was necessary at the new time. The only exception is the timeScale property. Also check _gc because there's a chance that kill() could be called in an onUpdate
@@ -984,7 +984,7 @@
 					this._active = false;
 				}
 				if (!suppressEvents && this.vars[callback]) {
-					this.vars[callback].apply(this.vars[callback + "Scope"] || this, this.vars[callback + "Params"] || _blankArray);
+					this.vars[callback].apply(this.vars[callback + "Scope"] || this.vars.defaultScope || this, this.vars[callback + "Params"] || _blankArray);
 				}
 			}
 		};
@@ -1280,7 +1280,7 @@
 					t.duration( Math.abs( t.vars.time - t.target.time()) / t.target._timeScale );
 				}
 				if (vars.onStart) { //in case the user had an onStart in the vars - we don't want to overwrite it.
-					vars.onStart.apply(vars.onStartScope || t, vars.onStartParams || _blankArray);
+					vars.onStart.apply(vars.onStartScope || this.vars.defaultScope || t, vars.onStartParams || _blankArray);
 				}
 			};
 			return t;
@@ -1415,7 +1415,7 @@
 				this.render(prevTime, suppressEvents, (dur === 0));
 				if (!suppressEvents) if (!this._gc) {
 					if (this.vars.onRepeat) {
-						this.vars.onRepeat.apply(this.vars.onRepeatScope || this, this.vars.onRepeatParams || _blankArray);
+						this.vars.onRepeat.apply(this.vars.onRepeatScope || this.vars.defaultScope || this, this.vars.onRepeatParams || _blankArray);
 					}
 				}
 				if (wrap) {
@@ -1434,7 +1434,7 @@
 
 			if ((this._time === prevTime || !this._first) && !force && !internalForce) {
 				if (prevTotalTime !== this._totalTime) if (this._onUpdate) if (!suppressEvents) { //so that onUpdate fires even during the repeatDelay - as long as the totalTime changed, we should trigger onUpdate.
-					this._onUpdate.apply(this.vars.onUpdateScope || this, this.vars.onUpdateParams || _blankArray);
+					this._onUpdate.apply(this.vars.onUpdateScope || this.vars.defaultScope || this, this.vars.onUpdateParams || _blankArray);
 				}
 				return;
 			} else if (!this._initted) {
@@ -1446,7 +1446,7 @@
 			}
 
 			if (prevTotalTime === 0) if (this.vars.onStart) if (this._totalTime !== 0) if (!suppressEvents) {
-				this.vars.onStart.apply(this.vars.onStartScope || this, this.vars.onStartParams || _blankArray);
+				this.vars.onStart.apply(this.vars.onStartScope || this.vars.defaultScope || this, this.vars.onStartParams || _blankArray);
 			}
 
 			if (this._time >= prevTime) {
@@ -1483,7 +1483,7 @@
 			}
 
 			if (this._onUpdate) if (!suppressEvents) {
-				this._onUpdate.apply(this.vars.onUpdateScope || this, this.vars.onUpdateParams || _blankArray);
+				this._onUpdate.apply(this.vars.onUpdateScope || this.vars.defaultScope || this, this.vars.onUpdateParams || _blankArray);
 			}
 			if (callback) if (!this._locked) if (!this._gc) if (prevStart === this._startTime || prevTimeScale !== this._timeScale) if (this._time === 0 || totalDur >= this.totalDuration()) { //if one of the tweens that was rendered altered this timeline's startTime (like if an onComplete reversed the timeline), it probably isn't complete. If it is, don't worry, because whatever call altered the startTime would complete if it was necessary at the new time. The only exception is the timeScale property. Also check _gc because there's a chance that kill() could be called in an onUpdate
 				if (isComplete) {
@@ -1493,7 +1493,7 @@
 					this._active = false;
 				}
 				if (!suppressEvents && this.vars[callback]) {
-					this.vars[callback].apply(this.vars[callback + "Scope"] || this, this.vars[callback + "Params"] || _blankArray);
+					this.vars[callback].apply(this.vars[callback + "Scope"] || this.vars.defaultScope || this, this.vars[callback + "Params"] || _blankArray);
 				}
 			}
 		};
@@ -6412,7 +6412,7 @@
 					}
 				}
 				if (this.vars.onStart) if (this._time !== 0 || duration === 0) if (!suppressEvents) {
-					this.vars.onStart.apply(this.vars.onStartScope || this, this.vars.onStartParams || _blankArray);
+					this.vars.onStart.apply(this.vars.onStartScope || this.vars.defaultScope || this, this.vars.onStartParams || _blankArray);
 				}
 			}
 
@@ -6431,7 +6431,7 @@
 					this._startAt.render(time, suppressEvents, force); //note: for performance reasons, we tuck this conditional logic inside less traveled areas (most tweens don't have an onUpdate). We'd just have it at the end before the onComplete, but the values should be updated before any onUpdate is called, so we ALSO put it here and then if it's not called, we do so later near the onComplete.
 				}
 				if (!suppressEvents) if (this._time !== prevTime || isComplete) {
-					this._onUpdate.apply(this.vars.onUpdateScope || this, this.vars.onUpdateParams || _blankArray);
+					this._onUpdate.apply(this.vars.onUpdateScope || this.vars.defaultScope || this, this.vars.onUpdateParams || _blankArray);
 				}
 			}
 
@@ -6446,7 +6446,7 @@
 					this._active = false;
 				}
 				if (!suppressEvents && this.vars[callback]) {
-					this.vars[callback].apply(this.vars[callback + "Scope"] || this, this.vars[callback + "Params"] || _blankArray);
+					this.vars[callback].apply(this.vars[callback + "Scope"] || this.vars.defaultScope || this, this.vars[callback + "Params"] || _blankArray);
 				}
 				if (duration === 0 && this._rawPrevTime === _tinyNum && rawPrevTime !== _tinyNum) { //the onComplete or onReverseComplete could trigger movement of the playhead and for zero-duration tweens (which must discern direction) that land directly back on their start time, we don't want to fire again on the next render. Think of several addPause()'s in a timeline that forces the playhead to a certain spot, but what if it's already paused and another tween is tweening the "time" of the timeline? Each time it moves [forward] past that spot, it would move back, and since suppressEvents is true, it'd reset _rawPrevTime to _tinyNum so that when it begins again, the callback would fire (so ultimately it could bounce back and forth during that tween). Again, this is a very uncommon scenario, but possible nonetheless.
 					this._rawPrevTime = 0;
