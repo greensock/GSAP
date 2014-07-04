@@ -544,7 +544,7 @@
 		};
 
 		p.call = function(callback, params, scope, position) {
-			return this.add( TweenLite.delayedCall(0, callback, params, scope), position);
+			return this.add( TweenLite.delayedCall(0, callback, params, scope || this.vars.defaultScope), position);
 		};
 
 		p.set = function(target, vars, position) {
