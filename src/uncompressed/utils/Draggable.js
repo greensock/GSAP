@@ -205,7 +205,7 @@
 					callback = vars[callbackName],
 					listeners = instance._listeners[type];
 				if (typeof(callback) === "function") {
-					callback.apply(vars[callbackName + "Scope"] || instance, vars[callbackName + "Params"] || [instance.pointerEvent]);
+					callback.apply(vars[callbackName + "Scope"] || this.vars.defaultScope || instance, vars[callbackName + "Params"] || [instance.pointerEvent]);
 				}
 				if (listeners) {
 					instance.dispatchEvent(type);
@@ -884,7 +884,7 @@
 							}
 						}
 						if (vars.onThrowUpdate && !skipOnUpdate) {
-							vars.onThrowUpdate.apply(vars.onThrowUpdateScope || self, vars.onThrowUpdateParams || _emptyArray);
+							vars.onThrowUpdate.apply(vars.onThrowUpdateScope || this.vars.defaultScope || self, vars.onThrowUpdateParams || _emptyArray);
 						}
 					},
 
