@@ -16,7 +16,7 @@
 	var self = {};
 
 	// define the function to export
-	var moduleName = 'TweenMax';
+	var moduleName = 'TweenLite';
 
 	// control the factory and use it depending on environment
 	(function(factory) {
