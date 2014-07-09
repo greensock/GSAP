@@ -9,7 +9,36 @@
  * 
  * @author: Jack Doyle, jack@greensock.com
  */
+
 (function(window) {
+
+	// define the "window" in a local scope
+	var self = {};
+
+	// define the function to export
+	var moduleName = 'TweenLite';
+
+	// control the factory and use it depending on environment
+	(function(factory) {
+
+		// execute the factory with our own window object and place the modules in it’s GreenSocksGlobal
+		factory(self);
+
+		if ( typeof define === "function" && define.amd ) { // AMD
+			return define(function() {
+				return self[moduleName];
+			});
+		} else if ( typeof module === "object" && typeof module.exports === "object" ) { // CommonJS
+			module.exports = self[moduleName];
+		} else if ( window && window.document ) {
+			for (var prop in self) { // Window - export everything
+				(window.GreenSockGlobals || window)[prop] = self[prop];
+			}
+		} else {
+			throw new Error('No environment found');
+		}
+
+	}(function(window) {
 
 		"use strict";
 		var _globals = window.GreenSockGlobals || window;
@@ -97,11 +126,6 @@
 						//exports to multiple environments
 						if (global) {
 							_globals[n] = cl; //provides a way to avoid global namespace pollution. By default, the main classes like TweenLite, Power1, Strong, etc. are added to window unless a GreenSockGlobals is defined. So if you want to have things added to a custom object instead, just do something like window.GreenSockGlobals = {} before loading any GreenSock files. You can even set up an alias like window.GreenSockGlobals = windows.gs = {} so that you can access everything like gs.TweenLite. Also remember that ALL classes are added to the window.com.greensock object (in their respective packages, like com.greensock.easing.Power1, com.greensock.TweenLite, etc.)
-							if (typeof(define) === "function" && define.amd){ //AMD
-								define((window.GreenSockAMDPath ? window.GreenSockAMDPath + "/" : "") + ns.split(".").join("/"), [], function() { return cl; });
-							} else if (typeof(module) !== "undefined" && module.exports){ //node
-								module.exports = cl;
-							}
 						}
 						for (i = 0; i < this.sc.length; i++) {
 							this.sc[i].check();
@@ -1721,4 +1745,6 @@
 
 		_tickerActive = false; //ensures that the first official animation forces a ticker.tick() to update the time when it is instantiated
 
-})(window);
+	}));
+
+}(this));
