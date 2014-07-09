@@ -1,6 +1,6 @@
 /*!
- * VERSION: 1.11.7
- * DATE: 2014-04-29
+ * VERSION: 1.12.1
+ * DATE: 2014-06-26
  * UPDATES AND DOCS AT: http://www.greensock.com
  *
  * @license Copyright (c) 2008-2014, GreenSock. All rights reserved.
@@ -56,7 +56,7 @@
 			_slice = _blankArray.slice,
 			p = TimelineLite.prototype = new SimpleTimeline();
 
-		TimelineLite.version = "1.11.7";
+		TimelineLite.version = "1.12.1";
 		p.constructor = TimelineLite;
 		p.kill()._gc = false;
 		
@@ -374,13 +374,11 @@
 					if (this._paused && !prevPaused) { //in case a tween pauses the timeline when rendering
 						break;
 					} else if (tween._active || (tween._startTime <= this._time && !tween._paused && !tween._gc)) {
-
 						if (!tween._reversed) {
 							tween.render((time - tween._startTime) * tween._timeScale, suppressEvents, force);
 						} else {
 							tween.render(((!tween._dirty) ? tween._totalDuration : tween.totalDuration()) - ((time - tween._startTime) * tween._timeScale), suppressEvents, force);
 						}
-						
 					}
 					tween = next;
 				}
@@ -391,13 +389,11 @@
 					if (this._paused && !prevPaused) { //in case a tween pauses the timeline when rendering
 						break;
 					} else if (tween._active || (tween._startTime <= prevTime && !tween._paused && !tween._gc)) {
-						
 						if (!tween._reversed) {
 							tween.render((time - tween._startTime) * tween._timeScale, suppressEvents, force);
 						} else {
 							tween.render(((!tween._dirty) ? tween._totalDuration : tween.totalDuration()) - ((time - tween._startTime) * tween._timeScale), suppressEvents, force);
 						}
-						
 					}
 					tween = next;
 				}
@@ -458,14 +454,22 @@
 		};
 		
 		p.getTweensOf = function(target, nested) {
-			var tweens = TweenLite.getTweensOf(target), 
-				i = tweens.length, 
-				a = [], 
-				cnt = 0;
+			var disabled = this._gc,
+				a = [],
+				cnt = 0,
+				tweens, i;
+			if (disabled) {
+				this._enabled(true, true); //getTweensOf() filters out disabled tweens, and we have to mark them as _gc = true when the timeline completes in order to allow clean garbage collection, so temporarily re-enable the timeline here.
+			}
+			tweens = TweenLite.getTweensOf(target);
+			i = tweens.length;
 			while (--i > -1) {
 				if (tweens[i].timeline === this || (nested && this._contains(tweens[i]))) {
 					a[cnt++] = tweens[i];
 				}
+			}
+			if (disabled) {
+				this._enabled(false, true);
 			}
 			return a;
 		};
