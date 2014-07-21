@@ -1,6 +1,6 @@
 /*!
- * VERSION: beta 1.2.0
- * DATE: 2013-03-01
+ * VERSION: beta 1.2.1
+ * DATE: 2013-07-17
  * UPDATES AND DOCS AT: http://www.greensock.com
  *
  * @license Copyright (c) 2008-2014, GreenSock. All rights reserved.
@@ -9,8 +9,8 @@
  * 
  * @author: Jack Doyle, jack@greensock.com
  **/
-
-(window._gsQueue || (window._gsQueue = [])).push( function() {
+var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(global) !== "undefined") ? global : this || window; //helps ensure compatibility with AMD/RequireJS and CommonJS/Node
+(_gsScope._gsQueue || (_gsScope._gsQueue = [])).push( function() {
 
 	"use strict";
 
@@ -74,8 +74,9 @@
 			return color.match(_numExp) || _colorLookup.transparent;
 		};
 
-	window._gsDefine.plugin({
+	_gsScope._gsDefine.plugin({
 		propName: "colorProps",
+		version: "1.2.1",
 		priority: -1,
 		API: 2,
 
@@ -119,4 +120,4 @@
 		}
 	});
 
-}); if (window._gsDefine) { window._gsQueue.pop()(); }
+}); if (_gsScope._gsDefine) { _gsScope._gsQueue.pop()(); }

@@ -1,6 +1,6 @@
 /*!
- * VERSION: 1.12.1
- * DATE: 2014-06-26
+ * VERSION: 1.13.0
+ * DATE: 2014-07-19
  * UPDATES AND DOCS AT: http://www.greensock.com
  *
  * @license Copyright (c) 2008-2014, GreenSock. All rights reserved.
@@ -9,10 +9,10 @@
  * 
  * @author: Jack Doyle, jack@greensock.com
  */
-(function(window) {
+(function(window, moduleName) {
 
 		"use strict";
-		var _globals = window.GreenSockGlobals || window;
+		var _globals = window.GreenSockGlobals = window.GreenSockGlobals || window;
 		if (_globals.TweenLite) {
 			return; //in case the core set of classes is already loaded, don't instantiate twice.
 		}
@@ -26,7 +26,13 @@
 			},
 			gs = _namespace("com.greensock"),
 			_tinyNum = 0.0000000001,
-			_slice = [].slice,
+			_slice = function(a) { //don't use Array.prototype.slice.call(target, 0) because that doesn't work in IE8 with a NodeList that's returned by querySelectorAll()
+				var b = [],
+					l = a.length,
+					i;
+				for (i = 0; i !== l; b.push(a[i++]));
+				return b;
+			},
 			_emptyFunc = function() {},
 			_isArray = (function() { //works around issues in iframe environments where the Array global isn't shared, thus if the object originates in a different window/iframe, "(obj instanceof Array)" will evaluate false. We added some speed optimizations to avoid Object.prototype.toString.call() unless it's absolutely necessary because it's VERY slow (like 20x slower)
 				var toString = Object.prototype.toString,
@@ -58,7 +64,7 @@
 			 * </script>
 			 * <script src="js/greensock/v1.7/TweenMax.js"></script>
 			 * <script>
-			 *     window.GreenSockGlobals = null; //reset it back to null so that the next load of TweenMax affects the window and we can reference things directly like TweenLite.to(...)
+			 *     window.GreenSockGlobals = window._gsQueue = null; //reset it back to null (along with the special _gsQueue variable) so that the next load of TweenMax affects the window and we can reference things directly like TweenLite.to(...)
 			 * </script>
 			 * <script src="js/greensock/v1.6/TweenMax.js"></script>
 			 * <script>
@@ -98,8 +104,8 @@
 						if (global) {
 							_globals[n] = cl; //provides a way to avoid global namespace pollution. By default, the main classes like TweenLite, Power1, Strong, etc. are added to window unless a GreenSockGlobals is defined. So if you want to have things added to a custom object instead, just do something like window.GreenSockGlobals = {} before loading any GreenSock files. You can even set up an alias like window.GreenSockGlobals = windows.gs = {} so that you can access everything like gs.TweenLite. Also remember that ALL classes are added to the window.com.greensock object (in their respective packages, like com.greensock.easing.Power1, com.greensock.TweenLite, etc.)
 							if (typeof(define) === "function" && define.amd){ //AMD
-								define((window.GreenSockAMDPath ? window.GreenSockAMDPath + "/" : "") + ns.split(".").join("/"), [], function() { return cl; });
-							} else if (typeof(module) !== "undefined" && module.exports){ //node
+								define((window.GreenSockAMDPath ? window.GreenSockAMDPath + "/" : "") + ns.split(".").pop(), [], function() { return cl; });
+							} else if (ns === moduleName && typeof(module) !== "undefined" && module.exports){ //node
 								module.exports = cl;
 							}
 						}
@@ -760,7 +766,6 @@
 				if (!skipDisable) {
 					tween._enabled(false, true);
 				}
-				tween.timeline = null;
 
 				if (tween._prev) {
 					tween._prev._next = tween._next;
@@ -772,6 +777,7 @@
 				} else if (this._last === tween) {
 					this._last = tween._prev;
 				}
+				tween._next = tween._prev = tween.timeline = null;
 
 				if (this._timeline) {
 					this._uncache(true);
@@ -826,7 +832,7 @@
 				this._overwrite = overwrite = (overwrite == null) ? _overwriteLookup[TweenLite.defaultOverwrite] : (typeof(overwrite) === "number") ? overwrite >> 0 : _overwriteLookup[overwrite];
 
 				if ((isSelector || target instanceof Array || (target.push && _isArray(target))) && typeof(target[0]) !== "number") {
-					this._targets = targets = _slice.call(target, 0);
+					this._targets = targets = _slice(target);  //don't use Array.prototype.slice.call(target, 0) because that doesn't work in IE8 with a NodeList that's returned by querySelectorAll()
 					this._propLookup = [];
 					this._siblings = [];
 					for (i = 0; i < targets.length; i++) {
@@ -842,7 +848,7 @@
 							continue;
 						} else if (targ.length && targ !== window && targ[0] && (targ[0] === window || (targ[0].nodeType && targ[0].style && !targ.nodeType))) { //in case the user is passing in an array of selector objects (like jQuery objects), we need to check one more level and pull things out if necessary. Also note that <select> elements pass all the criteria regarding length and the first child having style, so we must also check to ensure the target isn't an HTML node itself.
 							targets.splice(i--, 1);
-							this._targets = targets = targets.concat(_slice.call(targ, 0));
+							this._targets = targets = targets.concat(_slice(targ));
 							continue;
 						}
 						this._siblings[i] = _register(targ, this, false);
@@ -888,7 +894,7 @@
 		p._firstPT = p._targets = p._overwrittenProps = p._startAt = null;
 		p._notifyPluginsOfEnabled = p._lazy = false;
 
-		TweenLite.version = "1.12.1";
+		TweenLite.version = "1.13.0";
 		TweenLite.defaultEase = p._ease = new Ease(null, null, 1, 1);
 		TweenLite.defaultOverwrite = "auto";
 		TweenLite.ticker = _ticker;
@@ -896,7 +902,14 @@
 		TweenLite.lagSmoothing = function(threshold, adjustedLag) {
 			_ticker.lagSmoothing(threshold, adjustedLag);
 		};
-		TweenLite.selector = window.$ || window.jQuery || function(e) { if (window.$) { TweenLite.selector = window.$; return window.$(e); } return window.document ? window.document.getElementById((e.charAt(0) === "#") ? e.substr(1) : e) : e; };
+
+		TweenLite.selector = function(e) {
+			if (window.$) {
+				TweenLite.selector = window.$;
+				return window.$(e);
+			}
+			return (typeof(document) === "undefined") ? e : (document.querySelectorAll ? document.querySelectorAll(e) : document.getElementById((e.charAt(0) === "#") ? e.substr(1) : e));
+		};
 
 		var _lazyTweens = [],
 			_lazyLookup = {},
@@ -908,7 +921,7 @@
 			_overwriteLookup = {none:0, all:1, auto:2, concurrent:3, allOnStart:4, preexisting:5, "true":1, "false":0},
 			_rootFramesTimeline = Animation._rootFramesTimeline = new SimpleTimeline(),
 			_rootTimeline = Animation._rootTimeline = new SimpleTimeline(),
-			_lazyRender = function() {
+			_lazyRender = _internals.lazyRender = function() {
 				var i = _lazyTweens.length;
 				_lazyLookup = {};
 				while (--i > -1) {
@@ -1106,12 +1119,9 @@
 					}
 				}
 			}
-			if (!ease) {
-				this._ease = TweenLite.defaultEase;
-			} else if (ease instanceof Ease) {
-				this._ease = (v.easeParams instanceof Array) ? ease.config.apply(ease, v.easeParams) : ease;
-			} else {
-				this._ease = (typeof(ease) === "function") ? new Ease(ease, v.easeParams) : _easeMap[ease] || TweenLite.defaultEase;
+			this._ease = ease = (!ease) ? TweenLite.defaultEase : (ease instanceof Ease) ? ease : (typeof(ease) === "function") ? new Ease(ease, v.easeParams) : _easeMap[ease] || TweenLite.defaultEase;
+			if (v.easeParams instanceof Array && ease.config) {
+				this._ease = ease.config.apply(ease, v.easeParams);
 			}
 			this._easeType = this._ease._type;
 			this._easePower = this._ease._power;
@@ -1310,7 +1320,7 @@
 					this.ratio = this._ease.getRatio((this._time === 0) ? 0 : 1);
 				}
 			}
-			if (this._lazy !== false) { //in case a lazy render is pending, we should flush it because the new render is occuring now (imagine a lazy tween instantiating and then immediately the user calls tween.seek(tween.duration()), skipping to the end - the end render would be forced, and then if we didn't flush the lazy render, it'd fire AFTER the seek(), rendering it at the wrong time.
+			if (this._lazy !== false) { //in case a lazy render is pending, we should flush it because the new render is occurring now (imagine a lazy tween instantiating and then immediately the user calls tween.seek(tween.duration()), skipping to the end - the end render would be forced, and then if we didn't flush the lazy render, it'd fire AFTER the seek(), rendering it at the wrong time.
 				this._lazy = false;
 			}
 			if (!this._active) if (!this._paused && this._time !== prevTime && time >= 0) {
@@ -1328,7 +1338,6 @@
 					this.vars.onStart.apply(this.vars.onStartScope || this, this.vars.onStartParams || _blankArray);
 				}
 			}
-
 			pt = this._firstPT;
 			while (pt) {
 				if (pt.f) {
@@ -1348,7 +1357,7 @@
 				}
 			}
 
-			if (callback) if (!this._gc) { //check _gc because there's a chance that kill() could be called in an onUpdate
+			if (callback) if (!this._gc || force) { //check _gc because there's a chance that kill() could be called in an onUpdate
 				if (time < 0 && this._startAt && !this._onUpdate && this._startTime) { //if the tween is positioned at the VERY beginning (_startTime 0) of its parent timeline, it's illegal for the playhead to go back further, so we should not render the recorded startAt values.
 					this._startAt.render(time, suppressEvents, force);
 				}
@@ -1365,7 +1374,6 @@
 					this._rawPrevTime = 0;
 				}
 			}
-
 		};
 
 		p._kill = function(vars, target) {
@@ -1721,4 +1729,4 @@
 
 		_tickerActive = false; //ensures that the first official animation forces a ticker.tick() to update the time when it is instantiated
 
-})(window);
+})((typeof(module) !== "undefined" && module.exports && typeof(global) !== "undefined") ? global : this || window, "TweenLite");

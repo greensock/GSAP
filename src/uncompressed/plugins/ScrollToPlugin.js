@@ -1,6 +1,6 @@
 /*!
- * VERSION: 1.7.3
- * DATE: 2014-01-14
+ * VERSION: 1.7.4
+ * DATE: 2014-07-17
  * UPDATES AND DOCS AT: http://www.greensock.com
  *
  * @license Copyright (c) 2008-2014, GreenSock. All rights reserved.
@@ -9,7 +9,8 @@
  * 
  * @author: Jack Doyle, jack@greensock.com
  **/
-(window._gsQueue || (window._gsQueue = [])).push( function() {
+var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(global) !== "undefined") ? global : this || window; //helps ensure compatibility with AMD/RequireJS and CommonJS/Node
+(_gsScope._gsQueue || (_gsScope._gsQueue = [])).push( function() {
 
 	"use strict";
 
@@ -23,10 +24,10 @@
 			return (element === _window || element === _doc || element === body) ? Math.max(_doc[scroll], body[scroll]) - (_window["inner" + dim] || Math.max(_doc[client], body[client])) : element[scroll] - element["offset" + dim];
 		},
 
-		ScrollToPlugin = window._gsDefine.plugin({
+		ScrollToPlugin = _gsScope._gsDefine.plugin({
 			propName: "scrollTo",
 			API: 2,
-			version:"1.7.3",
+			version:"1.7.4",
 
 			//called when the tween renders for the first time. This is where initial values should be recorded and any setup routines should run.
 			init: function(target, value, tween) {
@@ -36,6 +37,7 @@
 				if (typeof(value) !== "object") {
 					value = {y:value}; //if we don't receive an object as the parameter, assume the user intends "y".
 				}
+				this.vars = value;
 				this._autoKill = (value.autoKill !== false);
 				this.x = this.xPrev = this.getX();
 				this.y = this.yPrev = this.getY();
@@ -73,6 +75,9 @@
 					}
 					if (this.skipX && this.skipY) {
 						this._tween.kill();
+						if (this.vars.onAutoKill) {
+							this.vars.onAutoKill.apply(this.vars.onAutoKillScope || this._tween, this.vars.onAutoKillParams || []);
+						}
 					}
 				}
 				if (this._wdw) {
@@ -112,4 +117,4 @@
 		return this._super._kill.call(this, lookup);
 	};
 
-}); if (window._gsDefine) { window._gsQueue.pop()(); }
+}); if (_gsScope._gsDefine) { _gsScope._gsQueue.pop()(); }

@@ -1,6 +1,6 @@
 /*!
- * VERSION: 0.5.1
- * DATE: 2014-02-14
+ * VERSION: 0.5.2
+ * DATE: 2014-07-17
  * UPDATES AND DOCS AT: http://www.greensock.com
  *
  * @license Copyright (c) 2008-2014, GreenSock. All rights reserved.
@@ -9,7 +9,8 @@
  * 
  * @author: Jack Doyle, jack@greensock.com
  */
-(window._gsQueue || (window._gsQueue = [])).push( function() {
+var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(global) !== "undefined") ? global : this || window; //helps ensure compatibility with AMD/RequireJS and CommonJS/Node
+(_gsScope._gsQueue || (_gsScope._gsQueue = [])).push( function() {
 	
 	"use strict";
 
@@ -18,7 +19,7 @@
 		_setterFuncs = {},
 		_numExp = /(\d|\.)+/g,
 		_directionalRotationExp = /(?:_cw|_ccw|_short)/,
-		_plugins = window._gsDefine.globals.com.greensock.plugins,
+		_plugins = _gsScope._gsDefine.globals.com.greensock.plugins,
 		_colorLookup = {aqua:[0,255,255],
 			lime:[0,255,0],
 			silver:[192,192,192],
@@ -180,10 +181,10 @@
 		}
 	}
 
-	var KineticPlugin = window._gsDefine.plugin({
+	var KineticPlugin = _gsScope._gsDefine.plugin({
 		propName: "kinetic",
 		API: 2,
-		version: "0.5.1",
+		version: "0.5.2",
 
 		//called when the tween renders for the first time. This is where initial values should be recorded and any setup routines should run.
 		init: function(target, value, tween) {
@@ -331,4 +332,4 @@
 		}
 	};
 
-}); if (window._gsDefine) { window._gsQueue.pop()(); }
+}); if (_gsScope._gsDefine) { _gsScope._gsQueue.pop()(); }
