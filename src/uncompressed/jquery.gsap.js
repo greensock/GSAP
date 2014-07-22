@@ -1,6 +1,6 @@
 /*!
- * VERSION: 0.1.8
- * DATE: 2014-06-21
+ * VERSION: 0.1.9
+ * DATE: 2014-07-22
  * UPDATES AND DOCS AT: http://www.greensock.com/jquery-gsap-plugin/
  *
  * Requires TweenLite version 1.8.0 or higher and CSSPlugin.
@@ -139,7 +139,7 @@
 			obj.queue(config.queue, doAnimation); //note: the queued function will get called once for each element in the jQuery collection.
 			if (typeof(config.old) === "function") {
 				obj.queue(config.queue, function(next) {
-					config.old();
+					config.old.call(this);
 					next();
 				});
 			}
@@ -170,6 +170,6 @@
 		return this;
 	};
 
-	$.gsap = {enabled:function(value) {_enabled = value;}, version:"0.1.8"};
+	$.gsap = {enabled:function(value) {_enabled = value;}, version:"0.1.9"};
 
 }(jQuery));
