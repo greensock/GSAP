@@ -1,6 +1,6 @@
 /*!
- * VERSION: 1.13.1
- * DATE: 2014-07-22
+ * VERSION: 1.13.2
+ * DATE: 2014-08-23
  * UPDATES AND DOCS AT: http://www.greensock.com
  *
  * @license Copyright (c) 2008-2014, GreenSock. All rights reserved.
@@ -64,7 +64,7 @@
 			 * </script>
 			 * <script src="js/greensock/v1.7/TweenMax.js"></script>
 			 * <script>
-			 *     window.GreenSockGlobals = window._gsQueue = null; //reset it back to null (along with the special _gsQueue variable) so that the next load of TweenMax affects the window and we can reference things directly like TweenLite.to(...)
+			 *     window.GreenSockGlobals = window._gsQueue = window._gsDefine = null; //reset it back to null (along with the special _gsQueue variable) so that the next load of TweenMax affects the window and we can reference things directly like TweenLite.to(...)
 			 * </script>
 			 * <script src="js/greensock/v1.6/TweenMax.js"></script>
 			 * <script>
@@ -471,6 +471,12 @@
 		};
 
 		p.invalidate = function() {
+			this._time = this._totalTime = 0;
+			this._initted = this._gc = false;
+			this._rawPrevTime = -1;
+			if (this._gc || !this.timeline) {
+				this._enabled(true);
+			}
 			return this;
 		};
 
@@ -894,7 +900,7 @@
 		p._firstPT = p._targets = p._overwrittenProps = p._startAt = null;
 		p._notifyPluginsOfEnabled = p._lazy = false;
 
-		TweenLite.version = "1.13.1";
+		TweenLite.version = "1.13.2";
 		TweenLite.defaultEase = p._ease = new Ease(null, null, 1, 1);
 		TweenLite.defaultOverwrite = "auto";
 		TweenLite.ticker = _ticker;
@@ -928,7 +934,7 @@
 				while (--i > -1) {
 					a = _lazyTweens[i];
 					if (a && a._lazy !== false) {
-						a.render(a._lazy, false, true);
+						a.render(a._lazy[0], a._lazy[1], true);
 						a._lazy = false;
 					}
 				}
@@ -1101,6 +1107,9 @@
 					this._startAt.kill();
 					this._startAt = null;
 				} else {
+					if (this._time !== 0) { //in rare cases (like if a from() tween runs and then is invalidate()-ed), immediateRender could be true but the initial forced-render gets skipped, so there's no need to force the render in this context when the _time is greater than 0
+						immediate = false;
+					}
 					pt = {};
 					for (p in v) { //copy props into a new object and skip any reserved props, otherwise onComplete or onUpdate or onStart could fire. We should, however, permit autoCSS to go through.
 						if (!_reservedProps[p] || p === "autoCSS") {
@@ -1115,6 +1124,9 @@
 					if (!immediate) {
 						this._startAt._init(); //ensures that the initial values are recorded
 						this._startAt._enabled(false); //no need to have the tween render on the next cycle. Disable it because we'll always manually control the renders of the _startAt tween.
+						if (this.vars.immediateRender) {
+							this._startAt = null;
+						}
 					} else if (this._time === 0) {
 						return;
 					}
@@ -1262,7 +1274,8 @@
 						}
 						this._rawPrevTime = rawPrevTime = (!suppressEvents || time || prevRawPrevTime === time) ? time : _tinyNum; //when the playhead arrives at EXACTLY time 0 (right on top) of a zero-duration tween, we need to discern if events are suppressed so that when the playhead moves again (next time), it'll trigger the callback. If events are NOT suppressed, obviously the callback would be triggered in this render. Basically, the callback should fire either when the playhead ARRIVES or LEAVES this exact spot, not both. Imagine doing a timeline.seek(0) and there's a callback that sits at 0. Since events are suppressed on that seek() by default, nothing will fire, but when the playhead moves off of that position, the callback should fire. This behavior is what people intuitively expect. We set the _rawPrevTime to be a precise tiny number to indicate this scenario rather than using another property/variable which would increase memory usage. This technique is less readable, but more efficient.
 					}
-				} else if (!this._initted) { //if we render the very beginning (time == 0) of a fromTo(), we must force the render (normal tweens wouldn't need to render at a time of 0 when the prevTime was also 0). This is also mandatory to make sure overwriting kicks in immediately.
+				}
+				if (!this._initted) { //if we render the very beginning (time == 0) of a fromTo(), we must force the render (normal tweens wouldn't need to render at a time of 0 when the prevTime was also 0). This is also mandatory to make sure overwriting kicks in immediately.
 					force = true;
 				}
 			} else {
@@ -1311,7 +1324,7 @@
 					this._time = this._totalTime = prevTime;
 					this._rawPrevTime = prevRawPrevTime;
 					_lazyTweens.push(this);
-					this._lazy = time;
+					this._lazy = [time, suppressEvents];
 					return;
 				}
 				//_ease is initially set to defaultEase, so now that init() has run, _ease is set properly and we need to recalculate the ratio. Overall this is faster than using conditional logic earlier in the method to avoid having to set ratio twice because we only init() once but renderTime() gets called VERY frequently.
@@ -1449,12 +1462,14 @@
 			if (this._notifyPluginsOfEnabled) {
 				TweenLite._onPluginEvent("_onDisable", this);
 			}
-			this._firstPT = null;
-			this._overwrittenProps = null;
-			this._onUpdate = null;
-			this._startAt = null;
-			this._initted = this._active = this._notifyPluginsOfEnabled = this._lazy = false;
+			this._firstPT = this._overwrittenProps = this._startAt = this._onUpdate = null;
+			this._notifyPluginsOfEnabled = this._active = this._lazy = false;
 			this._propLookup = (this._targets) ? {} : [];
+			Animation.prototype.invalidate.call(this);
+			if (this.vars.immediateRender) {
+				this._time = -_tinyNum; //forces a render without having to set the render() "force" parameter to true because we want to allow lazying by default (using the "force" parameter always forces an immediate full render)
+				this.render(-this._delay);
+			}
 			return this;
 		};
 

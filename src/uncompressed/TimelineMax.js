@@ -1,6 +1,6 @@
 /*!
- * VERSION: 1.13.1
- * DATE: 2014-07-22
+ * VERSION: 1.13.2
+ * DATE: 2014-08-23
  * UPDATES AND DOCS AT: http://www.greensock.com
  *
  * @license Copyright (c) 2008-2014, GreenSock. All rights reserved.
@@ -34,7 +34,7 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 			
 		p.constructor = TimelineMax;
 		p.kill()._gc = false;
-		TimelineMax.version = "1.13.1";
+		TimelineMax.version = "1.13.2";
 		
 		p.invalidate = function() {
 			this._yoyo = (this.vars.yoyo === true);
@@ -376,12 +376,12 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 		
 //---- GETTERS / SETTERS -------------------------------------------------------------------------------------------------------
 		
-		p.progress = function(value) {
-			return (!arguments.length) ? this._time / this.duration() : this.totalTime( this.duration() * ((this._yoyo && (this._cycle & 1) !== 0) ? 1 - value : value) + (this._cycle * (this._duration + this._repeatDelay)), false);
+		p.progress = function(value, suppressEvents) {
+			return (!arguments.length) ? this._time / this.duration() : this.totalTime( this.duration() * ((this._yoyo && (this._cycle & 1) !== 0) ? 1 - value : value) + (this._cycle * (this._duration + this._repeatDelay)), suppressEvents);
 		};
 		
-		p.totalProgress = function(value) {
-			return (!arguments.length) ? this._totalTime / this.totalDuration() : this.totalTime( this.totalDuration() * value, false);
+		p.totalProgress = function(value, suppressEvents) {
+			return (!arguments.length) ? this._totalTime / this.totalDuration() : this.totalTime( this.totalDuration() * value, suppressEvents);
 		};
 
 		p.totalDuration = function(value) {
@@ -498,9 +498,15 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 				return copy;
 			},
 			_pauseCallback = function(tween, callback, params, scope) {
-				tween._timeline.pause(tween._startTime);
-				if (callback) {
-					callback.apply(scope || tween._timeline, params || _blankArray);
+				var time = tween._timeline._totalTime;
+				if (callback || !this._forcingPlayhead) { //if the user calls a method that moves the playhead (like progress() or time()), it should honor that and skip any pauses (although if there's a callback positioned at that pause, it must jump there and make the call to ensure the time is EXACTLY what it is supposed to be, and then proceed to where the playhead is being forced). Otherwise, imagine placing a pause in the middle of a timeline and then doing timeline.progress(0.9) - it would get stuck where the pause is.
+					tween._timeline.pause(tween._startTime);
+					if (callback) {
+						callback.apply(scope || tween._timeline, params || _blankArray);
+					}
+					if (this._forcingPlayhead) {
+						tween._timeline.seek(time);
+					}
 				}
 			},
 			_slice = function(a) { //don't use [].slice because that doesn't work in IE8 with a NodeList that's returned by querySelectorAll()
@@ -512,9 +518,9 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 			},
 			p = TimelineLite.prototype = new SimpleTimeline();
 
-		TimelineLite.version = "1.13.1";
+		TimelineLite.version = "1.13.2";
 		p.constructor = TimelineLite;
-		p.kill()._gc = false;
+		p.kill()._gc = p._forcingPlayhead = false;
 
 		/* might use later...
 		//translates a local time inside an animation to the corresponding time on the root/global timeline, factoring in all nesting and timeScales.
@@ -1024,7 +1030,7 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 				tween.invalidate();
 				tween = tween._next;
 			}
-			return this;
+			return Animation.prototype.invalidate.call(this);;
 		};
 
 		p._enabled = function(enabled, ignoreTimeline) {
@@ -1036,6 +1042,13 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 				}
 			}
 			return SimpleTimeline.prototype._enabled.call(this, enabled, ignoreTimeline);
+		};
+
+		p.totalTime = function(time, suppressEvents, uncapped) {
+			this._forcingPlayhead = true;
+			var val = Animation.prototype.totalTime.apply(this, arguments);
+			this._forcingPlayhead = false;
+			return val;
 		};
 
 		p.duration = function(value) {

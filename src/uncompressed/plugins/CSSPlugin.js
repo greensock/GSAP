@@ -1,6 +1,6 @@
 /*!
- * VERSION: 1.13.0
- * DATE: 2014-07-17
+ * VERSION: 1.13.2
+ * DATE: 2014-08-23
  * UPDATES AND DOCS AT: http://www.greensock.com
  *
  * @license Copyright (c) 2008-2014, GreenSock. All rights reserved.
@@ -30,7 +30,7 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 			p = CSSPlugin.prototype = new TweenPlugin("css");
 
 		p.constructor = CSSPlugin;
-		CSSPlugin.version = "1.13.0";
+		CSSPlugin.version = "1.13.2";
 		CSSPlugin.API = 2;
 		CSSPlugin.defaultTransformPerspective = 0;
 		CSSPlugin.defaultSkewType = "compensated";
@@ -1076,6 +1076,7 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 					minAngle = 179.99,
 					minPI = minAngle * _DEG2RAD,
 					zOrigin = _supports3D ? parseFloat(_getStyle(t, _transformOriginProp, cs, false, "0 0 0").split(" ")[2]) || tm.zOrigin  || 0 : 0,
+					defaultTransformPerspective = parseFloat(CSSPlugin.defaultTransformPerspective) || 0,
 					s, m, i, n, dec, scaleX, scaleY, rotation, skewX, difX, difY, difR, difS;
 				if (_transformProp) {
 					s = _getStyle(t, _transformPropCSS, cs, true);
@@ -1085,7 +1086,7 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 					s = (s && s.length === 4) ? [s[0].substr(4), Number(s[2].substr(4)), Number(s[1].substr(4)), s[3].substr(4), (tm.x || 0), (tm.y || 0)].join(",") : "";
 				}
 				if (!s || s === "none" || s === "matrix(1, 0, 0, 1, 0, 0)") { //if no transforms are applied, just use the defaults to optimize performance (no need to parse).
-					tm = {x:0, y:0, z:0, scaleX:1, scaleY:1, scaleZ:1, skewX:0, perspective:0, rotation:0, rotationX:0, rotationY:0, zOrigin:0};
+					tm = {x:0, y:0, z:0, scaleX:1, scaleY:1, scaleZ:1, skewX:0, perspective:defaultTransformPerspective, rotation:0, rotationX:0, rotationY:0, zOrigin:0};
 				} else {
 					//split the matrix values out into an array (m for matrix)
 					m = (s || "").match(/(?:\-|\b)[\d\-\.e]+\b/gi) || [];
@@ -1216,7 +1217,7 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 						}
 						if (_supports3D) {
 							tm.rotationX = tm.rotationY = tm.z = 0;
-							tm.perspective = parseFloat(CSSPlugin.defaultTransformPerspective) || 0;
+							tm.perspective = defaultTransformPerspective;
 							tm.scaleZ = 1;
 						}
 					}
