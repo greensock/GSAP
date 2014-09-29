@@ -6005,7 +6005,7 @@ if (_gsScope._gsDefine) { _gsScope._gsQueue.pop()(); } //necessary in case Tween
 				this.render = TweenLite.prototype.render; //speed optimization (avoid prototype lookup on this "hot" method)
 
 				if (target == null) {
-					throw "Cannot tween a null target.";
+					throw "Tween target not found. If you're using something like getElementById() or list[i], that code didn't find any element or object.";
 				}
 
 				this.target = target = (typeof(target) !== "string") ? target : TweenLite.selector(target) || target;
