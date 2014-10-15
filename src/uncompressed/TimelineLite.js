@@ -1,6 +1,6 @@
 /*!
- * VERSION: 1.13.2
- * DATE: 2014-08-23
+ * VERSION: 1.14.0
+ * DATE: 2014-10-14
  * UPDATES AND DOCS AT: http://www.greensock.com
  *
  * @license Copyright (c) 2008-2014, GreenSock. All rights reserved.
@@ -71,7 +71,7 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 			},
 			p = TimelineLite.prototype = new SimpleTimeline();
 
-		TimelineLite.version = "1.13.2";
+		TimelineLite.version = "1.14.0";
 		p.constructor = TimelineLite;
 		p.kill()._gc = p._forcingPlayhead = false;
 
@@ -117,10 +117,16 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 			if (typeof(targets) === "string") {
 				targets = TweenLite.selector(targets) || targets;
 			}
+			targets = targets || [];
 			if (_isSelector(targets)) { //senses if the targets object is a selector. If it is, we should translate it into an array.
 				targets = _slice(targets);
 			}
 			stagger = stagger || 0;
+			if (stagger < 0) {
+				targets = _slice(targets);
+				targets.reverse();
+				stagger *= -1;
+			}
 			for (i = 0; i < targets.length; i++) {
 				if (vars.startAt) {
 					vars.startAt = _copy(vars.startAt);
@@ -515,6 +521,10 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 				this._enabled(false, true);
 			}
 			return a;
+		};
+
+		p.recent = function() {
+			return this._recent;
 		};
 		
 		p._contains = function(tween) {

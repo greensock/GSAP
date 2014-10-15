@@ -1,6 +1,6 @@
 /*!
- * VERSION: 0.10.6
- * DATE: 2014-08-23
+ * VERSION: 0.10.7
+ * DATE: 2014-10-14
  * UPDATES AND DOCS AT: http://www.greensock.com
  *
  * Requires TweenLite and CSSPlugin version 1.11.0 or later (TweenMax contains both TweenLite and CSSPlugin). ThrowPropsPlugin is required for momentum-based continuation of movement after the mouse/touch is released (ThrowPropsPlugin is a membership benefit of Club GreenSock - http://www.greensock.com/club/).
@@ -40,7 +40,10 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 			_isMultiTouching,
 			_lastDragTime = 0,
 			_slice = function(a) { //don't use Array.prototype.slice.call(target, 0) because that doesn't work in IE8 with a NodeList that's returned by querySelectorAll()
-				if (!a || a.nodeType || !a.push) { //if it's not an array, wrap it in one.
+				if (typeof(a) === "string") {
+					a = TweenLite.selector(a);
+				}
+				if (!a || a.nodeType) { //if it's not an array, wrap it in one.
 					return [a];
 				}
 				var b = [],
@@ -138,6 +141,9 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 
 			_setStyle = function(e, p, value) {
 				var s = e.style;
+				if (!s) {
+					return;
+				}
 				if (s[p] === undefined) {
 					p = _checkPrefix(e, p);
 				}
@@ -325,12 +331,6 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 					offsets = (e.offsetLeft === undefined && e.nodeName.toLowerCase() === "svg") ? _getSVGOffsets(e) : e;
 					offsetParent = offsets.offsetParent;
 					isRoot = (parent === _docElement || parent === _doc.body);
-					m[4] = Number(m[4]) + offsetOrigin.x + (offsets.offsetLeft || 0) - parentOffsetOrigin.x - (isRoot ? 0 : parent.scrollLeft) + (offsetParent ? parseInt(_getStyle(offsetParent, "borderLeftWidth"), 10) || 0 : 0);
-					m[5] = Number(m[5]) + offsetOrigin.y + (offsets.offsetTop || 0) - parentOffsetOrigin.y - (isRoot ? 0 : parent.scrollTop) + (offsetParent ? parseInt(_getStyle(offsetParent, "borderTopWidth"), 10) || 0 : 0);
-					if (!offsetParent && _getStyle(e, "position", cs) === "fixed") { //fixed position elements should factor in the scroll position of the document.
-						m[4] += _getDocScrollLeft();
-						m[5] += _getDocScrollTop();
-					}
 
 					//some browsers (like Chrome 31) have a bug that causes the offsetParent not to report correctly when a transform is applied to an element's parent, so the offsetTop and offsetLeft are measured from the parent instead of whatever the offsetParent reports as. For example, put an absolutely-positioned child div inside a position:static parent, then check the child's offsetTop before and after you apply a transform, like rotate(1deg). You'll see that it changes, but the offsetParent doesn't. So we must sense this condition here (and we can only do it after the body has loaded, as browsers don't accurately report offsets otherwise) and set a variable that we can easily reference later.
 					if (_hasReparentBug === undefined && _doc.body && _transformProp) {
@@ -348,14 +348,23 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 							return value;
 						}());
 					}
+					m[4] = Number(m[4]) + offsetOrigin.x + (offsets.offsetLeft || 0) - parentOffsetOrigin.x - (isRoot ? 0 : parent.scrollLeft) + (offsetParent ? parseInt(_getStyle(offsetParent, "borderLeftWidth"), 10) || 0 : 0);
+					m[5] = Number(m[5]) + offsetOrigin.y + (offsets.offsetTop || 0) - parentOffsetOrigin.y - (isRoot ? 0 : parent.scrollTop) + (offsetParent ? parseInt(_getStyle(offsetParent, "borderTopWidth"), 10) || 0 : 0);
 					if (parent && parent.offsetParent === offsetParent && (!_hasReparentBug || _getOffset2DMatrix(parent).join("") === "100100")) {
 						m[4] -= parent.offsetLeft || 0;
 						m[5] -= parent.offsetTop || 0;
+					}
+					if (parent && _getStyle(e, "position", true) === "fixed") { //fixed position elements should factor in the scroll position of the document.
+						m[4] += _getDocScrollLeft();
+						m[5] += _getDocScrollTop();
 					}
 				}
 				return m;
 			},
 			_getConcatenatedMatrix = function(e, invert) {
+				if (!e || e === window || !e.parentNode) {
+					return [1,0,0,1,0,0];
+				}
 				//note: we keep reusing _point1 and _point2 in order to minimize memory usage and garbage collection chores.
 				var originOffset = _getOffsetTransformOrigin(e, _point1),
 					parentOriginOffset = _getOffsetTransformOrigin(e.parentNode, _point2),
@@ -1144,7 +1153,7 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 							TweenLite.killTweensOf(target, true, {scrollTo:1}); //just in case the original target's scroll position is being tweened somewhere else.
 						}
 						self.tween = lockedAxis = null;
-						if (!rotationMode && !scrollProxy && vars.zIndexBoost !== false) {
+						if (vars.zIndexBoost || (!rotationMode && !scrollProxy && vars.zIndexBoost !== false)) {
 							target.style.zIndex = Draggable.zIndex++;
 						}
 						self.isPressed = true;
@@ -1570,7 +1579,7 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 		p.constructor = Draggable;
 		p.pointerX = p.pointerY = 0;
 		p.isDragging = p.isPressed = false;
-		Draggable.version = "0.10.6";
+		Draggable.version = "0.10.7";
 		Draggable.zIndex = 1000;
 
 		_addListener(_doc, "touchcancel", function() {

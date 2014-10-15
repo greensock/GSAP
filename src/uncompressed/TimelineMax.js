@@ -1,6 +1,6 @@
 /*!
- * VERSION: 1.13.2
- * DATE: 2014-08-23
+ * VERSION: 1.14.0
+ * DATE: 2014-10-10
  * UPDATES AND DOCS AT: http://www.greensock.com
  *
  * @license Copyright (c) 2008-2014, GreenSock. All rights reserved.
@@ -34,7 +34,7 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 			
 		p.constructor = TimelineMax;
 		p.kill()._gc = false;
-		TimelineMax.version = "1.13.2";
+		TimelineMax.version = "1.14.0";
 		
 		p.invalidate = function() {
 			this._yoyo = (this.vars.yoyo === true);
@@ -518,7 +518,7 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 			},
 			p = TimelineLite.prototype = new SimpleTimeline();
 
-		TimelineLite.version = "1.13.2";
+		TimelineLite.version = "1.14.0";
 		p.constructor = TimelineLite;
 		p.kill()._gc = p._forcingPlayhead = false;
 
@@ -568,6 +568,11 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 				targets = _slice(targets);
 			}
 			stagger = stagger || 0;
+			if (stagger < 0) {
+				targets = _slice(targets);
+				targets.reverse();
+				stagger *= -1;
+			}
 			for (i = 0; i < targets.length; i++) {
 				if (vars.startAt) {
 					vars.startAt = _copy(vars.startAt);
@@ -962,6 +967,10 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 				this._enabled(false, true);
 			}
 			return a;
+		};
+
+		p.recent = function() {
+			return this._recent;
 		};
 
 		p._contains = function(tween) {
