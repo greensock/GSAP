@@ -1,6 +1,6 @@
 /*!
- * VERSION: 1.14.0
- * DATE: 2014-10-14
+ * VERSION: 1.14.1
+ * DATE: 2014-10-16
  * UPDATES AND DOCS AT: http://www.greensock.com
  *
  * @license Copyright (c) 2008-2014, GreenSock. All rights reserved.
@@ -30,7 +30,7 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 			p = CSSPlugin.prototype = new TweenPlugin("css");
 
 		p.constructor = CSSPlugin;
-		CSSPlugin.version = "1.14.0";
+		CSSPlugin.version = "1.14.1";
 		CSSPlugin.API = 2;
 		CSSPlugin.defaultTransformPerspective = 0;
 		CSSPlugin.defaultSkewType = "compensated";
@@ -1470,14 +1470,14 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 					a24 = a23*a34;
 					a34 = a33*a34+zOrigin;
 				}
-				//we round the x, y, and z slightly differently to allow even larger values.
-				a14 = (t1 = (a14 += x) - (a14 |= 0)) ? ((t1 * rnd + (t1 < 0 ? -0.5 : 0.5)) | 0) / rnd + a14 : a14;
-				a24 = (t1 = (a24 += y) - (a24 |= 0)) ? ((t1 * rnd + (t1 < 0 ? -0.5 : 0.5)) | 0) / rnd + a24 : a24;
-				a34 = (t1 = (a34 += z) - (a34 |= 0)) ? ((t1 * rnd + (t1 < 0 ? -0.5 : 0.5)) | 0) / rnd + a34 : a34;
 				if (t.svg) { //due to bugs in some browsers, we need to manage the transform-origin of SVG manually
 					a14 += t.xOrigin - (t.xOrigin * a11 + t.yOrigin * a12);
 					a24 += t.yOrigin - (t.xOrigin * a21 + t.yOrigin * a22);
 				}
+				//we round the x, y, and z slightly differently to allow even larger values.
+				a14 = (t1 = (a14 += x) - (a14 |= 0)) ? ((t1 * rnd + (t1 < 0 ? -0.5 : 0.5)) | 0) / rnd + a14 : a14;
+				a24 = (t1 = (a24 += y) - (a24 |= 0)) ? ((t1 * rnd + (t1 < 0 ? -0.5 : 0.5)) | 0) / rnd + a24 : a24;
+				a34 = (t1 = (a34 += z) - (a34 |= 0)) ? ((t1 * rnd + (t1 < 0 ? -0.5 : 0.5)) | 0) / rnd + a34 : a34;
 				style[_transformProp] = ((t.xPercent || t.yPercent) ? "translate(" + t.xPercent + "%," + t.yPercent + "%) matrix3d(" : "matrix3d(") + [ (((a11 * rnd) | 0) / rnd), (((a21 * rnd) | 0) / rnd), (((a31 * rnd) | 0) / rnd), (((a41 * rnd) | 0) / rnd), (((a12 * rnd) | 0) / rnd), (((a22 * rnd) | 0) / rnd), (((a32 * rnd) | 0) / rnd), (((a42 * rnd) | 0) / rnd), (((a13 * rnd) | 0) / rnd), (((a23 * rnd) | 0) / rnd), (((a33 * rnd) | 0) / rnd), (((a43 * rnd) | 0) / rnd), a14, a24, a34, (perspective ? (1 + (-a34 / perspective)) : 1) ].join(",") + ")";
 			},
 
@@ -1487,7 +1487,7 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 					style = targ.style,
 					x = t.x,
 					y = t.y,
-					ang, skew, rnd, sx, sy, a, b, c, d, matrix;
+					ang, skew, rnd, sx, sy, a, b, c, d, matrix, min;
 				if ((t.rotationX || t.rotationY || t.z || t.force3D === true || (t.force3D === "auto" && v !== 1 && v !== 0)) && !(t.svg && _forceSVGTransformToAttr) && _supports3D) { //if a 3D tween begins while a 2D one is running, we need to kick the rendering over to the 3D method. For example, imagine a yoyo-ing, infinitely repeating scale tween running, and then the object gets rotated in 3D space with a different tween.
 					this.setRatio = _set3DTransformRatio;
 					_set3DTransformRatio.call(this, v);
@@ -1506,6 +1506,13 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 					if (t.svg) {
 						x += t.xOrigin - (t.xOrigin * a + t.yOrigin * c);
 						y += t.yOrigin - (t.xOrigin * b + t.yOrigin * d);
+						min = 0.000001;
+						if (x < min) if (x > -min) {
+							x = 0;
+						}
+						if (y < min) if (y > -min) {
+							y = 0;
+						}
 					}
 					matrix = (((a * rnd) | 0) / rnd) + "," + (((b * rnd) | 0) / rnd) + "," + (((c * rnd) | 0) / rnd) + "," + (((d * rnd) | 0) / rnd) + "," + x + "," + y + ")";
 					if (t.svg && _forceSVGTransformToAttr) {
