@@ -1,6 +1,6 @@
 /*!
- * VERSION: 1.14.1
- * DATE: 2014-10-16
+ * VERSION: 1.14.2
+ * DATE: 2014-10-28
  * UPDATES AND DOCS AT: http://www.greensock.com
  *
  * @license Copyright (c) 2008-2014, GreenSock. All rights reserved.
@@ -910,7 +910,7 @@
 		p._firstPT = p._targets = p._overwrittenProps = p._startAt = null;
 		p._notifyPluginsOfEnabled = p._lazy = false;
 
-		TweenLite.version = "1.14.1";
+		TweenLite.version = "1.14.2";
 		TweenLite.defaultEase = p._ease = new Ease(null, null, 1, 1);
 		TweenLite.defaultOverwrite = "auto";
 		TweenLite.ticker = _ticker;
@@ -1015,14 +1015,15 @@
 			},
 
 			_onOverwrite = function(overwrittenTween, overwritingTween, target, killedProps) {
-				var func = overwrittenTween.vars.onOverwrite;
+				var func = overwrittenTween.vars.onOverwrite, r1, r2;
 				if (func) {
-					func(overwrittenTween, overwritingTween, target, killedProps);
+					r1 = func(overwrittenTween, overwritingTween, target, killedProps);
 				}
 				func = TweenLite.onOverwrite;
 				if (func) {
-					func(overwrittenTween, overwritingTween, target, killedProps);
+					r2 = func(overwrittenTween, overwritingTween, target, killedProps);
 				}
+				return (r1 !== false && r2 !== false);
 			},
 			_applyOverwrite = function(target, tween, props, mode, siblings) {
 				var i, changed, curTween, l;
@@ -1031,10 +1032,9 @@
 					for (i = 0; i < l; i++) {
 						if ((curTween = siblings[i]) !== tween) {
 							if (!curTween._gc) {
-								if (curTween._enabled(false, false)) {
+								if (_onOverwrite(curTween, tween) && curTween._enabled(false, false)) {
 									changed = true;
 								}
-								_onOverwrite(curTween, tween);
 							}
 						} else if (mode === 5) {
 							break;
@@ -1069,11 +1069,11 @@
 						changed = true;
 					}
 					if (mode !== 2 || (!curTween._firstPT && curTween._initted)) {
+						if (mode !== 2 && !_onOverwrite(curTween, tween)) {
+							continue;
+						}
 						if (curTween._enabled(false, false)) { //if all property tweens have been overwritten, kill the tween.
 							changed = true;
-						}
-						if (mode !== 2) {
-							_onOverwrite(curTween, tween);
 						}
 					}
 				}
@@ -1455,12 +1455,22 @@
 				if (propLookup) {
 					killProps = vars || propLookup;
 					record = (vars !== overwrittenProps && overwrittenProps !== "all" && vars !== propLookup && (typeof(vars) !== "object" || !vars._tempKill)); //_tempKill is a super-secret way to delete a particular tweening property but NOT have it remembered as an official overwritten property (like in BezierPlugin)
+					if (overwritingTween && (TweenLite.onOverwrite || this.vars.onOverwrite)) {
+						for (p in killProps) {
+							if (propLookup[p]) {
+								if (!killed) {
+									killed = [];
+								}
+								killed.push(p);
+							}
+						}
+						if (!_onOverwrite(this, overwritingTween, target, killed)) { //if the onOverwrite returned false, that means the user wants to override the overwriting (cancel it).
+							return false;
+						}
+					}
+
 					for (p in killProps) {
 						if ((pt = propLookup[p])) {
-							if (!killed) {
-								killed = [];
-							}
-							killed.push(p);
 							if (pt.pg && pt.t._kill(killProps)) {
 								changed = true; //some plugins need to be notified so they can perform cleanup tasks first
 							}
@@ -1483,9 +1493,6 @@
 					}
 					if (!this._firstPT && this._initted) { //if all tweening properties are killed, kill the tween. Without this line, if there's a tween with multiple targets and then you killTweensOf() each target individually, the tween would technically still remain active and fire its onComplete even though there aren't any more properties tweening.
 						this._enabled(false, false);
-					}
-					if (killed && overwritingTween) {
-						_onOverwrite(this, overwritingTween, target, killed);
 					}
 				}
 			}
@@ -1606,7 +1613,7 @@
 
 /*
  * ----------------------------------------------------------------
- * TweenPlugin   (could easily be split out as a separate file/class, but included for ease of use (so that people don't need to include another <script> call before loading plugins which is easy to forget)
+ * TweenPlugin   (could easily be split out as a separate file/class, but included for ease of use (so that people don't need to include another script call before loading plugins which is easy to forget)
  * ----------------------------------------------------------------
  */
 		var TweenPlugin = _class("plugins.TweenPlugin", function(props, priority) {

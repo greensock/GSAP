@@ -1,6 +1,6 @@
 /*!
- * VERSION: 1.14.1
- * DATE: 2014-10-16
+ * VERSION: 1.14.2
+ * DATE: 2014-10-29
  * UPDATES AND DOCS AT: http://www.greensock.com
  * 
  * Includes all of the following: TweenLite, TweenMax, TimelineLite, TimelineMax, EasePack, CSSPlugin, RoundPropsPlugin, BezierPlugin, AttrPlugin, DirectionalRotationPlugin
@@ -41,7 +41,7 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 			p = TweenMax.prototype = TweenLite.to({}, 0.1, {}),
 			_blankArray = [];
 
-		TweenMax.version = "1.14.1";
+		TweenMax.version = "1.14.2";
 		p.constructor = TweenMax;
 		p.kill()._gc = false;
 		TweenMax.killTweensOf = TweenMax.killDelayedCallsTo = TweenLite.killTweensOf;
@@ -59,7 +59,9 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 		};
 		
 		p.updateTo = function(vars, resetDuration) {
-			var curRatio = this.ratio, p;
+			var curRatio = this.ratio,
+				immediate = this.vars.immediateRender || vars.immediateRender,
+				p;
 			if (resetDuration && this._startTime < this._timeline._time) {
 				this._startTime = this._timeline._time;
 				this._uncache(false);
@@ -72,7 +74,7 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 			for (p in vars) {
 				this.vars[p] = vars[p];
 			}
-			if (this._initted) {
+			if (this._initted || immediate) {
 				if (resetDuration) {
 					this._initted = false;
 				} else {
@@ -87,7 +89,7 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 						this.render(0, true, false);
 						this._initted = false;
 						this.render(prevTime, true, false);
-					} else if (this._time > 0) {
+					} else if (this._time > 0 || immediate) {
 						this._initted = false;
 						this._init();
 						var inv = 1 / (1 - curRatio),
@@ -657,7 +659,7 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 			},
 			p = TimelineLite.prototype = new SimpleTimeline();
 
-		TimelineLite.version = "1.14.1";
+		TimelineLite.version = "1.14.2";
 		p.constructor = TimelineLite;
 		p.kill()._gc = p._forcingPlayhead = false;
 
@@ -1308,7 +1310,7 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 
 		p.constructor = TimelineMax;
 		p.kill()._gc = false;
-		TimelineMax.version = "1.14.1";
+		TimelineMax.version = "1.14.2";
 
 		p.invalidate = function() {
 			this._yoyo = (this.vars.yoyo === true);
@@ -2341,7 +2343,7 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 			p = CSSPlugin.prototype = new TweenPlugin("css");
 
 		p.constructor = CSSPlugin;
-		CSSPlugin.version = "1.14.1";
+		CSSPlugin.version = "1.14.2";
 		CSSPlugin.API = 2;
 		CSSPlugin.defaultTransformPerspective = 0;
 		CSSPlugin.defaultSkewType = "compensated";
@@ -2352,7 +2354,7 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 		var _numExp = /(?:\d|\-\d|\.\d|\-\.\d)+/g,
 			_relNumExp = /(?:\d|\-\d|\.\d|\-\.\d|\+=\d|\-=\d|\+=.\d|\-=\.\d)+/g,
 			_valuesExp = /(?:\+=|\-=|\-|\b)[\d\-\.]+[a-zA-Z0-9]*(?:%|\b)/gi, //finds all the values that begin with numbers or += or -= and then a number. Includes suffixes. We use this to split complex values apart like "1px 5px 20px rgb(255,102,51)"
-			_NaNExp = /[^\d\-\.]/g,
+			_NaNExp = /(?![+-]?\d*\.?\d+|e[+-]\d+)[^0-9]/g, //also allows scientific notation
 			_suffixExp = /(?:\d|\-|\+|=|#|\.)*/g,
 			_opacityExp = /opacity *= *([^)]*)/i,
 			_opacityValExp = /opacity:([^;]*)/i,
@@ -2370,7 +2372,6 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 			_RAD2DEG = 180 / Math.PI,
 			_forcePT = {},
 			_doc = document,
-			_docElement = _doc.documentElement,
 			_tempDiv = _doc.createElement("div"),
 			_tempImg = _doc.createElement("img"),
 			_internals = CSSPlugin._internals = {_specialProps:_specialProps}, //provides a hook to a few internal methods that we need to access from inside other plugins
@@ -2720,7 +2721,7 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 			 * @param {(string|number)} v The value the should be parsed which could be a string like #9F0 or rgb(255,102,51) or rgba(255,0,0,0.5) or it could be a number like 0xFF00CC or even a named color like red, blue, purple, etc.
 			 * @return {Array.<number>} An array containing red, green, and blue (and optionally alpha) in that order.
 			 */
-			_parseColor = function(v) {
+			_parseColor = CSSPlugin.parseColor = function(v) {
 				var c1, c2, c3, h, s, l;
 				if (!v || v === "") {
 					return _colorLookup.black;
@@ -3357,7 +3358,6 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 
 
 
-
 		//transform-related methods and properties
 		var _transformProps = ("scaleX,scaleY,scaleZ,x,y,z,skewX,skewY,rotation,rotationX,rotationY,perspective,xPercent,yPercent").split(","),
 			_transformProp = _checkPropPrefix("transform"), //the Javascript (camelCase) transform property, like msTransform, WebkitTransform, MozTransform, or OTransform.
@@ -3368,10 +3368,9 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 				this.skewY = 0;
 			},
 			_SVGElement = window.SVGElement,
-			_forceSVGTransformToAttr = (_SVGElement && (_ieVers || (/Android/i.test(_agent) && !window.chrome))), //IE and Android stock don't support CSS transforms on SVG elements, so we must write them to the "transform" attribute.
+			_useSVGTransformAttr,
 			//Some browsers (like Firefox and IE) don't honor transform-origin properly in SVG elements, so we need to manually adjust the matrix accordingly. We feature detect here rather than always doing the conversion for certain browsers because they may fix the problem at some point in the future.
 
-			/* originally used to sense browsers that didn't handle SVG transform-origin properly, but due to all the fragmentation and odd behavior across browsers, we decided to just manage transform-origin internally for all browsers.
 			_createSVG = function(type, container, attributes) {
 				var element = _doc.createElementNS("http://www.w3.org/2000/svg", type),
 					reg = /([a-z])([A-Z])/g,
@@ -3382,20 +3381,22 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 				container.appendChild(element);
 				return element;
 			},
-			_fixSVGOrigin = (function() {
-				if (_doc.createElementNS) { //IE8 and earlier doesn't support SVG anyway
-					var svg = _createSVG("svg", _docElement),
-						rect = _createSVG("rect", svg, {width:100, height:50, x:100}),
-						left, matches;
+			_docElement = document.documentElement,
+			_forceSVGTransformAttr = (function() {
+				//IE and Android stock don't support CSS transforms on SVG elements, so we must write them to the "transform" attribute. We populate this variable in the _parseTransform() method, and only if/when we come across an SVG element
+				var force = _ieVers || (/Android/i.test(_agent) && !window.chrome),
+					svg, rect, left;
+				if (_doc.createElementNS && !force) { //IE8 and earlier doesn't support SVG anyway
+					svg = _createSVG("svg", _docElement);
+					rect = _createSVG("rect", svg, {width:100, height:50, x:100});
 					left = rect.getBoundingClientRect().left;
 					rect.style[_transformOriginProp] = "50% 50%";
 					rect.style[_transformProp] = "scale(0.5,0.5)";
-					matches = (left === rect.getBoundingClientRect().left);
+					force = (left === rect.getBoundingClientRect().left);
 					_docElement.removeChild(svg);
-					return matches;
 				}
+				return force;
 			})(),
-			*/
 			_parseSVGOrigin = function(e, origin, decoratee) {
 				var bbox = e.getBBox();
 				origin = _parsePosition(origin).split(" ");
@@ -3580,9 +3581,10 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 				if (rec) {
 					t._gsTransform = tm; //record to the object's _gsTransform which we use so that tweens can control individual properties independently (we need all the properties to accurately recompose the matrix in the setRatio() method)
 				}
-				tm.svg = (_SVGElement && (t instanceof _SVGElement));
+				tm.svg = (_SVGElement && (t instanceof _SVGElement) && (t.parentNode instanceof _SVGElement));
 				if (tm.svg) {
 					_parseSVGOrigin(t, _getStyle(t, _transformOriginProp, _cs, false, "50% 50%") + "", tm);
+					_useSVGTransformAttr = CSSPlugin.useSVGTransformAttr || _forceSVGTransformAttr;
 				}
 				tm.xPercent = tm.yPercent = 0;
 				return tm;
@@ -3799,7 +3801,7 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 					x = t.x,
 					y = t.y,
 					ang, skew, rnd, sx, sy, a, b, c, d, matrix, min;
-				if ((t.rotationX || t.rotationY || t.z || t.force3D === true || (t.force3D === "auto" && v !== 1 && v !== 0)) && !(t.svg && _forceSVGTransformToAttr) && _supports3D) { //if a 3D tween begins while a 2D one is running, we need to kick the rendering over to the 3D method. For example, imagine a yoyo-ing, infinitely repeating scale tween running, and then the object gets rotated in 3D space with a different tween.
+				if ((t.rotationX || t.rotationY || t.z || t.force3D === true || (t.force3D === "auto" && v !== 1 && v !== 0)) && !(t.svg && _useSVGTransformAttr) && _supports3D) { //if a 3D tween begins while a 2D one is running, we need to kick the rendering over to the 3D method. For example, imagine a yoyo-ing, infinitely repeating scale tween running, and then the object gets rotated in 3D space with a different tween.
 					this.setRatio = _set3DTransformRatio;
 					_set3DTransformRatio.call(this, v);
 					return;
@@ -3826,7 +3828,7 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 						}
 					}
 					matrix = (((a * rnd) | 0) / rnd) + "," + (((b * rnd) | 0) / rnd) + "," + (((c * rnd) | 0) / rnd) + "," + (((d * rnd) | 0) / rnd) + "," + x + "," + y + ")";
-					if (t.svg && _forceSVGTransformToAttr) {
+					if (t.svg && _useSVGTransformAttr) {
 						targ.setAttribute("transform", "matrix(" + matrix);
 					} else {
 						//some browsers have a hard time with very small values like 2.4492935982947064e-16 (notice the "e-" towards the end) and would render the object slightly off. So we round to 5 decimal places.
@@ -3933,8 +3935,9 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 				pt = new CSSPropTween(m1, "yOrigin", m1.yOrigin, m2.yOrigin - m1.yOrigin, pt, -1, "transformOrigin");
 				pt.b = m1.yOrigin;
 				pt.e = pt.xs0 = m2.yOrigin;
-				_removeProp(style, _transformOriginProp); //certain browsers (like firefox) completely botch transform-origin, so we must remove it to prevent it from contaminating transforms. We manage it ourselves with xOrigin and yOrigin
-			} else if (orig || (_supports3D && has3D && m1.zOrigin)) { //if anything 3D is happening and there's a transformOrigin with a z component that's non-zero, we must ensure that the transformOrigin's z-component is set to 0 so that we can manually do those calculations to get around Safari bugs. Even if the user didn't specifically define a "transformOrigin" in this particular tween (maybe they did it via css directly).
+				orig = "0px 0px"; //certain browsers (like firefox) completely botch transform-origin, so we must remove it to prevent it from contaminating transforms. We manage it ourselves with xOrigin and yOrigin
+			}
+			if (orig || (_supports3D && has3D && m1.zOrigin)) { //if anything 3D is happening and there's a transformOrigin with a z component that's non-zero, we must ensure that the transformOrigin's z-component is set to 0 so that we can manually do those calculations to get around Safari bugs. Even if the user didn't specifically define a "transformOrigin" in this particular tween (maybe they did it via css directly).
 				if (_transformProp) {
 					hasChange = true;
 					p = _transformOriginProp;
@@ -3960,7 +3963,7 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 				}
 			}
 			if (hasChange) {
-				cssp._transformType = (!(m1.svg && _forceSVGTransformToAttr) && (has3D || this._transformType === 3)) ? 3 : 2; //quicker than calling cssp._enableTransforms();
+				cssp._transformType = (!(m1.svg && _useSVGTransformAttr) && (has3D || this._transformType === 3)) ? 3 : 2; //quicker than calling cssp._enableTransforms();
 			}
 			return pt;
 		}, prefix:true});
@@ -4035,7 +4038,7 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 				if (src && src !== "none") {
 					ba = bs.split(" ");
 					ea = es.split(" ");
-					_tempImg.setAttribute("src", src); //set the temp <img>'s src to the background-image so that we can measure its width/height
+					_tempImg.setAttribute("src", src); //set the temp IMG's src to the background-image so that we can measure its width/height
 					i = 2;
 					while (--i > -1) {
 						bs = ba[i];
@@ -4550,7 +4553,7 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 		 */
 		p._enableTransforms = function(threeD) {
 			this._transform = this._transform || _getTransform(this._target, _cs, true); //ensures that the element has a _gsTransform property with the appropriate values.
-			this._transformType = (!(this._transform.svg && _forceSVGTransformToAttr) && (threeD || this._transformType === 3)) ? 3 : 2;
+			this._transformType = (!(this._transform.svg && _useSVGTransformAttr) && (threeD || this._transformType === 3)) ? 3 : 2;
 		};
 
 		var lazySet = function(v) {
@@ -6172,7 +6175,7 @@ if (_gsScope._gsDefine) { _gsScope._gsQueue.pop()(); } //necessary in case Tween
 		p._firstPT = p._targets = p._overwrittenProps = p._startAt = null;
 		p._notifyPluginsOfEnabled = p._lazy = false;
 
-		TweenLite.version = "1.14.1";
+		TweenLite.version = "1.14.2";
 		TweenLite.defaultEase = p._ease = new Ease(null, null, 1, 1);
 		TweenLite.defaultOverwrite = "auto";
 		TweenLite.ticker = _ticker;
@@ -6277,14 +6280,15 @@ if (_gsScope._gsDefine) { _gsScope._gsQueue.pop()(); } //necessary in case Tween
 			},
 
 			_onOverwrite = function(overwrittenTween, overwritingTween, target, killedProps) {
-				var func = overwrittenTween.vars.onOverwrite;
+				var func = overwrittenTween.vars.onOverwrite, r1, r2;
 				if (func) {
-					func(overwrittenTween, overwritingTween, target, killedProps);
+					r1 = func(overwrittenTween, overwritingTween, target, killedProps);
 				}
 				func = TweenLite.onOverwrite;
 				if (func) {
-					func(overwrittenTween, overwritingTween, target, killedProps);
+					r2 = func(overwrittenTween, overwritingTween, target, killedProps);
 				}
+				return (r1 !== false && r2 !== false);
 			},
 			_applyOverwrite = function(target, tween, props, mode, siblings) {
 				var i, changed, curTween, l;
@@ -6293,10 +6297,9 @@ if (_gsScope._gsDefine) { _gsScope._gsQueue.pop()(); } //necessary in case Tween
 					for (i = 0; i < l; i++) {
 						if ((curTween = siblings[i]) !== tween) {
 							if (!curTween._gc) {
-								if (curTween._enabled(false, false)) {
+								if (_onOverwrite(curTween, tween) && curTween._enabled(false, false)) {
 									changed = true;
 								}
-								_onOverwrite(curTween, tween);
 							}
 						} else if (mode === 5) {
 							break;
@@ -6331,11 +6334,11 @@ if (_gsScope._gsDefine) { _gsScope._gsQueue.pop()(); } //necessary in case Tween
 						changed = true;
 					}
 					if (mode !== 2 || (!curTween._firstPT && curTween._initted)) {
+						if (mode !== 2 && !_onOverwrite(curTween, tween)) {
+							continue;
+						}
 						if (curTween._enabled(false, false)) { //if all property tweens have been overwritten, kill the tween.
 							changed = true;
-						}
-						if (mode !== 2) {
-							_onOverwrite(curTween, tween);
 						}
 					}
 				}
@@ -6717,12 +6720,22 @@ if (_gsScope._gsDefine) { _gsScope._gsQueue.pop()(); } //necessary in case Tween
 				if (propLookup) {
 					killProps = vars || propLookup;
 					record = (vars !== overwrittenProps && overwrittenProps !== "all" && vars !== propLookup && (typeof(vars) !== "object" || !vars._tempKill)); //_tempKill is a super-secret way to delete a particular tweening property but NOT have it remembered as an official overwritten property (like in BezierPlugin)
+					if (overwritingTween && (TweenLite.onOverwrite || this.vars.onOverwrite)) {
+						for (p in killProps) {
+							if (propLookup[p]) {
+								if (!killed) {
+									killed = [];
+								}
+								killed.push(p);
+							}
+						}
+						if (!_onOverwrite(this, overwritingTween, target, killed)) { //if the onOverwrite returned false, that means the user wants to override the overwriting (cancel it).
+							return false;
+						}
+					}
+
 					for (p in killProps) {
 						if ((pt = propLookup[p])) {
-							if (!killed) {
-								killed = [];
-							}
-							killed.push(p);
 							if (pt.pg && pt.t._kill(killProps)) {
 								changed = true; //some plugins need to be notified so they can perform cleanup tasks first
 							}
@@ -6745,9 +6758,6 @@ if (_gsScope._gsDefine) { _gsScope._gsQueue.pop()(); } //necessary in case Tween
 					}
 					if (!this._firstPT && this._initted) { //if all tweening properties are killed, kill the tween. Without this line, if there's a tween with multiple targets and then you killTweensOf() each target individually, the tween would technically still remain active and fire its onComplete even though there aren't any more properties tweening.
 						this._enabled(false, false);
-					}
-					if (killed && overwritingTween) {
-						_onOverwrite(this, overwritingTween, target, killed);
 					}
 				}
 			}
@@ -6868,7 +6878,7 @@ if (_gsScope._gsDefine) { _gsScope._gsQueue.pop()(); } //necessary in case Tween
 
 /*
  * ----------------------------------------------------------------
- * TweenPlugin   (could easily be split out as a separate file/class, but included for ease of use (so that people don't need to include another <script> call before loading plugins which is easy to forget)
+ * TweenPlugin   (could easily be split out as a separate file/class, but included for ease of use (so that people don't need to include another script call before loading plugins which is easy to forget)
  * ----------------------------------------------------------------
  */
 		var TweenPlugin = _class("plugins.TweenPlugin", function(props, priority) {
