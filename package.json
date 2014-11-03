@@ -33,11 +33,8 @@
    "bugs": {
     "url": "http://greensock.com/forums/"
   },
-   "repositories": [
-       {
-           "type": "git",
-           "url": "https://github.com/greensock/GreenSock-JS" 
-       } 
-   ]
-
+   "repository": {
+    "type": "git",
+    "url": "https://github.com/greensock/GreenSock-JS" 
+   } 
 }
