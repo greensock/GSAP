@@ -5,8 +5,11 @@
  * @license Copyright (c) 2008-2014, GreenSock. All rights reserved.
  * This work is subject to the terms at http://www.greensock.com/terms_of_use.html or for
  * Club GreenSock members, the software agreement that was issued with your membership.
+ *
+ * This is a manipulated version of the plugin for Raphael by Jack Doyle to work with Snap.svg (snapsvg.io)
  * 
- * @author: Jack Doyle, jack@greensock.com
+ * @author: Jack Doyle, jack@greensock.com 
+ * @edited: CJ Gammon, cj.gammon@gmail.com 
  */
 var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(global) !== "undefined") ? global : this || window; //helps ensure compatibility with AMD/RequireJS and CommonJS/Node
 (_gsScope._gsQueue || (_gsScope._gsQueue = [])).push( function() {
