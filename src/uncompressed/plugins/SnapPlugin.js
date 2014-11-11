@@ -124,7 +124,7 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 				if (!target.attr) { //snap must have attr() method
 					return false;
 				}
-				this.a = [];
+				this._points = [];
 				this._path = [];
 				this._target = target;
 				this._tween = tween;
@@ -195,7 +195,7 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 							pt.e = _arr1[i];
 							pt.s = Number(s[i]);
 							pt.c = Number(_arr1[i]) - pt.s;
-							this.a.push({i: i, s: pt.s, c: pt.c});
+							this._points.push({i: i, s: pt.s, c: pt.c});
 							pt.type = 3; //3 = array tween
 						}
 						
@@ -272,8 +272,8 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 					} else if (pt.type === 2) { //rgba()
 						pt.t[pt.p] = "rgba(" + (val >> 0) + ", " + ((pt.gs + (v * pt.gc)) >> 0) + ", " + ((pt.bs + (v * pt.bc)) >> 0) + ", " + (pt.as + (v * pt.ac)) + ")";
 					} else if (pt.type === 3) { //points
-						for (i = 0; i < this.a.length; i += 1) {
-							e = this.a[i];
+						for (i = 0; i < this._points.length; i += 1) {
+							e = this._points[i];
 							val = e.s + e.c * v;
 							pt.t[pt.p][e.i] = (val < 0.000001 && val > -0.000001) ? 0 : val;
 						}
