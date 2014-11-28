@@ -97,6 +97,7 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 			if (rec) {
 				t._gsTransform = m; //record to the object's _gsTransform which we use so that tweens can control individual properties independently (we need all the properties to accurately recompose the matrix in the setRatio() method)
 			}
+			
 			return m;
 		},
 
@@ -204,9 +205,6 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 						_arr2 = Snap.parsePathString(v);
 						pt.t[pt.p] = s; //add property to target
 						
-						console.log(_arr1);
-						console.log(_arr2);
-						
 						for (i = 0; i < _arr1.length; i += 1) {
 							for (j = 0; j < _arr1[i].length; j += 1) {
 								
@@ -305,6 +303,13 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 
 				//apply transform values like x, y, scaleX, scaleY, rotation, skewX, or skewY. We do these after looping through all the PropTweens because those are where the changes are made to scaleX/scaleY/rotation/skewX/skewY/x/y.
 				if (this._transform) {
+					
+					//these fix transform string
+					this._pxg = this._pxg ? this._pxg : 0;
+					this._pyg = this._pyg ? this._pyg : 0;
+					this._pxl = this._pxl ? this._pxl : 0;
+					this._pyl = this._pyl ? this._pyl : 0;
+					
 					pt = this._transform; //to improve speed and reduce size, reuse the pt variable as an alias to the _transform property
 					var ang = pt.rotation,
 						skew = ang - pt.skewX,
@@ -323,8 +328,10 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 					if (c < min) if (c > -min) {
 						c = 0;
 					}
+					
 					pt.ox = this._pxg - (pxl * a + pyl * c); //we must record the offset x/y that we're making from the regular tx/ty (matrix.e and f) so that we can correctly interpret positional data in _getTransform(). See note there on tx and ox.
 					pt.oy = this._pyg - (pxl * b + pyl * d);
+					
 					this._target.transform("m" + a + "," + b + "," + c + "," + d + "," + (pt.tx + pt.ox) + "," + (pt.ty + pt.oy));
 				}
 
@@ -413,7 +420,7 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 				this._pyg = dy - m1.ty;
 			}
 
-		} else if (typeof(v) === "string") { //for values like transform:"rotate(60deg) scale(0.5, 0.8)"
+		} else if (typeof(v) === "string") { //for values like transform:"rotate(60deg) scale(0.5, 0.8)"			
 			copy = this._target.transform();
 			t.transform(v);
 			m2 = _getTransform(t, false);
