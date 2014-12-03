@@ -1,6 +1,6 @@
 /*!
- * VERSION: beta 1.3.3
- * DATE: 2014-07-17
+ * VERSION: beta 1.3.4
+ * DATE: 2014-11-15
  * UPDATES AND DOCS AT: http://www.greensock.com
  *
  * @license Copyright (c) 2008-2014, GreenSock. All rights reserved.
@@ -19,6 +19,7 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 			_r2 = [],
 			_r3 = [],
 			_corProps = {},
+			_globals = _gsScope._gsDefine.globals,
 			Segment = function(a, b, c, d) {
 				this.a = a;
 				this.b = b;
@@ -307,7 +308,7 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 			BezierPlugin = _gsScope._gsDefine.plugin({
 					propName: "bezier",
 					priority: -1,
-					version: "1.3.3",
+					version: "1.3.4",
 					API: 2,
 					global:true,
 
@@ -499,7 +500,7 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 		};
 
 		BezierPlugin._cssRegister = function() {
-			var CSSPlugin = _gsScope._gsDefine.globals.CSSPlugin;
+			var CSSPlugin = _globals.CSSPlugin;
 			if (!CSSPlugin) {
 				return;
 			}

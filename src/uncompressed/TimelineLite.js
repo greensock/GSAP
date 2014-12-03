@@ -1,6 +1,6 @@
 /*!
- * VERSION: 1.14.2
- * DATE: 2014-10-18
+ * VERSION: 1.15.0
+ * DATE: 2014-12-03
  * UPDATES AND DOCS AT: http://www.greensock.com
  *
  * @license Copyright (c) 2008-2014, GreenSock. All rights reserved.
@@ -51,14 +51,15 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 				return copy;
 			},
 			_pauseCallback = function(tween, callback, params, scope) {
-				var time = tween._timeline._totalTime;
-				if (callback || !this._forcingPlayhead) { //if the user calls a method that moves the playhead (like progress() or time()), it should honor that and skip any pauses (although if there's a callback positioned at that pause, it must jump there and make the call to ensure the time is EXACTLY what it is supposed to be, and then proceed to where the playhead is being forced). Otherwise, imagine placing a pause in the middle of a timeline and then doing timeline.progress(0.9) - it would get stuck where the pause is.
-					tween._timeline.pause(tween._startTime);
+				var tl = tween._timeline,
+					time = tl._totalTime;
+				if ((callback || !this._forcingPlayhead) && tl._rawPrevTime !== tween._startTime) { //if the user calls a method that moves the playhead (like progress() or time()), it should honor that and skip any pauses (although if there's a callback positioned at that pause, it must jump there and make the call to ensure the time is EXACTLY what it is supposed to be, and then proceed to where the playhead is being forced). Otherwise, imagine placing a pause in the middle of a timeline and then doing timeline.progress(0.9) - it would get stuck where the pause is.
+					tl.pause(tween._startTime);
 					if (callback) {
-						callback.apply(scope || tween._timeline, params || _blankArray);
+						callback.apply(scope || tl, params || _blankArray);
 					}
 					if (this._forcingPlayhead) {
-						tween._timeline.seek(time);
+						tl.seek(time);
 					}
 				}
 			},
@@ -71,7 +72,7 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 			},
 			p = TimelineLite.prototype = new SimpleTimeline();
 
-		TimelineLite.version = "1.14.2";
+		TimelineLite.version = "1.15.0";
 		p.constructor = TimelineLite;
 		p.kill()._gc = p._forcingPlayhead = false;
 
@@ -286,7 +287,9 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 		};
 
 		p.addPause = function(position, callback, params, scope) {
-			return this.call(_pauseCallback, ["{self}", callback, params, scope], this, position);
+			var t = TweenLite.delayedCall(0, _pauseCallback, ["{self}", callback, params, scope], this);
+			t.data = "isPause"; // we use this flag in TweenLite's render() method to identify it as a special case that shouldn't be triggered when the virtual playhead is LEAVING the exact position where the pause is, otherwise timeline.addPause(1).play(1) would end up paused on the very next tick.
+			return this.add(t, position);
 		};
 	
 		p.removeLabel = function(label) {

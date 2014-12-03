@@ -1,8 +1,8 @@
 {
     "name": "gsap",
     "filename": "TweenMax.min.js",
-    "version": "1.14.2",
-    "description": "GreenSock Animation Platform (GSAP) is a suite of tools for scripted animation, including TweenLite, TweenMax, TimelineLite, TimelineMax, various easing equations (EasePack), plugins for things like animating along Bezier paths, tweening RaphaelJS objects, etc. and it also includes a jQuery plugin that hijacks the native jQuery.animate() method so that animations perform much better and additional properties can be tweened, like colors, transforms (2D and 3D), boxShadow, borderRadius, clip, and lots more. GSAP has no dependencies on jQuery and it can animate ANY numeric property of ANY object.",
+    "version": "1.15.0",
+    "description": "Think of GSAP as the Swiss Army Knife of animation...but better. It animates anything JavaScript can touch (CSS properties, canvas library objects, SVG, generic objects, whatever) and it solves lots of browser inconsistencies, all with blazing speed (up to 20x faster than jQuery). See http://greensock.com/why-gsap/ for details. Other libraries like jQuery, Velocity, Transit, and Zepto only tween CSS properties. Plus, their sequencing abilities and runtime controls pale by comparison. Simply put, GSAP is the most flexible high-performance animation library on the planet. And unlike monolithic frameworks like Famo.us or Angular that dictate how you structure your apps, GSAP simply owns the animation layer; sprinkle it wherever you want. GSAP stands for the GreenSock Animation Platform. There's a jQuery plugin that hijacks the native jQuery.animate() method so that animations perform much better and additional properties can be tweened, like colors, transforms (2D and 3D), boxShadow, borderRadius, clip, and lots more. GSAP has no dependencies on jQuery or other libraries. See http://greensock.com/gsap/ for details.",
     "homepage": "http://www.greensock.com/gsap-js/",
 	"main": "./src/uncompressed/TweenMax.js",
     "keywords": [
@@ -18,6 +18,7 @@
 	   "jQuery",
 	   "jquery.gsap.js",
 	   "Bezier",
+	   "SVG",
 	   "3D",
 	   "2D",
 	   "transform",
@@ -27,17 +28,15 @@
        {
            "name": "Jack Doyle",
 		   "email": "jack@greensock.com",
-           "web": "http://www.greensock.com" 
+           "web": "http://greensock.com" 
        } 
    ],
    "bugs": {
-    "url": "http://greensock.com/forums/"
-  },
-   "repositories": [
-       {
-           "type": "git",
-           "url": "https://github.com/greensock/GreenSock-JS" 
-       } 
-   ]
+       "url": "http://greensock.com/forums/"
+   },
+   "repository": {
+      "type": "git",
+      "url": "https://github.com/greensock/GreenSock-JS" 
+   } 
 
 }
