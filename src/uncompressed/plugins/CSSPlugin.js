@@ -2386,7 +2386,11 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 							difs[p] = vars[p];
 						}
 					}
-					results.push( TweenLite.to(targets[i], duration, difs) );
+					var from = {};
+					for (var prop in difs) {
+					    from[prop] = b[i][prop];
+					}
+					results.push(TweenLite.fromTo(targets[i], duration, from, difs));
 				}
 			}
 			return results;
