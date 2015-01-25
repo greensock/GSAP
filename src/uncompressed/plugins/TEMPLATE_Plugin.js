@@ -1,17 +1,17 @@
 /*!
  * VERSION: 1.1.1
  * DATE: 2014-07-17
- * UPDATES AND DOCS AT: http://www.greensock.com
+ * UPDATES AND DOCS AT: http://greensock.com
  * 
  * This file is to be used as a simple template for writing your own plugin. See the 
- * notes at http://api.greensock.com/js/com/greensock/plugins/TweenPlugin.html for more details.
+ * TweenPlugin docs for more details.
  *
  * You can start by doing a search for "yourCustomProperty" and replace it with whatever the name
  * of your property is. This way of defining a plugin was introduced in version 1.9.0 - previous versions
  * of TweenLite won't work with this.
  *
- * @license Copyright (c) 2008-2014, GreenSock. All rights reserved.
- * This work is subject to the terms at http://www.greensock.com/terms_of_use.html or for
+ * @license Copyright (c) 2008-2015, GreenSock. All rights reserved.
+ * This work is subject to the terms at http://greensock.com/standard-license or for
  * Club GreenSock members, the software agreement that was issued with your membership.
  * 
  * @author: Jack Doyle, jack@greensock.com
