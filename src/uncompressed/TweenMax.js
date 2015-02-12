@@ -4728,9 +4728,9 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 				i, difs, p;
 			target = tween._targets || tween.target;
 			_getChildStyles(target, b, targets);
-			tween.render(duration, true);
+			tween.render(duration, true, true);
 			_getChildStyles(target, e);
-			tween.render(0, true);
+			tween.render(0, true, true);
 			tween._enabled(true);
 			i = targets.length;
 			while (--i > -1) {
@@ -4742,7 +4742,11 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 							difs[p] = vars[p];
 						}
 					}
-					results.push( TweenLite.to(targets[i], duration, difs) );
+					var from = {};
+					for (var prop in difs) {
+					    from[prop] = b[i][prop];
+					}
+					results.push(TweenLite.fromTo(targets[i], duration, from, difs));
 				}
 			}
 			return results;
