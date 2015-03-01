@@ -1,7 +1,7 @@
 /*!
- * VERSION: 1.7.4
- * DATE: 2014-07-17
- * UPDATES AND DOCS AT: http://www.greensock.com
+ * VERSION: 1.7.5
+ * DATE: 2015-02-26
+ * UPDATES AND DOCS AT: http://greensock.com
  *
  * @license Copyright (c) 2008-2015, GreenSock. All rights reserved.
  * This work is subject to the terms at http://greensock.com/standard-license or for
@@ -21,13 +21,13 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 				scroll = "scroll" + dim,
 				client = "client" + dim,
 				body = document.body;
-			return (element === _window || element === _doc || element === body) ? Math.max(_doc[scroll], body[scroll]) - (_window["inner" + dim] || Math.max(_doc[client], body[client])) : element[scroll] - element["offset" + dim];
+			return (element === _window || element === _doc || element === body) ? Math.max(_doc[scroll], body[scroll]) - (_window["inner" + dim] || _doc[client] || body[client]) : element[scroll] - element["offset" + dim];
 		},
 
 		ScrollToPlugin = _gsScope._gsDefine.plugin({
 			propName: "scrollTo",
 			API: 2,
-			version:"1.7.4",
+			version:"1.7.5",
 
 			//called when the tween renders for the first time. This is where initial values should be recorded and any setup routines should run.
 			init: function(target, value, tween) {

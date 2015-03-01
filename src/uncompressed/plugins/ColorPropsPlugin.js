@@ -1,7 +1,7 @@
 /*!
- * VERSION: beta 1.2.1
- * DATE: 2013-07-17
- * UPDATES AND DOCS AT: http://www.greensock.com
+ * VERSION: beta 1.3.0
+ * DATE: 2015-02-06
+ * UPDATES AND DOCS AT: http://greensock.com
  *
  * @license Copyright (c) 2008-2015, GreenSock. All rights reserved.
  * This work is subject to the terms at http://greensock.com/standard-license or for
@@ -76,7 +76,7 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 
 	_gsScope._gsDefine.plugin({
 		propName: "colorProps",
-		version: "1.2.1",
+		version: "1.3.0",
 		priority: -1,
 		API: 2,
 
@@ -84,22 +84,25 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 		init: function(target, value, tween) {
 			this._target = target;
 			var p, s, c, pt;
+			this.numFormat = (value.format === "number");
 			for (p in value) {
-				c = _parseColor(value[p]);
-				this._firstPT = pt = {_next:this._firstPT, p:p, f:(typeof(target[p]) === "function"), n:p, r:false};
-				s = _parseColor( (!pt.f) ? target[p] : target[ ((p.indexOf("set") || typeof(target["get" + p.substr(3)]) !== "function") ? p : "get" + p.substr(3)) ]() );
-				pt.s = Number(s[0]);
-				pt.c = Number(c[0]) - pt.s;
-				pt.gs = Number(s[1]);
-				pt.gc = Number(c[1]) - pt.gs;
-				pt.bs = Number(s[2]);
-				pt.bc = Number(c[2]) - pt.bs;
-				if ((pt.rgba = (s.length > 3 || c.length > 3))) { //detect an rgba() value
-					pt.as = (s.length < 4) ? 1 : Number(s[3]);
-					pt.ac = ((c.length < 4) ? 1 : Number(c[3])) - pt.as;
-				}
-				if (pt._next) {
-					pt._next._prev = pt;
+				if (p !== "format") {
+					c = _parseColor(value[p]);
+					this._firstPT = pt = {_next:this._firstPT, p:p, f:(typeof(target[p]) === "function"), n:p, r:false};
+					s = _parseColor( (!pt.f) ? target[p] : target[ ((p.indexOf("set") || typeof(target["get" + p.substr(3)]) !== "function") ? p : "get" + p.substr(3)) ]() );
+					pt.s = Number(s[0]);
+					pt.c = Number(c[0]) - pt.s;
+					pt.gs = Number(s[1]);
+					pt.gc = Number(c[1]) - pt.gs;
+					pt.bs = Number(s[2]);
+					pt.bc = Number(c[2]) - pt.bs;
+					if ((pt.rgba = (s.length > 3 || c.length > 3))) { //detect an rgba() value
+						pt.as = (s.length < 4) ? 1 : Number(s[3]);
+						pt.ac = ((c.length < 4) ? 1 : Number(c[3])) - pt.as;
+					}
+					if (pt._next) {
+						pt._next._prev = pt;
+					}
 				}
 			}
 			return true;
@@ -109,7 +112,7 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 		set: function(v) {
 			var pt = this._firstPT, val;
 			while (pt) {
-				val = (pt.rgba ? "rgba(" : "rgb(") + ((pt.s + (v * pt.c)) >> 0) + ", " + ((pt.gs + (v * pt.gc)) >> 0) + ", " + ((pt.bs + (v * pt.bc)) >> 0) + (pt.rgba ? ", " + (pt.as + (v * pt.ac)) : "") + ")";
+				val = this.numFormat ? (pt.s + (v * pt.c)) << 16 | (pt.gs + (v * pt.gc)) << 8 | (pt.bs + (v * pt.bc)) : (pt.rgba ? "rgba(" : "rgb(") + ((pt.s + (v * pt.c)) >> 0) + ", " + ((pt.gs + (v * pt.gc)) >> 0) + ", " + ((pt.bs + (v * pt.bc)) >> 0) + (pt.rgba ? ", " + (pt.as + (v * pt.ac)) : "") + ")";
 				if (pt.f) {
 					this._target[pt.p](val);
 				} else {

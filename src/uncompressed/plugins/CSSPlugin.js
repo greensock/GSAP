@@ -1,6 +1,6 @@
 /*!
- * VERSION: 1.15.1
- * DATE: 2015-01-20
+ * VERSION: 1.16.0
+ * DATE: 2015-03-01
  * UPDATES AND DOCS AT: http://www.greensock.com
  *
  * @license Copyright (c) 2008-2015, GreenSock. All rights reserved.
@@ -31,7 +31,7 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 			p = CSSPlugin.prototype = new TweenPlugin("css");
 
 		p.constructor = CSSPlugin;
-		CSSPlugin.version = "1.15.1";
+		CSSPlugin.version = "1.16.0";
 		CSSPlugin.API = 2;
 		CSSPlugin.defaultTransformPerspective = 0;
 		CSSPlugin.defaultSkewType = "compensated";
@@ -208,11 +208,20 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 			// @private returns at object containing ALL of the style properties in camelCase and their associated values.
 			_getAllStyles = function(t, cs) {
 				var s = {},
-					i, tr;
+					i, tr, p;
 				if ((cs = cs || _getComputedStyle(t, null))) {
-					for (i in cs) {
-						if (i.indexOf("Transform") === -1 || _transformProp === i) { //Some webkit browsers duplicate transform values, one non-prefixed and one prefixed ("transform" and "WebkitTransform"), so we must weed out the extra one here.
-							s[i] = cs[i];
+					if ((i = cs.length)) {
+						while (--i > -1) {
+							p = cs[i];
+							if (p.indexOf("-transform") === -1 || _transformPropCSS === p) { //Some webkit browsers duplicate transform values, one non-prefixed and one prefixed ("transform" and "WebkitTransform"), so we must weed out the extra one here.
+								s[p.replace(_camelExp, _camelFunc)] = cs.getPropertyValue(p);
+							}
+						}
+					} else { //some browsers behave differently - cs.length is always 0, so we must do a for...in loop.
+						for (i in cs) {
+							if (i.indexOf("Transform") === -1 || _transformProp === i) { //Some webkit browsers duplicate transform values, one non-prefixed and one prefixed ("transform" and "WebkitTransform"), so we must weed out the extra one here.
+								s[i] = cs[i];
+							}
 						}
 					}
 				} else if ((cs = t.currentStyle || t.style)) {
@@ -764,7 +773,6 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 					bv = ba[i];
 					ev = ea[i];
 					bn = parseFloat(bv);
-
 					//if the value begins with a number (most common). It's fine if it has a suffix like px
 					if (bn || bn === 0) {
 						pt.appendXtra("", bn, _parseChange(ev, bn), ev.replace(_relNumExp, ""), (autoRound && ev.indexOf("px") !== -1), true);
@@ -978,8 +986,11 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 						bi = b.indexOf(kwd);
 						ei = e.indexOf(kwd);
 						if (bi !== ei) {
-							e = (ei === -1) ? ea : ba;
-							e[i] += " " + kwd;
+							if (ei === -1) { //if the keyword isn't in the end value, remove it from the beginning one.
+								ba[i] = ba[i].split(kwd).join("");
+							} else if (bi === -1) { //if the keyword isn't in the beginning, add it.
+								ba[i] += " " + kwd;
+							}
 						}
 					}
 				}
@@ -1046,8 +1057,8 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 
 
 
-
 		//transform-related methods and properties
+		CSSPlugin.useSVGTransformAttr = _isSafari; //Safari has some rendering bugs when applying CSS transforms to SVG elements, so default to using the "transform" attribute instead.
 		var _transformProps = ("scaleX,scaleY,scaleZ,x,y,z,skewX,skewY,rotation,rotationX,rotationY,perspective,xPercent,yPercent").split(","),
 			_transformProp = _checkPropPrefix("transform"), //the Javascript (camelCase) transform property, like msTransform, WebkitTransform, MozTransform, or OTransform.
 			_transformPropCSS = _prefixCSS + "transform",
@@ -1071,7 +1082,7 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 				container.appendChild(element);
 				return element;
 			},
-			_docElement = document.documentElement,
+			_docElement = _doc.documentElement,
 			_forceSVGTransformAttr = (function() {
 				//IE and Android stock don't support CSS transforms on SVG elements, so we must write them to the "transform" attribute. We populate this variable in the _parseTransform() method, and only if/when we come across an SVG element
 				var force = _ieVers || (/Android/i.test(_agent) && !window.chrome),
@@ -1087,11 +1098,17 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 				}
 				return force;
 			})(),
-			_parseSVGOrigin = function(e, origin, decoratee) {
-				var bbox = e.getBBox();
-				origin = _parsePosition(origin).split(" ");
-				decoratee.xOrigin = (origin[0].indexOf("%") !== -1 ? parseFloat(origin[0]) / 100 * bbox.width : parseFloat(origin[0])) + bbox.x;
-				decoratee.yOrigin = (origin[1].indexOf("%") !== -1 ? parseFloat(origin[1]) / 100 * bbox.height : parseFloat(origin[1])) + bbox.y;
+			_parseSVGOrigin = function(e, local, decoratee, absolute) {
+				var bbox, v;
+				if (!absolute || !(v = absolute.split(" ")).length) {
+					bbox = e.getBBox();
+					local = _parsePosition(local).split(" ");
+					v = [(local[0].indexOf("%") !== -1 ? parseFloat(local[0]) / 100 * bbox.width : parseFloat(local[0])) + bbox.x,
+						 (local[1].indexOf("%") !== -1 ? parseFloat(local[1]) / 100 * bbox.height : parseFloat(local[1])) + bbox.y];
+				}
+				decoratee.xOrigin = parseFloat(v[0]);
+				decoratee.yOrigin = parseFloat(v[1]);
+				e.setAttribute("data-svg-origin", v.join(" "));
 			},
 
 			/**
@@ -1123,10 +1140,14 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 				isDefault = (!s || s === "none" || s === "matrix(1, 0, 0, 1, 0, 0)");
 				tm.svg = !!(_SVGElement && typeof(t.getBBox) === "function" && t.getCTM && (!t.parentNode || (t.parentNode.getBBox && t.parentNode.getCTM))); //don't just rely on "instanceof _SVGElement" because if the SVG is embedded via an object tag, it won't work (SVGElement is mapped to a different object)
 				if (tm.svg) {
-					_parseSVGOrigin(t, _getStyle(t, _transformOriginProp, _cs, false, "50% 50%") + "", tm);
+					if (isDefault && (t.style[_transformProp] + "").indexOf("matrix") !== -1) { //some browsers (like Chrome 40) don't correctly report transforms that are applied inline on an SVG element (they don't get included in the computed style), so we double-check here and accept matrix values
+						s = t.style[_transformProp];
+						isDefault = false;
+					}
+					_parseSVGOrigin(t, _getStyle(t, _transformOriginProp, _cs, false, "50% 50%") + "", tm, t.getAttribute("data-svg-origin"));
 					_useSVGTransformAttr = CSSPlugin.useSVGTransformAttr || _forceSVGTransformAttr;
 					m = t.getAttribute("transform");
-					if (isDefault && m && m.indexOf("matrix") !== -1) { //just in case there's a "transfom" value specified as an attribute instead of CSS style. Only accept a matrix, though.
+					if (isDefault && m && m.indexOf("matrix") !== -1) { //just in case there's a "transform" value specified as an attribute instead of CSS style. Only accept a matrix, though.
 						s = m;
 						isDefault = 0;
 					}
@@ -1214,6 +1235,10 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 						tm.x = a14;
 						tm.y = a24;
 						tm.z = a34;
+						if (tm.svg) {
+							tm.x -= tm.xOrigin - (tm.xOrigin * a11 - tm.yOrigin * a12);
+							tm.y -= tm.yOrigin - (tm.yOrigin * a21 - tm.xOrigin * a22);
+						}
 
 					} else if ((!_supports3D || parse || !m.length || tm.x !== m[4] || tm.y !== m[5] || (!tm.rotationX && !tm.rotationY)) && !(tm.x !== undefined && _getStyle(t, "display", cs) === "none")) { //sometimes a 6-element matrix is returned even when we performed 3D transforms, like if rotationX and rotationY are 180. In cases like this, we still need to honor the 3D transforms. If we just rely on the 2D info, it could affect how the data is interpreted, like scaleY might get set to -1 or rotation could get offset by 180 degrees. For example, do a TweenLite.to(element, 1, {css:{rotationX:180, rotationY:180}}) and then later, TweenLite.to(element, 1, {css:{rotationX:0}}) and without this conditional logic in place, it'd jump to a state of being unrotated when the 2nd tween starts. Then again, we need to honor the fact that the user COULD alter the transforms outside of CSSPlugin, like by manually applying new css, so we try to sense that by looking at x and y because if those changed, we know the changes were made outside CSSPlugin and we force a reinterpretation of the matrix values. Also, in Webkit browsers, if the element's "display" is "none", its calculated style value will always return empty, so if we've already recorded the values in the _gsTransform object, we'll just rely on those.
 						var k = (m.length >= 6),
@@ -1246,6 +1271,10 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 							tm.perspective = defaultTransformPerspective;
 							tm.scaleZ = 1;
 						}
+						if (tm.svg) {
+							tm.x -= tm.xOrigin - (tm.xOrigin * a - tm.yOrigin * b);
+							tm.y -= tm.yOrigin - (tm.yOrigin * d - tm.xOrigin * c);
+						}
 					}
 					tm.zOrigin = zOrigin;
 					//some browsers have a hard time with very small values like 2.4492935982947064e-16 (notice the "e-" towards the end) and would render the object slightly off. So we round to 0 in these cases. The conditional logic here is faster than calling Math.abs(). Also, browsers tend to render a SLIGHTLY rotated object in a fuzzy way, so we need to snap to exactly 0 when appropriate.
@@ -1258,6 +1287,13 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 				//DEBUG: _log("parsed rotation of " + t.getAttribute("id")+": "+(tm.rotationX)+", "+(tm.rotationY)+", "+(tm.rotation)+", scale: "+tm.scaleX+", "+tm.scaleY+", "+tm.scaleZ+", position: "+tm.x+", "+tm.y+", "+tm.z+", perspective: "+tm.perspective);
 				if (rec) {
 					t._gsTransform = tm; //record to the object's _gsTransform which we use so that tweens can control individual properties independently (we need all the properties to accurately recompose the matrix in the setRatio() method)
+					if (tm.svg) { //if we're supposed to apply transforms to the SVG element's "transform" attribute, make sure there aren't any CSS transforms applied or they'll override the attribute ones. Also clear the transform attribute if we're using CSS, just to be clean.
+						if (_useSVGTransformAttr && t.style[_transformProp]) {
+							_removeProp(t.style, _transformProp);
+						} else if (!_useSVGTransformAttr && t.getAttribute("transform")) {
+							t.removeAttribute("transform");
+						}
+					}
 				}
 				return tm;
 			},
@@ -1362,7 +1398,7 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 					perspective = t.perspective,
 					a11, a12, a13, a21, a22, a23, a31, a32, a33, a41, a42, a43,
 					zOrigin, min, cos, sin, t1, t2, transform, comma, zero;
-				if (v === 1 || v === 0 || !t.force3D) if (t.force3D !== true) if (!t.rotationY && !t.rotationX && sz === 1 && !perspective && !z) { //on the final render (which could be 0 for a from tween), if there are no 3D aspects, render in 2D to free up memory and improve performance especially on mobile devices
+				if (v === 1 || v === 0 || !t.force3D) if (t.force3D !== true) if (!t.rotationY && !t.rotationX && sz === 1 && !perspective && !z && (this.tween._totalTime === this.tween._totalDuration || !this.tween._totalTime)) { //on the final render (which could be 0 for a from tween), if there are no 3D aspects, render in 2D to free up memory and improve performance especially on mobile devices. Check the tween's totalTime/totalDuration too in order to make sure it doesn't happen between repeats if it's a repeating tween.
 					_set2DTransformRatio.call(this, v);
 					return;
 				}
@@ -1518,7 +1554,7 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 					style = targ.style,
 					x = t.x,
 					y = t.y,
-					ang, skew, rnd, sx, sy, a, b, c, d, matrix, min;
+					ang, skew, rnd, sx, sy, a, b, c, d, matrix, min, t1;
 				if ((t.rotationX || t.rotationY || t.z || t.force3D === true || (t.force3D === "auto" && v !== 1 && v !== 0)) && !(t.svg && _useSVGTransformAttr) && _supports3D) { //if a 3D tween begins while a 2D one is running, we need to kick the rendering over to the 3D method. For example, imagine a yoyo-ing, infinitely repeating scale tween running, and then the object gets rotated in 3D space with a different tween.
 					this.setRatio = _set3DTransformRatio;
 					_set3DTransformRatio.call(this, v);
@@ -1528,12 +1564,18 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 				sy = t.scaleY;
 				if (t.rotation || t.skewX || t.svg) {
 					ang = t.rotation * _DEG2RAD;
-					skew = ang - t.skewX * _DEG2RAD;
+					skew = t.skewX * _DEG2RAD;
 					rnd = 100000;
 					a = Math.cos(ang) * sx;
 					b = Math.sin(ang) * sx;
-					c = Math.sin(skew) * -sy;
-					d = Math.cos(skew) * sy;
+					c = Math.sin(ang - skew) * -sy;
+					d = Math.cos(ang - skew) * sy;
+					if (skew && t.skewType === "simple") { //by default, we compensate skewing on the other axis to make it look more natural, but you can set the skewType to "simple" to use the uncompensated skewing that CSS does
+						t1 = Math.tan(skew);
+						t1 = Math.sqrt(1 + t1 * t1);
+						c *= t1;
+						d *= t1;
+					}
 					if (t.svg) {
 						x += t.xOrigin - (t.xOrigin * a + t.yOrigin * c);
 						y += t.yOrigin - (t.xOrigin * b + t.yOrigin * d);
@@ -1561,7 +1603,7 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 		p.x = p.y = p.z = p.skewX = p.skewY = p.rotation = p.rotationX = p.rotationY = p.zOrigin = p.xPercent = p.yPercent = 0;
 		p.scaleX = p.scaleY = p.scaleZ = 1;
 
-		_registerComplexSpecialProp("transform,scale,scaleX,scaleY,scaleZ,x,y,z,rotation,rotationX,rotationY,rotationZ,skewX,skewY,shortRotation,shortRotationX,shortRotationY,shortRotationZ,transformOrigin,transformPerspective,directionalRotation,parseTransform,force3D,skewType,xPercent,yPercent", {parser:function(t, e, p, cssp, pt, plugin, vars) {
+		_registerComplexSpecialProp("transform,scale,scaleX,scaleY,scaleZ,x,y,z,rotation,rotationX,rotationY,rotationZ,skewX,skewY,shortRotation,shortRotationX,shortRotationY,shortRotationZ,transformOrigin,svgOrigin,transformPerspective,directionalRotation,parseTransform,force3D,skewType,xPercent,yPercent", {parser:function(t, e, p, cssp, pt, plugin, vars) {
 			if (cssp._lastParsedTransform === vars) { return pt; } //only need to parse the transform once, and only if the browser supports it.
 			cssp._lastParsedTransform = vars;
 			var m1 = cssp._transform = _getTransform(t, _cs, true, vars.parseTransform),
@@ -1650,15 +1692,15 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 			}
 
 			orig = v.transformOrigin;
-			if (orig && m1.svg) {
-				_parseSVGOrigin(t, _parsePosition(orig), m2);
+			if (m1.svg && (orig || v.svgOrigin)) {
+				_parseSVGOrigin(t, _parsePosition(orig), m2, v.svgOrigin);
 				pt = new CSSPropTween(m1, "xOrigin", m1.xOrigin, m2.xOrigin - m1.xOrigin, pt, -1, "transformOrigin");
 				pt.b = m1.xOrigin;
 				pt.e = pt.xs0 = m2.xOrigin;
 				pt = new CSSPropTween(m1, "yOrigin", m1.yOrigin, m2.yOrigin - m1.yOrigin, pt, -1, "transformOrigin");
 				pt.b = m1.yOrigin;
 				pt.e = pt.xs0 = m2.yOrigin;
-				orig = "0px 0px"; //certain browsers (like firefox) completely botch transform-origin, so we must remove it to prevent it from contaminating transforms. We manage it ourselves with xOrigin and yOrigin
+				orig = _useSVGTransformAttr ? null : "0px 0px"; //certain browsers (like firefox) completely botch transform-origin, so we must remove it to prevent it from contaminating transforms. We manage it ourselves with xOrigin and yOrigin
 			}
 			if (orig || (_supports3D && has3D && m1.zOrigin)) { //if anything 3D is happening and there's a transformOrigin with a z component that's non-zero, we must ensure that the transformOrigin's z-component is set to 0 so that we can manually do those calculations to get around Safari bugs. Even if the user didn't specifically define a "transformOrigin" in this particular tween (maybe they did it via css directly).
 				if (_transformProp) {
@@ -1876,8 +1918,8 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 		var _removeProp = function(s, p) {
 				if (p) {
 					if (s.removeProperty) {
-						if (p.substr(0,2) === "ms") { //Microsoft browsers don't conform to the standard of capping the first prefix character, so we adjust so that when we prefix the caps with a dash, it's correct (otherwise it'd be "ms-transform" instead of "-ms-transform" for IE9, for example)
-							p = "M" + p.substr(1);
+						if (p.substr(0,2) === "ms" || p.substr(0,6) === "webkit") { //Microsoft and some Webkit browsers don't conform to the standard of capitalizing the first prefix character, so we adjust so that when we prefix the caps with a dash, it's correct (otherwise it'd be "ms-transform" instead of "-ms-transform" for IE9, for example)
+							p = "-" + p;
 						}
 						s.removeProperty(p.replace(_capsExp, "-$1").toLowerCase());
 					} else { //note: old versions of IE use "removeAttribute()" instead of "removeProperty()"
@@ -2065,6 +2107,7 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 				this._linkCSSP(tpt, null, pt2);
 				tpt.setRatio = (threeD && _supports3D) ? _set3DTransformRatio : _transformProp ? _set2DTransformRatio : _setIETransformRatio;
 				tpt.data = this._transform || _getTransform(target, _cs, true);
+				tpt.tween = tween;
 				_overwriteProps.pop(); //we don't want to force the overwrite of all "transform" tweens of the target - we only care about individual transform properties like scaleX, rotation, etc. The CSSPropTween constructor automatically adds the property to _overwriteProps which is why we need to pop() here.
 			}
 
@@ -2400,12 +2443,12 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 				e = [],
 				targets = [],
 				_reservedProps = TweenLite._internals.reservedProps,
-				i, difs, p;
+				i, difs, p, from;
 			target = tween._targets || tween.target;
 			_getChildStyles(target, b, targets);
-			tween.render(duration, true);
+			tween.render(duration, true, true);
 			_getChildStyles(target, e);
-			tween.render(0, true);
+			tween.render(0, true, true);
 			tween._enabled(true);
 			i = targets.length;
 			while (--i > -1) {
@@ -2417,7 +2460,11 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 							difs[p] = vars[p];
 						}
 					}
-					results.push( TweenLite.to(targets[i], duration, difs) );
+					from = {};
+					for (p in difs) {
+						from[p] = b[i][p];
+					}
+					results.push(TweenLite.fromTo(targets[i], duration, from, difs));
 				}
 			}
 			return results;

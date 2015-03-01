@@ -1,6 +1,6 @@
 /*!
- * VERSION: 0.1.9
- * DATE: 2014-07-22
+ * VERSION: 0.1.10
+ * DATE: 2015-02-13
  * UPDATES AND DOCS AT: http://greensock.com/jquery-gsap-plugin/
  *
  * Requires TweenLite version 1.8.0 or higher and CSSPlugin.
@@ -27,6 +27,8 @@
 			return copy;
 		},
 		_reserved = {overwrite:1, delay:1, useFrames:1, runBackwards:1, easeParams:1, yoyo:1, immediateRender:1, repeat:1, repeatDelay:1, autoCSS:1},
+		_defaultLegacyProps = ",scrollTop,scrollLeft,show,hide,toggle,",
+		_legacyProps = _defaultLegacyProps,
 		_copyCriticalReserved = function(main, sub) {
 			for (var p in _reserved) {
 				if (_reserved[p] && main[p] !== undefined) {
@@ -75,7 +77,7 @@
 				return _animate.call(this, prop, speed, easing, callback);
 			}
 		}
-		if (!_enabled || prop.skipGSAP === true || (typeof(speed) === "object" && typeof(speed.step) === "function") || prop.scrollTop != null || prop.scrollLeft != null) { //we don't support the "step" feature because it's too costly performance-wise, so fall back to the native animate() call if we sense one. Same with scrollTop and scrollLeft which are handled in a special way in jQuery.
+		if (!_enabled || prop.skipGSAP === true || (typeof(speed) === "object" && typeof(speed.step) === "function")) { //we don't support the "step" feature because it's too costly performance-wise, so fall back to the native animate() call if we sense one. Same with scrollTop and scrollLeft which are handled in a special way in jQuery.
 			return _animate.call(this, prop, speed, easing, callback);
 		}
 		var config = $.speed(speed, easing, callback),
@@ -91,7 +93,7 @@
 				specEasing[p] = val[1];
 				val = val[0];
 			}
-			if (val === "toggle" || val === "hide" || val === "show") {
+			if (_legacyProps.indexOf(p) !== -1 && _legacyProps.indexOf("," + p + ",") !== -1) {
 				return _animate.call(this, prop, speed, easing, callback);
 			} else {
 				vars[(p.indexOf("-") === -1) ? p : $.camelCase(p)] = val;
@@ -170,6 +172,14 @@
 		return this;
 	};
 
-	$.gsap = {enabled:function(value) {_enabled = value;}, version:"0.1.9"};
+	$.gsap = {
+		enabled:function(value) {
+			_enabled = value;
+		},
+		version:"0.1.10",
+		legacyProps:function(value) {
+			_legacyProps = _defaultLegacyProps + value + ",";
+		}
+	};
 
 }(jQuery));

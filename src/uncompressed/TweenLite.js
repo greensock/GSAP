@@ -1,6 +1,6 @@
 /*!
- * VERSION: 1.15.1
- * DATE: 2015-01-08
+ * VERSION: 1.16.0
+ * DATE: 2015-03-01
  * UPDATES AND DOCS AT: http://greensock.com
  *
  * @license Copyright (c) 2008-2015, GreenSock. All rights reserved.
@@ -694,13 +694,14 @@
 			if (!arguments.length) {
 				return this._paused;
 			}
-			if (value != this._paused) if (this._timeline) {
+			var tl = this._timeline,
+				raw, elapsed;
+			if (value != this._paused) if (tl) {
 				if (!_tickerActive && !value) {
 					_ticker.wake();
 				}
-				var tl = this._timeline,
-					raw = tl.rawTime(),
-					elapsed = raw - this._pauseTime;
+				raw = tl.rawTime();
+				elapsed = raw - this._pauseTime;
 				if (!value && tl.smoothChildTiming) {
 					this._startTime += elapsed;
 					this._uncache(false);
@@ -911,11 +912,11 @@
 		p._firstPT = p._targets = p._overwrittenProps = p._startAt = null;
 		p._notifyPluginsOfEnabled = p._lazy = false;
 
-		TweenLite.version = "1.15.1";
+		TweenLite.version = "1.16.0";
 		TweenLite.defaultEase = p._ease = new Ease(null, null, 1, 1);
 		TweenLite.defaultOverwrite = "auto";
 		TweenLite.ticker = _ticker;
-		TweenLite.autoSleep = true;
+		TweenLite.autoSleep = 120;
 		TweenLite.lagSmoothing = function(threshold, adjustedLag) {
 			_ticker.lagSmoothing(threshold, adjustedLag);
 		};
@@ -939,6 +940,7 @@
 			_overwriteLookup = {none:0, all:1, auto:2, concurrent:3, allOnStart:4, preexisting:5, "true":1, "false":0},
 			_rootFramesTimeline = Animation._rootFramesTimeline = new SimpleTimeline(),
 			_rootTimeline = Animation._rootTimeline = new SimpleTimeline(),
+			_nextGCFrame = 30,
 			_lazyRender = _internals.lazyRender = function() {
 				var i = _lazyTweens.length,
 					tween;
@@ -968,7 +970,8 @@
 				if (_lazyTweens.length) {
 					_lazyRender();
 				}
-				if (!(_ticker.frame % 120)) { //dump garbage every 120 frames...
+				if (_ticker.frame >= _nextGCFrame) { //dump garbage every 120 frames or whatever the user sets TweenLite.autoSleep to
+					_nextGCFrame = _ticker.frame + (parseInt(TweenLite.autoSleep, 10) || 120);
 					for (p in _tweenLookup) {
 						a = _tweenLookup[p].tweens;
 						i = a.length;
@@ -1290,7 +1293,7 @@
 			} else if (time < 0.0000001) { //to work around occasional floating point math artifacts, round super small values to 0.
 				this._totalTime = this._time = 0;
 				this.ratio = this._ease._calcEnd ? this._ease.getRatio(0) : 0;
-				if (prevTime !== 0 || (duration === 0 && prevRawPrevTime > 0 && prevRawPrevTime !== _tinyNum)) {
+				if (prevTime !== 0 || (duration === 0 && prevRawPrevTime > 0)) {
 					callback = "onReverseComplete";
 					isComplete = this._reversed;
 				}

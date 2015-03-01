@@ -1,6 +1,6 @@
 /*!
- * VERSION: beta 1.9.4
- * DATE: 2014-07-17
+ * VERSION: beta 1.15.2
+ * DATE: 2015-01-27
  * UPDATES AND DOCS AT: http://greensock.com
  *
  * @license Copyright (c) 2008-2015, GreenSock. All rights reserved.
@@ -274,9 +274,10 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 		//Elastic
 		_createElastic = function(n, f, def) {
 			var C = _class("easing." + n, function(amplitude, period) {
-					this._p1 = amplitude || 1;
-					this._p2 = period || def;
+					this._p1 = (amplitude >= 1) ? amplitude : 1; //note: if amplitude is < 1, we simply adjust the period for a more natural feel. Otherwise the math doesn't work right and the curve starts at 1.
+					this._p2 = (period || def) / (amplitude < 1 ? amplitude : 1);
 					this._p3 = this._p2 / _2PI * (Math.asin(1 / this._p1) || 0);
+					this._p2 = _2PI / this._p2; //precalculate to optimize
 				}, true),
 				p = C.prototype = new Ease();
 			p.constructor = C;
@@ -288,13 +289,13 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 		};
 		_wrap("Elastic",
 			_createElastic("ElasticOut", function(p) {
-				return this._p1 * Math.pow(2, -10 * p) * Math.sin( (p - this._p3) * _2PI / this._p2 ) + 1;
+				return this._p1 * Math.pow(2, -10 * p) * Math.sin( (p - this._p3) * this._p2 ) + 1;
 			}, 0.3),
 			_createElastic("ElasticIn", function(p) {
-				return -(this._p1 * Math.pow(2, 10 * (p -= 1)) * Math.sin( (p - this._p3) * _2PI / this._p2 ));
+				return -(this._p1 * Math.pow(2, 10 * (p -= 1)) * Math.sin( (p - this._p3) * this._p2 ));
 			}, 0.3),
 			_createElastic("ElasticInOut", function(p) {
-				return ((p *= 2) < 1) ? -0.5 * (this._p1 * Math.pow(2, 10 * (p -= 1)) * Math.sin( (p - this._p3) * _2PI / this._p2)) : this._p1 * Math.pow(2, -10 *(p -= 1)) * Math.sin( (p - this._p3) * _2PI / this._p2 ) *0.5 + 1;
+				return ((p *= 2) < 1) ? -0.5 * (this._p1 * Math.pow(2, 10 * (p -= 1)) * Math.sin( (p - this._p3) * this._p2)) : this._p1 * Math.pow(2, -10 *(p -= 1)) * Math.sin( (p - this._p3) * this._p2 ) * 0.5 + 1;
 			}, 0.45)
 		);
 
