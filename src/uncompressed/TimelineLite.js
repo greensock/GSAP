@@ -1,6 +1,6 @@
 /*!
- * VERSION: 1.16.0
- * DATE: 2015-03-01
+ * VERSION: 1.16.1
+ * DATE: 2015-03-13
  * UPDATES AND DOCS AT: http://greensock.com
  *
  * @license Copyright (c) 2008-2015, GreenSock. All rights reserved.
@@ -55,8 +55,9 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 				var tl = tween._timeline,
 					time = tl._totalTime,
 					startTime = tween._startTime,
-					next = tween.ratio ? _tinyNum : 0,
-					prev = tween.ratio ? 0 : _tinyNum,
+					reversed = (tween._rawPrevTime < 0 || (tween._rawPrevTime === 0 && tl._reversed)),//don't use tween.ratio because if the playhead lands exactly on top of the addPause(), ratio will be 1 even if the master timeline was reversed (which is correct). The key here is to sense the direction of the playhead.
+					next = reversed ? 0 : _tinyNum,
+					prev = reversed ? _tinyNum : 0,
 					sibling;
 				if (callback || !this._forcingPlayhead) { //if the user calls a method that moves the playhead (like progress() or time()), it should honor that and skip any pauses (although if there's a callback positioned at that pause, it must jump there and make the call to ensure the time is EXACTLY what it is supposed to be, and then proceed to where the playhead is being forced). Otherwise, imagine placing a pause in the middle of a timeline and then doing timeline.progress(0.9) - it would get stuck where the pause is.
 					tl.pause(startTime);
@@ -74,7 +75,7 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 					if (callback) {
 						callback.apply(scope || tl, params || _blankArray);
 					}
-					if (this._forcingPlayhead) {
+					if (this._forcingPlayhead || !tl._paused) { //the callback could have called resume().
 						tl.seek(time);
 					}
 				}
@@ -88,7 +89,7 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 			},
 			p = TimelineLite.prototype = new SimpleTimeline();
 
-		TimelineLite.version = "1.16.0";
+		TimelineLite.version = "1.16.1";
 		p.constructor = TimelineLite;
 		p.kill()._gc = p._forcingPlayhead = false;
 
@@ -381,6 +382,7 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 				if (!this._reversed) if (!this._hasPausedChild()) {
 					isComplete = true;
 					callback = "onComplete";
+					internalForce = !!this._timeline.autoRemoveChildren; //otherwise, if the animation is unpaused/activated after it's already finished, it doesn't get removed from the parent timeline.
 					if (this._duration === 0) if (time === 0 || this._rawPrevTime < 0 || this._rawPrevTime === _tinyNum) if (this._rawPrevTime !== time && this._first) {
 						internalForce = true;
 						if (this._rawPrevTime > _tinyNum) {
@@ -705,7 +707,7 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 					time = this._time;
 				while (tween) {
 					if (tween._startTime === time && tween.data === "isPause") {
-						tween._rawPrevTime = time; //remember, _rawPrevTime is how zero-duration tweens/callbacks sense directionality and determine whether or not to fire. If _rawPrevTime is the same as _startTime on the next render, it won't fire.
+						tween._rawPrevTime = 0; //remember, _rawPrevTime is how zero-duration tweens/callbacks sense directionality and determine whether or not to fire. If _rawPrevTime is the same as _startTime on the next render, it won't fire.
 					}
 					tween = tween._next;
 				}

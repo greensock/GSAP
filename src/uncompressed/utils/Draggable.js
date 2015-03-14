@@ -1,9 +1,9 @@
 /*!
- * VERSION: 0.12.0
- * DATE: 2015-03-01
+ * VERSION: 0.13.0
+ * DATE: 2015-03-13
  * UPDATES AND DOCS AT: http://greensock.com
  *
- * Requires TweenLite and CSSPlugin version 1.11.0 or later (TweenMax contains both TweenLite and CSSPlugin). ThrowPropsPlugin is required for momentum-based continuation of movement after the mouse/touch is released (ThrowPropsPlugin is a membership benefit of Club GreenSock - http://www.greensock.com/club/).
+ * Requires TweenLite and CSSPlugin version 1.16.1 or later (TweenMax contains both TweenLite and CSSPlugin). ThrowPropsPlugin is required for momentum-based continuation of movement after the mouse/touch is released (ThrowPropsPlugin is a membership benefit of Club GreenSock - http://greensock.com/club/).
  *
  * @license Copyright (c) 2008-2015, GreenSock. All rights reserved.
  * This work is subject to the terms at http://greensock.com/standard-license or for
@@ -40,8 +40,9 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 			_dragCount = 0, //total number of elements currently being dragged
 			_prefix,
 			_isMultiTouching,
+			_isAndroid = (navigator.userAgent.toLowerCase().indexOf("android") !== -1), //Android handles touch events in an odd way and it's virtually impossible to "feature test" so we resort to UA sniffing
 			_lastDragTime = 0,
-			_windowProxy = {}, //memory/performance optimizatin - we reuse this object during autoScroll to store window-related bounds/offsets.
+			_windowProxy = {}, //memory/performance optimization - we reuse this object during autoScroll to store window-related bounds/offsets.
 			_slice = function(a) { //don't use Array.prototype.slice.call(target, 0) because that doesn't work in IE8 with a NodeList that's returned by querySelectorAll()
 				if (typeof(a) === "string") {
 					a = TweenLite.selector(a);
@@ -385,9 +386,9 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 				}
 				if (e.getBBox && _isSVG(e)) { //SVG elements must be handled in a special way because their origins are calculated from the parent SVG canvas origin
 					if (!e._gsTransform) {
-						TweenLite.set(e, {x:"+=0"}); //forces creation of the _gsTransform where we store all the transform components including xOrigin and yOrigin for SVG elements, as of GSAP 1.15.0 which also takes care of calculating the origin from the upper left corner of the SVG canvas.
+						TweenLite.set(e, {x:"+=0", overwrite:false}); //forces creation of the _gsTransform where we store all the transform components including xOrigin and yOrigin for SVG elements, as of GSAP 1.15.0 which also takes care of calculating the origin from the upper left corner of the SVG canvas.
 						if (e._gsTransform.xOrigin === undefined) {
-							console.log("Draggable requires at least GSAP 1.16.0");
+							console.log("Draggable requires at least GSAP 1.16.1");
 						}
 					}
 					v = e.getBBox();
@@ -572,9 +573,9 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 				return obj;
 			}("touchstart,touchmove,touchend,touchcancel")),
 
-			_addListener = function(element, type, func) {
+			_addListener = function(element, type, func, capture) {
 				if (element.addEventListener) {
-					element.addEventListener(_touchEventLookup[type] || type, func, false);
+					element.addEventListener(_touchEventLookup[type] || type, func, capture);
 				} else if (element.attachEvent) {
 					element.attachEvent("on" + type, func);
 				}
@@ -901,6 +902,7 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 				this.lockAxis = vars.lockAxis;
 				this.autoScroll = vars.autoScroll || 0;
 				this.lockedAxis = null;
+				this.allowEventDefault = !!vars.allowEventDefault;
 				var type = (vars.type || (_isOldIE ? "top,left" : "x,y")).toLowerCase(),
 					xyMode = (type.indexOf("x") !== -1 || type.indexOf("y") !== -1),
 					rotationMode = (type.indexOf("rotation") !== -1),
@@ -915,7 +917,7 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 					dragEndTime = 0,
 					checkAutoScrollBounds = false,
 					isClickable = vars.clickableTest || _isClickable,
-					enabled, scrollProxy, startPointerX, startPointerY, startElementX, startElementY, hasBounds, hasDragCallback, maxX, minX, maxY, minY, tempVars, cssVars, touch, touchID, rotationOrigin, dirty, old, snapX, snapY, isClicking, touchEventTarget, matrix, interrupted, clickTime, startScrollTop, startScrollLeft, applyObj,
+					enabled, scrollProxy, startPointerX, startPointerY, startElementX, startElementY, hasBounds, hasDragCallback, maxX, minX, maxY, minY, tempVars, cssVars, touch, touchID, rotationOrigin, dirty, old, snapX, snapY, isClicking, touchEventTarget, matrix, interrupted, clickTime, startScrollTop, startScrollLeft, applyObj, allowNativeTouchScrolling, touchDragAxis,
 
 					//this method gets called on every tick of TweenLite.ticker which allows us to synchronize the renders to the core engine (which is typically synchronized with the display refresh via requestAnimationFrame). This is an optimization - it's better than applying the values inside the "mousemove" or "touchmove" event handler which may get called many times inbetween refreshes.
 					render = function(suppressEvents) {
@@ -1015,7 +1017,7 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 					syncXY = function(skipOnUpdate, skipSnap) {
 						var snappedValue;
 						if (!target._gsTransform && (xyMode || rotationMode)) { //just in case the _gsTransform got wiped, like if the user called clearProps on the transform or something (very rare), doing an x tween forces a re-parsing of the transforms and population of the _gsTransform.
-							TweenLite.set(target, {x:"+=0"});
+							TweenLite.set(target, {x:"+=0", overwrite:false});
 						}
 						if (xyMode) {
 							self.y = target._gsTransform.y;
@@ -1129,10 +1131,10 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 									throwProps.rotation = _parseThrowProps(self, snapIsRaw ? snap : snap.rotation, maxX, minX, 1, forceZeroVelocity);
 								} else {
 									if (allowX) {
-										throwProps[xProp] = _parseThrowProps(self, snapIsRaw ? snap : snap.x || snap.left || snap.scrollLeft, maxX, minX, scrollProxy ? -1 : 1, forceZeroVelocity || (self.lockAxis && self.lockedAxis === "x"));
+										throwProps[xProp] = _parseThrowProps(self, snapIsRaw ? snap : snap.x || snap.left || snap.scrollLeft, maxX, minX, scrollProxy ? -1 : 1, forceZeroVelocity || (self.lockedAxis === "x"));
 									}
 									if (allowY) {
-										throwProps[yProp] = _parseThrowProps(self, snapIsRaw ? snap : snap.y || snap.top || snap.scrollTop, maxY, minY, scrollProxy ? -1 : 1, forceZeroVelocity || (self.lockAxis && self.lockedAxis === "y"));
+										throwProps[yProp] = _parseThrowProps(self, snapIsRaw ? snap : snap.y || snap.top || snap.scrollTop, maxY, minY, scrollProxy ? -1 : 1, forceZeroVelocity || (self.lockedAxis === "y"));
 									}
 								}
 							}
@@ -1247,7 +1249,7 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 					//called when the mouse is pressed (or touch starts)
 					onPress = function(e) {
 						var temp, i;
-						if (!enabled || self.isPressed || !e) { //just in case the browser dispatches a "touchstart" and "mousedown" (some browsers emulate mouse events when using touches)
+						if (!enabled || self.isPressed || !e || (e.type === "mousedown" && _getTime() - clickTime < 30 && _touchEventLookup[self.pointerEvent.type])) { //when we DON'T preventDefault() in order to accommodate touch-scrolling and the user just taps, many browsers also fire a mousedown/mouseup sequence AFTER the touchstart/touchend sequence, thus it'd result in two quick "click" events being dispatched. This line senses that condition and halts it on the subsequent mousedown.
 							return;
 						}
 						interrupted = isTweening();
@@ -1261,8 +1263,8 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 						} else {
 							touchEventTarget = null;
 							_addListener(_doc, "mousemove", onMove); //attach these to the document instead of the box itself so that if the user's mouse moves too quickly (and off of the box), things still work.
-
 						}
+						touchDragAxis = null;
 						_addListener(_doc, "mouseup", onRelease);
 						if (e && e.target) {
 							_addListener(e.target, "mouseup", onRelease); //we also have to listen directly on the element because some browsers don't bubble up the event to the _doc on elements with contentEditable="true"
@@ -1274,9 +1276,10 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 							_setSelectable(triggers, true); //accommodates things like inputs and elements with contentEditable="true" (otherwise user couldn't drag to select text)
 							return;
 						}
+						allowNativeTouchScrolling = (!touchEventTarget || allowX === allowY || scrollProxy || self.vars.allowNativeTouchScrolling === false) ? false : allowX ? "y" : "x";
 						if (_isOldIE) {
 							e = _populateIEEvent(e, true);
-						} else { //if (scrollProxy && !(e.touches && e.touches.length > _dragCount + 1)) { //in some mobile browsers, e.preventDefault() when pressing on a link (or element with an onclick) will cause the link not to work. Only preventDefault() on scroll-type interactions, otherwise things like touch checkboxes and inputs don't work.
+						} else if (!allowNativeTouchScrolling && !self.allowEventDefault) {
 							e.preventDefault();
 							if (e.preventManipulation) {
 								e.preventManipulation();  //for some Microsoft browsers
@@ -1294,12 +1297,12 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 						_addToRenderQueue(render); //causes the Draggable to render on each "tick" of TweenLite.ticker (performance optimization - updating values in a mousemove can cause them to happen too frequently, like multiple times between frame redraws which is wasteful, and it also prevents values from updating properly in IE8)
 						startPointerY = self.pointerY = e.pageY; //record the starting x and y so that we can calculate the movement from the original in _onMouseMove
 						startPointerX = self.pointerX = e.pageX;
-						if (self.autoScroll && !rotationMode && !scrollProxy && target.parentNode && !target.getBBox) {
+						if (allowNativeTouchScrolling || self.autoScroll) {
 							_recordMaxScrolls(target.parentNode);
-							if (target.parentNode._gsMaxScrollX && !_placeholderDiv.parentNode) { //add a placeholder div to prevent the parent container from collapsing when the user drags the element left.
-								_placeholderDiv.style.width = (target.parentNode.scrollWidth) + "px";
-								target.parentNode.appendChild(_placeholderDiv);
-							}
+						}
+						if (self.autoScroll && !rotationMode && !scrollProxy && target.parentNode && !target.getBBox && target.parentNode._gsMaxScrollX && !_placeholderDiv.parentNode) {//add a placeholder div to prevent the parent container from collapsing when the user drags the element left.
+							_placeholderDiv.style.width = (target.parentNode.scrollWidth) + "px";
+							target.parentNode.appendChild(_placeholderDiv);
 						}
 						recordStartPositions();
 						if (matrix) {
@@ -1331,20 +1334,13 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 
 					//called every time the mouse/touch moves
 					onMove = function(e) {
+						var originalEvent = e,
+							touches, pointerX, pointerY, i;
 						if (!enabled || _isMultiTouching || !self.isPressed || !e) {
 							return;
 						}
-						if (_isOldIE) {
-							e = _populateIEEvent(e, true);
-						} else {
-							e.preventDefault();
-							if (e.preventManipulation) { //for some Microsoft browsers
-								e.preventManipulation();
-							}
-						}
 						self.pointerEvent = e;
-						var touches = e.changedTouches,
-							i;
+						touches = e.changedTouches;
 						if (touches) { //touch events store the data slightly differently
 							e = touches[0];
 							if (e !== touch && e.identifier !== touchID) { //Usually changedTouches[0] will be what we're looking for, but in case it's not, look through the rest of the array...(and Android browsers don't reuse the event like iOS)
@@ -1356,6 +1352,36 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 							}
 						} else if (e.pointerId && touchID && e.pointerId !== touchID) { //for some Microsoft browsers, we must attach the listener to the doc rather than the trigger so that when the finger moves outside the bounds of the trigger, things still work. So if the event we're receiving has a pointerId that doesn't match the touchID, ignore it (for multi-touch)
 							return;
+						}
+						if (_isOldIE) {
+							e = _populateIEEvent(e, true);
+						} else {
+							if (touchEventTarget && allowNativeTouchScrolling && !touchDragAxis) { //Android browsers force us to decide on the first "touchmove" event if we should allow the default (scrolling) behavior or preventDefault(). Otherwise, a "touchcancel" will be fired and then no "touchmove" or "touchend" will fire during the scrolling (no good).
+								pointerX = e.pageX;
+								pointerY = e.pageY;
+								if (matrix) {
+									i = pointerX * matrix[0] + pointerY * matrix[2] + matrix[4];
+									pointerY = pointerX * matrix[1] + pointerY * matrix[3] + matrix[5];
+									pointerX = i;
+								}
+								touchDragAxis = (Math.abs(pointerX - startPointerX) > Math.abs(pointerY - startPointerY) && allowX) ? "x" : "y";
+								if (self.vars.lockAxisOnTouchScroll !== false) {
+									self.lockedAxis = (touchDragAxis === "x") ? "y" : "x";
+									if (typeof(self.vars.onLockAxis) === "function") {
+										self.vars.onLockAxis.call(self, originalEvent);
+									}
+								}
+								if (_isAndroid && allowNativeTouchScrolling === touchDragAxis) {
+									onRelease(originalEvent);
+									return;
+								}
+							}
+							if (!self.allowEventDefault && (!allowNativeTouchScrolling || (touchDragAxis && allowNativeTouchScrolling !== touchDragAxis)) && originalEvent.cancelable !== false) {
+								originalEvent.preventDefault();
+								if (originalEvent.preventManipulation) { //for some Microsoft browsers
+									originalEvent.preventManipulation();
+								}
+							}
 						}
 						if (self.autoScroll) {
 							checkAutoScrollBounds = true;
@@ -1396,13 +1422,18 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 							if (xChange < minimumMovement && xChange > -minimumMovement) {
 								xChange = 0;
 							}
-							if (self.lockAxis && (xChange || yChange)) {
-								if (self.lockedAxis === "y" || (!self.lockedAxis && Math.abs(xChange) > Math.abs(yChange) && allowX)) {
+							if ((self.lockAxis || self.lockedAxis) && (xChange || yChange)) {
+								temp = self.lockedAxis;
+								if (!temp) {
+									self.lockedAxis = temp = (allowX && Math.abs(xChange) > Math.abs(yChange)) ? "y" : allowY ? "x" : null;
+									if (temp && typeof(self.vars.onLockAxis) === "function") {
+										self.vars.onLockAxis.call(self, self.pointerEvent);
+									}
+								}
+								if (temp === "y") {
 									yChange = 0;
-									self.lockedAxis = "y";
-								} else if (allowY) {
+								} else if (temp === "x") {
 									xChange = 0;
-									self.lockedAxis = "x";
 								}
 							}
 							x = startElementX + xChange * dragTolerance;
@@ -1451,7 +1482,7 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 
 					//called when the mouse/touch is released
 					onRelease = function(e, force) {
-						if (!enabled || e && touchID && !force && e.pointerId && e.pointerId !== touchID) {  //for some Microsoft browsers, we must attach the listener to the doc rather than the trigger so that when the finger moves outside the bounds of the trigger, things still work. So if the event we're receiving has a pointerId that doesn't match the touchID, ignore it (for multi-touch)
+						if (!enabled || !self.isPressed || e && touchID && !force && e.pointerId && e.pointerId !== touchID) {  //for some Microsoft browsers, we must attach the listener to the doc rather than the trigger so that when the finger moves outside the bounds of the trigger, things still work. So if the event we're receiving has a pointerId that doesn't match the touchID, ignore it (for multi-touch)
 							return;
 						}
 						self.isPressed = false;
@@ -1520,19 +1551,22 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 								animate(vars.throwProps);
 							}
 							_dispatchEvent(self, "release", "onRelease");
-							_dispatchEvent(self, "click", "onClick");
-							eventTarget = originalEvent.target || originalEvent.srcElement || target; //old IE uses srcElement
-							if (eventTarget.click) { //some browsers (like mobile Safari) don't properly trigger the click event
-								eventTarget.click();
-							} else if (_doc.createEvent) {
-								syntheticEvent = _doc.createEvent("MouseEvents");
-								syntheticEvent.initEvent("click", true, true);
-								eventTarget.dispatchEvent(syntheticEvent);
+							if (!_isAndroid || originalEvent.type !== "touchmove") { //to accommodate native scrolling on Android devices, we have to immediately call onRelease() on the first touchmove event, but that shouldn't trigger a "click".
+								_dispatchEvent(self, "click", "onClick");
+								eventTarget = originalEvent.target || originalEvent.srcElement || target; //old IE uses srcElement
+								if (eventTarget.click) { //some browsers (like mobile Safari) don't properly trigger the click event
+									eventTarget.click();
+								}
+								else if (_doc.createEvent) {
+									syntheticEvent = _doc.createEvent("MouseEvents");
+									syntheticEvent.initEvent("click", true, true);
+									eventTarget.dispatchEvent(syntheticEvent);
+								}
+								clickTime = _getTime();
 							}
-							clickTime = _getTime();
 						} else {
 							animate(vars.throwProps); //will skip if throwProps isn't defined or ThrowPropsPlugin isn't loaded.
-							if (!_isOldIE && originalEvent && (vars.dragClickables || !isClickable.call(self, originalEvent.target)) && wasDragging) {
+							if (!_isOldIE && !self.allowEventDefault && originalEvent && (vars.dragClickables || !isClickable.call(self, originalEvent.target)) && wasDragging && (!allowNativeTouchScrolling || (touchDragAxis && allowNativeTouchScrolling === touchDragAxis)) && originalEvent.cancelable !== false) {
 								originalEvent.preventDefault();
 								if (originalEvent.preventManipulation) {
 									originalEvent.preventManipulation();  //for some Microsoft browsers
@@ -1563,11 +1597,12 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 
 					onClick = function(e) {
 						var time = _getTime(),
-							recentlyClicked = time - clickTime < 40;
-						if (self.isPressed || time - dragEndTime < 20 || recentlyClicked) {
+							recentlyClicked = time - clickTime < 40,
+							recentlyDragged = time - dragEndTime < 40;
+						if (self.isPressed || recentlyDragged || recentlyClicked) {
 							if (e.preventDefault) {
 								e.preventDefault();
-								if (recentlyClicked) {
+								if (recentlyClicked || (recentlyDragged && self.vars.suppressClickOnDrag !== false)) {
 									e.stopImmediatePropagation(); //otherwise some browsers bubble up click events, creating a duplicate.
 								}
 							} else {
@@ -1670,7 +1705,6 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 					var x = self.x,
 						y = self.y;
 					updateMatrix();
-					updateScroll();
 					if (applyBounds) {
 						self.applyBounds();
 					} else {
@@ -1693,12 +1727,12 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 							trigger = triggers[i];
 							_addListener(trigger, "mousedown", onPress);
 							_addListener(trigger, "touchstart", onPress);
-							_addListener(trigger, "click", onClick);
+							_addListener(trigger, "click", onClick, true);
 							if (!rotationMode) {
 								_setStyle(trigger, "cursor", vars.cursor || "move");
 							}
 							_setStyle(trigger, "touchCallout", "none");
-							_setStyle(trigger, "touchAction", "none");
+							_setStyle(trigger, "touchAction", (allowX === allowY || scrollProxy) ? "none" : allowX ? "pan-y" : "pan-x");
 						}
 						_setSelectable(triggers, false);
 					}
@@ -1715,12 +1749,12 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 					if (scrollProxy) {
 						scrollProxy.element._gsDragID = id;
 					}
-					TweenLite.set(target, {x:"+=0"}); //simply ensures that there's a _gsTransform on the element.
+					TweenLite.set(target, {x:"+=0", overwrite:false}); //simply ensures that there's a _gsTransform on the element.
 					applyObj = {
 						t:target,
 						data:_isOldIE ? cssVars : target._gsTransform,
 						tween:{},
-						setRatio:(_isOldIE ? function() { TweenLite.set(target, tempVars); } : CSSPlugin._internals.set3DTransformRatio)
+						setRatio:(_isOldIE ? function() { TweenLite.set(target, tempVars); } : CSSPlugin._internals.setTransformRatio || CSSPlugin._internals.set3DTransformRatio)
 					};
 					this.update(true);
 					return self;
@@ -1739,8 +1773,8 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 						i = triggers.length;
 						while (--i > -1) {
 							trigger = triggers[i];
-							_setStyle(trigger, "touchCallout", "default");
-							_setStyle(trigger, "MSTouchAction", "auto");
+							_setStyle(trigger, "touchCallout", null);
+							_setStyle(trigger, "touchAction", null);
 							_removeListener(trigger, "mousedown", onPress);
 							_removeListener(trigger, "touchstart", onPress);
 							_removeListener(trigger, "click", onClick);
@@ -1822,7 +1856,7 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 		p.constructor = Draggable;
 		p.pointerX = p.pointerY = 0;
 		p.isDragging = p.isPressed = false;
-		Draggable.version = "0.12.0";
+		Draggable.version = "0.13.0";
 		Draggable.zIndex = 1000;
 
 		_addListener(_doc, "touchcancel", function() {
@@ -1895,7 +1929,7 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 			return (overlap.width > threshold && overlap.height > threshold);
 		};
 
-		_placeholderDiv.style.cssText = "visibility:hidden; height:1px; top:-1px; pointer-events:none; position:relative; clear:both;";
+		_placeholderDiv.style.cssText = "visibility:hidden;height:1px;top:-1px;pointer-events:none;position:relative;clear:both;";
 
 		return Draggable;
 

@@ -1,6 +1,6 @@
 /*!
- * VERSION: 0.1.10
- * DATE: 2015-02-13
+ * VERSION: 0.1.11
+ * DATE: 2015-03-13
  * UPDATES AND DOCS AT: http://greensock.com/jquery-gsap-plugin/
  *
  * Requires TweenLite version 1.8.0 or higher and CSSPlugin.
@@ -93,7 +93,7 @@
 				specEasing[p] = val[1];
 				val = val[0];
 			}
-			if (_legacyProps.indexOf(p) !== -1 && _legacyProps.indexOf("," + p + ",") !== -1) {
+			if (val === "show" || val === "hide" || val === "toggle" || (_legacyProps.indexOf(p) !== -1 && _legacyProps.indexOf("," + p + ",") !== -1)) { //note: slideUp() and slideDown() pass in opacity:"show" or opacity:"hide"
 				return _animate.call(this, prop, speed, easing, callback);
 			} else {
 				vars[(p.indexOf("-") === -1) ? p : $.camelCase(p)] = val;
@@ -176,7 +176,7 @@
 		enabled:function(value) {
 			_enabled = value;
 		},
-		version:"0.1.10",
+		version:"0.1.11",
 		legacyProps:function(value) {
 			_legacyProps = _defaultLegacyProps + value + ",";
 		}

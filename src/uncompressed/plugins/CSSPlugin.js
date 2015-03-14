@@ -1,6 +1,6 @@
 /*!
- * VERSION: 1.16.0
- * DATE: 2015-03-01
+ * VERSION: 1.16.1
+ * DATE: 2015-03-13
  * UPDATES AND DOCS AT: http://www.greensock.com
  *
  * @license Copyright (c) 2008-2015, GreenSock. All rights reserved.
@@ -31,7 +31,7 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 			p = CSSPlugin.prototype = new TweenPlugin("css");
 
 		p.constructor = CSSPlugin;
-		CSSPlugin.version = "1.16.0";
+		CSSPlugin.version = "1.16.1";
 		CSSPlugin.API = 2;
 		CSSPlugin.defaultTransformPerspective = 0;
 		CSSPlugin.defaultSkewType = "compensated";
@@ -313,6 +313,7 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 				if (x === "center" || (isNaN(parseFloat(x)) && (x + "").indexOf("=") === -1)) { //remember, the user could flip-flop the values and say "bottom center" or "center bottom", etc. "center" is ambiguous because it could be used to describe horizontal or vertical, hence the isNaN(). If there's an "=" sign in the value, it's relative.
 					x = "50%";
 				}
+				v = x + " " + y + ((a.length > 2) ? " " + a[2] : "");
 				if (recObj) {
 					recObj.oxp = (x.indexOf("%") !== -1);
 					recObj.oyp = (y.indexOf("%") !== -1);
@@ -320,8 +321,9 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 					recObj.oyr = (y.charAt(1) === "=");
 					recObj.ox = parseFloat(x.replace(_NaNExp, ""));
 					recObj.oy = parseFloat(y.replace(_NaNExp, ""));
+					recObj.v = v;
 				}
-				return x + " " + y + ((a.length > 2) ? " " + a[2] : "");
+				return recObj || v;
 			},
 
 			/**
@@ -1385,26 +1387,73 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 			},
 			*/
 
-			_set3DTransformRatio = _internals.set3DTransformRatio = function(v) {
+			_setTransformRatio = _internals.set3DTransformRatio = _internals.setTransformRatio = function(v) {
 				var t = this.data, //refers to the element's _gsTransform object
 					style = this.t.style,
-					angle = t.rotation * _DEG2RAD,
+					angle = t.rotation,
+					rotationX = t.rotationX,
+					rotationY = t.rotationY,
 					sx = t.scaleX,
 					sy = t.scaleY,
 					sz = t.scaleZ,
 					x = t.x,
 					y = t.y,
 					z = t.z,
+					isSVG = t.svg,
 					perspective = t.perspective,
+					force3D = t.force3D,
 					a11, a12, a13, a21, a22, a23, a31, a32, a33, a41, a42, a43,
-					zOrigin, min, cos, sin, t1, t2, transform, comma, zero;
-				if (v === 1 || v === 0 || !t.force3D) if (t.force3D !== true) if (!t.rotationY && !t.rotationX && sz === 1 && !perspective && !z && (this.tween._totalTime === this.tween._totalDuration || !this.tween._totalTime)) { //on the final render (which could be 0 for a from tween), if there are no 3D aspects, render in 2D to free up memory and improve performance especially on mobile devices. Check the tween's totalTime/totalDuration too in order to make sure it doesn't happen between repeats if it's a repeating tween.
-					_set2DTransformRatio.call(this, v);
+					zOrigin, min, cos, sin, t1, t2, transform, comma, zero, skew, rnd;
+
+				//check to see if we should render as 2D (and SVGs must use 2D when _useSVGTransformAttr is true)
+				if (((((v === 1 || v === 0) && force3D === "auto" && (this.tween._totalTime === this.tween._totalDuration || !this.tween._totalTime)) || !force3D) && !z && !perspective && !rotationY && !rotationX) || (_useSVGTransformAttr && isSVG) || !_supports3D) { //on the final render (which could be 0 for a from tween), if there are no 3D aspects, render in 2D to free up memory and improve performance especially on mobile devices. Check the tween's totalTime/totalDuration too in order to make sure it doesn't happen between repeats if it's a repeating tween.
+
+					//2D
+					if (angle || t.skewX || isSVG) {
+						angle *= _DEG2RAD;
+						skew = t.skewX * _DEG2RAD;
+						rnd = 100000;
+						a11 = Math.cos(angle) * sx;
+						a21 = Math.sin(angle) * sx;
+						a12 = Math.sin(angle - skew) * -sy;
+						a22 = Math.cos(angle - skew) * sy;
+						if (skew && t.skewType === "simple") { //by default, we compensate skewing on the other axis to make it look more natural, but you can set the skewType to "simple" to use the uncompensated skewing that CSS does
+							t1 = Math.tan(skew);
+							t1 = Math.sqrt(1 + t1 * t1);
+							a12 *= t1;
+							a22 *= t1;
+							if (t.skewY) {
+								a11 *= t1;
+								a21 *= t1;
+							}
+						}
+						if (isSVG) {
+							x += t.xOrigin - (t.xOrigin * a11 + t.yOrigin * a12);
+							y += t.yOrigin - (t.xOrigin * a21 + t.yOrigin * a22);
+							min = 0.000001;
+							if (x < min) if (x > -min) {
+								x = 0;
+							}
+							if (y < min) if (y > -min) {
+								y = 0;
+							}
+						}
+						transform = (((a11 * rnd) | 0) / rnd) + "," + (((a21 * rnd) | 0) / rnd) + "," + (((a12 * rnd) | 0) / rnd) + "," + (((a22 * rnd) | 0) / rnd) + "," + x + "," + y + ")";
+						if (isSVG && _useSVGTransformAttr) {
+							this.t.setAttribute("transform", "matrix(" + transform);
+						} else {
+							//some browsers have a hard time with very small values like 2.4492935982947064e-16 (notice the "e-" towards the end) and would render the object slightly off. So we round to 5 decimal places.
+							style[_transformProp] = ((t.xPercent || t.yPercent) ? "translate(" + t.xPercent + "%," + t.yPercent + "%) matrix(" : "matrix(") + transform;
+						}
+					} else {
+						style[_transformProp] = ((t.xPercent || t.yPercent) ? "translate(" + t.xPercent + "%," + t.yPercent + "%) matrix(" : "matrix(") + sx + ",0,0," + sy + "," + x + "," + y + ")";
+					}
 					return;
+
 				}
-				if (_isFirefox) {
+				if (_isFirefox) { //Firefox has a bug (at least in v25) that causes it to render the transparent part of 32-bit PNG images as black when displayed inside an iframe and the 3D scale is very small and doesn't change sufficiently enough between renders (like if you use a Power4.easeInOut to scale from 0 to 1 where the beginning values only change a tiny amount to begin the tween before accelerating). In this case, we force the scale to be 0.00002 instead which is visually the same but works around the Firefox issue.
 					min = 0.0001;
-					if (sx < min && sx > -min) { //Firefox has a bug (at least in v25) that causes it to render the transparent part of 32-bit PNG images as black when displayed inside an iframe and the 3D scale is very small and doesn't change sufficiently enough between renders (like if you use a Power4.easeInOut to scale from 0 to 1 where the beginning values only change a tiny amount to begin the tween before accelerating). In this case, we force the scale to be 0.00002 instead which is visually the same but works around the Firefox issue.
+					if (sx < min && sx > -min) {
 						sx = sz = 0.00002;
 					}
 					if (sy < min && sy > -min) {
@@ -1415,6 +1464,7 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 					}
 				}
 				if (angle || t.skewX) {
+					angle *= _DEG2RAD;
 					cos = a11 = Math.cos(angle);
 					sin = a21 = Math.sin(angle);
 					if (t.skewX) {
@@ -1426,12 +1476,16 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 							t1 = Math.sqrt(1 + t1 * t1);
 							cos *= t1;
 							sin *= t1;
+							if (t.skewY) {
+								a11 *= t1;
+								a21 *= t1;
+							}
 						}
 					}
 					a12 = -sin;
 					a22 = cos;
 
-				} else if (!t.rotationY && !t.rotationX && sz === 1 && !perspective && !t.svg) { //if we're only translating and/or 2D scaling, this is faster...
+				} else if (!rotationY && !rotationX && sz === 1 && !perspective && !isSVG) { //if we're only translating and/or 2D scaling, this is faster...
 					style[_transformProp] = ((t.xPercent || t.yPercent) ? "translate(" + t.xPercent + "%," + t.yPercent + "%) translate3d(" : "translate3d(") + x + "px," + y + "px," + z +"px)" + ((sx !== 1 || sy !== 1) ? " scale(" + sx + "," + sy + ")" : "");
 					return;
 				} else {
@@ -1465,7 +1519,7 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 				min = 0.000001; //threshold below which browsers use scientific notation which won't work.
 				comma = ",";
 				zero = "0";
-				angle = t.rotationY * _DEG2RAD;
+				angle = rotationY * _DEG2RAD;
 				if (angle) {
 					cos = Math.cos(angle);
 					sin = Math.sin(angle);
@@ -1478,7 +1532,7 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 					a11 *= cos;
 					a21 *= cos;
 				}
-				angle = t.rotationX * _DEG2RAD;
+				angle = rotationX * _DEG2RAD;
 				if (angle) {
 					cos = Math.cos(angle);
 					sin = Math.sin(angle);
@@ -1512,13 +1566,13 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 					a41*=sx;
 				}
 
-				if (zOrigin || t.svg) {
+				if (zOrigin || isSVG) {
 					if (zOrigin) {
 						x += a13*-zOrigin;
 						y += a23*-zOrigin;
 						z += a33*-zOrigin+zOrigin;
 					}
-					if (t.svg) { //due to bugs in some browsers, we need to manage the transform-origin of SVG manually
+					if (isSVG) { //due to bugs in some browsers, we need to manage the transform-origin of SVG manually
 						x += t.xOrigin - (t.xOrigin * a11 + t.yOrigin * a12);
 						y += t.yOrigin - (t.xOrigin * a21 + t.yOrigin * a22);
 					}
@@ -1537,7 +1591,7 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 				transform = ((t.xPercent || t.yPercent) ? "translate(" + t.xPercent + "%," + t.yPercent + "%) matrix3d(" : "matrix3d(");
 				transform += ((a11 < min && a11 > -min) ? zero : a11) + comma + ((a21 < min && a21 > -min) ? zero : a21) + comma + ((a31 < min && a31 > -min) ? zero : a31);
 				transform += comma + ((a41 < min && a41 > -min) ? zero : a41) + comma + ((a12 < min && a12 > -min) ? zero : a12) + comma + ((a22 < min && a22 > -min) ? zero : a22);
-				if (t.rotationX || t.rotationY) { //performance optimization (often there's no rotationX or rotationY, so we can skip these calculations)
+				if (rotationX || rotationY) { //performance optimization (often there's no rotationX or rotationY, so we can skip these calculations)
 					transform += comma + ((a32 < min && a32 > -min) ? zero : a32) + comma + ((a42 < min && a42 > -min) ? zero : a42) + comma + ((a13 < min && a13 > -min) ? zero : a13);
 					transform += comma + ((a23 < min && a23 > -min) ? zero : a23) + comma + ((a33 < min && a33 > -min) ? zero : a33) + comma + ((a43 < min && a43 > -min) ? zero : a43) + comma;
 				} else {
@@ -1546,57 +1600,6 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 				transform += x + comma + y + comma + z + comma + (perspective ? (1 + (-z / perspective)) : 1) + ")";
 
 				style[_transformProp] = transform;
-			},
-
-			_set2DTransformRatio = _internals.set2DTransformRatio = function(v) {
-				var t = this.data, //refers to the element's _gsTransform object
-					targ = this.t,
-					style = targ.style,
-					x = t.x,
-					y = t.y,
-					ang, skew, rnd, sx, sy, a, b, c, d, matrix, min, t1;
-				if ((t.rotationX || t.rotationY || t.z || t.force3D === true || (t.force3D === "auto" && v !== 1 && v !== 0)) && !(t.svg && _useSVGTransformAttr) && _supports3D) { //if a 3D tween begins while a 2D one is running, we need to kick the rendering over to the 3D method. For example, imagine a yoyo-ing, infinitely repeating scale tween running, and then the object gets rotated in 3D space with a different tween.
-					this.setRatio = _set3DTransformRatio;
-					_set3DTransformRatio.call(this, v);
-					return;
-				}
-				sx = t.scaleX;
-				sy = t.scaleY;
-				if (t.rotation || t.skewX || t.svg) {
-					ang = t.rotation * _DEG2RAD;
-					skew = t.skewX * _DEG2RAD;
-					rnd = 100000;
-					a = Math.cos(ang) * sx;
-					b = Math.sin(ang) * sx;
-					c = Math.sin(ang - skew) * -sy;
-					d = Math.cos(ang - skew) * sy;
-					if (skew && t.skewType === "simple") { //by default, we compensate skewing on the other axis to make it look more natural, but you can set the skewType to "simple" to use the uncompensated skewing that CSS does
-						t1 = Math.tan(skew);
-						t1 = Math.sqrt(1 + t1 * t1);
-						c *= t1;
-						d *= t1;
-					}
-					if (t.svg) {
-						x += t.xOrigin - (t.xOrigin * a + t.yOrigin * c);
-						y += t.yOrigin - (t.xOrigin * b + t.yOrigin * d);
-						min = 0.000001;
-						if (x < min) if (x > -min) {
-							x = 0;
-						}
-						if (y < min) if (y > -min) {
-							y = 0;
-						}
-					}
-					matrix = (((a * rnd) | 0) / rnd) + "," + (((b * rnd) | 0) / rnd) + "," + (((c * rnd) | 0) / rnd) + "," + (((d * rnd) | 0) / rnd) + "," + x + "," + y + ")";
-					if (t.svg && _useSVGTransformAttr) {
-						targ.setAttribute("transform", "matrix(" + matrix);
-					} else {
-						//some browsers have a hard time with very small values like 2.4492935982947064e-16 (notice the "e-" towards the end) and would render the object slightly off. So we round to 5 decimal places.
-						style[_transformProp] = ((t.xPercent || t.yPercent) ? "translate(" + t.xPercent + "%," + t.yPercent + "%) matrix(" : "matrix(") + matrix;
-					}
-				} else {
-					style[_transformProp] = ((t.xPercent || t.yPercent) ? "translate(" + t.xPercent + "%," + t.yPercent + "%) matrix(" : "matrix(") + sx + ",0,0," + sy + "," + x + "," + y + ")";
-				}
 			};
 
 		p = Transform.prototype;
@@ -1722,7 +1725,7 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 						pt.xs0 = pt.e = orig;
 					}
 
-				//for older versions of IE (6-8), we need to manually calculate things inside the setRatio() function. We record origin x and y (ox and oy) and whether or not the values are percentages (oxp and oyp).
+					//for older versions of IE (6-8), we need to manually calculate things inside the setRatio() function. We record origin x and y (ox and oy) and whether or not the values are percentages (oxp and oyp).
 				} else {
 					_parsePosition(orig + "", m1);
 				}
@@ -1971,14 +1974,12 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 			}
 			t._gsClassPT = pt;
 			pt.e = (e.charAt(1) !== "=") ? e : b.replace(new RegExp("\\s*\\b" + e.substr(2) + "\\b"), "") + ((e.charAt(0) === "+") ? " " + e.substr(2) : "");
-			if (cssp._tween._duration) { //if it's a zero-duration tween, there's no need to tween anything or parse the data. In fact, if we switch classes temporarily (which we must do for proper parsing) and the class has a transition applied, it could cause a quick flash to the end state and back again initially in some browsers.
-				t.setAttribute("class", pt.e);
-				difData = _cssDif(t, bs, _getAllStyles(t), vars, cnptLookup);
-				t.setAttribute("class", b);
-				pt.data = difData.firstMPT;
-				t.style.cssText = cssText; //we recorded cssText before we swapped classes and ran _getAllStyles() because in cases when a className tween is overwritten, we remove all the related tweening properties from that class change (otherwise class-specific stuff can't override properties we've directly set on the target's style object due to specificity).
-				pt = pt.xfirst = cssp.parse(t, difData.difs, pt, plugin); //we record the CSSPropTween as the xfirst so that we can handle overwriting propertly (if "className" gets overwritten, we must kill all the properties associated with the className part of the tween, so we can loop through from xfirst to the pt itself)
-			}
+			t.setAttribute("class", pt.e);
+			difData = _cssDif(t, bs, _getAllStyles(t), vars, cnptLookup);
+			t.setAttribute("class", b);
+			pt.data = difData.firstMPT;
+			t.style.cssText = cssText; //we recorded cssText before we swapped classes and ran _getAllStyles() because in cases when a className tween is overwritten, we remove all the related tweening properties from that class change (otherwise class-specific stuff can't override properties we've directly set on the target's style object due to specificity).
+			pt = pt.xfirst = cssp.parse(t, difData.difs, pt, plugin); //we record the CSSPropTween as the xfirst so that we can handle overwriting propertly (if "className" gets overwritten, we must kill all the properties associated with the className part of the tween, so we can loop through from xfirst to the pt itself)
 			return pt;
 		}});
 
@@ -1987,7 +1988,7 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 			if (v === 1 || v === 0) if (this.data._totalTime === this.data._totalDuration && this.data.data !== "isFromStart") { //this.data refers to the tween. Only clear at the END of the tween (remember, from() tweens make the ratio go from 1 to 0, so we can't just check that and if the tween is the zero-duration one that's created internally to render the starting values in a from() tween, ignore that because otherwise, for example, from(...{height:100, clearProps:"height", delay:1}) would wipe the height at the beginning of the tween and after 1 second, it'd kick back in).
 				var s = this.t.style,
 					transformParse = _specialProps.transform.parse,
-					a, p, i, clearTransform;
+					a, p, i, clearTransform, transform;
 				if (this.e === "all") {
 					s.cssText = "";
 					clearTransform = true;
@@ -2008,7 +2009,11 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 				}
 				if (clearTransform) {
 					_removeProp(s, _transformProp);
-					if (this.t._gsTransform) {
+					transform = this.t._gsTransform;
+					if (transform) {
+						if (transform.svg) {
+							this.t.removeAttribute("data-svg-origin");
+						}
 						delete this.t._gsTransform;
 					}
 				}
@@ -2075,7 +2080,12 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 				vars = v;
 				style.cssText = first;
 			}
-			this._firstPT = pt = this.parse(target, vars, null);
+
+			if (vars.className) { //className tweens will combine any differences they find in the css with the vars that are passed in, so {className:"myClass", scale:0.5, left:20} would work.
+				this._firstPT = pt = _specialProps.className.parse(target, vars.className, "className", this, null, null, vars);
+			} else {
+				this._firstPT = pt = this.parse(target, vars, null);
+			}
 
 			if (this._transformType) {
 				threeD = (this._transformType === 3);
@@ -2105,9 +2115,10 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 				}
 				tpt = new CSSPropTween(target, "transform", 0, 0, null, 2);
 				this._linkCSSP(tpt, null, pt2);
-				tpt.setRatio = (threeD && _supports3D) ? _set3DTransformRatio : _transformProp ? _set2DTransformRatio : _setIETransformRatio;
+				tpt.setRatio = _transformProp ? _setTransformRatio : _setIETransformRatio;
 				tpt.data = this._transform || _getTransform(target, _cs, true);
 				tpt.tween = tween;
+				tpt.pr = -1; //ensures that the transforms get applied after the components are updated.
 				_overwriteProps.pop(); //we don't want to force the overwrite of all "transform" tweens of the target - we only care about individual transform properties like scaleX, rotation, etc. The CSSPropTween constructor automatically adds the property to _overwriteProps which is why we need to pop() here.
 			}
 
