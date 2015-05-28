@@ -1,6 +1,6 @@
 /*!
- * VERSION: 1.16.1
- * DATE: 2015-03-13
+ * VERSION: 1.17.0
+ * DATE: 2015-05-27
  * UPDATES AND DOCS AT: http://greensock.com
  *
  * @license Copyright (c) 2008-2015, GreenSock. All rights reserved.
@@ -536,6 +536,11 @@
 			return copy;
 		};
 
+		p._callback = function(type) {
+			var v = this.vars;
+			v[type].apply(v[type + "Scope"] || v.callbackScope || this, v[type + "Params"] || _blankArray);
+		};
+
 //----Animation getters/setters --------------------------------------------------------
 
 		p.eventCallback = function(type, callback, params, scope) {
@@ -912,7 +917,7 @@
 		p._firstPT = p._targets = p._overwrittenProps = p._startAt = null;
 		p._notifyPluginsOfEnabled = p._lazy = false;
 
-		TweenLite.version = "1.16.1";
+		TweenLite.version = "1.17.0";
 		TweenLite.defaultEase = p._ease = new Ease(null, null, 1, 1);
 		TweenLite.defaultOverwrite = "auto";
 		TweenLite.ticker = _ticker;
@@ -936,7 +941,7 @@
 			_plugins = TweenLite._plugins = {},
 			_tweenLookup = _internals.tweenLookup = {},
 			_tweenLookupNum = 0,
-			_reservedProps = _internals.reservedProps = {ease:1, delay:1, overwrite:1, onComplete:1, onCompleteParams:1, onCompleteScope:1, useFrames:1, runBackwards:1, startAt:1, onUpdate:1, onUpdateParams:1, onUpdateScope:1, onStart:1, onStartParams:1, onStartScope:1, onReverseComplete:1, onReverseCompleteParams:1, onReverseCompleteScope:1, onRepeat:1, onRepeatParams:1, onRepeatScope:1, easeParams:1, yoyo:1, immediateRender:1, repeat:1, repeatDelay:1, data:1, paused:1, reversed:1, autoCSS:1, lazy:1, onOverwrite:1},
+			_reservedProps = _internals.reservedProps = {ease:1, delay:1, overwrite:1, onComplete:1, onCompleteParams:1, onCompleteScope:1, useFrames:1, runBackwards:1, startAt:1, onUpdate:1, onUpdateParams:1, onUpdateScope:1, onStart:1, onStartParams:1, onStartScope:1, onReverseComplete:1, onReverseCompleteParams:1, onReverseCompleteScope:1, onRepeat:1, onRepeatParams:1, onRepeatScope:1, easeParams:1, yoyo:1, immediateRender:1, repeat:1, repeatDelay:1, data:1, paused:1, reversed:1, autoCSS:1, lazy:1, onOverwrite:1, callbackScope:1},
 			_overwriteLookup = {none:0, all:1, auto:2, concurrent:3, allOnStart:4, preexisting:5, "true":1, "false":0},
 			_rootFramesTimeline = Animation._rootFramesTimeline = new SimpleTimeline(),
 			_rootTimeline = Animation._rootTimeline = new SimpleTimeline(),
@@ -1036,7 +1041,7 @@
 					for (i = 0; i < l; i++) {
 						if ((curTween = siblings[i]) !== tween) {
 							if (!curTween._gc) {
-								if (_onOverwrite(curTween, tween) && curTween._enabled(false, false)) {
+								if (curTween._kill(null, target, tween)) {
 									changed = true;
 								}
 							}
@@ -1381,7 +1386,7 @@
 					}
 				}
 				if (this.vars.onStart) if (this._time !== 0 || duration === 0) if (!suppressEvents) {
-					this.vars.onStart.apply(this.vars.onStartScope || this, this.vars.onStartParams || _blankArray);
+					this._callback("onStart");
 				}
 			}
 			pt = this._firstPT;
@@ -1399,7 +1404,7 @@
 					this._startAt.render(time, suppressEvents, force); //note: for performance reasons, we tuck this conditional logic inside less traveled areas (most tweens don't have an onUpdate). We'd just have it at the end before the onComplete, but the values should be updated before any onUpdate is called, so we ALSO put it here and then if it's not called, we do so later near the onComplete.
 				}
 				if (!suppressEvents) if (this._time !== prevTime || isComplete) {
-					this._onUpdate.apply(this.vars.onUpdateScope || this, this.vars.onUpdateParams || _blankArray);
+					this._callback("onUpdate");
 				}
 			}
 			if (callback) if (!this._gc || force) { //check _gc because there's a chance that kill() could be called in an onUpdate
@@ -1413,7 +1418,7 @@
 					this._active = false;
 				}
 				if (!suppressEvents && this.vars[callback]) {
-					this.vars[callback].apply(this.vars[callback + "Scope"] || this, this.vars[callback + "Params"] || _blankArray);
+					this._callback(callback);
 				}
 				if (duration === 0 && this._rawPrevTime === _tinyNum && rawPrevTime !== _tinyNum) { //the onComplete or onReverseComplete could trigger movement of the playhead and for zero-duration tweens (which must discern direction) that land directly back on their start time, we don't want to fire again on the next render. Think of several addPause()'s in a timeline that forces the playhead to a certain spot, but what if it's already paused and another tween is tweening the "time" of the timeline? Each time it moves [forward] past that spot, it would move back, and since suppressEvents is true, it'd reset _rawPrevTime to _tinyNum so that when it begins again, the callback would fire (so ultimately it could bounce back and forth during that tween). Again, this is a very uncommon scenario, but possible nonetheless.
 					this._rawPrevTime = 0;
@@ -1430,11 +1435,12 @@
 				return this._enabled(false, false);
 			}
 			target = (typeof(target) !== "string") ? (target || this._targets || this.target) : TweenLite.selector(target) || target;
-			var i, overwrittenProps, p, pt, propLookup, changed, killProps, record, killed;
+			var simultaneousOverwrite = (overwritingTween && this._time && overwritingTween._startTime === this._startTime && this._timeline === overwritingTween._timeline),
+				i, overwrittenProps, p, pt, propLookup, changed, killProps, record, killed;
 			if ((_isArray(target) || _isSelector(target)) && typeof(target[0]) !== "number") {
 				i = target.length;
 				while (--i > -1) {
-					if (this._kill(vars, target[i])) {
+					if (this._kill(vars, target[i], overwritingTween)) {
 						changed = true;
 					}
 				}
@@ -1468,13 +1474,21 @@
 								killed.push(p);
 							}
 						}
-						if (!_onOverwrite(this, overwritingTween, target, killed)) { //if the onOverwrite returned false, that means the user wants to override the overwriting (cancel it).
+						if ((killed || !vars) && !_onOverwrite(this, overwritingTween, target, killed)) { //if the onOverwrite returned false, that means the user wants to override the overwriting (cancel it).
 							return false;
 						}
 					}
 
 					for (p in killProps) {
 						if ((pt = propLookup[p])) {
+							if (simultaneousOverwrite) { //if another tween overwrites this one and they both start at exactly the same time, yet this tween has already rendered once (for example, at 0.001) because it's first in the queue, we should revert the values to where they were at 0 so that the starting values aren't contaminated on the overwriting tween.
+								if (pt.f) {
+									pt.t[pt.p](pt.s);
+								} else {
+									pt.t[pt.p] = pt.s;
+								}
+								changed = true;
+							}
 							if (pt.pg && pt.t._kill(killProps)) {
 								changed = true; //some plugins need to be notified so they can perform cleanup tasks first
 							}
@@ -1561,7 +1575,7 @@
 		};
 
 		TweenLite.delayedCall = function(delay, callback, params, scope, useFrames) {
-			return new TweenLite(callback, 0, {delay:delay, onComplete:callback, onCompleteParams:params, onCompleteScope:scope, onReverseComplete:callback, onReverseCompleteParams:params, onReverseCompleteScope:scope, immediateRender:false, lazy:false, useFrames:useFrames, overwrite:0});
+			return new TweenLite(callback, 0, {delay:delay, onComplete:callback, onCompleteParams:params, callbackScope:scope, onReverseComplete:callback, onReverseCompleteParams:params, immediateRender:false, lazy:false, useFrames:useFrames, overwrite:0});
 		};
 
 		TweenLite.set = function(target, vars) {
@@ -1634,7 +1648,7 @@
 
 		p._addTween = function(target, prop, start, end, overwriteProp, round) {
 			var c, pt;
-			if (end != null && (c = (typeof(end) === "number" || end.charAt(1) !== "=") ? Number(end) - start : parseInt(end.charAt(0) + "1", 10) * Number(end.substr(2)))) {
+			if (end != null && (c = (typeof(end) === "number" || end.charAt(1) !== "=") ? Number(end) - Number(start) : parseInt(end.charAt(0) + "1", 10) * Number(end.substr(2)))) {
 				this._firstPT = pt = {_next:this._firstPT, t:target, p:prop, s:start, c:c, f:(typeof(target[prop]) === "function"), n:overwriteProp || prop, r:round};
 				if (pt._next) {
 					pt._next._prev = pt;

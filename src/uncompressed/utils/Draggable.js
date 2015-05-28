@@ -1,9 +1,9 @@
 /*!
- * VERSION: 0.13.0
- * DATE: 2015-03-13
+ * VERSION: 0.14.0
+ * DATE: 2015-05-26
  * UPDATES AND DOCS AT: http://greensock.com
  *
- * Requires TweenLite and CSSPlugin version 1.16.1 or later (TweenMax contains both TweenLite and CSSPlugin). ThrowPropsPlugin is required for momentum-based continuation of movement after the mouse/touch is released (ThrowPropsPlugin is a membership benefit of Club GreenSock - http://greensock.com/club/).
+ * Requires TweenLite and CSSPlugin version 1.17.0 or later (TweenMax contains both TweenLite and CSSPlugin). ThrowPropsPlugin is required for momentum-based continuation of movement after the mouse/touch is released (ThrowPropsPlugin is a membership benefit of Club GreenSock - http://greensock.com/club/).
  *
  * @license Copyright (c) 2008-2015, GreenSock. All rights reserved.
  * This work is subject to the terms at http://greensock.com/standard-license or for
@@ -16,7 +16,7 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 
 	"use strict";
 
-	_gsScope._gsDefine("utils.Draggable", ["events.EventDispatcher","TweenLite"], function(EventDispatcher, TweenLite) {
+	_gsScope._gsDefine("utils.Draggable", ["events.EventDispatcher","TweenLite","plugins.CSSPlugin"], function(EventDispatcher, TweenLite, CSSPlugin) {
 
 		var _tempVarsXY = {css:{}}, //speed optimization - we reuse the same vars object for x/y TweenLite.set() calls to minimize garbage collection tasks and improve performance.
 			_tempVarsX = {css:{}},
@@ -26,6 +26,10 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 			_tempEvent = {}, //for populating with pageX/pageY in old versions of IE
 			_doc = document,
 			_docElement = _doc.documentElement || {},
+			_createElement = function(type) {
+				return _doc.createElementNS ? _doc.createElementNS("http://www.w3.org/1999/xhtml", type) : _doc.createElement(type);
+			},
+			_tempDiv = _createElement("div"),
 			_emptyArray = [],
 			_emptyFunc = function() { return false; },
 			_RAD2DEG = 180 / Math.PI,
@@ -42,6 +46,8 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 			_isMultiTouching,
 			_isAndroid = (navigator.userAgent.toLowerCase().indexOf("android") !== -1), //Android handles touch events in an odd way and it's virtually impossible to "feature test" so we resort to UA sniffing
 			_lastDragTime = 0,
+			_temp1 = {}, // a simple object we reuse and populate (usually x/y properties) to conserve memory and improve performance.
+			_temp2 = {},
 			_windowProxy = {}, //memory/performance optimization - we reuse this object during autoScroll to store window-related bounds/offsets.
 			_slice = function(a) { //don't use Array.prototype.slice.call(target, 0) because that doesn't work in IE8 with a NodeList that's returned by querySelectorAll()
 				if (typeof(a) === "string") {
@@ -262,7 +268,7 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 					callback = vars[callbackName],
 					listeners = instance._listeners[type];
 				if (typeof(callback) === "function") {
-					callback.apply(vars[callbackName + "Scope"] || instance, vars[callbackName + "Params"] || [instance.pointerEvent]);
+					callback.apply(vars[callbackName + "Scope"] || vars.callbackScope || instance, vars[callbackName + "Params"] || [instance.pointerEvent]);
 				}
 				if (listeners) {
 					instance.dispatchEvent(type);
@@ -283,98 +289,169 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 				return _getElementBounds(e, context);
 			},
 
-			_tempDiv = _doc.createElement("div"),
-			_supports3D = (_checkPrefix(_tempDiv, "perspective") !== ""),
-
-
-			// start matrix and point conversion methods...
-			_originProp = _checkPrefix(_tempDiv, "transformOrigin").replace(/^ms/g, "Ms").replace(/([A-Z])/g, "-$1").toLowerCase(),
-			_transformProp = _checkPrefix(_tempDiv, "transform"),
-			_transformCSSProp = _transformProp.replace(/^ms/g, "Ms").replace(/([A-Z])/g, "-$1").toLowerCase(),
-			_point1 = {}, //we reuse _point1 and _point2 objects inside matrix and point conversion methods to conserve memory and minimize garbage collection tasks.
-			_point2 = {},
-			_hasReparentBug, //we'll set this inside the _getOffset2DMatrix() method after the body has loaded.
-			_dummySVGRect = (function() {
-				if (_isOldIE) {
+			_svgBorderFactor,
+			_svgBorderScales,
+			_svgScrollOffset,
+			_hasBorderBug,
+			_setEnvironmentVariables = function() { //some browsers factor the border into the SVG coordinate space, some don't (like Firefox). Some apply transforms to them, some don't. We feature-detect here so we know how to handle the border(s). We can't do this immediately - we must wait for the document.body to exist.
+				if (!_doc.createElementNS) {
+					_svgBorderFactor = 0;
+					_svgBorderScales = false;
 					return;
 				}
-				var url = "http://www.w3.org/2000/svg",
-					svg = _doc.createElementNS(url, "svg"),
-					e = _doc.createElementNS(url, "rect");
-				e.setAttributeNS(null, "width", "10");
-				e.setAttributeNS(null, "height", "10");
-				svg.appendChild(e);
-				return svg;
-			}()),
+				var div = _createElement("div"),
+					svg = _doc.createElementNS("http://www.w3.org/2000/svg", "svg"),
+					wrapper = _createElement("div"),
+					style = div.style,
+					parent = _doc.body || _docElement,
+					matrix, e1, point, oldValue;
+				if (_doc.body && _transformProp) {
+					style.position = wrapper.style.position = "absolute";
+					parent.appendChild(wrapper);
+					wrapper.appendChild(div);
+					style.height = "10px";
+					oldValue = div.offsetTop;
+					wrapper.style.border = "5px solid red";
+					_hasBorderBug = (oldValue !== div.offsetTop); //some browsers, like Firefox 38, cause the offsetTop/Left to be affected by a parent's border.
+					parent.removeChild(wrapper);
+				}
+				style = svg.style;
+				svg.setAttributeNS(null, "width", "400px");
+				svg.setAttributeNS(null, "height", "400px");
+				svg.setAttributeNS(null, "viewBox", "0 0 400 400");
+				style.display = "block";
+				style.boxSizing = "border-box";
+				style.border = "0px solid red";
+				style.transform = "none";
+				// in some browsers (like certain flavors of Android), the getScreenCTM() matrix is contaminated by the scroll position. We can run some logic here to detect that condition, but we ended up not needing this because we found another workaround using getBoundingClientRect().
+				div.style.cssText = "width:100px;height:100px;overflow:scroll";
+				parent.appendChild(div);
+				div.appendChild(svg);
+				point = svg.createSVGPoint().matrixTransform(svg.getScreenCTM());
+				e1 = point.y;
+				div.scrollTop = 100;
+				point.x = point.y = 0;
+				point = point.matrixTransform(svg.getScreenCTM());
+				_svgScrollOffset = (e1 - point.y < 100.1) ? 0 : e1 - point.y - 150;
+				div.removeChild(svg);
+				parent.removeChild(div);
+				// -- end _svgScrollOffset calculation.
+				parent.appendChild(svg);
+				matrix = svg.getScreenCTM();
+				e1 = matrix.e;
+				style.border = "50px solid red";
+				matrix = svg.getScreenCTM();
+				if (e1 === 0 && matrix.e === 0 && matrix.f === 0 && matrix.a === 1) { //Opera has a bunch of bugs - it doesn't adjust the x/y of the matrix, nor does it scale when box-sizing is border-box but it does so elsewhere; to get the correct behavior we set _svgBorderScales to true.
+					_svgBorderFactor = 1;
+					_svgBorderScales = true;
+				} else {
+					_svgBorderFactor = (e1 !== matrix.e) ? 1 : 0;
+					_svgBorderScales = (matrix.a !== 1);
+				}
+				parent.removeChild(svg);
+			},
+
+			_supports3D = (_checkPrefix(_tempDiv, "perspective") !== ""),
+
+			// start matrix and point conversion methods...
+			_transformOriginProp = _checkPrefix(_tempDiv, "transformOrigin").replace(/^ms/g, "Ms").replace(/([A-Z])/g, "-$1").toLowerCase(),
+			_transformProp = _checkPrefix(_tempDiv, "transform"),
+			_transformPropCSS = _transformProp.replace(/^ms/g, "Ms").replace(/([A-Z])/g, "-$1").toLowerCase(),
+			_point1 = {}, //we reuse _point1 and _point2 objects inside matrix and point conversion methods to conserve memory and minimize garbage collection tasks.
+			_point2 = {},
 			_SVGElement = window.SVGElement,
 			_isSVG = function(e) {
 				return !!(_SVGElement && typeof(e.getBBox) === "function" && e.getCTM && (!e.parentNode || (e.parentNode.getBBox && e.parentNode.getCTM)));
 			},
-			_svgAttributes = ["class","viewBox","width","height","xml:space"],
-			_getSVGOffsets = function(e) { //SVG elements don't always report offsetTop/offsetLeft/offsetParent at all (I'm looking at you, Firefox 29), so we have to do some work to manufacture those values. You can pass any SVG element and it'll spit back an object with offsetTop, offsetLeft, offsetParent, scaleX, and scaleY properties. We need the scaleX and scaleY to handle the way SVG can resize itself based on the container.
-				if (!e.getBoundingClientRect || !e.parentNode) {
+			_isIE10orBelow = (((/MSIE ([0-9]{1,}[\.0-9]{0,})/).exec(navigator.userAgent) || (/Trident\/.*rv:([0-9]{1,}[\.0-9]{0,})/).exec(navigator.userAgent)) && parseFloat( RegExp.$1 ) < 11), //Ideally we'd avoid user agent sniffing, but there doesn't seem to be a way to feature-detect and sense a border-related bug that only affects IE10 and IE9.
+			_tempTransforms = [],
+			_tempElements = [],
+			_getSVGOffsets = function(e) { //SVG elements don't always report offsetTop/offsetLeft/offsetParent at all (I'm looking at you, Firefox 29 and Android), so we have to do some work to manufacture those values. You can pass any SVG element and it'll spit back an object with offsetTop, offsetLeft, offsetParent, scaleX, and scaleY properties. We need the scaleX and scaleY to handle the way SVG can resize itself based on the container.
+				if (!e.getBoundingClientRect || !e.parentNode || !_transformProp) {
 					return {offsetTop:0, offsetLeft:0, scaleX:1, scaleY:1, offsetParent:_docElement};
 				}
-				if (e._gsSVGData && e._gsSVGData.lastUpdate === TweenLite.ticker.frame) {
-					return e._gsSVGData;
+				if (Draggable.cacheSVGData !== false && e._gsCache && e._gsCache.lastUpdate === TweenLite.ticker.frame) { //performance optimization. Assume that if the offsets are requested again on the same tick, we can just feed back the values we already calculated (no need to keep recalculating until another tick elapses).
+					return e._gsCache;
 				}
 				var curElement = e,
-					prevCSS = e.style.cssText,
-					data = e._gsSVGData = e._gsSVGData || {},
-					eRect, parentRect, offsetParent, rRect, i, a;
-				if ((e.nodeName + "").toLowerCase() !== "svg" && e.getBBox) { //if it's a nested/child SVG element, we must find the parent SVG canvas and measure the offset from there.
+					cache = _cache(e),
+					eRect, parentRect, offsetParent, cs, m, i, point1, point2, borderWidth, borderHeight, width, height;
+				cache.lastUpdate = TweenLite.ticker.frame;
+				if (e.getBBox && !cache.isSVGRoot) { //if it's a nested/child SVG element, we must find the parent SVG canvas and measure the offset from there.
 					curElement = e.parentNode;
 					eRect = e.getBBox();
 					while (curElement && (curElement.nodeName + "").toLowerCase() !== "svg") {
 						curElement = curElement.parentNode;
 					}
-					data = _getSVGOffsets(curElement);
-					return {offsetTop:eRect.y * data.scaleY, offsetLeft:eRect.x * data.scaleX, scaleX:data.scaleX, scaleY:data.scaleY, offsetParent:curElement || _docElement};
+					cs = _getSVGOffsets(curElement);
+					cache.offsetTop = eRect.y * cs.scaleY;
+					cache.offsetLeft = eRect.x * cs.scaleX;
+					cache.scaleX = cs.scaleX;
+					cache.scaleY = cs.scaleY;
+					cache.offsetParent = curElement || _docElement;
+					return cache;
 				}
-				while (!curElement.offsetParent && curElement.parentNode) {
+				//only root SVG elements continue here...
+				offsetParent = cache.offsetParent;
+				if (offsetParent === _doc.body) {
+					offsetParent = _docElement; //avoids problems with margins/padding on the body
+				}
+				//walk up the ancestors and record any non-identity transforms (and reset them to "none") until we reach the offsetParent. We must do this so that the getBoundingClientRect() is accurate for measuring the offsetTop/offsetLeft. We'll revert the values later...
+				_tempElements.length = _tempTransforms.length = 0;
+				while (curElement) {
+					m = _getStyle(curElement, _transformProp, true);
+					if (m !== "matrix(1, 0, 0, 1, 0, 0)" && m !== "none" && m !== "translate3d(0px, 0px, 0px)") {
+						_tempElements.push(curElement);
+						_tempTransforms.push(curElement.style[_transformProp]);
+						curElement.style[_transformProp] = "none";
+					}
+					if (curElement === offsetParent) {
+						break;
+					}
 					curElement = curElement.parentNode;
 				}
-				e.parentNode.insertBefore(_dummySVGRect, e); //Firefox measures things based NOT on the <svg> itself, but on the bounds of the child elements, so we add a dummy SVG object temporarily in the original one's spot which has a 10x10 <rect> in the upper left corner to make sure we're getting accurate results.
-				e.parentNode.removeChild(e);
-				_dummySVGRect.style.cssText = prevCSS;
-				_dummySVGRect.style[_transformProp] = "none";
-				i = _svgAttributes.length;
-				while (--i > -1) {
-					a = e.getAttribute(_svgAttributes[i]);
-					if (a) {
-						_dummySVGRect.setAttribute(_svgAttributes[i], a);
-					} else {
-						_dummySVGRect.removeAttribute(_svgAttributes[i]);
-					}
+				parentRect = offsetParent.getBoundingClientRect();
+				m = e.getScreenCTM();
+				point2 = e.createSVGPoint();
+				point1 = point2.matrixTransform(m);
+				point2.x = point2.y = 10;
+				point2 = point2.matrixTransform(m);
+				cache.scaleX = (point2.x - point1.x) / 10;
+				cache.scaleY = (point2.y - point1.y) / 10;
+				if (_svgBorderFactor === undefined) {
+					_setEnvironmentVariables();
 				}
-				eRect = _dummySVGRect.getBoundingClientRect();
-				rRect = _dummySVGRect.firstChild.getBoundingClientRect();
-				offsetParent = curElement.offsetParent;
-				if (offsetParent) {
-					if (offsetParent === _doc.body && _docElement) {
-						offsetParent = _docElement; //to avoid problems with margins/padding on the <body>
-					}
-					parentRect = offsetParent.getBoundingClientRect();
+				if (cache.borderBox && !_svgBorderScales && e.getAttribute("width")) { //some browsers (like Safari) don't properly scale the matrix to accommodate the border when box-sizing is border-box, so we must calculate it here...
+					cs = _getComputedStyle(e) || {};
+					borderWidth = (parseFloat(cs.borderLeftWidth) + parseFloat(cs.borderRightWidth)) || 0;
+					borderHeight = (parseFloat(cs.borderTopWidth) + parseFloat(cs.borderBottomWidth)) || 0;
+					width = parseFloat(cs.width) || 0;
+					height = parseFloat(cs.height) || 0;
+					cache.scaleX *= (width - borderWidth) / width;
+					cache.scaleY *= (height - borderHeight) / height;
+				}
+				if (_svgScrollOffset) { //some browsers (like Chrome for Android) have bugs in the way getScreenCTM() is reported (it doesn't factor in scroll position), so we must revert to a more expensive technique for calculating offsetTop/Left.
+					eRect = e.getBoundingClientRect();
+					cache.offsetLeft = eRect.left - parentRect.left;
+					cache.offsetTop = eRect.top - parentRect.top;
 				} else {
-					parentRect = {top:-_getDocScrollTop(), left:-_getDocScrollLeft()};
+					cache.offsetLeft = point1.x - parentRect.left;
+					cache.offsetTop = point1.y - parentRect.top;
 				}
-				_dummySVGRect.parentNode.insertBefore(e, _dummySVGRect);
-				e.parentNode.removeChild(_dummySVGRect);
-				data.scaleX = rRect.width / 10;
-				data.scaleY = rRect.height / 10;
-				data.offsetLeft = eRect.left - parentRect.left;
-				data.offsetTop = eRect.top - parentRect.top;
-				data.offsetParent = curElement.offsetParent || _docElement;
-				data.lastUpdate = TweenLite.ticker.frame;
-				return data;
+				cache.offsetParent = offsetParent;
+				i = _tempElements.length;
+				while (--i > -1) {
+					_tempElements[i].style[_transformProp] = _tempTransforms[i];
+				}
+				return cache;
 			},
-			_getOffsetTransformOrigin = function(e, decoratee) {
+			_getOffsetTransformOrigin = function(e, decoratee) { //returns the x/y position of the transformOrigin of the element, in its own local coordinate system (pixels), offset from the top left corner.
 				decoratee = decoratee || {};
-				if (!e || e === _docElement || !e.parentNode) {
+				if (!e || e === _docElement || !e.parentNode || e === window) {
 					return {x:0, y:0};
 				}
 				var cs = _getComputedStyle(e),
-					v = (_originProp && cs) ? cs.getPropertyValue(_originProp) : "50% 50%",
+					v = (_transformOriginProp && cs) ? cs.getPropertyValue(_transformOriginProp) : "50% 50%",
 					a = v.split(" "),
 					x = (v.indexOf("left") !== -1) ? "0%" : (v.indexOf("right") !== -1) ? "100%" : a[0],
 					y = (v.indexOf("top") !== -1) ? "0%" : (v.indexOf("bottom") !== -1) ? "100%" : a[1];
@@ -384,65 +461,140 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 				if (x === "center" || isNaN(parseFloat(x))) { //remember, the user could flip-flop the values and say "bottom center" or "center bottom", etc. "center" is ambiguous because it could be used to describe horizontal or vertical, hence the isNaN(). If there's an "=" sign in the value, it's relative.
 					x = "50%";
 				}
-				if (e.getBBox && _isSVG(e)) { //SVG elements must be handled in a special way because their origins are calculated from the parent SVG canvas origin
+				if (e.getBBox && _isSVG(e)) { //SVG elements must be handled in a special way because their origins are calculated from the top left.
 					if (!e._gsTransform) {
 						TweenLite.set(e, {x:"+=0", overwrite:false}); //forces creation of the _gsTransform where we store all the transform components including xOrigin and yOrigin for SVG elements, as of GSAP 1.15.0 which also takes care of calculating the origin from the upper left corner of the SVG canvas.
 						if (e._gsTransform.xOrigin === undefined) {
-							console.log("Draggable requires at least GSAP 1.16.1");
+							console.log("Draggable requires at least GSAP 1.17.0");
 						}
 					}
 					v = e.getBBox();
-					a = _getSVGOffsets(e);
-					decoratee.x = (e._gsTransform.xOrigin - v.x) * a.scaleX;
-					decoratee.y = (e._gsTransform.yOrigin - v.y) * a.scaleY;
+					decoratee.x = (e._gsTransform.xOrigin - v.x);
+					decoratee.y = (e._gsTransform.yOrigin - v.y);
 				} else {
+					if (e.getBBox && !e.offsetWidth && (x + y).indexOf("%") !== -1) { //Firefox doesn't report offsetWidth/height on <svg> elements.
+						e = e.getBBox();
+						e = {offsetWidth: e.width, offsetHeight: e.height};
+					}
 					decoratee.x = ((x.indexOf("%") !== -1) ? e.offsetWidth * parseFloat(x) / 100 : parseFloat(x));
 					decoratee.y = ((y.indexOf("%") !== -1) ? e.offsetHeight * parseFloat(y) / 100 : parseFloat(y));
+
 				}
 				return decoratee;
 			},
-			_getOffset2DMatrix = function(e, offsetOrigin, parentOffsetOrigin) {
-				var cs, m, parent, offsetParent, isRoot, offsets;
-				if (e === window || !e || !e.parentNode) {
+			_cache = function(e) { //computes some important values and stores them in a _gsCache object attached to the element itself so that we can optimize performance
+				if (Draggable.cacheSVGData !== false && e._gsCache && e._gsCache.lastUpdate === TweenLite.ticker.frame) { //performance optimization. Assume that if the offsets are requested again on the same tick, we can just feed back the values we already calculated (no need to keep recalculating until another tick elapses).
+					return e._gsCache;
+				}
+				var cache = e._gsCache = e._gsCache || {},
+					cs = _getComputedStyle(e),
+					isSVG = (e.getBBox && _isSVG(e)),
+					isSVGRoot = ((e.nodeName + "").toLowerCase() === "svg"),
+					curSVG;
+				cache.isSVG = isSVG;
+				cache.isSVGRoot = isSVGRoot;
+				cache.borderBox = (cs.boxSizing === "border-box");
+				cache.computedStyle = cs;
+				if (isSVGRoot) {
+					if (!(cache.offsetParent = e.offsetParent)) { //some browsers don't report offsetParent for SVG elements.
+						e.parentNode.insertBefore(_tempDiv, e);
+						cache.offsetParent = _tempDiv.offsetParent;
+						e.parentNode.removeChild(_tempDiv);
+					}
+				} else if (isSVG) {
+					curSVG = e.parentNode;
+					while (curSVG && (curSVG.nodeName + "").toLowerCase() !== "svg") { //offsetParent is always the SVG canvas for SVG elements.
+						curSVG = curSVG.parentNode;
+					}
+					cache.offsetParent = curSVG;
+				}
+				return cache;
+			},
+			_getOffset2DMatrix = function(e, offsetOrigin, parentOffsetOrigin, zeroOrigin) {
+				if (e === window || !e || !e.style || !e.parentNode) {
 					return [1,0,0,1,0,0];
 				}
-				cs = _getComputedStyle(e);
-				m = cs ? cs.getPropertyValue(_transformCSSProp) : e.currentStyle ? e.currentStyle[_transformProp] : "1,0,0,1,0,0";
+				var cache = e._gsCache || _cache(e),
+					parent = e.parentNode,
+					parentCache = parent._gsCache || _cache(parent),
+					cs = cache.computedStyle,
+					parentOffsetParent = cache.isSVG ? parentCache.offsetParent : parent.offsetParent,
+					m, isRoot, offsets, rect, t, sx, sy, offsetX, offsetY, parentRect, borderTop, borderLeft, borderTranslateX, borderTranslateY;
+				m = (cache.isSVG && (e.style[_transformProp] + "").indexOf("matrix") !== -1) ? e.style[_transformProp] : cs ? cs.getPropertyValue(_transformPropCSS) : e.currentStyle ? e.currentStyle[_transformProp] : "1,0,0,1,0,0"; //some browsers (like Chrome 40) don't correctly report transforms that are applied inline on an SVG element (they don't get included in the computed style), so we double-check here and accept matrix values
+
+				if (e.getBBox && (e.getAttribute("transform") + "").indexOf("matrix") !== -1) { //SVG can store transform data in its "transform" attribute instead of the CSS, so look for that here (only accept matrix()).
+					m = e.getAttribute("transform");
+				}
 				m = (m + "").match(/(?:\-|\b)[\d\-\.e]+\b/g) || [1,0,0,1,0,0];
 				if (m.length > 6) {
 					m = [m[0], m[1], m[4], m[5], m[12], m[13]];
 				}
+				if (zeroOrigin) {
+					m[4] = m[5] = 0;
+				} else if (cache.isSVG && (t = e._gsTransform) && (t.xOrigin || t.yOrigin)) {
+					//SVGs handle origin very differently. Factor in GSAP's handling of origin values here:
+					m[0] = parseFloat(m[0]);
+					m[1] = parseFloat(m[1]);
+					m[2] = parseFloat(m[2]);
+					m[3] = parseFloat(m[3]);
+					m[4] = parseFloat(m[4]) - (t.xOrigin - (t.xOrigin * m[0] + t.yOrigin * m[2]));
+					m[5] = parseFloat(m[5]) - (t.yOrigin - (t.xOrigin * m[1] + t.yOrigin * m[3]));
+				}
 				if (offsetOrigin) {
-					parent = e.parentNode;
-					offsets = ((e.getBBox && _isSVG(e)) || (e.offsetLeft === undefined && (e.nodeName + "").toLowerCase() === "svg")) ? _getSVGOffsets(e) : e;
-					offsetParent = offsets.offsetParent;
-					isRoot = (parent === _docElement || parent === _doc.body);
+					if (_svgBorderFactor === undefined) {
+						_setEnvironmentVariables();
+					}
+					offsets = (cache.isSVG || cache.isSVGRoot) ? _getSVGOffsets(e) : e;
+					if (cache.isSVG) { //don't just rely on "instanceof _SVGElement" because if the SVG is embedded via an object tag, it won't work (SVGElement is mapped to a different object))
+						rect = e.getBBox();
+						parentRect = (parentCache.isSVGRoot) ? {x:0, y:0} : parent.getBBox();
+						offsets = {offsetLeft:rect.x - parentRect.x, offsetTop:rect.y - parentRect.y, offsetParent:cache.offsetParent};
+					} else if (cache.isSVGRoot) {
+						borderTop = parseInt(cs.borderTopWidth, 10) || 0;
+						borderLeft = parseInt(cs.borderLeftWidth, 10) || 0;
+						borderTranslateX = ((m[0] - _svgBorderFactor) * borderLeft + m[2] * borderTop);
+						borderTranslateY = (m[1] * borderLeft + (m[3] - _svgBorderFactor) * borderTop);
 
-					//some browsers (like Chrome 31) have a bug that causes the offsetParent not to report correctly when a transform is applied to an element's parent, so the offsetTop and offsetLeft are measured from the parent instead of whatever the offsetParent reports as. For example, put an absolutely-positioned child div inside a position:static parent, then check the child's offsetTop before and after you apply a transform, like rotate(1deg). You'll see that it changes, but the offsetParent doesn't. So we must sense this condition here (and we can only do it after the body has loaded, as browsers don't accurately report offsets otherwise) and set a variable that we can easily reference later.
-					if (_hasReparentBug === undefined && _doc.body && _transformProp) {
-						_hasReparentBug = (function() {
-							var parent = _doc.createElement("div"),
-								child = _doc.createElement("div"),
-								oldOffsetParent, value;
-							child.style.position = "absolute";
-							_doc.body.appendChild(parent);
-							parent.appendChild(child);
-							oldOffsetParent = child.offsetParent;
-							parent.style[_transformProp] = "rotate(1deg)";
-							value = (child.offsetParent === oldOffsetParent);
-							_doc.body.removeChild(parent);
-							return value;
-						}());
+						sx = offsetOrigin.x;
+						sy = offsetOrigin.y;
+						offsetX = (sx - (sx * m[0] + sy * m[2])); //accommodate the SVG root's transforms when the origin isn't in the top left.
+						offsetY = (sy - (sx * m[1] + sy * m[3]));
+
+						m[4] = parseFloat(m[4]) + offsetX;
+						m[5] = parseFloat(m[5]) + offsetY;
+						offsetOrigin.x -= offsetX;
+						offsetOrigin.y -= offsetY;
+						sx = offsets.scaleX;
+						sy = offsets.scaleY;
+						offsetOrigin.x *= sx;
+						offsetOrigin.y *= sy;
+						m[0] *= sx;
+						m[1] *= sy;
+						m[2] *= sx;
+						m[3] *= sy;
+
+						if (!_isIE10orBelow) {
+							offsetOrigin.x += borderTranslateX;
+							offsetOrigin.y += borderTranslateY;
+						}
+					} else if (!_hasBorderBug && e.offsetParent) {
+						offsetOrigin.x += parseInt(_getStyle(e.offsetParent, "borderLeftWidth"), 10) || 0;
+						offsetOrigin.y += parseInt(_getStyle(e.offsetParent, "borderTopWidth"), 10) || 0;
 					}
-					m[4] = Number(m[4]) + offsetOrigin.x + (offsets.offsetLeft || 0) - parentOffsetOrigin.x - (isRoot ? 0 : parent.scrollLeft) + (offsetParent ? parseInt(_getStyle(offsetParent, "borderLeftWidth"), 10) || 0 : 0);
-					m[5] = Number(m[5]) + offsetOrigin.y + (offsets.offsetTop || 0) - parentOffsetOrigin.y - (isRoot ? 0 : parent.scrollTop) + (offsetParent ? parseInt(_getStyle(offsetParent, "borderTopWidth"), 10) || 0 : 0);
-					if (parent && parent.offsetParent === offsetParent && (!_hasReparentBug || _getOffset2DMatrix(parent).join("") === "100100")) {
-						m[4] -= parent.offsetLeft || 0;
-						m[5] -= parent.offsetTop || 0;
-					}
-					if (parent && _getStyle(e, "position", true) === "fixed") { //fixed position elements should factor in the scroll position of the document.
+					isRoot = (parent === _docElement || parent === _doc.body);
+					m[4] = Number(m[4]) + offsetOrigin.x + (offsets.offsetLeft || 0) - parentOffsetOrigin.x - (isRoot ? 0 : parent.scrollLeft || 0);
+					m[5] = Number(m[5]) + offsetOrigin.y + (offsets.offsetTop || 0) - parentOffsetOrigin.y - (isRoot ? 0 : parent.scrollTop || 0);
+					if (parent && _getStyle(e, "position", cs) === "fixed") { //fixed position elements should factor in the scroll position of the document.
 						m[4] += _getDocScrollLeft();
 						m[5] += _getDocScrollTop();
+					}
+					if (parent && parent !== _docElement && parentOffsetParent === offsets.offsetParent) {
+						m[4] -= parent.offsetLeft || 0;
+						m[5] -= parent.offsetTop || 0;
+						if (!_hasBorderBug && parent.offsetParent && !cache.isSVG && !cache.isSVGRoot) {
+							m[4] -= parseInt(_getStyle(parent.offsetParent, "borderLeftWidth"), 10) || 0;
+							m[5] -= parseInt(_getStyle(parent.offsetParent, "borderTopWidth"), 10) || 0;
+						}
 					}
 				}
 				return m;
@@ -490,10 +642,16 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 				}
 				return m;
 			},
-			_localToGlobal = function(e, p, decoratee) {
-				var m = _getConcatenatedMatrix(e),
+			_localToGlobal = function(e, p, fromTopLeft, decoratee, zeroOrigin) {
+				e = _unwrapElement(e);
+				var m = _getConcatenatedMatrix(e, false, zeroOrigin),
 					x = p.x,
 					y = p.y;
+				if (fromTopLeft) {
+					_getOffsetTransformOrigin(e, p);
+					x -= p.x;
+					y -= p.y;
+				}
 				decoratee = (decoratee === true) ? p : decoratee || {};
 				decoratee.x = x * m[0] + y * m[2] + m[4];
 				decoratee.y = x * m[1] + y * m[3] + m[5];
@@ -506,20 +664,56 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 				p.y = x * globalToLocal[1] + y * globalToLocal[3] + globalToLocal[5];
 				return p;
 			},
-			_getElementBounds = function(e, context) {
-				var origin, left, right, top, bottom, mLocalToGlobal, mGlobalToLocal, p1, p2, p3, p4;
+
+			_getElementBounds = function(e, context, fromTopLeft) {
+				if (!(e = _unwrapElement(e))) {
+					return null;
+				}
+				context = _unwrapElement(context);
+				var isSVG = (e.getBBox && _isSVG(e)),
+					origin, left, right, top, bottom, mLocalToGlobal, mGlobalToLocal, p1, p2, p3, p4, bbox, width, height, cache, borderLeft, borderTop, viewBox, viewBoxX, viewBoxY, computedDimensions, cs;
 				if (e === window) {
 					top = _getDocScrollTop();
 					left = _getDocScrollLeft();
 					right = left + (_docElement.clientWidth || e.innerWidth || _doc.body.clientWidth || 0);
-
-					bottom = top + (((e.innerHeight || 0) - 20 < _docElement.clientHeight) ? _docElement.clientHeight : e.innerHeight || _doc.body.clientHeight || 0); //some browsers (like Firefox) ignore absolutely positioned elements, and collapse the height of the documentElement, so it could be 8px, for example, if you have just an absolutely positioned div. In that case, we use the innerHeight to resolve this. Also note that IE8 doesn't support window.innerHeight.
+					bottom = top + (((e.innerHeight || 0) - 20 < _docElement.clientHeight) ? _docElement.clientHeight : e.innerHeight || _doc.body.clientHeight || 0); //some browsers (like Firefox) ignore absolutely positioned elements, and collapse the height of the documentElement, so it could be 8px, for example, if you have just an absolutely positioned div. In that case, we use the innerHeight to resolve this.
+				} else if (context === undefined || context === window) {
+					return e.getBoundingClientRect();
 				} else {
 					origin = _getOffsetTransformOrigin(e);
 					left = -origin.x;
-					right = left + e.offsetWidth;
 					top = -origin.y;
-					bottom = top + e.offsetHeight;
+					if (isSVG) {
+						bbox = e.getBBox();
+						width = bbox.width;
+						height = bbox.height;
+					} else if (e.offsetWidth) {
+						width = e.offsetWidth;
+						height = e.offsetHeight;
+					} else {
+						computedDimensions = _getComputedStyle(e);
+						width = parseFloat(computedDimensions.width);
+						height = parseFloat(computedDimensions.height);
+					}
+					right = left + width;
+					bottom = top + height;
+					if (e.nodeName.toLowerCase() === "svg" && !_isOldIE) { //root SVG elements are a special beast because they have 2 types of scaling - transforms on themselves as well as the stretching of the SVG canvas itself based on the outer size and the viewBox. If, for example, the SVG's viewbox is "0 0 100 100" but the CSS is set to width:200px; height:200px, that'd make it appear at 2x scale even though the element itself has no CSS transforms but the offsetWidth/offsetHeight are based on that css, not the viewBox so we need to adjust them accordingly.
+						cache = _getSVGOffsets(e);
+						cs = cache.computedStyle || {};
+						viewBox = (e.getAttribute("viewBox") || "0 0").split(" ");
+						viewBoxX = parseFloat(viewBox[0]);
+						viewBoxY = parseFloat(viewBox[1]);
+						borderLeft = parseFloat(cs.borderLeftWidth) || 0;
+						borderTop = parseFloat(cs.borderTopWidth) || 0;
+						right -= width - ((width - borderLeft) / cache.scaleX) - viewBoxX;
+						bottom -= height - ((height - borderTop) / cache.scaleY) - viewBoxY;
+						left -= borderLeft / cache.scaleX - viewBoxX;
+						top -= borderTop / cache.scaleY - viewBoxY;
+						if (computedDimensions) { //when we had to use computed styles, factor in the border now.
+							right += (parseFloat(cs.borderRightWidth) + borderLeft) / cache.scaleX;
+							bottom += (borderTop + parseFloat(cs.borderBottomWidth)) / cache.scaleY;
+						}
+					}
 				}
 				if (e === context) {
 					return {left:left, top:top, width: right - left, height: bottom - top};
@@ -532,7 +726,11 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 				p4 = _localizePoint({x:left, y:bottom}, mLocalToGlobal, mGlobalToLocal);
 				left = Math.min(p1.x, p2.x, p3.x, p4.x);
 				top = Math.min(p1.y, p2.y, p3.y, p4.y);
-				return {left:left, top:top, width:Math.max(p1.x, p2.x, p3.x, p4.x) - left, height:Math.max(p1.y, p2.y, p3.y, p4.y) - top};
+				_temp1.x = _temp1.y = 0;
+				if (fromTopLeft) {
+					_getOffsetTransformOrigin(context, _temp1);
+				}
+				return {left:left + _temp1.x, top:top + _temp1.y, width:Math.max(p1.x, p2.x, p3.x, p4.x) - left, height:Math.max(p1.y, p2.y, p3.y, p4.y) - top};
 			},
 			// end matrix and point conversion methods
 
@@ -587,6 +785,16 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 				} else if (element.detachEvent) {
 					element.detachEvent("on" + type, func);
 				}
+			},
+
+			_hasTouchID = function(list, ID) {
+				var i = list.length;
+				while (--i > -1) {
+					if (list[i].identifier === ID) {
+						return true;
+					}
+				}
+				return false;
 			},
 
 			_onMultiTouchDocumentEnd = function(e) {
@@ -1053,8 +1261,8 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 								render(true);
 							}
 						}
-						if (vars.onThrowUpdate && !skipOnUpdate) {
-							vars.onThrowUpdate.apply(vars.onThrowUpdateScope || self, vars.onThrowUpdateParams || _emptyArray);
+						if (!skipOnUpdate) {
+							_dispatchEvent(self, "throwupdate", "onThrowUpdate");
 						}
 					},
 
@@ -1120,8 +1328,16 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 
 					},
 
+					onThrowComplete = function() {
+						self.isThrowing = false;
+						_dispatchEvent(self, "throwcomplete", "onThrowComplete");
+					},
+					onThrowOverwrite = function() {
+						self.isThrowing = false;
+					},
+
 					animate = function(throwProps, forceZeroVelocity) {
-						var snap, snapIsRaw, tween;
+						var snap, snapIsRaw, tween, overshootTolerance;
 						if (throwProps && ThrowPropsPlugin) {
 							if (throwProps === true) {
 								snap = vars.snap || {};
@@ -1138,7 +1354,9 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 									}
 								}
 							}
-							self.tween = tween = ThrowPropsPlugin.to(scrollProxy || target, {throwProps:throwProps, ease:(vars.ease || _globals.Power3.easeOut), onComplete:vars.onThrowComplete, onCompleteParams:vars.onThrowCompleteParams, onCompleteScope:(vars.onThrowCompleteScope || self), onUpdate:(vars.fastMode ? vars.onThrowUpdate : syncXY), onUpdateParams:(vars.fastMode ? vars.onThrowUpdateParams : null), onUpdateScope:(vars.onThrowUpdateScope || self)}, (isNaN(vars.maxDuration) ? 2 : vars.maxDuration), (isNaN(vars.minDuration) ? 0.5 : vars.minDuration), (isNaN(vars.overshootTolerance) ? (1 - self.edgeResistance) + 0.2 : vars.overshootTolerance));
+							self.isThrowing = true;
+							overshootTolerance = (!isNaN(vars.overshootTolerance)) ? vars.overshootTolerance : (vars.edgeResistance === 1) ? 0 : (1 - self.edgeResistance) + 0.2;
+							self.tween = tween = ThrowPropsPlugin.to(scrollProxy || target, {throwProps:throwProps, ease:(vars.ease || _globals.Power3.easeOut), onComplete:onThrowComplete, onOverwrite:onThrowOverwrite, onUpdate:(vars.fastMode ? _dispatchEvent : syncXY), onUpdateParams:(vars.fastMode ? [self, "onthrowupdate", "onThrowUpdate"] : _emptyArray)}, (isNaN(vars.maxDuration) ? 2 : vars.maxDuration), (!isNaN(vars.minDuration) ? vars.minDuration : (overshootTolerance === 0) ? 0 : 0.5), overshootTolerance);
 							if (!vars.fastMode) {
 								//to populate the end values, we just scrub the tween to the end, record the values, and then jump back to the beginning.
 								if (scrollProxy) {
@@ -1291,7 +1509,7 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 						} else if (e.pointerId) {
 							touchID = e.pointerId; //for some Microsoft browsers
 						} else {
-							touch = null;
+							touch = touchID = null;
 						}
 						_dragCount++;
 						_addToRenderQueue(render); //causes the Draggable to render on each "tick" of TweenLite.ticker (performance optimization - updating values in a mousemove can cause them to happen too frequently, like multiple times between frame redraws which is wasteful, and it also prevents values from updating properly in IE8)
@@ -1313,6 +1531,7 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 						if (self.tween) {
 							self.tween.kill();
 						}
+						self.isThrowing = false;
 						TweenLite.killTweensOf(scrollProxy || target, true, killProps); //in case the user tries to drag it before the last tween is done.
 						if (scrollProxy) {
 							TweenLite.killTweensOf(target, true, {scrollTo:1}); //just in case the original target's scroll position is being tweened somewhere else.
@@ -1466,11 +1685,15 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 							y = Math.round(y);
 						}
 						if (self.x !== x || (self.y !== y && !rotationMode)) {
-							self.x = self.endX = x;
 							if (rotationMode) {
-								self.endRotation = x;
+								self.endRotation = self.x = self.endX = x;
 							} else {
-								self.y = self.endY = y;
+								if (allowY) {
+									self.y = self.endY = y;
+								}
+								if (allowX) {
+									self.x = self.endX = x;
+								}
 							}
 							dirty = true; //a flag that indicates we need to render the target next time the TweenLite.ticker dispatches a "tick" event (typically on a requestAnimationFrame) - this is a performance optimization (we shouldn't render on every move because sometimes many move events can get dispatched between screen refreshes, and that'd be wasteful to render every time)
 							if (!self.isDragging) {
@@ -1482,7 +1705,7 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 
 					//called when the mouse/touch is released
 					onRelease = function(e, force) {
-						if (!enabled || !self.isPressed || e && touchID && !force && e.pointerId && e.pointerId !== touchID) {  //for some Microsoft browsers, we must attach the listener to the doc rather than the trigger so that when the finger moves outside the bounds of the trigger, things still work. So if the event we're receiving has a pointerId that doesn't match the touchID, ignore it (for multi-touch)
+						if (!enabled || !self.isPressed || (e && touchID != null && !force && ((e.pointerId && e.pointerId !== touchID) || (e.changedTouches && !_hasTouchID(e.changedTouches, touchID))))) {  //for some Microsoft browsers, we must attach the listener to the doc rather than the trigger so that when the finger moves outside the bounds of the trigger, things still work. So if the event we're receiving has a pointerId that doesn't match the touchID, ignore it (for multi-touch)
 							return;
 						}
 						self.isPressed = false;
@@ -1809,6 +2032,7 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 				};
 
 				this.kill = function() {
+					self.isThrowing = false;
 					TweenLite.killTweensOf(scrollProxy || target, true, killProps);
 					self.disable();
 					delete _lookup[target._gsDragID];
@@ -1856,7 +2080,7 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 		p.constructor = Draggable;
 		p.pointerX = p.pointerY = 0;
 		p.isDragging = p.isPressed = false;
-		Draggable.version = "0.13.0";
+		Draggable.version = "0.14.0";
 		Draggable.zIndex = 1000;
 
 		_addListener(_doc, "touchcancel", function() {
@@ -1891,16 +2115,23 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 			return (_getTime() - _lastDragTime) / 1000;
 		};
 
-		var _parseRect = function(e, undefined) { //accepts a DOM element, a mouse event, or a rectangle object and returns the corresponding rectangle with left, right, width, height, top, and bottom properties
-			var r = (e.pageX !== undefined) ? {left:e.pageX, top:e.pageY, right:e.pageX + 1, bottom:e.pageY + 1} : (!e.nodeType && e.left !== undefined && e.top !== undefined) ? e : _unwrapElement(e).getBoundingClientRect();
-			if (r.right === undefined && r.width !== undefined) {
-				r.right = r.left + r.width;
-				r.bottom = r.top + r.height;
-			} else if (r.width === undefined) { //some browsers don't include width and height properties. We can't just set them directly on r because some browsers throw errors, so create a new generic object.
-				r = {width: r.right - r.left, height: r.bottom - r.top, right: r.right, left: r.left, bottom: r.bottom, top: r.top};
-			}
-			return r;
-		};
+		var _tempRect = {}, //reuse to reduce garbage collection tasks
+			_parseRect = function(e, undefined) { //accepts a DOM element, a mouse event, or a rectangle object and returns the corresponding rectangle with left, right, width, height, top, and bottom properties
+				if (e === window) {
+					_tempRect.left = _tempRect.top = 0;
+					_tempRect.width = _tempRect.right = _docElement.clientWidth || e.innerWidth || _doc.body.clientWidth || 0;
+					_tempRect.height = _tempRect.bottom = ((e.innerHeight || 0) - 20 < _docElement.clientHeight) ? _docElement.clientHeight : e.innerHeight || _doc.body.clientHeight || 0;
+					return _tempRect;
+				}
+				var r = (e.pageX !== undefined) ? {left:e.pageX, top:e.pageY, right:e.pageX + 1, bottom:e.pageY + 1} : (!e.nodeType && e.left !== undefined && e.top !== undefined) ? e : _unwrapElement(e).getBoundingClientRect();
+				if (r.right === undefined && r.width !== undefined) {
+					r.right = r.left + r.width;
+					r.bottom = r.top + r.height;
+				} else if (r.width === undefined) { //some browsers don't include width and height properties. We can't just set them directly on r because some browsers throw errors, so create a new generic object.
+					r = {width: r.right - r.left, height: r.bottom - r.top, right: r.right, left: r.left, bottom: r.bottom, top: r.top};
+				}
+				return r;
+			};
 
 		Draggable.hitTest = function(obj1, obj2, threshold) {
 			if (obj1 === obj2) {

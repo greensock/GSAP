@@ -1,6 +1,6 @@
 /*!
- * VERSION: 1.16.1
- * DATE: 2015-03-13
+ * VERSION: 1.17.0
+ * DATE: 2015-05-27
  * UPDATES AND DOCS AT: http://greensock.com
  *
  * @license Copyright (c) 2008-2015, GreenSock. All rights reserved.
@@ -25,7 +25,6 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 				this._dirty = true;
 			},
 			_tinyNum = 0.0000000001,
-			_blankArray = [],
 			TweenLiteInternals = TweenLite._internals,
 			_lazyTweens = TweenLiteInternals.lazyTweens,
 			_lazyRender = TweenLiteInternals.lazyRender,
@@ -34,7 +33,7 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 			
 		p.constructor = TimelineMax;
 		p.kill()._gc = false;
-		TimelineMax.version = "1.16.1";
+		TimelineMax.version = "1.17.0";
 		
 		p.invalidate = function() {
 			this._yoyo = (this.vars.yoyo === true);
@@ -86,7 +85,7 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 					t.duration( Math.abs( t.vars.time - t.target.time()) / t.target._timeScale );
 				}
 				if (vars.onStart) { //in case the user had an onStart in the vars - we don't want to overwrite it.
-					vars.onStart.apply(vars.onStartScope || t, vars.onStartParams || _blankArray);
+					t._callback("onStart");
 				}
 			};
 			return t;
@@ -95,7 +94,7 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 		p.tweenFromTo = function(fromPosition, toPosition, vars) {
 			vars = vars || {};
 			fromPosition = this._parseTimeOrLabel(fromPosition);
-			vars.startAt = {onComplete:this.seek, onCompleteParams:[fromPosition], onCompleteScope:this};
+			vars.startAt = {onComplete:this.seek, onCompleteParams:[fromPosition], callbackScope:this};
 			vars.immediateRender = (vars.immediateRender !== false);
 			var t = this.tweenTo(toPosition, vars);
 			return t.duration((Math.abs( t.vars.time - fromPosition) / this._timeScale) || 0.001);
@@ -234,7 +233,7 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 				this.render(prevTime, suppressEvents, (dur === 0));
 				if (!suppressEvents) if (!this._gc) {
 					if (this.vars.onRepeat) {
-						this.vars.onRepeat.apply(this.vars.onRepeatScope || this, this.vars.onRepeatParams || _blankArray);
+						this._callback("onRepeat");
 					}
 				}
 				if (wrap) {
@@ -253,7 +252,7 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 
 			if ((this._time === prevTime || !this._first) && !force && !internalForce) {
 				if (prevTotalTime !== this._totalTime) if (this._onUpdate) if (!suppressEvents) { //so that onUpdate fires even during the repeatDelay - as long as the totalTime changed, we should trigger onUpdate.
-					this._onUpdate.apply(this.vars.onUpdateScope || this, this.vars.onUpdateParams || _blankArray);
+					this._callback("onUpdate");
 				}
 				return;
 			} else if (!this._initted) {
@@ -265,7 +264,7 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 			}
 			
 			if (prevTotalTime === 0) if (this.vars.onStart) if (this._totalTime !== 0) if (!suppressEvents) {
-				this.vars.onStart.apply(this.vars.onStartScope || this, this.vars.onStartParams || _blankArray);
+				this._callback("onStart");
 			}
 
 			if (this._time >= prevTime) {
@@ -305,7 +304,7 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 				if (_lazyTweens.length) { //in case rendering caused any tweens to lazy-init, we should render them because typically when a timeline finishes, users expect things to have rendered fully. Imagine an onUpdate on a timeline that reports/checks tweened values.
 					_lazyRender();
 				}
-				this._onUpdate.apply(this.vars.onUpdateScope || this, this.vars.onUpdateParams || _blankArray);
+				this._callback("onUpdate");
 			}
 			if (callback) if (!this._locked) if (!this._gc) if (prevStart === this._startTime || prevTimeScale !== this._timeScale) if (this._time === 0 || totalDur >= this.totalDuration()) { //if one of the tweens that was rendered altered this timeline's startTime (like if an onComplete reversed the timeline), it probably isn't complete. If it is, don't worry, because whatever call altered the startTime would complete if it was necessary at the new time. The only exception is the timeScale property. Also check _gc because there's a chance that kill() could be called in an onUpdate
 				if (isComplete) {
@@ -318,7 +317,7 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 					this._active = false;
 				}
 				if (!suppressEvents && this.vars[callback]) {
-					this.vars[callback].apply(this.vars[callback + "Scope"] || this, this.vars[callback + "Params"] || _blankArray);
+					this._callback(callback);
 				}
 			}
 		};
@@ -537,7 +536,7 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 						sibling = sibling._next;
 					}
 					if (callback) {
-						callback.apply(scope || tl, params || _blankArray);
+						callback.apply(scope || tl.vars.callbackScope || tl, params || _blankArray);
 					}
 					if (this._forcingPlayhead || !tl._paused) { //the callback could have called resume().
 						tl.seek(time);
@@ -553,7 +552,7 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 			},
 			p = TimelineLite.prototype = new SimpleTimeline();
 
-		TimelineLite.version = "1.16.1";
+		TimelineLite.version = "1.17.0";
 		p.constructor = TimelineLite;
 		p.kill()._gc = p._forcingPlayhead = false;
 
@@ -594,7 +593,7 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 		};
 
 		p.staggerTo = function(targets, duration, vars, stagger, position, onCompleteAll, onCompleteAllParams, onCompleteAllScope) {
-			var tl = new TimelineLite({onComplete:onCompleteAll, onCompleteParams:onCompleteAllParams, onCompleteScope:onCompleteAllScope, smoothChildTiming:this.smoothChildTiming}),
+			var tl = new TimelineLite({onComplete:onCompleteAll, onCompleteParams:onCompleteAllParams, callbackScope:onCompleteAllScope, smoothChildTiming:this.smoothChildTiming}),
 				i;
 			if (typeof(targets) === "string") {
 				targets = TweenLite.selector(targets) || targets;
@@ -903,7 +902,7 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 			}
 
 			if (prevTime === 0) if (this.vars.onStart) if (this._time !== 0) if (!suppressEvents) {
-				this.vars.onStart.apply(this.vars.onStartScope || this, this.vars.onStartParams || _blankArray);
+				this._callback("onStart");
 			}
 
 			if (this._time >= prevTime) {
@@ -942,7 +941,7 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 				if (_lazyTweens.length) { //in case rendering caused any tweens to lazy-init, we should render them because typically when a timeline finishes, users expect things to have rendered fully. Imagine an onUpdate on a timeline that reports/checks tweened values.
 					_lazyRender();
 				}
-				this._onUpdate.apply(this.vars.onUpdateScope || this, this.vars.onUpdateParams || _blankArray);
+				this._callback("onUpdate");
 			}
 
 			if (callback) if (!this._gc) if (prevStart === this._startTime || prevTimeScale !== this._timeScale) if (this._time === 0 || totalDur >= this.totalDuration()) { //if one of the tweens that was rendered altered this timeline's startTime (like if an onComplete reversed the timeline), it probably isn't complete. If it is, don't worry, because whatever call altered the startTime would complete if it was necessary at the new time. The only exception is the timeScale property. Also check _gc because there's a chance that kill() could be called in an onUpdate
@@ -956,7 +955,7 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 					this._active = false;
 				}
 				if (!suppressEvents && this.vars[callback]) {
-					this.vars[callback].apply(this.vars[callback + "Scope"] || this, this.vars[callback + "Params"] || _blankArray);
+					this._callback(callback);
 				}
 			}
 		};

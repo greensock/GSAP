@@ -1,7 +1,7 @@
 /*!
- * VERSION: 1.16.1
- * DATE: 2015-03-13
- * UPDATES AND DOCS AT: http://www.greensock.com
+ * VERSION: 1.17.0
+ * DATE: 2015-05-27
+ * UPDATES AND DOCS AT: http://greensock.com
  *
  * @license Copyright (c) 2008-2015, GreenSock. All rights reserved.
  * This work is subject to the terms at http://greensock.com/standard-license or for
@@ -31,10 +31,11 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 			p = CSSPlugin.prototype = new TweenPlugin("css");
 
 		p.constructor = CSSPlugin;
-		CSSPlugin.version = "1.16.1";
+		CSSPlugin.version = "1.17.0";
 		CSSPlugin.API = 2;
 		CSSPlugin.defaultTransformPerspective = 0;
 		CSSPlugin.defaultSkewType = "compensated";
+		CSSPlugin.defaultSmoothOrigin = true;
 		p = "px"; //we'll reuse the "p" variable to keep file size down
 		CSSPlugin.suffixMap = {top:p, right:p, bottom:p, left:p, width:p, height:p, fontSize:p, padding:p, margin:p, perspective:p, lineHeight:""};
 
@@ -731,6 +732,13 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 				}
 			},
 
+			_addNonTweeningNumericPT = function(target, prop, start, end, next, overwriteProp) { //cleans up some code redundancies and helps minification. Just a fast way to add a NUMERIC non-tweening CSSPropTween
+				var pt = new CSSPropTween(target, prop, start, end - start, next, -1, overwriteProp);
+				pt.b = start;
+				pt.e = pt.xs0 = end;
+				return pt;
+			},
+
 			/**
 			 * Takes a target, the beginning value and ending value (as strings) and parses them into a CSSPropTween (possibly with child CSSPropTweens) that accommodates multiple numbers, colors, comma-delimited values, etc. For example:
 			 * sp.parseComplex(element, "boxShadow", "5px 10px 20px rgb(255,102,51)", "0px 0px 0px red", true, "0px 0px 0px rgb(0,0,0,0)", pt);
@@ -1060,7 +1068,7 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 
 
 		//transform-related methods and properties
-		CSSPlugin.useSVGTransformAttr = _isSafari; //Safari has some rendering bugs when applying CSS transforms to SVG elements, so default to using the "transform" attribute instead.
+		CSSPlugin.useSVGTransformAttr = _isSafari || _isFirefox; //Safari and Firefox both have some rendering bugs when applying CSS transforms to SVG elements, so default to using the "transform" attribute instead (users can override this).
 		var _transformProps = ("scaleX,scaleY,scaleZ,x,y,z,skewX,skewY,rotation,rotationX,rotationY,perspective,xPercent,yPercent").split(","),
 			_transformProp = _checkPropPrefix("transform"), //the Javascript (camelCase) transform property, like msTransform, WebkitTransform, MozTransform, or OTransform.
 			_transformPropCSS = _prefixCSS + "transform",
@@ -1100,17 +1108,93 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 				}
 				return force;
 			})(),
-			_parseSVGOrigin = function(e, local, decoratee, absolute) {
-				var bbox, v;
-				if (!absolute || !(v = absolute.split(" ")).length) {
-					bbox = e.getBBox();
-					local = _parsePosition(local).split(" ");
-					v = [(local[0].indexOf("%") !== -1 ? parseFloat(local[0]) / 100 * bbox.width : parseFloat(local[0])) + bbox.x,
-						 (local[1].indexOf("%") !== -1 ? parseFloat(local[1]) / 100 * bbox.height : parseFloat(local[1])) + bbox.y];
+			_parseSVGOrigin = function(e, local, decoratee, absolute, smoothOrigin) {
+				var tm = e._gsTransform,
+					m = _getMatrix(e, true),
+					v, x, y, xOrigin, yOrigin, a, b, c, d, tx, ty, determinant, xOriginOld, yOriginOld;
+				if (tm) {
+					xOriginOld = tm.xOrigin; //record the original values before we alter them.
+					yOriginOld = tm.yOrigin;
 				}
-				decoratee.xOrigin = parseFloat(v[0]);
-				decoratee.yOrigin = parseFloat(v[1]);
+				if (!absolute || (v = absolute.split(" ")).length < 2) {
+					b = e.getBBox();
+					local = _parsePosition(local).split(" ");
+					v = [(local[0].indexOf("%") !== -1 ? parseFloat(local[0]) / 100 * b.width : parseFloat(local[0])) + b.x,
+						 (local[1].indexOf("%") !== -1 ? parseFloat(local[1]) / 100 * b.height : parseFloat(local[1])) + b.y];
+				}
+				decoratee.xOrigin = xOrigin = parseFloat(v[0]);
+				decoratee.yOrigin = yOrigin = parseFloat(v[1]);
+				if (absolute && m !== _identity2DMatrix) { //if svgOrigin is being set, we must invert the matrix and determine where the absolute point is, factoring in the current transforms. Otherwise, the svgOrigin would be based on the element's non-transformed position on the canvas.
+					a = m[0];
+					b = m[1];
+					c = m[2];
+					d = m[3];
+					tx = m[4];
+					ty = m[5];
+					determinant = (a * d - b * c);
+					x = xOrigin * (d / determinant) + yOrigin * (-c / determinant) + ((c * ty - d * tx) / determinant);
+					y = xOrigin * (-b / determinant) + yOrigin * (a / determinant) - ((a * ty - b * tx) / determinant);
+					xOrigin = decoratee.xOrigin = v[0] = x;
+					yOrigin = decoratee.yOrigin = v[1] = y;
+				}
+				if (tm) { //avoid jump when transformOrigin is changed - adjust the x/y values accordingly
+					if (smoothOrigin || (smoothOrigin !== false && CSSPlugin.defaultSmoothOrigin !== false)) {
+						x = xOrigin - xOriginOld;
+						y = yOrigin - yOriginOld;
+						//originally, we simply adjusted the x and y values, but that would cause problems if, for example, you created a rotational tween part-way through an x/y tween. Managing the offset in a separate variable gives us ultimate flexibility.
+						//tm.x -= x - (x * m[0] + y * m[2]);
+						//tm.y -= y - (x * m[1] + y * m[3]);
+						tm.xOffset += (x * m[0] + y * m[2]) - x;
+						tm.yOffset += (x * m[1] + y * m[3]) - y;
+					} else {
+						tm.xOffset = tm.yOffset = 0;
+					}
+				}
 				e.setAttribute("data-svg-origin", v.join(" "));
+			},
+			_isSVG = function(e) {
+				return !!(_SVGElement && typeof(e.getBBox) === "function" && e.getCTM && (!e.parentNode || (e.parentNode.getBBox && e.parentNode.getCTM)));
+			},
+			_identity2DMatrix = [1,0,0,1,0,0],
+			_getMatrix = function(e, force2D) {
+				var tm = e._gsTransform || new Transform(),
+					rnd = 100000,
+					isDefault, s, m, n, dec;
+				if (_transformProp) {
+					s = _getStyle(e, _transformPropCSS, null, true);
+				} else if (e.currentStyle) {
+					//for older versions of IE, we need to interpret the filter portion that is in the format: progid:DXImageTransform.Microsoft.Matrix(M11=6.123233995736766e-17, M12=-1, M21=1, M22=6.123233995736766e-17, sizingMethod='auto expand') Notice that we need to swap b and c compared to a normal matrix.
+					s = e.currentStyle.filter.match(_ieGetMatrixExp);
+					s = (s && s.length === 4) ? [s[0].substr(4), Number(s[2].substr(4)), Number(s[1].substr(4)), s[3].substr(4), (tm.x || 0), (tm.y || 0)].join(",") : "";
+				}
+				isDefault = (!s || s === "none" || s === "matrix(1, 0, 0, 1, 0, 0)");
+				if (tm.svg || (e.getBBox && _isSVG(e))) {
+					if (isDefault && (e.style[_transformProp] + "").indexOf("matrix") !== -1) { //some browsers (like Chrome 40) don't correctly report transforms that are applied inline on an SVG element (they don't get included in the computed style), so we double-check here and accept matrix values
+						s = e.style[_transformProp];
+						isDefault = 0;
+					}
+					m = e.getAttribute("transform");
+					if (isDefault && m) {
+						if (m.indexOf("matrix") !== -1) { //just in case there's a "transform" value specified as an attribute instead of CSS style. Accept either a matrix() or simple translate() value though.
+							s = m;
+							isDefault = 0;
+						} else if (m.indexOf("translate") !== -1) {
+							s = "matrix(1,0,0,1," + m.match(/(?:\-|\b)[\d\-\.e]+\b/gi).join(",") + ")";
+							isDefault = 0;
+						}
+					}
+				}
+				if (isDefault) {
+					return _identity2DMatrix;
+				}
+				//split the matrix values out into an array (m for matrix)
+				m = (s || "").match(/(?:\-|\b)[\d\-\.e]+\b/gi) || [];
+				i = m.length;
+				while (--i > -1) {
+					n = Number(m[i]);
+					m[i] = (dec = n - (n |= 0)) ? ((dec * rnd + (dec < 0 ? -0.5 : 0.5)) | 0) / rnd + n : n; //convert strings to Numbers and round to 5 decimal places to avoid issues with tiny numbers. Roughly 20x faster than Number.toFixed(). We also must make sure to round before dividing so that values like 0.9999999999 become 1 to avoid glitches in browser rendering and interpretation of flipped/rotated 3D matrices. And don't just multiply the number by rnd, floor it, and then divide by rnd because the bitwise operations max out at a 32-bit signed integer, thus it could get clipped at a relatively low value (like 22,000.00000 for example).
+				}
+				return (force2D && m.length > 6) ? [m[0], m[1], m[4], m[5], m[12], m[13]] : m;
 			},
 
 			/**
@@ -1131,37 +1215,16 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 					rnd = 100000,
 					zOrigin = _supports3D ? parseFloat(_getStyle(t, _transformOriginProp, cs, false, "0 0 0").split(" ")[2]) || tm.zOrigin  || 0 : 0,
 					defaultTransformPerspective = parseFloat(CSSPlugin.defaultTransformPerspective) || 0,
-					isDefault, s, m, i, n, dec, scaleX, scaleY, rotation, skewX;
-				if (_transformProp) {
-					s = _getStyle(t, _transformPropCSS, cs, true);
-				} else if (t.currentStyle) {
-					//for older versions of IE, we need to interpret the filter portion that is in the format: progid:DXImageTransform.Microsoft.Matrix(M11=6.123233995736766e-17, M12=-1, M21=1, M22=6.123233995736766e-17, sizingMethod='auto expand') Notice that we need to swap b and c compared to a normal matrix.
-					s = t.currentStyle.filter.match(_ieGetMatrixExp);
-					s = (s && s.length === 4) ? [s[0].substr(4), Number(s[2].substr(4)), Number(s[1].substr(4)), s[3].substr(4), (tm.x || 0), (tm.y || 0)].join(",") : "";
-				}
-				isDefault = (!s || s === "none" || s === "matrix(1, 0, 0, 1, 0, 0)");
-				tm.svg = !!(_SVGElement && typeof(t.getBBox) === "function" && t.getCTM && (!t.parentNode || (t.parentNode.getBBox && t.parentNode.getCTM))); //don't just rely on "instanceof _SVGElement" because if the SVG is embedded via an object tag, it won't work (SVGElement is mapped to a different object)
+					m, i, scaleX, scaleY, rotation, skewX;
+
+				tm.svg = !!(t.getBBox && _isSVG(t));
 				if (tm.svg) {
-					if (isDefault && (t.style[_transformProp] + "").indexOf("matrix") !== -1) { //some browsers (like Chrome 40) don't correctly report transforms that are applied inline on an SVG element (they don't get included in the computed style), so we double-check here and accept matrix values
-						s = t.style[_transformProp];
-						isDefault = false;
-					}
 					_parseSVGOrigin(t, _getStyle(t, _transformOriginProp, _cs, false, "50% 50%") + "", tm, t.getAttribute("data-svg-origin"));
 					_useSVGTransformAttr = CSSPlugin.useSVGTransformAttr || _forceSVGTransformAttr;
-					m = t.getAttribute("transform");
-					if (isDefault && m && m.indexOf("matrix") !== -1) { //just in case there's a "transform" value specified as an attribute instead of CSS style. Only accept a matrix, though.
-						s = m;
-						isDefault = 0;
-					}
 				}
-				if (!isDefault) {
-					//split the matrix values out into an array (m for matrix)
-					m = (s || "").match(/(?:\-|\b)[\d\-\.e]+\b/gi) || [];
-					i = m.length;
-					while (--i > -1) {
-						n = Number(m[i]);
-						m[i] = (dec = n - (n |= 0)) ? ((dec * rnd + (dec < 0 ? -0.5 : 0.5)) | 0) / rnd + n : n; //convert strings to Numbers and round to 5 decimal places to avoid issues with tiny numbers. Roughly 20x faster than Number.toFixed(). We also must make sure to round before dividing so that values like 0.9999999999 become 1 to avoid glitches in browser rendering and interpretation of flipped/rotated 3D matrices. And don't just multiply the number by rnd, floor it, and then divide by rnd because the bitwise operations max out at a 32-bit signed integer, thus it could get clipped at a relatively low value (like 22,000.00000 for example).
-					}
+				m = _getMatrix(t);
+				if (m !== _identity2DMatrix) {
+
 					if (m.length === 16) {
 						//we'll only look at these position-related 6 variables first because if x/y/z all match, it's relatively safe to assume we don't need to re-parse everything which risks losing important rotational information (like rotationX:180 plus rotationY:180 would look the same as rotation:180 - there's no way to know for sure which direction was taken based solely on the matrix3d() values)
 						var a11 = m[0], a21 = m[1], a31 = m[2], a41 = m[3],
@@ -1274,8 +1337,8 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 							tm.scaleZ = 1;
 						}
 						if (tm.svg) {
-							tm.x -= tm.xOrigin - (tm.xOrigin * a - tm.yOrigin * b);
-							tm.y -= tm.yOrigin - (tm.yOrigin * d - tm.xOrigin * c);
+							tm.x -= tm.xOrigin - (tm.xOrigin * a + tm.yOrigin * c);
+							tm.y -= tm.yOrigin - (tm.xOrigin * b + tm.yOrigin * d);
 						}
 					}
 					tm.zOrigin = zOrigin;
@@ -1286,14 +1349,18 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 						}
 					}
 				}
-				//DEBUG: _log("parsed rotation of " + t.getAttribute("id")+": "+(tm.rotationX)+", "+(tm.rotationY)+", "+(tm.rotation)+", scale: "+tm.scaleX+", "+tm.scaleY+", "+tm.scaleZ+", position: "+tm.x+", "+tm.y+", "+tm.z+", perspective: "+tm.perspective);
+				//DEBUG: _log("parsed rotation of " + t.getAttribute("id")+": "+(tm.rotationX)+", "+(tm.rotationY)+", "+(tm.rotation)+", scale: "+tm.scaleX+", "+tm.scaleY+", "+tm.scaleZ+", position: "+tm.x+", "+tm.y+", "+tm.z+", perspective: "+tm.perspective+ ", origin: "+ tm.xOrigin+ ","+ tm.yOrigin);
 				if (rec) {
 					t._gsTransform = tm; //record to the object's _gsTransform which we use so that tweens can control individual properties independently (we need all the properties to accurately recompose the matrix in the setRatio() method)
 					if (tm.svg) { //if we're supposed to apply transforms to the SVG element's "transform" attribute, make sure there aren't any CSS transforms applied or they'll override the attribute ones. Also clear the transform attribute if we're using CSS, just to be clean.
 						if (_useSVGTransformAttr && t.style[_transformProp]) {
-							_removeProp(t.style, _transformProp);
+							TweenLite.delayedCall(0.001, function(){ //if we apply this right away (before anything has rendered), we risk there being no transforms for a brief moment and it also interferes with adjusting the transformOrigin in a tween with immediateRender:true (it'd try reading the matrix and it wouldn't have the appropriate data in place because we just removed it).
+								_removeProp(t.style, _transformProp);
+							});
 						} else if (!_useSVGTransformAttr && t.getAttribute("transform")) {
-							t.removeAttribute("transform");
+							TweenLite.delayedCall(0.001, function(){
+								t.removeAttribute("transform");
+							});
 						}
 					}
 				}
@@ -1404,7 +1471,6 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 					force3D = t.force3D,
 					a11, a12, a13, a21, a22, a23, a31, a32, a33, a41, a42, a43,
 					zOrigin, min, cos, sin, t1, t2, transform, comma, zero, skew, rnd;
-
 				//check to see if we should render as 2D (and SVGs must use 2D when _useSVGTransformAttr is true)
 				if (((((v === 1 || v === 0) && force3D === "auto" && (this.tween._totalTime === this.tween._totalDuration || !this.tween._totalTime)) || !force3D) && !z && !perspective && !rotationY && !rotationX) || (_useSVGTransformAttr && isSVG) || !_supports3D) { //on the final render (which could be 0 for a from tween), if there are no 3D aspects, render in 2D to free up memory and improve performance especially on mobile devices. Check the tween's totalTime/totalDuration too in order to make sure it doesn't happen between repeats if it's a repeating tween.
 
@@ -1428,8 +1494,13 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 							}
 						}
 						if (isSVG) {
-							x += t.xOrigin - (t.xOrigin * a11 + t.yOrigin * a12);
-							y += t.yOrigin - (t.xOrigin * a21 + t.yOrigin * a22);
+							x += t.xOrigin - (t.xOrigin * a11 + t.yOrigin * a12) + t.xOffset;
+							y += t.yOrigin - (t.xOrigin * a21 + t.yOrigin * a22) + t.yOffset;
+							if (_useSVGTransformAttr && (t.xPercent || t.yPercent)) { //The SVG spec doesn't support percentage-based translation in the "transform" attribute, so we merge it into the matrix to simulate it.
+								min = this.t.getBBox();
+								x += t.xPercent * 0.01 * min.width;
+								y += t.yPercent * 0.01 * min.height;
+							}
 							min = 0.000001;
 							if (x < min) if (x > -min) {
 								x = 0;
@@ -1573,8 +1644,8 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 						z += a33*-zOrigin+zOrigin;
 					}
 					if (isSVG) { //due to bugs in some browsers, we need to manage the transform-origin of SVG manually
-						x += t.xOrigin - (t.xOrigin * a11 + t.yOrigin * a12);
-						y += t.yOrigin - (t.xOrigin * a21 + t.yOrigin * a22);
+						x += t.xOrigin - (t.xOrigin * a11 + t.yOrigin * a12) + t.xOffset;
+						y += t.yOrigin - (t.xOrigin * a21 + t.yOrigin * a22) + t.yOffset;
 					}
 					if (x < min && x > -min) {
 						x = zero;
@@ -1603,19 +1674,21 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 			};
 
 		p = Transform.prototype;
-		p.x = p.y = p.z = p.skewX = p.skewY = p.rotation = p.rotationX = p.rotationY = p.zOrigin = p.xPercent = p.yPercent = 0;
+		p.x = p.y = p.z = p.skewX = p.skewY = p.rotation = p.rotationX = p.rotationY = p.zOrigin = p.xPercent = p.yPercent = p.xOffset = p.yOffset = 0;
 		p.scaleX = p.scaleY = p.scaleZ = 1;
 
-		_registerComplexSpecialProp("transform,scale,scaleX,scaleY,scaleZ,x,y,z,rotation,rotationX,rotationY,rotationZ,skewX,skewY,shortRotation,shortRotationX,shortRotationY,shortRotationZ,transformOrigin,svgOrigin,transformPerspective,directionalRotation,parseTransform,force3D,skewType,xPercent,yPercent", {parser:function(t, e, p, cssp, pt, plugin, vars) {
+		_registerComplexSpecialProp("transform,scale,scaleX,scaleY,scaleZ,x,y,z,rotation,rotationX,rotationY,rotationZ,skewX,skewY,shortRotation,shortRotationX,shortRotationY,shortRotationZ,transformOrigin,svgOrigin,transformPerspective,directionalRotation,parseTransform,force3D,skewType,xPercent,yPercent,smoothOrigin", {parser:function(t, e, p, cssp, pt, plugin, vars) {
 			if (cssp._lastParsedTransform === vars) { return pt; } //only need to parse the transform once, and only if the browser supports it.
 			cssp._lastParsedTransform = vars;
-			var m1 = cssp._transform = _getTransform(t, _cs, true, vars.parseTransform),
+			var originalGSTransform = t._gsTransform,
+				m1 = cssp._transform = _getTransform(t, _cs, true, vars.parseTransform),
 				style = t.style,
 				min = 0.000001,
 				i = _transformProps.length,
 				v = vars,
 				endRotations = {},
-				m2, skewY, copy, orig, has3D, hasChange, dr;
+				transformOriginString = "transformOrigin",
+				m2, skewY, copy, orig, has3D, hasChange, dr, x, y;
 			if (typeof(v.transform) === "string" && _transformProp) { //for values like transform:"rotate(60deg) scale(0.5, 0.8)"
 				copy = _tempDiv.style; //don't use the original target because it might be SVG in which case some browsers don't report computed style correctly.
 				copy[_transformProp] = v.transform;
@@ -1624,6 +1697,12 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 				_doc.body.appendChild(_tempDiv);
 				m2 = _getTransform(_tempDiv, null, false);
 				_doc.body.removeChild(_tempDiv);
+				if (v.xPercent != null) {
+					m2.xPercent = _parseVal(v.xPercent, m1.xPercent);
+				}
+				if (v.yPercent != null) {
+					m2.yPercent = _parseVal(v.yPercent, m1.yPercent);
+				}
 			} else if (typeof(v) === "object") { //for values like scaleX, scaleY, rotation, x, y, skewX, and skewY or transform:{...} (object)
 				m2 = {scaleX:_parseVal((v.scaleX != null) ? v.scaleX : v.scale, m1.scaleX),
 					scaleY:_parseVal((v.scaleY != null) ? v.scaleY : v.scale, m1.scaleY),
@@ -1696,13 +1775,15 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 
 			orig = v.transformOrigin;
 			if (m1.svg && (orig || v.svgOrigin)) {
-				_parseSVGOrigin(t, _parsePosition(orig), m2, v.svgOrigin);
-				pt = new CSSPropTween(m1, "xOrigin", m1.xOrigin, m2.xOrigin - m1.xOrigin, pt, -1, "transformOrigin");
-				pt.b = m1.xOrigin;
-				pt.e = pt.xs0 = m2.xOrigin;
-				pt = new CSSPropTween(m1, "yOrigin", m1.yOrigin, m2.yOrigin - m1.yOrigin, pt, -1, "transformOrigin");
-				pt.b = m1.yOrigin;
-				pt.e = pt.xs0 = m2.yOrigin;
+				x = m1.xOffset; //when we change the origin, in order to prevent things from jumping we adjust the x/y so we must record those here so that we can create PropTweens for them and flip them at the same time as the origin
+				y = m1.yOffset;
+				_parseSVGOrigin(t, _parsePosition(orig), m2, v.svgOrigin, v.smoothOrigin);
+				pt = _addNonTweeningNumericPT(m1, "xOrigin", (originalGSTransform ? m1 : m2).xOrigin, m2.xOrigin, pt, transformOriginString); //note: if there wasn't a transformOrigin defined yet, just start with the destination one; it's wasteful otherwise, and it causes problems with fromTo() tweens. For example, TweenLite.to("#wheel", 3, {rotation:180, transformOrigin:"50% 50%", delay:1}); TweenLite.fromTo("#wheel", 3, {scale:0.5, transformOrigin:"50% 50%"}, {scale:1, delay:2}); would cause a jump when the from values revert at the beginning of the 2nd tween.
+				pt = _addNonTweeningNumericPT(m1, "yOrigin", (originalGSTransform ? m1 : m2).yOrigin, m2.yOrigin, pt, transformOriginString);
+				if (x !== m1.xOffset || y !== m1.yOffset) {
+					pt = _addNonTweeningNumericPT(m1, "xOffset", (originalGSTransform ? x : m1.xOffset), m1.xOffset, pt, transformOriginString);
+					pt = _addNonTweeningNumericPT(m1, "yOffset", (originalGSTransform ? y : m1.yOffset), m1.yOffset, pt, transformOriginString);
+				}
 				orig = _useSVGTransformAttr ? null : "0px 0px"; //certain browsers (like firefox) completely botch transform-origin, so we must remove it to prevent it from contaminating transforms. We manage it ourselves with xOrigin and yOrigin
 			}
 			if (orig || (_supports3D && has3D && m1.zOrigin)) { //if anything 3D is happening and there's a transformOrigin with a z component that's non-zero, we must ensure that the transformOrigin's z-component is set to 0 so that we can manually do those calculations to get around Safari bugs. Even if the user didn't specifically define a "transformOrigin" in this particular tween (maybe they did it via css directly).
@@ -1710,7 +1791,7 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 					hasChange = true;
 					p = _transformOriginProp;
 					orig = (orig || _getStyle(t, p, _cs, false, "50% 50%")) + ""; //cast as string to avoid errors
-					pt = new CSSPropTween(style, p, 0, 0, pt, -1, "transformOrigin");
+					pt = new CSSPropTween(style, p, 0, 0, pt, -1, transformOriginString);
 					pt.b = style[p];
 					pt.plugin = plugin;
 					if (_supports3D) {
@@ -2260,7 +2341,21 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 			if (v === 1 && (this._tween._time === this._tween._duration || this._tween._time === 0)) {
 				while (pt) {
 					if (pt.type !== 2) {
-						pt.t[pt.p] = pt.e;
+						if (pt.r && pt.type !== -1) {
+							val = Math.round(pt.s + pt.c);
+							if (!pt.type) {
+								pt.t[pt.p] = val + pt.xs0;
+							} else if (pt.type === 1) { //complex value (one that typically has multiple numbers inside a string, like "rect(5px,10px,20px,25px)"
+								i = pt.l;
+								str = pt.xs0 + val + pt.xs1;
+								for (i = 1; i < pt.l; i++) {
+									str += pt["xn"+i] + pt["xs"+(i+1)];
+								}
+								pt.t[pt.p] = str;
+							}
+						} else {
+							pt.t[pt.p] = pt.e;
+						}
 					} else {
 						pt.setRatio(v);
 					}

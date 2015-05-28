@@ -1,7 +1,7 @@
 {
     "name": "gsap",
     "filename": "TweenMax.min.js",
-    "version": "1.16.1",
+    "version": "1.17.0",
     "description": "Think of GSAP as the Swiss Army Knife of animation...but better. It animates anything JavaScript can touch (CSS properties, canvas library objects, SVG, generic objects, whatever) and it solves lots of browser inconsistencies, all with blazing speed (up to 20x faster than jQuery). See http://greensock.com/why-gsap/ for details. Other libraries like jQuery, Velocity, Transit, and Zepto only tween CSS properties. Plus, their sequencing abilities and runtime controls pale by comparison. Simply put, GSAP is the most flexible high-performance animation library on the planet. And unlike monolithic frameworks like Famo.us or Angular that dictate how you structure your apps, GSAP simply owns the animation layer; sprinkle it wherever you want. GSAP stands for the GreenSock Animation Platform. There's a jQuery plugin that hijacks the native jQuery.animate() method so that animations perform much better and additional properties can be tweened, like colors, transforms (2D and 3D), boxShadow, borderRadius, clip, and lots more. GSAP has no dependencies on jQuery or other libraries. See http://greensock.com/gsap/ for details.",
     "homepage": "http://www.greensock.com/gsap-js/",
 	"main": "./src/uncompressed/TweenMax.js",
