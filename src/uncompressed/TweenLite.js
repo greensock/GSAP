@@ -6,7 +6,7 @@
  * @license Copyright (c) 2008-2015, GreenSock. All rights reserved.
  * This work is subject to the terms at http://greensock.com/standard-license or for
  * Club GreenSock members, the software agreement that was issued with your membership.
- * 
+ *
  * @author: Jack Doyle, jack@greensock.com
  */
 (function(window, moduleName) {
@@ -103,7 +103,7 @@
 						//exports to multiple environments
 						if (global) {
 							_globals[n] = cl; //provides a way to avoid global namespace pollution. By default, the main classes like TweenLite, Power1, Strong, etc. are added to window unless a GreenSockGlobals is defined. So if you want to have things added to a custom object instead, just do something like window.GreenSockGlobals = {} before loading any GreenSock files. You can even set up an alias like window.GreenSockGlobals = windows.gs = {} so that you can access everything like gs.TweenLite. Also remember that ALL classes are added to the window.com.greensock object (in their respective packages, like com.greensock.easing.Power1, com.greensock.TweenLite, etc.)
-							if (typeof(define) === "function" && define.amd){ //AMD
+							if ((typeof(module) === "undefined" && !module.exports) && typeof(define) === "function" && define.amd){ //AMD
 								define((window.GreenSockAMDPath ? window.GreenSockAMDPath + "/" : "") + ns.split(".").pop(), [], function() { return cl; });
 							} else if (ns === moduleName && typeof(module) !== "undefined" && module.exports){ //node
 								module.exports = cl;
@@ -270,7 +270,7 @@
  * Ticker
  * ----------------------------------------------------------------
  */
- 		var _reqAnimFrame = window.requestAnimationFrame,
+		 var _reqAnimFrame = window.requestAnimationFrame,
 			_cancelAnimFrame = window.cancelAnimationFrame,
 			_getTime = Date.now || function() {return new Date().getTime();},
 			_lastUpdate = _getTime();

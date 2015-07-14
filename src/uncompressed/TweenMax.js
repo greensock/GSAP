@@ -2,13 +2,13 @@
  * VERSION: 1.17.0
  * DATE: 2015-05-27
  * UPDATES AND DOCS AT: http://greensock.com
- * 
+ *
  * Includes all of the following: TweenLite, TweenMax, TimelineLite, TimelineMax, EasePack, CSSPlugin, RoundPropsPlugin, BezierPlugin, AttrPlugin, DirectionalRotationPlugin
  *
  * @license Copyright (c) 2008-2015, GreenSock. All rights reserved.
  * This work is subject to the terms at http://greensock.com/standard-license or for
  * Club GreenSock members, the software agreement that was issued with your membership.
- * 
+ *
  * @author: Jack Doyle, jack@greensock.com
  **/
 var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(global) !== "undefined") ? global : this || window; //helps ensure compatibility with AMD/RequireJS and CommonJS/Node
@@ -57,7 +57,7 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 			this._uncache(true);
 			return TweenLite.prototype.invalidate.call(this);
 		};
-		
+
 		p.updateTo = function(vars, resetDuration) {
 			var curRatio = this.ratio,
 				immediate = this.vars.immediateRender || vars.immediateRender,
@@ -87,7 +87,7 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 					if (this._notifyPluginsOfEnabled && this._firstPT) {
 						TweenLite._onPluginEvent("_onDisable", this); //in case a plugin like MotionBlur must perform some cleanup tasks
 					}
-					if (this._time / this._duration > 0.998) { //if the tween has finished (or come extremely close to finishing), we just need to rewind it to 0 and then render it again at the end which forces it to re-initialize (parsing the new vars). We allow tweens that are close to finishing (but haven't quite finished) to work this way too because otherwise, the values are so small when determining where to project the starting values that binary math issues creep in and can make the tween appear to render incorrectly when run backwards. 
+					if (this._time / this._duration > 0.998) { //if the tween has finished (or come extremely close to finishing), we just need to rewind it to 0 and then render it again at the end which forces it to re-initialize (parsing the new vars). We allow tweens that are close to finishing (but haven't quite finished) to work this way too because otherwise, the values are so small when determining where to project the starting values that binary math issues creep in and can make the tween appear to render incorrectly when run backwards.
 						var prevTime = this._time;
 						this.render(0, true, false);
 						this._initted = false;
@@ -98,7 +98,7 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 						var inv = 1 / (1 - curRatio),
 							pt = this._firstPT, endValue;
 						while (pt) {
-							endValue = pt.s + pt.c; 
+							endValue = pt.s + pt.c;
 							pt.c *= inv;
 							pt.s = endValue - pt.c;
 							pt = pt._next;
@@ -108,14 +108,14 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 			}
 			return this;
 		};
-				
+
 		p.render = function(time, suppressEvents, force) {
 			if (!this._initted) if (this._duration === 0 && this.vars.repeat) { //zero duration tweens that render immediately have render() called from TweenLite's constructor, before TweenMax's constructor has finished setting _repeat, _repeatDelay, and _yoyo which are critical in determining totalDuration() so we need to call invalidate() which is a low-kb way to get those set properly.
 				this.invalidate();
 			}
 			var totalDur = (!this._dirty) ? this._totalDuration : this.totalDuration(),
 				prevTime = this._time,
-				prevTotalTime = this._totalTime, 
+				prevTotalTime = this._totalTime,
 				prevCycle = this._cycle,
 				duration = this._duration,
 				prevRawPrevTime = this._rawPrevTime,
@@ -147,7 +147,7 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 					}
 					this._rawPrevTime = rawPrevTime = (!suppressEvents || time || prevRawPrevTime === time) ? time : _tinyNum; //when the playhead arrives at EXACTLY time 0 (right on top) of a zero-duration tween, we need to discern if events are suppressed so that when the playhead moves again (next time), it'll trigger the callback. If events are NOT suppressed, obviously the callback would be triggered in this render. Basically, the callback should fire either when the playhead ARRIVES or LEAVES this exact spot, not both. Imagine doing a timeline.seek(0) and there's a callback that sits at 0. Since events are suppressed on that seek() by default, nothing will fire, but when the playhead moves off of that position, the callback should fire. This behavior is what people intuitively expect. We set the _rawPrevTime to be a precise tiny number to indicate this scenario rather than using another property/variable which would increase memory usage. This technique is less readable, but more efficient.
 				}
-				
+
 			} else if (time < 0.0000001) { //to work around occasional floating point math artifacts, round super small values to 0.
 				this._totalTime = this._time = this._cycle = 0;
 				this.ratio = this._ease._calcEnd ? this._ease.getRatio(0) : 0;
@@ -169,7 +169,7 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 				}
 			} else {
 				this._totalTime = this._time = time;
-				
+
 				if (this._repeat !== 0) {
 					cycleDuration = duration + this._repeatDelay;
 					this._cycle = (this._totalTime / cycleDuration) >> 0; //originally _totalTime % cycleDuration but floating point errors caused problems, so I normalized it. (4 % 0.8 should be 0 but Flash reports it as 0.79999999!)
@@ -220,9 +220,9 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 				} else {
 					this.ratio = this._ease.getRatio(this._time / duration);
 				}
-				
+
 			}
-				
+
 			if (prevTime === this._time && !force && prevCycle === this._cycle) {
 				if (prevTotalTime !== this._totalTime) if (this._onUpdate) if (!suppressEvents) { //so that onUpdate fires even during the repeatDelay - as long as the totalTime changed, we should trigger onUpdate.
 					this._callback("onUpdate");
@@ -271,7 +271,7 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 					this._callback("onStart");
 				}
 			}
-			
+
 			pt = this._firstPT;
 			while (pt) {
 				if (pt.f) {
@@ -281,7 +281,7 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 				}
 				pt = pt._next;
 			}
-			
+
 			if (this._onUpdate) {
 				if (time < 0) if (this._startAt && this._startTime) { //if the tween is positioned at the VERY beginning (_startTime 0) of its parent timeline, it's illegal for the playhead to go back further, so we should not render the recorded startAt values.
 					this._startAt.render(time, suppressEvents, force); //note: for performance reasons, we tuck this conditional logic inside less traveled areas (most tweens don't have an onUpdate). We'd just have it at the end before the onComplete, but the values should be updated before any onUpdate is called, so we ALSO put it here and then if it's not called, we do so later near the onComplete.
@@ -311,25 +311,25 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 				}
 			}
 		};
-		
+
 //---- STATIC FUNCTIONS -----------------------------------------------------------------------------------------------------------
-		
+
 		TweenMax.to = function(target, duration, vars) {
 			return new TweenMax(target, duration, vars);
 		};
-		
+
 		TweenMax.from = function(target, duration, vars) {
 			vars.runBackwards = true;
 			vars.immediateRender = (vars.immediateRender != false);
 			return new TweenMax(target, duration, vars);
 		};
-		
+
 		TweenMax.fromTo = function(target, duration, fromVars, toVars) {
 			toVars.startAt = fromVars;
 			toVars.immediateRender = (toVars.immediateRender != false && fromVars.immediateRender != false);
 			return new TweenMax(target, duration, toVars);
 		};
-		
+
 		TweenMax.staggerTo = TweenMax.allTo = function(targets, duration, vars, stagger, onCompleteAll, onCompleteAllParams, onCompleteAllScope) {
 			stagger = stagger || 0;
 			var delay = vars.delay || 0,
@@ -370,31 +370,31 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 			}
 			return a;
 		};
-		
+
 		TweenMax.staggerFrom = TweenMax.allFrom = function(targets, duration, vars, stagger, onCompleteAll, onCompleteAllParams, onCompleteAllScope) {
 			vars.runBackwards = true;
 			vars.immediateRender = (vars.immediateRender != false);
 			return TweenMax.staggerTo(targets, duration, vars, stagger, onCompleteAll, onCompleteAllParams, onCompleteAllScope);
 		};
-		
+
 		TweenMax.staggerFromTo = TweenMax.allFromTo = function(targets, duration, fromVars, toVars, stagger, onCompleteAll, onCompleteAllParams, onCompleteAllScope) {
 			toVars.startAt = fromVars;
 			toVars.immediateRender = (toVars.immediateRender != false && fromVars.immediateRender != false);
 			return TweenMax.staggerTo(targets, duration, toVars, stagger, onCompleteAll, onCompleteAllParams, onCompleteAllScope);
 		};
-				
+
 		TweenMax.delayedCall = function(delay, callback, params, scope, useFrames) {
 			return new TweenMax(callback, 0, {delay:delay, onComplete:callback, onCompleteParams:params, callbackScope:scope, onReverseComplete:callback, onReverseCompleteParams:params, immediateRender:false, useFrames:useFrames, overwrite:0});
 		};
-		
+
 		TweenMax.set = function(target, vars) {
 			return new TweenMax(target, 0, vars);
 		};
-		
+
 		TweenMax.isTweening = function(target) {
 			return (TweenLite.getTweensOf(target, true).length > 0);
 		};
-		
+
 		var _getChildrenOf = function(timeline, includeTimelines) {
 				var a = [],
 					cnt = 0,
@@ -412,11 +412,11 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 					tween = tween._next;
 				}
 				return a;
-			}, 
+			},
 			getAllTweens = TweenMax.getAllTweens = function(includeTimelines) {
 				return _getChildrenOf(Animation._rootTimeline, includeTimelines).concat( _getChildrenOf(Animation._rootFramesTimeline, includeTimelines) );
 			};
-		
+
 		TweenMax.killAll = function(complete, tweens, delayedCalls, timelines) {
 			if (tweens == null) {
 				tweens = true;
@@ -439,7 +439,7 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 				}
 			}
 		};
-		
+
 		TweenMax.killChildTweensOf = function(parent, complete) {
 			if (parent == null) {
 				return;
@@ -493,11 +493,11 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 				}
 			}
 		};
-		
+
 		TweenMax.pauseAll = function(tweens, delayedCalls, timelines) {
 			_changePause(true, tweens, delayedCalls, timelines);
 		};
-		
+
 		TweenMax.resumeAll = function(tweens, delayedCalls, timelines) {
 			_changePause(false, tweens, delayedCalls, timelines);
 		};
@@ -516,18 +516,18 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 			tl._timeScale = Animation._rootTimeline._timeScale = value;
 			return value;
 		};
-		
-	
+
+
 //---- GETTERS / SETTERS ----------------------------------------------------------------------------------------------------------
-		
+
 		p.progress = function(value) {
 			return (!arguments.length) ? this._time / this.duration() : this.totalTime( this.duration() * ((this._yoyo && (this._cycle & 1) !== 0) ? 1 - value : value) + (this._cycle * (this._duration + this._repeatDelay)), false);
 		};
-		
+
 		p.totalProgress = function(value) {
 			return (!arguments.length) ? this._totalTime / this.totalDuration() : this.totalTime( this.totalDuration() * value, false);
 		};
-		
+
 		p.time = function(value, suppressEvents) {
 			if (!arguments.length) {
 				return this._time;
@@ -564,7 +564,7 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 			}
 			return (this._repeat === -1) ? this : this.duration( (value - (this._repeat * this._repeatDelay)) / (this._repeat + 1) );
 		};
-		
+
 		p.repeat = function(value) {
 			if (!arguments.length) {
 				return this._repeat;
@@ -572,7 +572,7 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 			this._repeat = value;
 			return this._uncache(true);
 		};
-		
+
 		p.repeatDelay = function(value) {
 			if (!arguments.length) {
 				return this._repeatDelay;
@@ -580,7 +580,7 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 			this._repeatDelay = value;
 			return this._uncache(true);
 		};
-		
+
 		p.yoyo = function(value) {
 			if (!arguments.length) {
 				return this._yoyo;
@@ -588,10 +588,10 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 			this._yoyo = value;
 			return this;
 		};
-		
-		
+
+
 		return TweenMax;
-		
+
 	}, true);
 
 
@@ -1322,7 +1322,6 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 		return TimelineLite;
 
 	}, true);
-	
 
 
 
@@ -1330,11 +1329,12 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 
 
 
-	
-	
-	
-	
-	
+
+
+
+
+
+
 /*
  * ----------------------------------------------------------------
  * TimelineMax
@@ -1790,18 +1790,18 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 		return TimelineMax;
 
 	}, true);
-	
 
 
 
 
-	
-	
-	
-	
-	
-	
-	
+
+
+
+
+
+
+
+
 /*
  * ----------------------------------------------------------------
  * BezierPlugin
@@ -2381,14 +2381,14 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 
 
 
-	
-	
-	
-	
-	
-	
-	
-	
+
+
+
+
+
+
+
+
 /*
  * ----------------------------------------------------------------
  * CSSPlugin
@@ -4961,16 +4961,16 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 
 	}, true);
 
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
+
+
+
+
+
+
+
+
+
+
 /*
  * ----------------------------------------------------------------
  * RoundPropsPlugin
@@ -5194,17 +5194,17 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 
 
 
-	
-	
-	
-	
+
+
+
+
 /*
  * ----------------------------------------------------------------
  * EasePack
  * ----------------------------------------------------------------
  */
 	_gsScope._gsDefine("easing.Back", ["easing.Ease"], function(Ease) {
-		
+
 		var w = (_gsScope.GreenSockGlobals || _gsScope),
 			gs = w.com.greensock,
 			_2PI = Math.PI * 2,
@@ -5528,7 +5528,7 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 		_easeReg(SteppedEase, "SteppedEase", "ease,");
 
 		return Back;
-		
+
 	}, true);
 
 
@@ -5645,7 +5645,7 @@ if (_gsScope._gsDefine) { _gsScope._gsQueue.pop()(); } //necessary in case Tween
 						//exports to multiple environments
 						if (global) {
 							_globals[n] = cl; //provides a way to avoid global namespace pollution. By default, the main classes like TweenLite, Power1, Strong, etc. are added to window unless a GreenSockGlobals is defined. So if you want to have things added to a custom object instead, just do something like window.GreenSockGlobals = {} before loading any GreenSock files. You can even set up an alias like window.GreenSockGlobals = windows.gs = {} so that you can access everything like gs.TweenLite. Also remember that ALL classes are added to the window.com.greensock object (in their respective packages, like com.greensock.easing.Power1, com.greensock.TweenLite, etc.)
-							if (typeof(define) === "function" && define.amd){ //AMD
+							if ((typeof(module) === "undefined" && !module.exports) && typeof(define) === "function" && define.amd){ //AMD
 								define((window.GreenSockAMDPath ? window.GreenSockAMDPath + "/" : "") + ns.split(".").pop(), [], function() { return cl; });
 							} else if (ns === moduleName && typeof(module) !== "undefined" && module.exports){ //node
 								module.exports = cl;
@@ -5812,7 +5812,7 @@ if (_gsScope._gsDefine) { _gsScope._gsQueue.pop()(); } //necessary in case Tween
  * Ticker
  * ----------------------------------------------------------------
  */
- 		var _reqAnimFrame = window.requestAnimationFrame,
+		 var _reqAnimFrame = window.requestAnimationFrame,
 			_cancelAnimFrame = window.cancelAnimationFrame,
 			_getTime = Date.now || function() {return new Date().getTime();},
 			_lastUpdate = _getTime();
