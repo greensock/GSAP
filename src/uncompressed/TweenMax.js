@@ -6936,7 +6936,7 @@ if (_gsScope._gsDefine) { _gsScope._gsQueue.pop()(); } //necessary in case Tween
 				if (pt.f) {
 					pt.t[pt.p](pt.c * this.ratio + pt.s);
 				} else {
-					pt.t[pt.p] = pt.c * this.ratio + pt.s;
+					pt.t.setAttribute(pt.p, pt.c * this.ratio + pt.s);
 				}
 				pt = pt._next;
 			}
