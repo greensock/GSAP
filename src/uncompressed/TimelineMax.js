@@ -1,6 +1,6 @@
 /*!
- * VERSION: 1.17.0
- * DATE: 2015-05-27
+ * VERSION: 1.18.0
+ * DATE: 2015-08-29
  * UPDATES AND DOCS AT: http://greensock.com
  *
  * @license Copyright (c) 2008-2015, GreenSock. All rights reserved.
@@ -33,7 +33,7 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 			
 		p.constructor = TimelineMax;
 		p.kill()._gc = false;
-		TimelineMax.version = "1.17.0";
+		TimelineMax.version = "1.18.0";
 		
 		p.invalidate = function() {
 			this._yoyo = (this.vars.yoyo === true);
@@ -113,7 +113,7 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 				prevRawPrevTime = this._rawPrevTime,
 				prevPaused = this._paused, 
 				prevCycle = this._cycle, 
-				tween, isComplete, next, callback, internalForce, cycleDuration;
+				tween, isComplete, next, callback, internalForce, cycleDuration, pauseTween;
 			if (time >= totalDur) {
 				if (!this._locked) {
 					this._totalTime = totalDur;
@@ -200,6 +200,32 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 						}
 					}
 				}
+
+				if (this._hasPause && !this._forcingPlayhead && !suppressEvents) {
+					time = this._time;
+					if (time >= prevTime) {
+						tween = this._first;
+						while (tween && tween._startTime <= time && !pauseTween) {
+							if (!tween._duration) if (tween.data === "isPause" && !tween.ratio && !(tween._startTime === 0 && this._rawPrevTime === 0)) {
+								pauseTween = tween;
+							}
+							tween = tween._next;
+						}
+					} else {
+						tween = this._last;
+						while (tween && tween._startTime >= time && !pauseTween) {
+							if (!tween._duration) if (tween.data === "isPause" && tween._rawPrevTime > 0) {
+								pauseTween = tween;
+							}
+							tween = tween._prev;
+						}
+					}
+					if (pauseTween) {
+						this._time = time = pauseTween._startTime;
+						this._totalTime = time + (this._cycle * (this._totalDuration + this._repeatDelay));
+					}
+				}
+
 			}
 			
 			if (this._cycle !== prevCycle) if (!this._locked) {
@@ -250,7 +276,7 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 				this._rawPrevTime = recRawPrevTime;
 			}
 
-			if ((this._time === prevTime || !this._first) && !force && !internalForce) {
+			if ((this._time === prevTime || !this._first) && !force && !internalForce && !pauseTween) {
 				if (prevTotalTime !== this._totalTime) if (this._onUpdate) if (!suppressEvents) { //so that onUpdate fires even during the repeatDelay - as long as the totalTime changed, we should trigger onUpdate.
 					this._callback("onUpdate");
 				}
@@ -274,12 +300,14 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 					if (this._paused && !prevPaused) { //in case a tween pauses the timeline when rendering
 						break;
 					} else if (tween._active || (tween._startTime <= this._time && !tween._paused && !tween._gc)) {
+						if (pauseTween === tween) {
+							this.pause();
+						}
 						if (!tween._reversed) {
 							tween.render((time - tween._startTime) * tween._timeScale, suppressEvents, force);
 						} else {
 							tween.render(((!tween._dirty) ? tween._totalDuration : tween.totalDuration()) - ((time - tween._startTime) * tween._timeScale), suppressEvents, force);
 						}
-						
 					}
 					tween = next;
 				}
@@ -290,6 +318,15 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 					if (this._paused && !prevPaused) { //in case a tween pauses the timeline when rendering
 						break;
 					} else if (tween._active || (tween._startTime <= prevTime && !tween._paused && !tween._gc)) {
+						if (pauseTween === tween) {
+							pauseTween = tween._prev; //the linked list is organized by _startTime, thus it's possible that a tween could start BEFORE the pause and end after it, in which case it would be positioned before the pause tween in the linked list, but we should render it before we pause() the timeline and cease rendering. This is only a concern when going in reverse.
+							while (pauseTween && pauseTween.endTime() > this._time) {
+								pauseTween.render( (pauseTween._reversed ? pauseTween.totalDuration() - ((time - pauseTween._startTime) * pauseTween._timeScale) : (time - pauseTween._startTime) * pauseTween._timeScale), suppressEvents, force);
+								pauseTween = pauseTween._prev;
+							}
+							pauseTween = null;
+							this.pause();
+						}
 						if (!tween._reversed) {
 							tween.render((time - tween._startTime) * tween._timeScale, suppressEvents, force);
 						} else {
@@ -505,7 +542,6 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 			_isArray = TweenLiteInternals.isArray,
 			_lazyTweens = TweenLiteInternals.lazyTweens,
 			_lazyRender = TweenLiteInternals.lazyRender,
-			_blankArray = [],
 			_globals = _gsScope._gsDefine.globals,
 			_copy = function(vars) {
 				var copy = {}, p;
@@ -514,35 +550,16 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 				}
 				return copy;
 			},
-			_pauseCallback = _internals.pauseCallback = function(tween, callback, params, scope) {
-				var tl = tween._timeline,
-					time = tl._totalTime,
-					startTime = tween._startTime,
-					reversed = (tween._rawPrevTime < 0 || (tween._rawPrevTime === 0 && tl._reversed)),//don't use tween.ratio because if the playhead lands exactly on top of the addPause(), ratio will be 1 even if the master timeline was reversed (which is correct). The key here is to sense the direction of the playhead.
-					next = reversed ? 0 : _tinyNum,
-					prev = reversed ? _tinyNum : 0,
-					sibling;
-				if (callback || !this._forcingPlayhead) { //if the user calls a method that moves the playhead (like progress() or time()), it should honor that and skip any pauses (although if there's a callback positioned at that pause, it must jump there and make the call to ensure the time is EXACTLY what it is supposed to be, and then proceed to where the playhead is being forced). Otherwise, imagine placing a pause in the middle of a timeline and then doing timeline.progress(0.9) - it would get stuck where the pause is.
-					tl.pause(startTime);
-					//now find sibling tweens that are EXACTLY at the same spot on the timeline and adjust the _rawPrevTime so that they fire (or don't fire) correctly on the next render. This is primarily to accommodate zero-duration tweens/callbacks that are positioned right on top of a pause. For example, tl.to(...).call(...).addPause(...).call(...) - notice that there's a call() on each side of the pause, so when it's running forward it should call the first one and then pause, and then when resumed, call the other. Zero-duration tweens use _rawPrevTime to sense momentum figure out if events were suppressed when arriving directly on top of that time.
-					sibling = tween._prev;
-					while (sibling && sibling._startTime === startTime) {
-						sibling._rawPrevTime = prev;
-						sibling = sibling._prev;
-					}
-					sibling = tween._next;
-					while (sibling && sibling._startTime === startTime) {
-						sibling._rawPrevTime = next;
-						sibling = sibling._next;
-					}
-					if (callback) {
-						callback.apply(scope || tl.vars.callbackScope || tl, params || _blankArray);
-					}
-					if (this._forcingPlayhead || !tl._paused) { //the callback could have called resume().
-						tl.seek(time);
-					}
+			_applyCycle = function(vars, targets, i) {
+				var alt = vars.cycle,
+					p, val;
+				for (p in alt) {
+					val = alt[p];
+					vars[p] = (typeof(val) === "function") ? val.call(targets[i], i) : val[i % val.length];
 				}
+				delete vars.cycle;
 			},
+			_pauseCallback = _internals.pauseCallback = function() {},
 			_slice = function(a) { //don't use [].slice because that doesn't work in IE8 with a NodeList that's returned by querySelectorAll()
 				var b = [],
 					l = a.length,
@@ -552,9 +569,9 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 			},
 			p = TimelineLite.prototype = new SimpleTimeline();
 
-		TimelineLite.version = "1.17.0";
+		TimelineLite.version = "1.18.0";
 		p.constructor = TimelineLite;
-		p.kill()._gc = p._forcingPlayhead = false;
+		p.kill()._gc = p._forcingPlayhead = p._hasPause = false;
 
 		/* might use later...
 		//translates a local time inside an animation to the corresponding time on the root/global timeline, factoring in all nesting and timeScales.
@@ -594,7 +611,8 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 
 		p.staggerTo = function(targets, duration, vars, stagger, position, onCompleteAll, onCompleteAllParams, onCompleteAllScope) {
 			var tl = new TimelineLite({onComplete:onCompleteAll, onCompleteParams:onCompleteAllParams, callbackScope:onCompleteAllScope, smoothChildTiming:this.smoothChildTiming}),
-				i;
+				cycle = vars.cycle,
+				copy, i;
 			if (typeof(targets) === "string") {
 				targets = TweenLite.selector(targets) || targets;
 			}
@@ -609,10 +627,17 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 				stagger *= -1;
 			}
 			for (i = 0; i < targets.length; i++) {
-				if (vars.startAt) {
-					vars.startAt = _copy(vars.startAt);
+				copy = _copy(vars);
+				if (copy.startAt) {
+					copy.startAt = _copy(copy.startAt);
+					if (copy.startAt.cycle) {
+						_applyCycle(copy.startAt, targets, i);
+					}
 				}
-				tl.to(targets[i], duration, _copy(vars), i * stagger);
+				if (cycle) {
+					_applyCycle(copy, targets, i);
+				}
+				tl.to(targets[i], duration, copy, i * stagger);
 			}
 			return this.add(tl, position);
 		};
@@ -724,7 +749,10 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 
 		p.remove = function(value) {
 			if (value instanceof Animation) {
-				return this._remove(value, false);
+				this._remove(value, false);
+				var tl = value._timeline = value.vars.useFrames ? Animation._rootFramesTimeline : Animation._rootTimeline; //now that it's removed, default it to the root timeline so that if it gets played again, it doesn't jump back into this timeline.
+				value._startTime = (value._paused ? value._pauseTime : tl._time) - ((!value._reversed ? value._totalTime : value.totalDuration() - value._totalTime) / value._timeScale); //ensure that if it gets played again, the timing is correct.
+				return this;
 			} else if (value instanceof Array || (value && value.push && _isArray(value))) {
 				var i = value.length;
 				while (--i > -1) {
@@ -767,8 +795,10 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 		};
 
 		p.addPause = function(position, callback, params, scope) {
-			var t = TweenLite.delayedCall(0, _pauseCallback, ["{self}", callback, params, scope], this);
-			t.data = "isPause"; // we use this flag in TweenLite's render() method to identify it as a special case that shouldn't be triggered when the virtual playhead is LEAVING the exact position where the pause is, otherwise timeline.addPause(1).play(1) would end up paused on the very next tick.
+			var t = TweenLite.delayedCall(0, _pauseCallback, params, scope || this);
+			t.vars.onComplete = t.vars.onReverseComplete = callback;
+			t.data = "isPause";
+			this._hasPause = true;
 			return this.add(t, position);
 		};
 
@@ -839,7 +869,7 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 				prevStart = this._startTime,
 				prevTimeScale = this._timeScale,
 				prevPaused = this._paused,
-				tween, isComplete, next, callback, internalForce;
+				tween, isComplete, next, callback, internalForce, pauseTween;
 			if (time >= totalDur) {
 				this._totalTime = this._time = totalDur;
 				if (!this._reversed) if (!this._hasPausedChild()) {
@@ -889,9 +919,34 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 				}
 
 			} else {
+
+				if (this._hasPause && !this._forcingPlayhead && !suppressEvents) {
+					if (time >= prevTime) {
+						tween = this._first;
+						while (tween && tween._startTime <= time && !pauseTween) {
+							if (!tween._duration) if (tween.data === "isPause" && !tween.ratio && !(tween._startTime === 0 && this._rawPrevTime === 0)) {
+								pauseTween = tween;
+							}
+							tween = tween._next;
+						}
+					} else {
+						tween = this._last;
+						while (tween && tween._startTime >= time && !pauseTween) {
+							if (!tween._duration) if (tween.data === "isPause" && tween._rawPrevTime > 0) {
+								pauseTween = tween;
+							}
+							tween = tween._prev;
+						}
+					}
+					if (pauseTween) {
+						this._time = time = pauseTween._startTime;
+						this._totalTime = time + (this._cycle * (this._totalDuration + this._repeatDelay));
+					}
+				}
+
 				this._totalTime = this._time = this._rawPrevTime = time;
 			}
-			if ((this._time === prevTime || !this._first) && !force && !internalForce) {
+			if ((this._time === prevTime || !this._first) && !force && !internalForce && !pauseTween) {
 				return;
 			} else if (!this._initted) {
 				this._initted = true;
@@ -912,6 +967,9 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 					if (this._paused && !prevPaused) { //in case a tween pauses the timeline when rendering
 						break;
 					} else if (tween._active || (tween._startTime <= this._time && !tween._paused && !tween._gc)) {
+						if (pauseTween === tween) {
+							this.pause();
+						}
 						if (!tween._reversed) {
 							tween.render((time - tween._startTime) * tween._timeScale, suppressEvents, force);
 						} else {
@@ -927,6 +985,15 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 					if (this._paused && !prevPaused) { //in case a tween pauses the timeline when rendering
 						break;
 					} else if (tween._active || (tween._startTime <= prevTime && !tween._paused && !tween._gc)) {
+						if (pauseTween === tween) {
+							pauseTween = tween._prev; //the linked list is organized by _startTime, thus it's possible that a tween could start BEFORE the pause and end after it, in which case it would be positioned before the pause tween in the linked list, but we should render it before we pause() the timeline and cease rendering. This is only a concern when going in reverse.
+							while (pauseTween && pauseTween.endTime() > this._time) {
+								pauseTween.render( (pauseTween._reversed ? pauseTween.totalDuration() - ((time - pauseTween._startTime) * pauseTween._timeScale) : (time - pauseTween._startTime) * pauseTween._timeScale), suppressEvents, force);
+								pauseTween = pauseTween._prev;
+							}
+							pauseTween = null;
+							this.pause();
+						}
 						if (!tween._reversed) {
 							tween.render((time - tween._startTime) * tween._timeScale, suppressEvents, force);
 						} else {
