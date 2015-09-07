@@ -1,6 +1,6 @@
 /*!
- * VERSION: 0.14.0
- * DATE: 2015-05-26
+ * VERSION: 0.14.1
+ * DATE: 2015-09-05
  * UPDATES AND DOCS AT: http://greensock.com
  *
  * Requires TweenLite and CSSPlugin version 1.17.0 or later (TweenMax contains both TweenLite and CSSPlugin). ThrowPropsPlugin is required for momentum-based continuation of movement after the mouse/touch is released (ThrowPropsPlugin is a membership benefit of Club GreenSock - http://greensock.com/club/).
@@ -497,9 +497,10 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 				cache.computedStyle = cs;
 				if (isSVGRoot) {
 					if (!(cache.offsetParent = e.offsetParent)) { //some browsers don't report offsetParent for SVG elements.
-						e.parentNode.insertBefore(_tempDiv, e);
-						cache.offsetParent = _tempDiv.offsetParent;
-						e.parentNode.removeChild(_tempDiv);
+						curSVG = e.parentNode || _docElement;
+						curSVG.insertBefore(_tempDiv, e);
+						cache.offsetParent = _tempDiv.offsetParent || _docElement; //in some cases, Firefox still reports offsetParent as null.
+						curSVG.removeChild(_tempDiv);
 					}
 				} else if (isSVG) {
 					curSVG = e.parentNode;
@@ -737,7 +738,7 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 
 
 			_isArrayLike = function(e) {
-				return (e.length && e[0] && ((e[0].nodeType && e[0].style && !e.nodeType) || (e[0].length && e[0][0]))) ? true : false; //could be an array of jQuery objects too, so accommodate that.
+				return (e && e.length && e[0] && ((e[0].nodeType && e[0].style && !e.nodeType) || (e[0].length && e[0][0]))) ? true : false; //could be an array of jQuery objects too, so accommodate that.
 			},
 
 			_flattenArray = function(a) {
@@ -751,7 +752,7 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 						for (j = 0; j < e.length; j++) {
 							result.push(e[j]);
 						}
-					} else {
+					} else if (e && e.length !== 0) {
 						result.push(e);
 					}
 				}
@@ -1125,7 +1126,7 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 					dragEndTime = 0,
 					checkAutoScrollBounds = false,
 					isClickable = vars.clickableTest || _isClickable,
-					enabled, scrollProxy, startPointerX, startPointerY, startElementX, startElementY, hasBounds, hasDragCallback, maxX, minX, maxY, minY, tempVars, cssVars, touch, touchID, rotationOrigin, dirty, old, snapX, snapY, isClicking, touchEventTarget, matrix, interrupted, clickTime, startScrollTop, startScrollLeft, applyObj, allowNativeTouchScrolling, touchDragAxis,
+					enabled, scrollProxy, startPointerX, startPointerY, startElementX, startElementY, hasBounds, hasDragCallback, maxX, minX, maxY, minY, tempVars, cssVars, touch, touchID, rotationOrigin, dirty, old, snapX, snapY, isClicking, touchEventTarget, matrix, interrupted, clickTime, startScrollTop, startScrollLeft, applyObj, allowNativeTouchScrolling, touchDragAxis, isDispatching,
 
 					//this method gets called on every tick of TweenLite.ticker which allows us to synchronize the renders to the core engine (which is typically synchronized with the display refresh via requestAnimationFrame). This is an optimization - it's better than applying the values inside the "mousemove" or "touchmove" event handler which may get called many times inbetween refreshes.
 					render = function(suppressEvents) {
@@ -1214,8 +1215,10 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 									}
 								}
 							}
-							if (hasDragCallback && !suppressEvents) {
+							if (hasDragCallback && !suppressEvents && !isDispatching) {
+								isDispatching = true; //in case onDrag has an update() call (avoid endless loop)
 								_dispatchEvent(self, "drag", "onDrag");
+								isDispatching = false;
 							}
 						}
 						dirty = false;
@@ -1223,7 +1226,9 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 
 					//copies the x/y from the element (whether that be transforms, top/left, or ScrollProxy's top/left) to the Draggable's x and y (and rotation if necessary) properties so that they reflect reality and it also (optionally) applies any snapping necessary. This is used by the ThrowPropsPlugin tween in an onUpdate to ensure things are synced and snapped.
 					syncXY = function(skipOnUpdate, skipSnap) {
-						var snappedValue;
+						var x = self.x,
+							y = self.y,
+							snappedValue;
 						if (!target._gsTransform && (xyMode || rotationMode)) { //just in case the _gsTransform got wiped, like if the user called clearProps on the transform or something (very rare), doing an x tween forces a re-parsing of the transforms and population of the _gsTransform.
 							TweenLite.set(target, {x:"+=0", overwrite:false});
 						}
@@ -1247,19 +1252,17 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 									if (rotationMode) {
 										self.rotation = snappedValue;
 									}
-									dirty = true;
 								}
 							}
 							if (snapY) {
 								snappedValue = snapY(self.y);
 								if (snappedValue !== self.y) {
 									self.y = snappedValue;
-									dirty = true;
 								}
 							}
-							if (dirty) {
-								render(true);
-							}
+						}
+						if (x !== self.x || y !== self.y) {
+							render(true);
 						}
 						if (!skipOnUpdate) {
 							_dispatchEvent(self, "throwupdate", "onThrowUpdate");
@@ -1473,7 +1476,7 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 						interrupted = isTweening();
 						self.pointerEvent = e;
 						if (_touchEventLookup[e.type]) { //note: on iOS, BOTH touchmove and mousemove are dispatched, but the mousemove has pageY and pageX of 0 which would mess up the calculations and needlessly hurt performance.
-							touchEventTarget = (e.type.indexOf("touch") !== -1) ? e.currentTarget : _doc; //pointer-based touches (for Microsoft browsers) don't remain locked to the original target like other browsers, so we must use the document instead. The event type would be "MSPointerDown" or "pointerdown".
+							touchEventTarget = (e.type.indexOf("touch") !== -1) ? (e.currentTarget || e.target) : _doc; //pointer-based touches (for Microsoft browsers) don't remain locked to the original target like other browsers, so we must use the document instead. The event type would be "MSPointerDown" or "pointerdown".
 							_addListener(touchEventTarget, "touchend", onRelease);
 							_addListener(touchEventTarget, "touchmove", onMove);
 							_addListener(touchEventTarget, "touchcancel", onRelease);
@@ -1924,14 +1927,14 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 					return self;
 				};
 
-				this.update = function(applyBounds) {
+				this.update = function(applyBounds, ignoreExternalChanges) {
 					var x = self.x,
 						y = self.y;
 					updateMatrix();
 					if (applyBounds) {
 						self.applyBounds();
 					} else {
-						if (dirty) {
+						if (dirty && ignoreExternalChanges) {
 							render();
 						}
 						syncXY(true);
@@ -1979,12 +1982,12 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 						tween:{},
 						setRatio:(_isOldIE ? function() { TweenLite.set(target, tempVars); } : CSSPlugin._internals.setTransformRatio || CSSPlugin._internals.set3DTransformRatio)
 					};
-					this.update(true);
+					self.update(true);
 					return self;
 				};
 
 				this.disable = function(type) {
-					var dragging = this.isDragging,
+					var dragging = self.isDragging,
 						i, trigger;
 					if (!rotationMode) {
 						i = triggers.length;
@@ -2020,15 +2023,15 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 						scrollProxy.disable();
 					}
 					_removeFromRenderQueue(render);
-					this.isDragging = this.isPressed = isClicking = false;
+					self.isDragging = self.isPressed = isClicking = false;
 					if (dragging) {
-						_dispatchEvent(this, "dragend", "onDragEnd");
+						_dispatchEvent(self, "dragend", "onDragEnd");
 					}
 					return self;
 				};
 
 				this.enabled = function(value, type) {
-					return arguments.length ? (value ? this.enable(type) : this.disable(type)) : enabled;
+					return arguments.length ? (value ? self.enable(type) : self.disable(type)) : enabled;
 				};
 
 				this.kill = function() {
@@ -2080,7 +2083,7 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 		p.constructor = Draggable;
 		p.pointerX = p.pointerY = 0;
 		p.isDragging = p.isPressed = false;
-		Draggable.version = "0.14.0";
+		Draggable.version = "0.14.1";
 		Draggable.zIndex = 1000;
 
 		_addListener(_doc, "touchcancel", function() {
@@ -2099,7 +2102,7 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 			if (typeof(targets) === "string") {
 				targets = TweenLite.selector(targets);
 			}
-			var a = _isArrayLike(targets) ? _flattenArray(targets) : [targets],
+			var a = (!targets || targets.length === 0) ? [] : _isArrayLike(targets) ? _flattenArray(targets) : [targets],
 				i = a.length;
 			while (--i > -1) {
 				a[i] = new Draggable(a[i], vars);
@@ -2116,6 +2119,19 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 		};
 
 		var _tempRect = {}, //reuse to reduce garbage collection tasks
+			_oldIERect = function(e) { //IE8 doesn't support getBoundingClientRect(), so we use this as a backup.
+				var top = 0,
+					left = 0,
+					width = e.offsetWidth,
+					height = e.offsetHeight;
+				e = _unwrapElement(e);
+				while(e) {
+					top += e.offsetTop;
+					left += e.offsetLeft;
+					e = e.offsetParent;
+				}
+				return {top: top, left: left, width: width, height: height};
+			},
 			_parseRect = function(e, undefined) { //accepts a DOM element, a mouse event, or a rectangle object and returns the corresponding rectangle with left, right, width, height, top, and bottom properties
 				if (e === window) {
 					_tempRect.left = _tempRect.top = 0;
@@ -2123,7 +2139,7 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 					_tempRect.height = _tempRect.bottom = ((e.innerHeight || 0) - 20 < _docElement.clientHeight) ? _docElement.clientHeight : e.innerHeight || _doc.body.clientHeight || 0;
 					return _tempRect;
 				}
-				var r = (e.pageX !== undefined) ? {left:e.pageX, top:e.pageY, right:e.pageX + 1, bottom:e.pageY + 1} : (!e.nodeType && e.left !== undefined && e.top !== undefined) ? e : _unwrapElement(e).getBoundingClientRect();
+				var r = (e.pageX !== undefined) ? {left:e.pageX - _getDocScrollLeft(), top:e.pageY - _getDocScrollTop(), right:e.pageX - _getDocScrollLeft() + 1, bottom:e.pageY - _getDocScrollTop() + 1} : (!e.nodeType && e.left !== undefined && e.top !== undefined) ? e : _isOldIE ? _oldIERect(e) : _unwrapElement(e).getBoundingClientRect();
 				if (r.right === undefined && r.width !== undefined) {
 					r.right = r.left + r.width;
 					r.bottom = r.top + r.height;

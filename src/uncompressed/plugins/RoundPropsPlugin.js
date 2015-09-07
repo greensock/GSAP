@@ -1,7 +1,7 @@
 /*!
- * VERSION: beta 1.4.1
- * DATE: 2014-07-17
- * UPDATES AND DOCS AT: http://www.greensock.com
+ * VERSION: 1.5
+ * DATE: 2015-08-28
+ * UPDATES AND DOCS AT: http://greensock.com
  *
  * @license Copyright (c) 2008-2015, GreenSock. All rights reserved.
  * This work is subject to the terms at http://greensock.com/standard-license or for
@@ -16,7 +16,7 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 
 		var RoundPropsPlugin = _gsScope._gsDefine.plugin({
 				propName: "roundProps",
-				version: "1.4.1",
+				version: "1.5",
 				priority: -1,
 				API: 2,
 
@@ -27,11 +27,19 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 				}
 
 			}),
+			_roundLinkedList = function(node) {
+				while (node) {
+					if (!node.f && !node.blob) {
+						node.r = 1;
+					}
+					node = node._next;
+				}
+			},
 			p = RoundPropsPlugin.prototype;
 
 		p._onInitAllProps = function() {
 			var tween = this._tween,
-				rp = (tween.vars.roundProps instanceof Array) ? tween.vars.roundProps : tween.vars.roundProps.split(","),
+				rp = (tween.vars.roundProps.join) ? tween.vars.roundProps : tween.vars.roundProps.split(","),
 				i = rp.length,
 				lookup = {},
 				rpt = tween._propLookup.roundProps,
@@ -48,18 +56,22 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 					if (pt.pg) {
 						pt.t._roundProps(lookup, true);
 					} else if (pt.n === prop) {
-						this._add(pt.t, prop, pt.s, pt.c);
-						//remove from linked list
-						if (next) {
-							next._prev = pt._prev;
+						if (pt.f === 2 && pt.t) { //a blob (text containing multiple numeric values)
+							_roundLinkedList(pt.t._firstPT);
+						} else {
+							this._add(pt.t, prop, pt.s, pt.c);
+							//remove from linked list
+							if (next) {
+								next._prev = pt._prev;
+							}
+							if (pt._prev) {
+								pt._prev._next = next;
+							} else if (tween._firstPT === pt) {
+								tween._firstPT = next;
+							}
+							pt._next = pt._prev = null;
+							tween._propLookup[prop] = rpt;
 						}
-						if (pt._prev) {
-							pt._prev._next = next;
-						} else if (tween._firstPT === pt) {
-							tween._firstPT = next;
-						}
-						pt._next = pt._prev = null;
-						tween._propLookup[prop] = rpt;
 					}
 					pt = next;
 				}

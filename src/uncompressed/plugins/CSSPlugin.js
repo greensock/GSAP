@@ -1,6 +1,6 @@
 /*!
- * VERSION: 1.17.0
- * DATE: 2015-05-27
+ * VERSION: 1.18.0
+ * DATE: 2015-09-05
  * UPDATES AND DOCS AT: http://greensock.com
  *
  * @license Copyright (c) 2008-2015, GreenSock. All rights reserved.
@@ -31,7 +31,7 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 			p = CSSPlugin.prototype = new TweenPlugin("css");
 
 		p.constructor = CSSPlugin;
-		CSSPlugin.version = "1.17.0";
+		CSSPlugin.version = "1.18.0";
 		CSSPlugin.API = 2;
 		CSSPlugin.defaultTransformPerspective = 0;
 		CSSPlugin.defaultSkewType = "compensated";
@@ -174,7 +174,7 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 					pix = (v / 100) * (horiz ? t.clientWidth : t.clientHeight);
 				} else {
 					style.cssText = "border:0 solid red;position:" + _getStyle(t, "position") + ";line-height:0;";
-					if (sfx === "%" || !node.appendChild) {
+					if (sfx === "%" || !node.appendChild || sfx.charAt(0) === "v" || sfx === "rem") {
 						node = t.parentNode || _doc.body;
 						cache = node._gsCache;
 						time = TweenLite.ticker.frame;
@@ -300,7 +300,10 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 
 			// @private Parses position-related complex strings like "top left" or "50px 10px" or "70% 20%", etc. which are used for things like transformOrigin or backgroundPosition. Optionally decorates a supplied object (recObj) with the following properties: "ox" (offsetX), "oy" (offsetY), "oxp" (if true, "ox" is a percentage not a pixel value), and "oxy" (if true, "oy" is a percentage not a pixel value)
 			_parsePosition = function(v, recObj) {
-				if (v == null || v === "" || v === "auto" || v === "auto auto") { //note: Firefox uses "auto auto" as default whereas Chrome uses "auto".
+				if (v === "contain" || v === "auto" || v === "auto auto") {
+					return v + " ";
+				}
+				if (v == null || v === "") { //note: Firefox uses "auto auto" as default whereas Chrome uses "auto".
 					v = "0 0";
 				}
 				var a = v.split(" "),
@@ -418,57 +421,96 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 			},
 
 			/**
-			 * @private Parses a color (like #9F0, #FF9900, or rgb(255,51,153)) into an array with 3 elements for red, green, and blue. Also handles rgba() values (splits into array of 4 elements of course)
+			 * @private Parses a color (like #9F0, #FF9900, rgb(255,51,153) or hsl(108, 50%, 10%)) into an array with 3 elements for red, green, and blue or if toHSL parameter is true, it will populate the array with hue, saturation, and lightness values. If a relative value is found in an hsl() or hsla() string, it will preserve those relative prefixes and all the values in the array will be strings instead of numbers (in all other cases it will be populated with numbers).
 			 * @param {(string|number)} v The value the should be parsed which could be a string like #9F0 or rgb(255,102,51) or rgba(255,0,0,0.5) or it could be a number like 0xFF00CC or even a named color like red, blue, purple, etc.
-			 * @return {Array.<number>} An array containing red, green, and blue (and optionally alpha) in that order.
+			 * @param {(boolean)} toHSL If true, an hsl() or hsla() value will be returned instead of rgb() or rgba()
+			 * @return {Array.<number>} An array containing red, green, and blue (and optionally alpha) in that order, or if the toHSL parameter was true, the array will contain hue, saturation and lightness (and optionally alpha) in that order. Always numbers unless there's a relative prefix found in an hsl() or hsla() string and toHSL is true.
 			 */
-			_parseColor = CSSPlugin.parseColor = function(v) {
-				var c1, c2, c3, h, s, l;
-				if (!v || v === "") {
-					return _colorLookup.black;
-				}
-				if (typeof(v) === "number") {
-					return [v >> 16, (v >> 8) & 255, v & 255];
-				}
-				if (v.charAt(v.length - 1) === ",") { //sometimes a trailing commma is included and we should chop it off (typically from a comma-delimited list of values like a textShadow:"2px 2px 2px blue, 5px 5px 5px rgb(255,0,0)" - in this example "blue," has a trailing comma. We could strip it out inside parseComplex() but we'd need to do it to the beginning and ending values plus it wouldn't provide protection from other potential scenarios like if the user passes in a similar value.
-					v = v.substr(0, v.length - 1);
-				}
-				if (_colorLookup[v]) {
-					return _colorLookup[v];
-				}
-				if (v.charAt(0) === "#") {
-					if (v.length === 4) { //for shorthand like #9F0
-						c1 = v.charAt(1),
-						c2 = v.charAt(2),
-						c3 = v.charAt(3);
-						v = "#" + c1 + c1 + c2 + c2 + c3 + c3;
+			_parseColor = CSSPlugin.parseColor = function(v, toHSL) {
+				var a, r, g, b, h, s, l, max, min, d, wasHSL;
+				if (!v) {
+					a = _colorLookup.black;
+				} else if (typeof(v) === "number") {
+					a = [v >> 16, (v >> 8) & 255, v & 255];
+				} else {
+					if (v.charAt(v.length - 1) === ",") { //sometimes a trailing comma is included and we should chop it off (typically from a comma-delimited list of values like a textShadow:"2px 2px 2px blue, 5px 5px 5px rgb(255,0,0)" - in this example "blue," has a trailing comma. We could strip it out inside parseComplex() but we'd need to do it to the beginning and ending values plus it wouldn't provide protection from other potential scenarios like if the user passes in a similar value.
+						v = v.substr(0, v.length - 1);
 					}
-					v = parseInt(v.substr(1), 16);
-					return [v >> 16, (v >> 8) & 255, v & 255];
-				}
-				if (v.substr(0, 3) === "hsl") {
-					v = v.match(_numExp);
-					h = (Number(v[0]) % 360) / 360;
-					s = Number(v[1]) / 100;
-					l = Number(v[2]) / 100;
-					c2 = (l <= 0.5) ? l * (s + 1) : l + s - l * s;
-					c1 = l * 2 - c2;
-					if (v.length > 3) {
-						v[3] = Number(v[3]);
+					if (_colorLookup[v]) {
+						a = _colorLookup[v];
+					} else if (v.charAt(0) === "#") {
+						if (v.length === 4) { //for shorthand like #9F0
+							r = v.charAt(1);
+							g = v.charAt(2);
+							b = v.charAt(3);
+							v = "#" + r + r + g + g + b + b;
+						}
+						v = parseInt(v.substr(1), 16);
+						a = [v >> 16, (v >> 8) & 255, v & 255];
+					} else if (v.substr(0, 3) === "hsl") {
+						a = wasHSL = v.match(_numExp);
+						if (!toHSL) {
+							h = (Number(a[0]) % 360) / 360;
+							s = Number(a[1]) / 100;
+							l = Number(a[2]) / 100;
+							g = (l <= 0.5) ? l * (s + 1) : l + s - l * s;
+							r = l * 2 - g;
+							if (a.length > 3) {
+								a[3] = Number(v[3]);
+							}
+							a[0] = _hue(h + 1 / 3, r, g);
+							a[1] = _hue(h, r, g);
+							a[2] = _hue(h - 1 / 3, r, g);
+						} else if (v.indexOf("=") !== -1) { //if relative values are found, just return the raw strings with the relative prefixes in place.
+							return v.match(_relNumExp);
+						}
+					} else {
+						a = v.match(_numExp) || _colorLookup.transparent;
 					}
-					v[0] = _hue(h + 1 / 3, c1, c2);
-					v[1] = _hue(h, c1, c2);
-					v[2] = _hue(h - 1 / 3, c1, c2);
-					return v;
+					a[0] = Number(a[0]);
+					a[1] = Number(a[1]);
+					a[2] = Number(a[2]);
+					if (a.length > 3) {
+						a[3] = Number(a[3]);
+					}
 				}
-				v = v.match(_numExp) || _colorLookup.transparent;
-				v[0] = Number(v[0]);
-				v[1] = Number(v[1]);
-				v[2] = Number(v[2]);
-				if (v.length > 3) {
-					v[3] = Number(v[3]);
+				if (toHSL && !wasHSL) {
+					r = a[0] / 255;
+					g = a[1] / 255;
+					b = a[2] / 255;
+					max = Math.max(r, g, b);
+					min = Math.min(r, g, b);
+					l = (max + min) / 2;
+					if (max === min) {
+						h = s = 0;
+					} else {
+						d = max - min;
+						s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+						h = (max === r) ? (g - b) / d + (g < b ? 6 : 0) : (max === g) ? (b - r) / d + 2 : (r - g) / d + 4;
+						h *= 60;
+					}
+					a[0] = (h + 0.5) | 0;
+					a[1] = (s * 100 + 0.5) | 0;
+					a[2] = (l * 100 + 0.5) | 0;
 				}
-				return v;
+				return a;
+			},
+			_formatColors = function(s, toHSL) {
+				var colors = s.match(_colorExp) || [],
+					charIndex = 0,
+					parsed = colors.length ? "" : s,
+					i, color, temp;
+				for (i = 0; i < colors.length; i++) {
+					color = colors[i];
+					temp = s.substr(charIndex, s.indexOf(color, charIndex)-charIndex);
+					charIndex += temp.length + color.length;
+					color = _parseColor(color, toHSL);
+					if (color.length === 3) {
+						color.push(1);
+					}
+					parsed += temp + (toHSL ? "hsla(" + color[0] + "," + color[1] + "%," + color[2] + "%," + color[3] : "rgba(" + color.join(",")) + ")";
+				}
+				return parsed;
 			},
 			_colorExp = "(?:\\b(?:(?:rgb|rgba|hsl|hsla)\\(.+?\\))|\\B#.+?\\b"; //we'll dynamically build this Regular Expression to conserve file size. After building it, it will be able to find rgb(), rgba(), # (hexadecimal), and named color values like red, blue, purple, etc.
 
@@ -476,6 +518,21 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 			_colorExp += "|" + p + "\\b";
 		}
 		_colorExp = new RegExp(_colorExp+")", "gi");
+
+		CSSPlugin.colorStringFilter = function(a) {
+			var combined = a[0] + a[1],
+				toHSL;
+			_colorExp.lastIndex = 0;
+			if (_colorExp.test(combined)) {
+				toHSL = (combined.indexOf("hsl(") !== -1 || combined.indexOf("hsla(") !== -1);
+				a[0] = _formatColors(a[0], toHSL);
+				a[1] = _formatColors(a[1], toHSL);
+			}
+		};
+
+		if (!TweenLite.defaultStringFilter) {
+			TweenLite.defaultStringFilter = CSSPlugin.colorStringFilter;
+		}
 
 		/**
 		 * @private Returns a formatter function that handles taking a string (or number in some cases) and returning a consistently formatted one in terms of delimiters, quantity of values, etc. For example, we may get boxShadow values defined as "0px red" or "0px 0px 10px rgb(255,0,0)" or "0px 0px 20px 20px #F00" and we need to ensure that what we get back is described with 4 numbers and a color. This allows us to feed it into the _parseComplex() method and split the values up appropriately. The neat thing about this _getFormatter() function is that the dflt defines a pattern as well as a default, so for example, _getFormatter("0px 0px 0px 0px #777", true) not only sets the default as 0px for all distances and #777 for the color, but also sets the pattern such that 4 numbers and a color will always get returned.
@@ -766,7 +823,7 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 					ea = e.split(", ").join(",").split(" "), //ending array
 					l = ba.length,
 					autoRound = (_autoRound !== false),
-					i, xi, ni, bv, ev, bnums, enums, bn, rgba, temp, cv, str;
+					i, xi, ni, bv, ev, bnums, enums, bn, hasAlpha, temp, cv, str, useHSL;
 				if (e.indexOf(",") !== -1 || b.indexOf(",") !== -1) {
 					ba = ba.join(" ").replace(_commasOutsideParenExp, ", ").split(" ");
 					ea = ea.join(" ").replace(_commasOutsideParenExp, ", ").split(" ");
@@ -779,6 +836,7 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 				}
 				pt.plugin = plugin;
 				pt.setRatio = setRatio;
+				_colorExp.lastIndex = 0;
 				for (i = 0; i < l; i++) {
 					bv = ba[i];
 					ev = ea[i];
@@ -788,26 +846,35 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 						pt.appendXtra("", bn, _parseChange(ev, bn), ev.replace(_relNumExp, ""), (autoRound && ev.indexOf("px") !== -1), true);
 
 					//if the value is a color
-					} else if (clrs && (bv.charAt(0) === "#" || _colorLookup[bv] || _rgbhslExp.test(bv))) {
+					} else if (clrs && _colorExp.test(bv)) {
 						str = ev.charAt(ev.length - 1) === "," ? ")," : ")"; //if there's a comma at the end, retain it.
-						bv = _parseColor(bv);
-						ev = _parseColor(ev);
-						rgba = (bv.length + ev.length > 6);
-						if (rgba && !_supportsOpacity && ev[3] === 0) { //older versions of IE don't support rgba(), so if the destination alpha is 0, just use "transparent" for the end color
+						useHSL = (ev.indexOf("hsl") !== -1 && _supportsOpacity);
+						bv = _parseColor(bv, useHSL);
+						ev = _parseColor(ev, useHSL);
+						hasAlpha = (bv.length + ev.length > 6);
+						if (hasAlpha && !_supportsOpacity && ev[3] === 0) { //older versions of IE don't support rgba(), so if the destination alpha is 0, just use "transparent" for the end color
 							pt["xs" + pt.l] += pt.l ? " transparent" : "transparent";
 							pt.e = pt.e.split(ea[i]).join("transparent");
 						} else {
 							if (!_supportsOpacity) { //old versions of IE don't support rgba().
-								rgba = false;
+								hasAlpha = false;
 							}
-							pt.appendXtra((rgba ? "rgba(" : "rgb("), bv[0], ev[0] - bv[0], ",", true, true)
-								.appendXtra("", bv[1], ev[1] - bv[1], ",", true)
-								.appendXtra("", bv[2], ev[2] - bv[2], (rgba ? "," : str), true);
-							if (rgba) {
+							if (useHSL) {
+								pt.appendXtra((hasAlpha ? "hsla(" : "hsl("), bv[0], _parseChange(ev[0], bv[0]), ",", false, true)
+									.appendXtra("", bv[1], _parseChange(ev[1], bv[1]), "%,", false)
+									.appendXtra("", bv[2], _parseChange(ev[2], bv[2]), (hasAlpha ? "%," : "%" + str), false);
+							} else {
+								pt.appendXtra((hasAlpha ? "rgba(" : "rgb("), bv[0], ev[0] - bv[0], ",", true, true)
+									.appendXtra("", bv[1], ev[1] - bv[1], ",", true)
+									.appendXtra("", bv[2], ev[2] - bv[2], (hasAlpha ? "," : str), true);
+							}
+
+							if (hasAlpha) {
 								bv = (bv.length < 4) ? 1 : bv[3];
 								pt.appendXtra("", bv, ((ev.length < 4) ? 1 : ev[3]) - bv, str, false);
 							}
 						}
+						_colorExp.lastIndex = 0; //otherwise the test() on the RegExp could move the lastIndex and taint future results.
 
 					} else {
 						bnums = bv.match(_numExp); //gets each group of numbers in the beginning value string and drops them into an array
@@ -1681,14 +1748,22 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 			if (cssp._lastParsedTransform === vars) { return pt; } //only need to parse the transform once, and only if the browser supports it.
 			cssp._lastParsedTransform = vars;
 			var originalGSTransform = t._gsTransform,
-				m1 = cssp._transform = _getTransform(t, _cs, true, vars.parseTransform),
 				style = t.style,
 				min = 0.000001,
 				i = _transformProps.length,
 				v = vars,
 				endRotations = {},
 				transformOriginString = "transformOrigin",
-				m2, skewY, copy, orig, has3D, hasChange, dr, x, y;
+				m1, m2, skewY, copy, orig, has3D, hasChange, dr, x, y;
+			if (vars.display) { //if the user is setting display during this tween, it may not be instantiated yet but we must force it here in order to get accurate readings. If display is "none", some browsers refuse to report the transform properties correctly.
+				copy = _getStyle(t, "display");
+				style.display = "block";
+				m1 = _getTransform(t, _cs, true, vars.parseTransform);
+				style.display = copy;
+			} else {
+				m1 = _getTransform(t, _cs, true, vars.parseTransform);
+			}
+			cssp._transform = m1;
 			if (typeof(v.transform) === "string" && _transformProp) { //for values like transform:"rotate(60deg) scale(0.5, 0.8)"
 				copy = _tempDiv.style; //don't use the original target because it might be SVG in which case some browsers don't report computed style correctly.
 				copy[_transformProp] = v.transform;
@@ -1697,6 +1772,9 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 				_doc.body.appendChild(_tempDiv);
 				m2 = _getTransform(_tempDiv, null, false);
 				_doc.body.removeChild(_tempDiv);
+				if (!m2.perspective) {
+					m2.perspective = m1.perspective; //tweening to no perspective gives very unintuitive results - just keep the same perspective in that case.
+				}
 				if (v.xPercent != null) {
 					m2.xPercent = _parseVal(v.xPercent, m1.xPercent);
 				}
@@ -2294,8 +2372,8 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 									bs = bn + "%";
 								}
 
-							} else if (esfx === "em") {
-								bn /= _convertToPixels(target, p, 1, "em");
+							} else if (esfx === "em" || esfx === "rem") {
+								bn /= _convertToPixels(target, p, 1, esfx);
 
 							//otherwise convert to pixels.
 							} else if (esfx !== "px") {
