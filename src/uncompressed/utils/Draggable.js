@@ -1,6 +1,6 @@
 /*!
- * VERSION: 0.14.1
- * DATE: 2015-09-05
+ * VERSION: 0.14.2
+ * DATE: 2015-12-11
  * UPDATES AND DOCS AT: http://greensock.com
  *
  * Requires TweenLite and CSSPlugin version 1.17.0 or later (TweenMax contains both TweenLite and CSSPlugin). ThrowPropsPlugin is required for momentum-based continuation of movement after the mouse/touch is released (ThrowPropsPlugin is a membership benefit of Club GreenSock - http://greensock.com/club/).
@@ -61,6 +61,13 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 					i;
 				for (i = 0; i !== l; b.push(a[i++]));
 				return b;
+			},
+			_copy = function(obj) {
+				var copy = {}, p;
+				for (p in obj) {
+					copy[p] = obj[p];
+				}
+				return copy;
 			},
 			ThrowPropsPlugin,
 
@@ -324,7 +331,7 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 				style.border = "0px solid red";
 				style.transform = "none";
 				// in some browsers (like certain flavors of Android), the getScreenCTM() matrix is contaminated by the scroll position. We can run some logic here to detect that condition, but we ended up not needing this because we found another workaround using getBoundingClientRect().
-				div.style.cssText = "width:100px;height:100px;overflow:scroll";
+				div.style.cssText = "width:100px;height:100px;overflow:scroll;-ms-overflow-style:none;";
 				parent.appendChild(div);
 				div.appendChild(svg);
 				point = svg.createSVGPoint().matrixTransform(svg.getScreenCTM());
@@ -1103,7 +1110,7 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 				if (!ThrowPropsPlugin) {
 					ThrowPropsPlugin = _globals.com.greensock.plugins.ThrowPropsPlugin;
 				}
-				this.vars = vars = vars || {};
+				this.vars = vars = _copy(vars || {});
 				this.target = target;
 				this.x = this.y = this.rotation = 0;
 				this.dragResistance = parseFloat(vars.dragResistance) || 0;
@@ -1126,11 +1133,10 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 					dragEndTime = 0,
 					checkAutoScrollBounds = false,
 					isClickable = vars.clickableTest || _isClickable,
-					enabled, scrollProxy, startPointerX, startPointerY, startElementX, startElementY, hasBounds, hasDragCallback, maxX, minX, maxY, minY, tempVars, cssVars, touch, touchID, rotationOrigin, dirty, old, snapX, snapY, isClicking, touchEventTarget, matrix, interrupted, clickTime, startScrollTop, startScrollLeft, applyObj, allowNativeTouchScrolling, touchDragAxis, isDispatching,
-
+					enabled, scrollProxy, startPointerX, startPointerY, startElementX, startElementY, hasBounds, hasDragCallback, maxX, minX, maxY, minY, tempVars, cssVars, touch, touchID, rotationOrigin, dirty, old, snapX, snapY, isClicking, touchEventTarget, matrix, interrupted, clickTime, startScrollTop, startScrollLeft, applyObj, allowNativeTouchScrolling, touchDragAxis, isDispatching, clickDispatch,
 					//this method gets called on every tick of TweenLite.ticker which allows us to synchronize the renders to the core engine (which is typically synchronized with the display refresh via requestAnimationFrame). This is an optimization - it's better than applying the values inside the "mousemove" or "touchmove" event handler which may get called many times inbetween refreshes.
 					render = function(suppressEvents) {
-						if (self.autoScroll && self.isDragging && (dirty || checkAutoScrollBounds)) {
+						if (self.autoScroll && (checkAutoScrollBounds || (self.isDragging && dirty))) {
 							var e = target,
 								autoScrollFactor = self.autoScroll * 15, //multiplying by 15 just gives us a better "feel" speed-wise.
 								parent, isRoot, rect, pointerX, pointerY, changeX, changeY, gap;
@@ -1145,7 +1151,10 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 								rect = isRoot ? {bottom:Math.max(_docElement.clientHeight, window.innerHeight || 0), right: Math.max(_docElement.clientWidth, window.innerWidth || 0), left:0, top:0} : parent.getBoundingClientRect();
 								changeX = changeY = 0;
 								if (allowY) {
-									if (pointerY > rect.bottom - 40 && (gap = parent._gsMaxScrollY - parent.scrollTop)) {
+									gap = parent._gsMaxScrollY - parent.scrollTop;
+									if (gap < 0) {
+										changeY = gap;
+									} else if (pointerY > rect.bottom - 40 && gap) {
 										checkAutoScrollBounds = true;
 										changeY = Math.min(gap, (autoScrollFactor * (1 - Math.max(0, (rect.bottom - pointerY)) / 40)) | 0);
 									} else if (pointerY < rect.top + 40 && parent.scrollTop) {
@@ -1156,9 +1165,11 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 										parent.scrollTop += changeY;
 									}
 								}
-
 								if (allowX) {
-									if (pointerX > rect.right - 40 && (gap = parent._gsMaxScrollX - parent.scrollLeft)) {
+									gap = parent._gsMaxScrollX - parent.scrollLeft;
+									if (gap < 0) {
+										changeX = gap;
+									} else if (pointerX > rect.right - 40 && gap) {
 										checkAutoScrollBounds = true;
 										changeX = Math.min(gap, (autoScrollFactor * (1 - Math.max(0, (rect.right - pointerX)) / 40)) | 0);
 									} else if (pointerX < rect.left + 40 && parent.scrollLeft) {
@@ -1384,10 +1395,26 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 					},
 
 					updateMatrix = function() {
+						var start = matrix || [1,0,0,1,0,0],
+							a, b, c, d, tx, ty, determinant, pointerX, pointerY;
 						matrix = _getConcatenatedMatrix(target.parentNode, true);
+						if (self.isPressed && start.join(",") !== matrix.join(",")) { //if the matrix changes WHILE the element is pressed, we must adjust the startPointerX and startPointerY accordingly, so we invert the original matrix and figure out where the pointerX and pointerY were in the global space, then apply the new matrix to get the updated coordinates.
+							a = start[0];
+							b = start[1];
+							c = start[2];
+							d = start[3];
+							tx = start[4];
+							ty = start[5];
+							determinant = (a * d - b * c);
+							pointerX = startPointerX * (d / determinant) + startPointerY * (-c / determinant) + ((c * ty - d * tx) / determinant);
+							pointerY = startPointerX * (-b / determinant) + startPointerY * (a / determinant) + (-(a * ty - b * tx) / determinant);
+							startPointerY = pointerX * matrix[1] + pointerY * matrix[3] + matrix[5];
+							startPointerX = pointerX * matrix[0] + pointerY * matrix[2] + matrix[4];
+						}
 						if (!matrix[1] && !matrix[2] && matrix[0] == 1 && matrix[3] == 1 && matrix[4] == 0 && matrix[5] == 0) { //if there are no transforms, we can optimize performance by not factoring in the matrix
 							matrix = null;
 						}
+
 					},
 
 					recordStartPositions = function() {
@@ -1780,15 +1807,18 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 							if (!_isAndroid || originalEvent.type !== "touchmove") { //to accommodate native scrolling on Android devices, we have to immediately call onRelease() on the first touchmove event, but that shouldn't trigger a "click".
 								_dispatchEvent(self, "click", "onClick");
 								eventTarget = originalEvent.target || originalEvent.srcElement || target; //old IE uses srcElement
-								if (eventTarget.click) { //some browsers (like mobile Safari) don't properly trigger the click event
-									eventTarget.click();
-								}
-								else if (_doc.createEvent) {
-									syntheticEvent = _doc.createEvent("MouseEvents");
-									syntheticEvent.initEvent("click", true, true);
-									eventTarget.dispatchEvent(syntheticEvent);
-								}
 								clickTime = _getTime();
+								TweenLite.delayedCall(0.00001, function() { // some browsers (like Firefox) won't trust script-generated clicks, so if the user tries to click on a video to play it, for example, it simply won't work. Since a regular "click" event will most likely be generated anyway (one that has its isTrusted flag set to true), we must slightly delay our script-generated click so that the "real"/trusted one is prioritized. Remember, when there are duplicate events in quick succession, we suppress all but the first one. Some browsers don't even trigger the "real" one at all, so our synthetic one is a safety valve that ensures that no matter what, a click event does get dispatched.
+									if (clickTime !== clickDispatch && self.enabled() && !self.isPressed) {
+										if (eventTarget.click) { //some browsers (like mobile Safari) don't properly trigger the click event
+											eventTarget.click();
+										} else if (_doc.createEvent) {
+											syntheticEvent = _doc.createEvent("MouseEvents");
+											syntheticEvent.initMouseEvent("click", true, true, window, 1, self.pointerEvent.screenX, self.pointerEvent.screenY, self.pointerX, self.pointerY, false, false, false, false, 0, null);
+											eventTarget.dispatchEvent(syntheticEvent);
+										}
+									}
+								});
 							}
 						} else {
 							animate(vars.throwProps); //will skip if throwProps isn't defined or ThrowPropsPlugin isn't loaded.
@@ -1825,6 +1855,10 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 						var time = _getTime(),
 							recentlyClicked = time - clickTime < 40,
 							recentlyDragged = time - dragEndTime < 40;
+						if (recentlyClicked && clickDispatch !== clickTime) {
+							clickDispatch = clickTime;
+							return;
+						}
 						if (self.isPressed || recentlyDragged || recentlyClicked) {
 							if (e.preventDefault) {
 								e.preventDefault();
@@ -1941,6 +1975,11 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 					}
 					if (self.isPressed && ((allowX && Math.abs(x - self.x) > 0.01) || (allowY && (Math.abs(y - self.y) > 0.01 && !rotationMode)))) {
 						recordStartPositions();
+					}
+					if (self.autoScroll) {
+						_recordMaxScrolls(target.parentNode);
+						checkAutoScrollBounds = true;
+						render();
 					}
 					return self;
 				};
@@ -2083,7 +2122,7 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 		p.constructor = Draggable;
 		p.pointerX = p.pointerY = 0;
 		p.isDragging = p.isPressed = false;
-		Draggable.version = "0.14.1";
+		Draggable.version = "0.14.2";
 		Draggable.zIndex = 1000;
 
 		_addListener(_doc, "touchcancel", function() {
@@ -2122,9 +2161,10 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 			_oldIERect = function(e) { //IE8 doesn't support getBoundingClientRect(), so we use this as a backup.
 				var top = 0,
 					left = 0,
-					width = e.offsetWidth,
-					height = e.offsetHeight;
+					width, height;
 				e = _unwrapElement(e);
+				width = e.offsetWidth;
+				height = e.offsetHeight;
 				while(e) {
 					top += e.offsetTop;
 					left += e.offsetLeft;

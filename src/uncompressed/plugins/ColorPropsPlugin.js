@@ -1,6 +1,6 @@
 /*!
- * VERSION: beta 1.4.0
- * DATE: 2015-09-03
+ * VERSION: beta 1.4.1
+ * DATE: 2015-11-04
  * UPDATES AND DOCS AT: http://greensock.com
  *
  * @license Copyright (c) 2008-2015, GreenSock. All rights reserved.
@@ -116,7 +116,7 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 			return a;
 		},
 		_formatColors = function(s, toHSL) {
-			var colors = s.match(_colorExp) || [],
+			var colors = (s + "").match(_colorExp) || [],
 				charIndex = 0,
 				parsed = colors.length ? "" : s,
 				i, color, temp;
@@ -133,29 +133,31 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 			return parsed;
 		}, p, _colorStringFilter,
 		TweenLite = _gsScope.TweenLite,
-		_colorExp = "(?:\\b(?:(?:rgb|rgba|hsl|hsla)\\(.+?\\))|\\B#.+?\\b", //we'll dynamically build this Regular Expression to conserve file size. After building it, it will be able to find rgb(), rgba(), # (hexadecimal), and named color values like red, blue, purple, etc.
-
-
+		_colorExp = "(?:\\b(?:(?:rgb|rgba|hsl|hsla)\\(.+?\\))|\\B#(?:[0-9a-f]{3}){1,2}\\b", //we'll dynamically build this Regular Expression to conserve file size. After building it, it will be able to find rgb(), rgba(), # (hexadecimal), and named color values like red, blue, purple, etc.
 
 		ColorPropsPlugin = _gsScope._gsDefine.plugin({
 			propName: "colorProps",
-			version: "1.4.0",
+			version: "1.4.1",
 			priority: -1,
 			API: 2,
 			global: true,
 
 			//called when the tween renders for the first time. This is where initial values should be recorded and any setup routines should run.
 			init: function(target, value, tween) {
-				var p, proxy, pt;
+				var p, proxy, pt, val;
 				this._target = target;
 				this._proxy = proxy = ((value.format + "").toUpperCase() === "NUMBER") ? {} : 0;
 				for (p in value) {
 					if (p !== "format") {
 						if (proxy) {
 							this._firstNumPT = pt = {_next:this._firstNumPT, t:target, p:p, f:(typeof(target[p]) === "function")};
-							proxy[p] = !pt.f ? target[p] : target[ ((p.indexOf("set") || typeof(target["get" + p.substr(3)]) !== "function") ? p : "get" + p.substr(3)) ]();
+							proxy[p] = "rgb(" + _parseColor(!pt.f ? target[p] : target[ ((p.indexOf("set") || typeof(target["get" + p.substr(3)]) !== "function") ? p : "get" + p.substr(3)) ]()).join(",") + ")";
+							val = value[p];
+							this._addTween(proxy, p, "get", ((typeof(val) === "number") ? "rgb(" + _parseColor(val, false).join(",") + ")" : val), p, null, null, _colorStringFilter);
+						} else {
+							this._addTween(target, p, "get", value[p], p, null, null, _colorStringFilter);
 						}
-						this._addTween(proxy || target, p, "get", value[p], p, null, null, _colorStringFilter);
+
 					}
 				}
 				return true;
@@ -183,7 +185,6 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 		_colorExp += "|" + p + "\\b";
 	}
 	_colorExp = new RegExp(_colorExp+")", "gi");
-
 	ColorPropsPlugin.colorStringFilter = _colorStringFilter = function(a) {
 		var combined = a[0] + a[1],
 			toHSL;

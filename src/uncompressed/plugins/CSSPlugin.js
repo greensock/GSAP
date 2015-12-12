@@ -1,6 +1,6 @@
 /*!
- * VERSION: 1.18.0
- * DATE: 2015-09-05
+ * VERSION: 1.18.1
+ * DATE: 2015-12-11
  * UPDATES AND DOCS AT: http://greensock.com
  *
  * @license Copyright (c) 2008-2015, GreenSock. All rights reserved.
@@ -31,7 +31,7 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 			p = CSSPlugin.prototype = new TweenPlugin("css");
 
 		p.constructor = CSSPlugin;
-		CSSPlugin.version = "1.18.0";
+		CSSPlugin.version = "1.18.1";
 		CSSPlugin.API = 2;
 		CSSPlugin.defaultTransformPerspective = 0;
 		CSSPlugin.defaultSkewType = "compensated";
@@ -512,7 +512,7 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 				}
 				return parsed;
 			},
-			_colorExp = "(?:\\b(?:(?:rgb|rgba|hsl|hsla)\\(.+?\\))|\\B#.+?\\b"; //we'll dynamically build this Regular Expression to conserve file size. After building it, it will be able to find rgb(), rgba(), # (hexadecimal), and named color values like red, blue, purple, etc.
+			_colorExp = "(?:\\b(?:(?:rgb|rgba|hsl|hsla)\\(.+?\\))|\\B#(?:[0-9a-f]{3}){1,2}\\b"; //we'll dynamically build this Regular Expression to conserve file size. After building it, it will be able to find rgb(), rgba(), # (hexadecimal), and named color values like red, blue, purple, etc.
 
 		for (p in _colorLookup) {
 			_colorExp += "|" + p + "\\b";
@@ -629,7 +629,7 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 					proxy = d.proxy,
 					mpt = d.firstMPT,
 					min = 0.000001,
-					val, pt, i, str;
+					val, pt, i, str, p;
 				while (mpt) {
 					val = proxy[mpt.v];
 					if (mpt.r) {
@@ -643,19 +643,20 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 				if (d.autoRotate) {
 					d.autoRotate.rotation = proxy.rotation;
 				}
-				//at the end, we must set the CSSPropTween's "e" (end) value dynamically here because that's what is used in the final setRatio() method.
-				if (v === 1) {
+				//at the end, we must set the CSSPropTween's "e" (end) value dynamically here because that's what is used in the final setRatio() method. Same for "b" at the beginning.
+				if (v === 1 || v === 0) {
 					mpt = d.firstMPT;
+					p = (v === 1) ? "e" : "b";
 					while (mpt) {
 						pt = mpt.t;
 						if (!pt.type) {
-							pt.e = pt.s + pt.xs0;
+							pt[p] = pt.s + pt.xs0;
 						} else if (pt.type === 1) {
 							str = pt.xs0 + pt.s + pt.xs1;
 							for (i = 1; i < pt.l; i++) {
 								str += pt["xn"+i] + pt["xs"+(i+1)];
 							}
-							pt.e = str;
+							pt[p] = str;
 						}
 						mpt = mpt._next;
 					}
@@ -881,7 +882,7 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 
 						//if no number is found, treat it as a non-tweening value and just append the string to the current xs.
 						if (!bnums) {
-							pt["xs" + pt.l] += pt.l ? " " + bv : bv;
+							pt["xs" + pt.l] += pt.l ? " " + ev : ev;
 
 						//loop through all the numbers that are found and construct the extra values on the pt.
 						} else {
@@ -1326,7 +1327,7 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 							a32 = t3;
 						}
 						//rotationY
-						angle = Math.atan2(a13, a33);
+						angle = Math.atan2(-a31, a33);
 						tm.rotationY = angle * _RAD2DEG;
 						if (angle) {
 							cos = Math.cos(-angle);
@@ -1356,7 +1357,7 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 
 						if (tm.rotationX && Math.abs(tm.rotationX) + Math.abs(tm.rotation) > 359.9) { //when rotationY is set, it will often be parsed as 180 degrees different than it should be, and rotationX and rotation both being 180 (it looks the same), so we adjust for that here.
 							tm.rotationX = tm.rotation = 0;
-							tm.rotationY += 180;
+							tm.rotationY = 180 - tm.rotationY;
 						}
 
 						tm.scaleX = ((Math.sqrt(a11 * a11 + a21 * a21) * rnd + 0.5) | 0) / rnd;
@@ -1539,7 +1540,7 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 					a11, a12, a13, a21, a22, a23, a31, a32, a33, a41, a42, a43,
 					zOrigin, min, cos, sin, t1, t2, transform, comma, zero, skew, rnd;
 				//check to see if we should render as 2D (and SVGs must use 2D when _useSVGTransformAttr is true)
-				if (((((v === 1 || v === 0) && force3D === "auto" && (this.tween._totalTime === this.tween._totalDuration || !this.tween._totalTime)) || !force3D) && !z && !perspective && !rotationY && !rotationX) || (_useSVGTransformAttr && isSVG) || !_supports3D) { //on the final render (which could be 0 for a from tween), if there are no 3D aspects, render in 2D to free up memory and improve performance especially on mobile devices. Check the tween's totalTime/totalDuration too in order to make sure it doesn't happen between repeats if it's a repeating tween.
+				if (((((v === 1 || v === 0) && force3D === "auto" && (this.tween._totalTime === this.tween._totalDuration || !this.tween._totalTime)) || !force3D) && !z && !perspective && !rotationY && !rotationX && sz === 1) || (_useSVGTransformAttr && isSVG) || !_supports3D) { //on the final render (which could be 0 for a from tween), if there are no 3D aspects, render in 2D to free up memory and improve performance especially on mobile devices. Check the tween's totalTime/totalDuration too in order to make sure it doesn't happen between repeats if it's a repeating tween.
 
 					//2D
 					if (angle || t.skewX || isSVG) {
@@ -1729,7 +1730,7 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 				transform = ((t.xPercent || t.yPercent) ? "translate(" + t.xPercent + "%," + t.yPercent + "%) matrix3d(" : "matrix3d(");
 				transform += ((a11 < min && a11 > -min) ? zero : a11) + comma + ((a21 < min && a21 > -min) ? zero : a21) + comma + ((a31 < min && a31 > -min) ? zero : a31);
 				transform += comma + ((a41 < min && a41 > -min) ? zero : a41) + comma + ((a12 < min && a12 > -min) ? zero : a12) + comma + ((a22 < min && a22 > -min) ? zero : a22);
-				if (rotationX || rotationY) { //performance optimization (often there's no rotationX or rotationY, so we can skip these calculations)
+				if (rotationX || rotationY || sz !== 1) { //performance optimization (often there's no rotationX or rotationY, so we can skip these calculations)
 					transform += comma + ((a32 < min && a32 > -min) ? zero : a32) + comma + ((a42 < min && a42 > -min) ? zero : a42) + comma + ((a13 < min && a13 > -min) ? zero : a13);
 					transform += comma + ((a23 < min && a23 > -min) ? zero : a23) + comma + ((a33 < min && a33 > -min) ? zero : a33) + comma + ((a43 < min && a43 > -min) ? zero : a43) + comma;
 				} else {
@@ -2172,6 +2173,7 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 					if (transform) {
 						if (transform.svg) {
 							this.t.removeAttribute("data-svg-origin");
+							this.t.removeAttribute("transform");
 						}
 						delete this.t._gsTransform;
 					}
@@ -2372,7 +2374,7 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 									bs = bn + "%";
 								}
 
-							} else if (esfx === "em" || esfx === "rem") {
+							} else if (esfx === "em" || esfx === "rem" || esfx === "vw" || esfx === "vh") {
 								bn /= _convertToPixels(target, p, 1, esfx);
 
 							//otherwise convert to pixels.

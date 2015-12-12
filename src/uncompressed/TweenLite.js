@@ -1,6 +1,6 @@
 /*!
- * VERSION: 1.18.0
- * DATE: 2015-09-03
+ * VERSION: 1.18.1
+ * DATE: 2015-12-11
  * UPDATES AND DOCS AT: http://greensock.com
  *
  * @license Copyright (c) 2008-2015, GreenSock. All rights reserved.
@@ -287,7 +287,7 @@
 		_class("Ticker", function(fps, useRAF) {
 			var _self = this,
 				_startTime = _getTime(),
-				_useRAF = (useRAF !== false && _reqAnimFrame),
+				_useRAF = (useRAF !== false && _reqAnimFrame) ? "auto" : false,
 				_lagThreshold = 500,
 				_adjustedLag = 33,
 				_tickWord = "tick", //helps reduce gc burden
@@ -341,9 +341,11 @@
 				}
 			};
 
-			_self.wake = function() {
+			_self.wake = function(seamless) {
 				if (_id !== null) {
 					_self.sleep();
+				} else if (seamless) {
+					_startTime += -_lastUpdate + (_lastUpdate = _getTime());
 				} else if (_self.frame > 10) { //don't trigger lagSmoothing if we're just waking up, and make sure that at least 10 frames have elapsed because of the iOS bug that we work around below with the 1.5-second setTimout().
 					_lastUpdate = _getTime() - _lagThreshold + 5;
 				}
@@ -376,7 +378,7 @@
 
 			//a bug in iOS 6 Safari occasionally prevents the requestAnimationFrame from working initially, so we use a 1.5-second timeout that automatically falls back to setTimeout() if it senses this condition.
 			setTimeout(function() {
-				if (_useRAF && _self.frame < 5) {
+				if (_useRAF === "auto" && _self.frame < 5 && document.visibilityState !== "hidden") {
 					_self.useRAF(false);
 				}
 			}, 1500);
@@ -923,7 +925,7 @@
 		p._firstPT = p._targets = p._overwrittenProps = p._startAt = null;
 		p._notifyPluginsOfEnabled = p._lazy = false;
 
-		TweenLite.version = "1.18.0";
+		TweenLite.version = "1.18.1";
 		TweenLite.defaultEase = p._ease = new Ease(null, null, 1, 1);
 		TweenLite.defaultOverwrite = "auto";
 		TweenLite.ticker = _ticker;
@@ -1037,7 +1039,8 @@
 						blob = _blobDif(s, end, stringFilter || TweenLite.defaultStringFilter, pt);
 						pt = {t:blob, p:"setRatio", s:0, c:1, f:2, pg:0, n:overwriteProp || prop, pr:0}; //"2" indicates it's a Blob property tween. Needed for RoundPropsPlugin for example.
 					} else if (!isRelative) {
-						pt.c = (parseFloat(end) - parseFloat(s)) || 0;
+						pt.s = parseFloat(s);
+						pt.c = (parseFloat(end) - pt.s) || 0;
 					}
 				}
 				if (pt.c) { //only add it to the linked list if there's a change.
@@ -1382,7 +1385,7 @@
 				duration = this._duration,
 				prevRawPrevTime = this._rawPrevTime,
 				isComplete, callback, pt, rawPrevTime;
-			if (time >= duration) {
+			if (time >= duration - 0.0000001) { //to work around occasional floating point math artifacts.
 				this._totalTime = this._time = duration;
 				this.ratio = this._ease._calcEnd ? this._ease.getRatio(1) : 1;
 				if (!this._reversed ) {
@@ -1394,7 +1397,7 @@
 					if (this._startTime === this._timeline._duration) { //if a zero-duration tween is at the VERY end of a timeline and that timeline renders at its end, it will typically add a tiny bit of cushion to the render time to prevent rounding errors from getting in the way of tweens rendering their VERY end. If we then reverse() that timeline, the zero-duration tween will trigger its onReverseComplete even though technically the playhead didn't pass over it again. It's a very specific edge case we must accommodate.
 						time = 0;
 					}
-					if (time === 0 || prevRawPrevTime < 0 || (prevRawPrevTime === _tinyNum && this.data !== "isPause")) if (prevRawPrevTime !== time) { //note: when this.data is "isPause", it's a callback added by addPause() on a timeline that we should not be triggered when LEAVING its exact start time. In other words, tl.addPause(1).play(1) shouldn't pause.
+					if (prevRawPrevTime < 0 || (time <= 0 && time >= -0.0000001) || (prevRawPrevTime === _tinyNum && this.data !== "isPause")) if (prevRawPrevTime !== time) { //note: when this.data is "isPause", it's a callback added by addPause() on a timeline that we should not be triggered when LEAVING its exact start time. In other words, tl.addPause(1).play(1) shouldn't pause.
 						force = true;
 						if (prevRawPrevTime > _tinyNum) {
 							callback = "onReverseComplete";

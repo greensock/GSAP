@@ -1,6 +1,6 @@
 /*!
- * VERSION: 1.7.5
- * DATE: 2015-02-26
+ * VERSION: 1.7.6
+ * DATE: 2015-12-10
  * UPDATES AND DOCS AT: http://greensock.com
  *
  * @license Copyright (c) 2008-2015, GreenSock. All rights reserved.
@@ -27,7 +27,7 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 		ScrollToPlugin = _gsScope._gsDefine.plugin({
 			propName: "scrollTo",
 			API: 2,
-			version:"1.7.5",
+			version:"1.7.6",
 
 			//called when the tween renders for the first time. This is where initial values should be recorded and any setup routines should run.
 			init: function(target, value, tween) {
@@ -65,6 +65,12 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 					yDif = y - this.yPrev,
 					xDif = x - this.xPrev;
 
+				if (this.x < 0) { //can't scroll to a position less than 0! Might happen if someone uses a Back.easeOut or Elastic.easeOut when scrolling back to the top of the page (for example)
+					this.x = 0;
+				}
+				if (this.y < 0) {
+					this.y = 0;
+				}
 				if (this._autoKill) {
 					//note: iOS has a bug that throws off the scroll by several pixels, so we need to check if it's within 7 pixels of the previous one that we set instead of just looking for an exact match.
 					if (!this.skipX && (xDif > 7 || xDif < -7) && x < _max(this._target, "x")) {
