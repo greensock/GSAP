@@ -10,7 +10,7 @@
  * of your property is. This way of defining a plugin was introduced in version 1.9.0 - previous versions
  * of TweenLite won't work with this.
  *
- * @license Copyright (c) 2008-2015, GreenSock. All rights reserved.
+ * @license Copyright (c) 2008-2016, GreenSock. All rights reserved.
  * This work is subject to the terms at http://greensock.com/standard-license or for
  * Club GreenSock members, the software agreement that was issued with your membership.
  * 

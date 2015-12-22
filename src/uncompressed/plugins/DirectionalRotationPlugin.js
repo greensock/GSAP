@@ -1,9 +1,9 @@
 /*!
  * VERSION: beta 0.2.1
  * DATE: 2014-07-17
- * UPDATES AND DOCS AT: http://www.greensock.com
+ * UPDATES AND DOCS AT: http://greensock.com
  *
- * @license Copyright (c) 2008-2015, GreenSock. All rights reserved.
+ * @license Copyright (c) 2008-2016, GreenSock. All rights reserved.
  * This work is subject to the terms at http://greensock.com/standard-license or for
  * Club GreenSock members, the software agreement that was issued with your membership.
  * 

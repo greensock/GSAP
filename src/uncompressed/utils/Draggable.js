@@ -1,11 +1,11 @@
 /*!
- * VERSION: 0.14.2
- * DATE: 2015-12-11
+ * VERSION: 0.14.3
+ * DATE: 2015-12-19
  * UPDATES AND DOCS AT: http://greensock.com
  *
  * Requires TweenLite and CSSPlugin version 1.17.0 or later (TweenMax contains both TweenLite and CSSPlugin). ThrowPropsPlugin is required for momentum-based continuation of movement after the mouse/touch is released (ThrowPropsPlugin is a membership benefit of Club GreenSock - http://greensock.com/club/).
  *
- * @license Copyright (c) 2008-2015, GreenSock. All rights reserved.
+ * @license Copyright (c) 2008-2016, GreenSock. All rights reserved.
  * This work is subject to the terms at http://greensock.com/standard-license or for
  * Club GreenSock members, the software agreement that was issued with your membership.
  * 
@@ -1726,7 +1726,7 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 								}
 							}
 							dirty = true; //a flag that indicates we need to render the target next time the TweenLite.ticker dispatches a "tick" event (typically on a requestAnimationFrame) - this is a performance optimization (we shouldn't render on every move because sometimes many move events can get dispatched between screen refreshes, and that'd be wasteful to render every time)
-							if (!self.isDragging) {
+							if (!self.isDragging && self.isPressed) {
 								self.isDragging = true;
 								_dispatchEvent(self, "dragstart", "onDragStart");
 							}
@@ -1925,7 +1925,7 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 
 
 				this.applyBounds = function(newBounds) {
-					var x, y;
+					var x, y, forceZeroVelocity;
 					if (newBounds && vars.bounds !== newBounds) {
 						vars.bounds = newBounds;
 						return self.update(true);
@@ -1948,6 +1948,7 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 							}
 						}
 						if (self.x !== x || self.y !== y) {
+							forceZeroVelocity = true;
 							self.x = self.endX = x;
 							if (rotationMode) {
 								self.endRotation = x;
@@ -1956,6 +1957,9 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 							}
 							dirty = true;
 							render();
+						}
+						if (self.isThrowing && (forceZeroVelocity || self.endX > maxX || self.endX < minX || self.endY > maxY || self.endY < minY)) {
+							animate(vars.throwProps, forceZeroVelocity);
 						}
 					}
 					return self;
@@ -2122,7 +2126,7 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 		p.constructor = Draggable;
 		p.pointerX = p.pointerY = 0;
 		p.isDragging = p.isPressed = false;
-		Draggable.version = "0.14.2";
+		Draggable.version = "0.14.3";
 		Draggable.zIndex = 1000;
 
 		_addListener(_doc, "touchcancel", function() {
