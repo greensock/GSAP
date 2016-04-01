@@ -897,7 +897,7 @@
 				}
 				if (this.vars.immediateRender || (duration === 0 && this._delay === 0 && this.vars.immediateRender !== false)) {
 					this._time = -_tinyNum; //forces a render without having to set the render() "force" parameter to true because we want to allow lazying by default (using the "force" parameter always forces an immediate full render)
-					this.render(-this._delay);
+					this.render(Math.min(0,-this._delay));
 				}
 			}, true),
 			_isSelector = function(v) {
@@ -1637,7 +1637,7 @@
 			Animation.prototype.invalidate.call(this);
 			if (this.vars.immediateRender) {
 				this._time = -_tinyNum; //forces a render without having to set the render() "force" parameter to true because we want to allow lazying by default (using the "force" parameter always forces an immediate full render)
-				this.render(-this._delay);
+				this.render(Math.min(0,-this._delay));
 			}
 			return this;
 		};
