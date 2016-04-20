@@ -1,6 +1,6 @@
 /*!
- * VERSION: beta 1.4.1
- * DATE: 2015-11-04
+ * VERSION: beta 1.4.2
+ * DATE: 2016-04-19
  * UPDATES AND DOCS AT: http://greensock.com
  *
  * @license Copyright (c) 2008-2016, GreenSock. All rights reserved.
@@ -130,14 +130,14 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 				}
 				parsed += temp + (toHSL ? "hsla(" + color[0] + "," + color[1] + "%," + color[2] + "%," + color[3] : "rgba(" + color.join(",")) + ")";
 			}
-			return parsed;
+			return parsed + s.substr(charIndex);
 		}, p, _colorStringFilter,
 		TweenLite = _gsScope.TweenLite,
 		_colorExp = "(?:\\b(?:(?:rgb|rgba|hsl|hsla)\\(.+?\\))|\\B#(?:[0-9a-f]{3}){1,2}\\b", //we'll dynamically build this Regular Expression to conserve file size. After building it, it will be able to find rgb(), rgba(), # (hexadecimal), and named color values like red, blue, purple, etc.
 
 		ColorPropsPlugin = _gsScope._gsDefine.plugin({
 			propName: "colorProps",
-			version: "1.4.1",
+			version: "1.4.2",
 			priority: -1,
 			API: 2,
 			global: true,

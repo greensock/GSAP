@@ -1,6 +1,6 @@
 /*!
- * VERSION: 1.18.2
- * DATE: 2015-12-22
+ * VERSION: 1.18.3
+ * DATE: 2016-04-19
  * UPDATES AND DOCS AT: http://greensock.com
  *
  * @license Copyright (c) 2008-2016, GreenSock. All rights reserved.
@@ -69,7 +69,7 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 			},
 			p = TimelineLite.prototype = new SimpleTimeline();
 
-		TimelineLite.version = "1.18.2";
+		TimelineLite.version = "1.18.3";
 		p.constructor = TimelineLite;
 		p.kill()._gc = p._forcingPlayhead = p._hasPause = false;
 

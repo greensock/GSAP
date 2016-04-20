@@ -1,6 +1,6 @@
 /*!
- * VERSION: 0.14.3
- * DATE: 2015-12-19
+ * VERSION: 0.14.5
+ * DATE: 2016-04-19
  * UPDATES AND DOCS AT: http://greensock.com
  *
  * Requires TweenLite and CSSPlugin version 1.17.0 or later (TweenMax contains both TweenLite and CSSPlugin). ThrowPropsPlugin is required for momentum-based continuation of movement after the mouse/touch is released (ThrowPropsPlugin is a membership benefit of Club GreenSock - http://greensock.com/club/).
@@ -479,7 +479,7 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 					decoratee.x = (e._gsTransform.xOrigin - v.x);
 					decoratee.y = (e._gsTransform.yOrigin - v.y);
 				} else {
-					if (e.getBBox && !e.offsetWidth && (x + y).indexOf("%") !== -1) { //Firefox doesn't report offsetWidth/height on <svg> elements.
+					if (e.getBBox && (x + y).indexOf("%") !== -1) { //Firefox doesn't report offsetWidth/height on <svg> elements.
 						e = e.getBBox();
 						e = {offsetWidth: e.width, offsetHeight: e.height};
 					}
@@ -502,19 +502,19 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 				cache.isSVGRoot = isSVGRoot;
 				cache.borderBox = (cs.boxSizing === "border-box");
 				cache.computedStyle = cs;
-				if (isSVGRoot) {
-					if (!(cache.offsetParent = e.offsetParent)) { //some browsers don't report offsetParent for SVG elements.
-						curSVG = e.parentNode || _docElement;
-						curSVG.insertBefore(_tempDiv, e);
-						cache.offsetParent = _tempDiv.offsetParent || _docElement; //in some cases, Firefox still reports offsetParent as null.
-						curSVG.removeChild(_tempDiv);
-					}
+				if (isSVGRoot) { //some browsers don't report parentNode on SVG elements.
+					curSVG = e.parentNode || _docElement;
+					curSVG.insertBefore(_tempDiv, e);
+					cache.offsetParent = _tempDiv.offsetParent || _docElement; //in some cases, Firefox still reports offsetParent as null.
+					curSVG.removeChild(_tempDiv);
 				} else if (isSVG) {
 					curSVG = e.parentNode;
 					while (curSVG && (curSVG.nodeName + "").toLowerCase() !== "svg") { //offsetParent is always the SVG canvas for SVG elements.
 						curSVG = curSVG.parentNode;
 					}
 					cache.offsetParent = curSVG;
+				} else {
+					cache.offsetParent = e.offsetParent;
 				}
 				return cache;
 			},
@@ -533,7 +533,7 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 				if (e.getBBox && (e.getAttribute("transform") + "").indexOf("matrix") !== -1) { //SVG can store transform data in its "transform" attribute instead of the CSS, so look for that here (only accept matrix()).
 					m = e.getAttribute("transform");
 				}
-				m = (m + "").match(/(?:\-|\b)[\d\-\.e]+\b/g) || [1,0,0,1,0,0];
+				m = (m + "").match(/(?:\-|\.|\b)[\d\.e]+\b/g) || [1,0,0,1,0,0];
 				if (m.length > 6) {
 					m = [m[0], m[1], m[4], m[5], m[12], m[13]];
 				}
@@ -596,12 +596,13 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 						m[4] += _getDocScrollLeft();
 						m[5] += _getDocScrollTop();
 					}
-					if (parent && parent !== _docElement && parentOffsetParent === offsets.offsetParent) {
-						m[4] -= parent.offsetLeft || 0;
-						m[5] -= parent.offsetTop || 0;
-						if (!_hasBorderBug && parent.offsetParent && !cache.isSVG && !cache.isSVGRoot) {
-							m[4] -= parseInt(_getStyle(parent.offsetParent, "borderLeftWidth"), 10) || 0;
-							m[5] -= parseInt(_getStyle(parent.offsetParent, "borderTopWidth"), 10) || 0;
+					if (parent && parent !== _docElement && parentOffsetParent === offsets.offsetParent && !parentCache.isSVG) {
+						offsets = (parentCache.isSVGRoot) ? _getSVGOffsets(parent) : parent;
+						m[4] -= offsets.offsetLeft || 0;
+						m[5] -= offsets.offsetTop || 0;
+						if (!_hasBorderBug && parentCache.offsetParent && !cache.isSVG && !cache.isSVGRoot) {
+							m[4] -= parseInt(_getStyle(parentCache.offsetParent, "borderLeftWidth"), 10) || 0;
+							m[5] -= parseInt(_getStyle(parentCache.offsetParent, "borderTopWidth"), 10) || 0;
 						}
 					}
 				}
@@ -695,7 +696,7 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 						bbox = e.getBBox();
 						width = bbox.width;
 						height = bbox.height;
-					} else if (e.offsetWidth) {
+					} else if ((e.nodeName + "").toLowerCase() !== "svg" && e.offsetWidth) { //Chrome dropped support for "offsetWidth" on SVG elements
 						width = e.offsetWidth;
 						height = e.offsetHeight;
 					} else {
@@ -1133,10 +1134,11 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 					dragEndTime = 0,
 					checkAutoScrollBounds = false,
 					isClickable = vars.clickableTest || _isClickable,
-					enabled, scrollProxy, startPointerX, startPointerY, startElementX, startElementY, hasBounds, hasDragCallback, maxX, minX, maxY, minY, tempVars, cssVars, touch, touchID, rotationOrigin, dirty, old, snapX, snapY, isClicking, touchEventTarget, matrix, interrupted, clickTime, startScrollTop, startScrollLeft, applyObj, allowNativeTouchScrolling, touchDragAxis, isDispatching, clickDispatch,
+					clickTime = 0,
+					enabled, scrollProxy, startPointerX, startPointerY, startElementX, startElementY, hasBounds, hasDragCallback, maxX, minX, maxY, minY, tempVars, cssVars, touch, touchID, rotationOrigin, dirty, old, snapX, snapY, isClicking, touchEventTarget, matrix, interrupted, startScrollTop, startScrollLeft, applyObj, allowNativeTouchScrolling, touchDragAxis, isDispatching, clickDispatch,
 					//this method gets called on every tick of TweenLite.ticker which allows us to synchronize the renders to the core engine (which is typically synchronized with the display refresh via requestAnimationFrame). This is an optimization - it's better than applying the values inside the "mousemove" or "touchmove" event handler which may get called many times inbetween refreshes.
 					render = function(suppressEvents) {
-						if (self.autoScroll && (checkAutoScrollBounds || (self.isDragging && dirty))) {
+						if (self.autoScroll && self.isDragging && (checkAutoScrollBounds || dirty)) {
 							var e = target,
 								autoScrollFactor = self.autoScroll * 15, //multiplying by 15 just gives us a better "feel" speed-wise.
 								parent, isRoot, rect, pointerX, pointerY, changeX, changeY, gap;
@@ -1497,7 +1499,7 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 					//called when the mouse is pressed (or touch starts)
 					onPress = function(e) {
 						var temp, i;
-						if (!enabled || self.isPressed || !e || (e.type === "mousedown" && _getTime() - clickTime < 30 && _touchEventLookup[self.pointerEvent.type])) { //when we DON'T preventDefault() in order to accommodate touch-scrolling and the user just taps, many browsers also fire a mousedown/mouseup sequence AFTER the touchstart/touchend sequence, thus it'd result in two quick "click" events being dispatched. This line senses that condition and halts it on the subsequent mousedown.
+						if (!enabled || self.isPressed || !e || ((e.type === "mousedown" || e.type === "pointerdown") && _getTime() - clickTime < 30 && _touchEventLookup[self.pointerEvent.type])) { //when we DON'T preventDefault() in order to accommodate touch-scrolling and the user just taps, many browsers also fire a mousedown/mouseup sequence AFTER the touchstart/touchend sequence, thus it'd result in two quick "click" events being dispatched. This line senses that condition and halts it on the subsequent mousedown.
 							return;
 						}
 						interrupted = isTweening();
@@ -1925,7 +1927,7 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 
 
 				this.applyBounds = function(newBounds) {
-					var x, y, forceZeroVelocity;
+					var x, y, forceZeroVelocity, e, parent, isRoot;
 					if (newBounds && vars.bounds !== newBounds) {
 						vars.bounds = newBounds;
 						return self.update(true);
@@ -1935,17 +1937,15 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 					if (hasBounds) {
 						x = self.x;
 						y = self.y;
-						if (hasBounds) {
-							if (x > maxX) {
-								x = maxX;
-							} else if (x < minX) {
-								x = minX;
-							}
-							if (y > maxY) {
-								y = maxY;
-							} else if (y < minY) {
-								y = minY;
-							}
+						if (x > maxX) {
+							x = maxX;
+						} else if (x < minX) {
+							x = minX;
+						}
+						if (y > maxY) {
+							y = maxY;
+						} else if (y < minY) {
+							y = minY;
 						}
 						if (self.x !== x || self.y !== y) {
 							forceZeroVelocity = true;
@@ -1957,6 +1957,23 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 							}
 							dirty = true;
 							render();
+							if (self.autoScroll && !self.isDragging) {
+								_recordMaxScrolls(target.parentNode);
+								e = target;
+								_windowProxy.scrollTop = ((window.pageYOffset != null) ? window.pageYOffset : (_docElement.scrollTop != null) ? _docElement.scrollTop : _doc.body.scrollTop);
+								_windowProxy.scrollLeft = ((window.pageXOffset != null) ? window.pageXOffset : (_docElement.scrollLeft != null) ? _docElement.scrollLeft : _doc.body.scrollLeft);
+								while (e && !isRoot) { //walk up the chain and sense wherever the scrollTop/scrollLeft exceeds the maximum.
+									isRoot = _isRoot(e.parentNode);
+									parent = isRoot ? _windowProxy : e.parentNode;
+									if (allowY && parent.scrollTop > parent._gsMaxScrollY) {
+										parent.scrollTop = parent._gsMaxScrollY;
+									}
+									if (allowX && parent.scrollLeft > parent._gsMaxScrollX) {
+										parent.scrollLeft = parent._gsMaxScrollX;
+									}
+									e = parent;
+								}
+							}
 						}
 						if (self.isThrowing && (forceZeroVelocity || self.endX > maxX || self.endX < minX || self.endY > maxY || self.endY < minY)) {
 							animate(vars.throwProps, forceZeroVelocity);
@@ -1982,7 +1999,7 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 					}
 					if (self.autoScroll) {
 						_recordMaxScrolls(target.parentNode);
-						checkAutoScrollBounds = true;
+						checkAutoScrollBounds = self.isDragging;
 						render();
 					}
 					return self;
@@ -2126,7 +2143,7 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 		p.constructor = Draggable;
 		p.pointerX = p.pointerY = 0;
 		p.isDragging = p.isPressed = false;
-		Draggable.version = "0.14.3";
+		Draggable.version = "0.14.5";
 		Draggable.zIndex = 1000;
 
 		_addListener(_doc, "touchcancel", function() {

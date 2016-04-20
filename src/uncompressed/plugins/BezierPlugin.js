@@ -1,6 +1,6 @@
 /*!
- * VERSION: beta 1.3.4
- * DATE: 2014-11-15
+ * VERSION: beta 1.3.5
+ * DATE: 2016-04-19
  * UPDATES AND DOCS AT: http://greensock.com
  *
  * @license Copyright (c) 2008-2016, GreenSock. All rights reserved.
@@ -157,7 +157,7 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 					i = props.length;
 					while (--i > -1) {
 						p = props[i];
-						if (Math.abs(first[p] - last[p]) > 0.05) { //build in a tolerance of +/-0.05 to accommodate rounding errors. For example, if you set an object's position to 4.945, Flash will make it 4.9
+						if (Math.abs(first[p] - last[p]) > 0.05) { //build in a tolerance of +/-0.05 to accommodate rounding errors.
 							seamless = false;
 							break;
 						}
@@ -190,7 +190,7 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 							a = obj[props[i]];
 							l = a.length - 1;
 							for (j = 0; j < l; j++) {
-								r = a[j+1].da / _r2[j] + a[j].da / _r1[j];
+								r = (a[j+1].da / _r2[j] + a[j].da / _r1[j]) || 0;
 								_r3[j] = (_r3[j] || 0) + r * r;
 							}
 						}
@@ -308,7 +308,7 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 			BezierPlugin = _gsScope._gsDefine.plugin({
 					propName: "bezier",
 					priority: -1,
-					version: "1.3.4",
+					version: "1.3.5",
 					API: 2,
 					global:true,
 
@@ -371,7 +371,7 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 									this._func[p] = (typeof(target[p]) === "function") ? target[ ((p.indexOf("set") || typeof(target["get" + p.substr(3)]) !== "function") ? p : "get" + p.substr(3)) ] : false;
 								}
 								p = autoRotate[i][2];
-								this._initialRotations[i] = this._func[p] ? this._func[p].call(this._target) : this._target[p];
+								this._initialRotations[i] = (this._func[p] ? this._func[p].call(this._target) : this._target[p]) || 0;
 							}
 						}
 						this._startRatio = tween.vars.runBackwards ? 1 : 0; //we determine the starting ratio when the tween inits which is always 0 unless the tween has runBackwards:true (indicating it's a from() tween) in which case it's 1.
@@ -433,7 +433,7 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 								this._s2 = curSeg[i];
 								this._si = i;
 							}
-							t = (i + (v - this._s1) / (this._s2 - this._s1)) * this._prec;
+							t = ((i + (v - this._s1) / (this._s2 - this._s1)) * this._prec) || 0;
 						}
 						inv = 1 - t;
 

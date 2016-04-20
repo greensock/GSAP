@@ -1,6 +1,6 @@
 /*!
- * VERSION: 1.18.2
- * DATE: 2015-12-22
+ * VERSION: 1.18.3
+ * DATE: 2016-04-19
  * UPDATES AND DOCS AT: http://greensock.com
  *
  * @license Copyright (c) 2008-2016, GreenSock. All rights reserved.
@@ -897,7 +897,7 @@
 				}
 				if (this.vars.immediateRender || (duration === 0 && this._delay === 0 && this.vars.immediateRender !== false)) {
 					this._time = -_tinyNum; //forces a render without having to set the render() "force" parameter to true because we want to allow lazying by default (using the "force" parameter always forces an immediate full render)
-					this.render(-this._delay);
+					this.render(Math.min(0, -this._delay)); //in case delay is negative
 				}
 			}, true),
 			_isSelector = function(v) {
@@ -925,7 +925,7 @@
 		p._firstPT = p._targets = p._overwrittenProps = p._startAt = null;
 		p._notifyPluginsOfEnabled = p._lazy = false;
 
-		TweenLite.version = "1.18.2";
+		TweenLite.version = "1.18.3";
 		TweenLite.defaultEase = p._ease = new Ease(null, null, 1, 1);
 		TweenLite.defaultOverwrite = "auto";
 		TweenLite.ticker = _ticker;
@@ -1513,7 +1513,7 @@
 				if (time < 0) if (this._startAt && time !== -0.0001) { //if the tween is positioned at the VERY beginning (_startTime 0) of its parent timeline, it's illegal for the playhead to go back further, so we should not render the recorded startAt values.
 					this._startAt.render(time, suppressEvents, force); //note: for performance reasons, we tuck this conditional logic inside less traveled areas (most tweens don't have an onUpdate). We'd just have it at the end before the onComplete, but the values should be updated before any onUpdate is called, so we ALSO put it here and then if it's not called, we do so later near the onComplete.
 				}
-				if (!suppressEvents) if (this._time !== prevTime || isComplete) {
+				if (!suppressEvents) if (this._time !== prevTime || isComplete || force) {
 					this._callback("onUpdate");
 				}
 			}
@@ -1637,7 +1637,7 @@
 			Animation.prototype.invalidate.call(this);
 			if (this.vars.immediateRender) {
 				this._time = -_tinyNum; //forces a render without having to set the render() "force" parameter to true because we want to allow lazying by default (using the "force" parameter always forces an immediate full render)
-				this.render(-this._delay);
+				this.render(Math.min(0, -this._delay)); //in case delay is negative.
 			}
 			return this;
 		};

@@ -1,6 +1,6 @@
 /*!
- * VERSION: 1.18.2
- * DATE: 2015-12-22
+ * VERSION: 1.18.3
+ * DATE: 2016-04-19
  * UPDATES AND DOCS AT: http://greensock.com
  *
  * @license Copyright (c) 2008-2016, GreenSock. All rights reserved.
@@ -33,7 +33,7 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 			
 		p.constructor = TimelineMax;
 		p.kill()._gc = false;
-		TimelineMax.version = "1.18.2";
+		TimelineMax.version = "1.18.3";
 		
 		p.invalidate = function() {
 			this._yoyo = (this.vars.yoyo === true);
@@ -183,7 +183,7 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 					if (this._repeat !== 0) {
 						cycleDuration = dur + this._repeatDelay;
 						this._cycle = (this._totalTime / cycleDuration) >> 0; //originally _totalTime % cycleDuration but floating point errors caused problems, so I normalized it. (4 % 0.8 should be 0 but it gets reported as 0.79999999!)
-						if (this._cycle !== 0) if (this._cycle === this._totalTime / cycleDuration) {
+						if (this._cycle !== 0) if (this._cycle === this._totalTime / cycleDuration && prevTotalTime <= time) {
 							this._cycle--; //otherwise when rendered exactly at the end time, it will act as though it is repeating (at the beginning)
 						}
 						this._time = this._totalTime - (this._cycle * cycleDuration);
@@ -573,7 +573,7 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 			},
 			p = TimelineLite.prototype = new SimpleTimeline();
 
-		TimelineLite.version = "1.18.2";
+		TimelineLite.version = "1.18.3";
 		p.constructor = TimelineLite;
 		p.kill()._gc = p._forcingPlayhead = p._hasPause = false;
 
