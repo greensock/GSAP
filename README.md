@@ -31,4 +31,4 @@ Head over to the <a href="http://greensock.com/forums/">GreenSock forums</a> whi
 
 Copyright (c) 2008-2016, GreenSock. All rights reserved. 
 
-License: GreenSock's standard "no charge" license can be viewed at <a href="http://greensock.com/standard-license">http://greensock.com/standard-license</a>. <a href="http://greensock.com/club/">Club GreenSock</a> members are granted additional rights. See <a href="http://greensock.com/licensing/">http://greensock.com/licensing/</a> for details.
+License: GreenSock's standard "no charge" license can be viewed at <a href="http://greensock.com/standard-license">http://greensock.com/standard-license</a>. <a href="http://greensock.com/club/">Club GreenSock</a> members are granted additional rights. See <a href="http://greensock.com/licensing/">http://greensock.com/licensing/</a> for details. Why doesn't GreenSock employ an MIT (or similar) open source license, and why is that a *good* thing? This article explains it all: <a href="http://greensock.com/why-license/" target="_blank">http://greensock.com/why-license/</a>
