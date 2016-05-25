@@ -1,7 +1,7 @@
 {
     "name": "gsap",
     "filename": "TweenMax.min.js",
-    "version": "1.18.4",
+    "version": "1.18.5",
     "description": "Think of GSAP as the Swiss Army Knife of animation...but better. It animates anything JavaScript can touch (CSS properties, canvas library objects, SVG, generic objects, whatever) and it solves countless browser inconsistencies, all with blazing speed (up to 20x faster than jQuery), including automatic GPU-acceleration of transforms. See http://greensock.com/why-gsap/ for details. Most other libraries only animate CSS properties. Plus, their sequencing abilities and runtime controls pale by comparison. Simply put, GSAP is the most flexible high-performance animation library on the planet, which is probably why Google recommends it for JS-based animations and every major ad network excludes it from file size calculations. Unlike monolithic frameworks that dictate how you structure your apps, GSAP simply affects the animation layer; sprinkle it wherever you want. See http://greensock.com/gsap/ for details.",
     "homepage": "http://greensock.com/gsap/",
 	"main": "./src/uncompressed/TweenMax.js",
@@ -31,7 +31,7 @@
            "web": "http://greensock.com" 
        } 
    ],
-  "license": "GreenSock's standard 'no charge' license can be viewed at http://greensock.com/standard-license. Club GreenSock members are granted additional rights. See http://greensock.com/licensing/ for details. Why doesn't GreenSock employ an MIT (or similar) open source license, and why is that a *good* thing? This article explains it all: http://greensock.com/why-license/",
+  "license": "GreenSock's standard 'no charge' license: http://greensock.com/standard-license. Club GreenSock members get additional rights; see http://greensock.com/licensing/. Learn why GreenSock doesn't employ an MIT license: http://greensock.com/why-license/",
    "bugs": {
        "url": "http://greensock.com/forums/"
    },

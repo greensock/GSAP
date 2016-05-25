@@ -1,6 +1,6 @@
 /*!
- * VERSION: 1.18.4
- * DATE: 2016-04-26
+ * VERSION: 1.18.5
+ * DATE: 2016-05-24
  * UPDATES AND DOCS AT: http://greensock.com
  * 
  * Includes all of the following: TweenLite, TweenMax, TimelineLite, TimelineMax, EasePack, CSSPlugin, RoundPropsPlugin, BezierPlugin, AttrPlugin, DirectionalRotationPlugin
@@ -50,7 +50,7 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 			p = TweenMax.prototype = TweenLite.to({}, 0.1, {}),
 			_blankArray = [];
 
-		TweenMax.version = "1.18.4";
+		TweenMax.version = "1.18.5";
 		p.constructor = TweenMax;
 		p.kill()._gc = false;
 		TweenMax.killTweensOf = TweenMax.killDelayedCallsTo = TweenLite.killTweensOf;
@@ -375,6 +375,10 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 				}
 				if (cycle) {
 					_applyCycle(copy, targets, i);
+					if (copy.duration != null) {
+						duration = copy.duration;
+						delete copy.duration;
+					}
 				}
 				if (fromCycle) {
 					fromCycle = copy.startAt = {};
@@ -683,7 +687,7 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 			},
 			p = TimelineLite.prototype = new SimpleTimeline();
 
-		TimelineLite.version = "1.18.4";
+		TimelineLite.version = "1.18.5";
 		p.constructor = TimelineLite;
 		p.kill()._gc = p._forcingPlayhead = p._hasPause = false;
 
@@ -750,6 +754,10 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 				}
 				if (cycle) {
 					_applyCycle(copy, targets, i);
+					if (copy.duration != null) {
+						duration = copy.duration;
+						delete copy.duration;
+					}
 				}
 				tl.to(targets[i], duration, copy, i * stagger);
 			}
@@ -1070,7 +1078,7 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 				this._active = true;  //so that if the user renders the timeline (as opposed to the parent timeline rendering it), it is forced to re-render and align it with the proper time/frame on the next rendering cycle. Maybe the timeline already finished but the user manually re-renders it as halfway done, for example.
 			}
 
-			if (prevTime === 0) if (this.vars.onStart) if (this._time !== 0) if (!suppressEvents) {
+			if (prevTime === 0) if (this.vars.onStart) if (this._time !== 0 || !this._duration) if (!suppressEvents) {
 				this._callback("onStart");
 			}
 
@@ -1409,7 +1417,7 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 
 		p.constructor = TimelineMax;
 		p.kill()._gc = false;
-		TimelineMax.version = "1.18.4";
+		TimelineMax.version = "1.18.5";
 
 		p.invalidate = function() {
 			this._yoyo = (this.vars.yoyo === true);
@@ -1668,7 +1676,7 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 				this._active = true;  //so that if the user renders the timeline (as opposed to the parent timeline rendering it), it is forced to re-render and align it with the proper time/frame on the next rendering cycle. Maybe the timeline already finished but the user manually re-renders it as halfway done, for example.
 			}
 
-			if (prevTotalTime === 0) if (this.vars.onStart) if (this._totalTime !== 0) if (!suppressEvents) {
+			if (prevTotalTime === 0) if (this.vars.onStart) if (this._totalTime !== 0 || !this._totalDuration) if (!suppressEvents) {
 				this._callback("onStart");
 			}
 
@@ -1907,6 +1915,12 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 			_corProps = {},
 			_globals = _gsScope._gsDefine.globals,
 			Segment = function(a, b, c, d) {
+				if (c === d) { //if c and d match, the final autoRotate value could lock at -90 degrees, so differentiate them slightly.
+					c = d - (d - b) / 1000000;
+				}
+				if (a === b) { //if a and b match, the starting autoRotate value could lock at -90 degrees, so differentiate them slightly.
+					b = a + (c - a) / 1000000;
+				}
 				this.a = a;
 				this.b = b;
 				this.c = c;
@@ -2194,7 +2208,7 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 			BezierPlugin = _gsScope._gsDefine.plugin({
 					propName: "bezier",
 					priority: -1,
-					version: "1.3.5",
+					version: "1.3.6",
 					API: 2,
 					global:true,
 
@@ -2431,6 +2445,7 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 						cssp._enableTransforms(false);
 					}
 					data.autoRotate = cssp._target._gsTransform;
+					data.proxy.rotation = data.autoRotate.rotation || 0;
 				}
 				plugin._onInitTween(data.proxy, v, cssp._tween);
 				return pt;
@@ -2502,7 +2517,7 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 			p = CSSPlugin.prototype = new TweenPlugin("css");
 
 		p.constructor = CSSPlugin;
-		CSSPlugin.version = "1.18.4";
+		CSSPlugin.version = "1.18.5";
 		CSSPlugin.API = 2;
 		CSSPlugin.defaultTransformPerspective = 0;
 		CSSPlugin.defaultSkewType = "compensated";
@@ -2638,9 +2653,13 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 					node = t,
 					style = _tempDiv.style,
 					neg = (v < 0),
+					precise = (v === 1),
 					pix, cache, time;
 				if (neg) {
 					v = -v;
+				}
+				if (precise) {
+					v *= 100;
 				}
 				if (sfx === "%" && p.indexOf("border") !== -1) {
 					pix = (v / 100) * (horiz ? t.clientWidth : t.clientHeight);
@@ -2668,6 +2687,9 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 					if (pix === 0 && !recurse) {
 						pix = _convertToPixels(t, p, v, sfx, true);
 					}
+				}
+				if (precise) {
+					pix /= 100;
 				}
 				return neg ? -pix : pix;
 			},
@@ -3732,7 +3754,8 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 			_getMatrix = function(e, force2D) {
 				var tm = e._gsTransform || new Transform(),
 					rnd = 100000,
-					isDefault, s, m, n, dec;
+					style = e.style,
+					isDefault, s, m, n, dec, none;
 				if (_transformProp) {
 					s = _getStyle(e, _transformPropCSS, null, true);
 				} else if (e.currentStyle) {
@@ -3741,9 +3764,29 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 					s = (s && s.length === 4) ? [s[0].substr(4), Number(s[2].substr(4)), Number(s[1].substr(4)), s[3].substr(4), (tm.x || 0), (tm.y || 0)].join(",") : "";
 				}
 				isDefault = (!s || s === "none" || s === "matrix(1, 0, 0, 1, 0, 0)");
+				if (isDefault && _transformProp && ((none = (_getComputedStyle(e).display === "none")) || !e.parentNode)) {
+					if (none) { //browsers don't report transforms accurately unless the element is in the DOM and has a display value that's not "none".
+						n = style.display;
+						style.display = "block";
+					}
+					if (!e.parentNode) {
+						dec = 1; //flag
+						_docElement.appendChild(e);
+					}
+					s = _getStyle(e, _transformPropCSS, null, true);
+					isDefault = (!s || s === "none" || s === "matrix(1, 0, 0, 1, 0, 0)");
+					if (n) {
+						style.display = n;
+					} else if (none) {
+						_removeProp(style, "display");
+					}
+					if (dec) {
+						_docElement.removeChild(e);
+					}
+				}
 				if (tm.svg || (e.getBBox && _isSVG(e))) {
-					if (isDefault && (e.style[_transformProp] + "").indexOf("matrix") !== -1) { //some browsers (like Chrome 40) don't correctly report transforms that are applied inline on an SVG element (they don't get included in the computed style), so we double-check here and accept matrix values
-						s = e.style[_transformProp];
+					if (isDefault && (style[_transformProp] + "").indexOf("matrix") !== -1) { //some browsers (like Chrome 40) don't correctly report transforms that are applied inline on an SVG element (they don't get included in the computed style), so we double-check here and accept matrix values
+						s = style[_transformProp];
 						isDefault = 0;
 					}
 					m = e.getAttribute("transform");
@@ -3792,7 +3835,7 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 
 				tm.svg = !!(t.getBBox && _isSVG(t));
 				if (tm.svg) {
-					_parseSVGOrigin(t, _getStyle(t, _transformOriginProp, _cs, false, "50% 50%") + "", tm, t.getAttribute("data-svg-origin"));
+					_parseSVGOrigin(t, _getStyle(t, _transformOriginProp, cs, false, "50% 50%") + "", tm, t.getAttribute("data-svg-origin"));
 					_useSVGTransformAttr = CSSPlugin.useSVGTransformAttr || _forceSVGTransformAttr;
 				}
 				m = _getMatrix(t);
@@ -3868,15 +3911,19 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 						tm.scaleX = ((Math.sqrt(a11 * a11 + a21 * a21) * rnd + 0.5) | 0) / rnd;
 						tm.scaleY = ((Math.sqrt(a22 * a22 + a23 * a23) * rnd + 0.5) | 0) / rnd;
 						tm.scaleZ = ((Math.sqrt(a32 * a32 + a33 * a33) * rnd + 0.5) | 0) / rnd;
-						tm.skewX = (a12 || a22) ? Math.atan2(a12, a22) * _RAD2DEG + tm.rotation : tm.skewX || 0;
-						if (Math.abs(tm.skewX) > 90 && Math.abs(tm.skewX) < 270) {
-							if (invX) {
-								tm.scaleX *= -1;
-								tm.skewX += (tm.rotation <= 0) ? 180 : -180;
-								tm.rotation += (tm.rotation <= 0) ? 180 : -180;
-							} else {
-								tm.scaleY *= -1;
-								tm.skewX += (tm.skewX <= 0) ? 180 : -180;
+						if (tm.rotationX || tm.rotationY) {
+							tm.skewX = 0;
+						} else {
+							tm.skewX = (a12 || a22) ? Math.atan2(a12, a22) * _RAD2DEG + tm.rotation : tm.skewX || 0;
+							if (Math.abs(tm.skewX) > 90 && Math.abs(tm.skewX) < 270) {
+								if (invX) {
+									tm.scaleX *= -1;
+									tm.skewX += (tm.rotation <= 0) ? 180 : -180;
+									tm.rotation += (tm.rotation <= 0) ? 180 : -180;
+								} else {
+									tm.scaleY *= -1;
+									tm.skewX += (tm.skewX <= 0) ? 180 : -180;
+								}
 							}
 						}
 						tm.perspective = a43 ? 1 / ((a43 < 0) ? -a43 : a43) : 0;
@@ -3888,7 +3935,7 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 							tm.y -= tm.yOrigin - (tm.yOrigin * a21 - tm.xOrigin * a22);
 						}
 
-					} else if ((!_supports3D || parse || !m.length || tm.x !== m[4] || tm.y !== m[5] || (!tm.rotationX && !tm.rotationY)) && !(tm.x !== undefined && _getStyle(t, "display", cs) === "none")) { //sometimes a 6-element matrix is returned even when we performed 3D transforms, like if rotationX and rotationY are 180. In cases like this, we still need to honor the 3D transforms. If we just rely on the 2D info, it could affect how the data is interpreted, like scaleY might get set to -1 or rotation could get offset by 180 degrees. For example, do a TweenLite.to(element, 1, {css:{rotationX:180, rotationY:180}}) and then later, TweenLite.to(element, 1, {css:{rotationX:0}}) and without this conditional logic in place, it'd jump to a state of being unrotated when the 2nd tween starts. Then again, we need to honor the fact that the user COULD alter the transforms outside of CSSPlugin, like by manually applying new css, so we try to sense that by looking at x and y because if those changed, we know the changes were made outside CSSPlugin and we force a reinterpretation of the matrix values. Also, in Webkit browsers, if the element's "display" is "none", its calculated style value will always return empty, so if we've already recorded the values in the _gsTransform object, we'll just rely on those.
+					} else if ((!_supports3D || parse || !m.length || tm.x !== m[4] || tm.y !== m[5] || (!tm.rotationX && !tm.rotationY))) { //sometimes a 6-element matrix is returned even when we performed 3D transforms, like if rotationX and rotationY are 180. In cases like this, we still need to honor the 3D transforms. If we just rely on the 2D info, it could affect how the data is interpreted, like scaleY might get set to -1 or rotation could get offset by 180 degrees. For example, do a TweenLite.to(element, 1, {css:{rotationX:180, rotationY:180}}) and then later, TweenLite.to(element, 1, {css:{rotationX:0}}) and without this conditional logic in place, it'd jump to a state of being unrotated when the 2nd tween starts. Then again, we need to honor the fact that the user COULD alter the transforms outside of CSSPlugin, like by manually applying new css, so we try to sense that by looking at x and y because if those changed, we know the changes were made outside CSSPlugin and we force a reinterpretation of the matrix values. Also, in Webkit browsers, if the element's "display" is "none", its calculated style value will always return empty, so if we've already recorded the values in the _gsTransform object, we'll just rely on those.
 						var k = (m.length >= 6),
 							a = k ? m[0] : 1,
 							b = m[1] || 0,
@@ -4270,15 +4317,8 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 				v = vars,
 				endRotations = {},
 				transformOriginString = "transformOrigin",
-				m1, m2, copy, orig, has3D, hasChange, dr, x, y, matrix;
-			if (vars.display) { //if the user is setting display during this tween, it may not be instantiated yet but we must force it here in order to get accurate readings. If display is "none", some browsers refuse to report the transform properties correctly.
-				copy = _getStyle(t, "display");
-				style.display = "block";
-				m1 = _getTransform(t, _cs, true, vars.parseTransform);
-				style.display = copy;
-			} else {
-				m1 = _getTransform(t, _cs, true, vars.parseTransform);
-			}
+				m1 = _getTransform(t, _cs, true, vars.parseTransform),
+				m2, copy, orig, has3D, hasChange, dr, x, y, matrix;
 			cssp._transform = m1;
 			if (typeof(v.transform) === "string" && _transformProp) { //for values like transform:"rotate(60deg) scale(0.5, 0.8)"
 				copy = _tempDiv.style; //don't use the original target because it might be SVG in which case some browsers don't report computed style correctly.
@@ -4301,7 +4341,7 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 						m2.y -= orig.yOffset - m1.yOffset;
 					}
 					if (x || y) {
-						matrix = _getMatrix(_tempDiv);
+						matrix = _getMatrix(_tempDiv, true);
 						m2.x -= x - (x * matrix[0] + y * matrix[2]);
 						m2.y -= y - (x * matrix[1] + y * matrix[3]);
 					}
@@ -4541,7 +4581,13 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 		_registerComplexSpecialProp("textShadow", {defaultValue:"0px 0px 0px #999", color:true, multi:true});
 		_registerComplexSpecialProp("autoRound,strictUnits", {parser:function(t, e, p, cssp, pt) {return pt;}}); //just so that we can ignore these properties (not tween them)
 		_registerComplexSpecialProp("border", {defaultValue:"0px solid #000", parser:function(t, e, p, cssp, pt, plugin) {
-				return this.parseComplex(t.style, this.format(_getStyle(t, "borderTopWidth", _cs, false, "0px") + " " + _getStyle(t, "borderTopStyle", _cs, false, "solid") + " " + _getStyle(t, "borderTopColor", _cs, false, "#000")), this.format(e), pt, plugin);
+			var bw = _getStyle(t, "borderTopWidth", _cs, false, "0px"),
+				end = this.format(e).split(" "),
+				esfx = end[0].replace(_suffixExp, "");
+			if (esfx !== "px") { //if we're animating to a non-px value, we need to convert the beginning width to that unit.
+				bw = (parseFloat(bw) / _convertToPixels(t, "borderTopWidth", 1, esfx)) + esfx;
+			}
+			return this.parseComplex(t.style, this.format(bw + " " + _getStyle(t, "borderTopStyle", _cs, false, "solid") + " " + _getStyle(t, "borderTopColor", _cs, false, "#000")), end.join(" "), pt, plugin);
 			}, color:true, formatter:function(v) {
 				var a = v.split(" ");
 				return a[0] + " " + (a[1] || "solid") + " " + (v.match(_colorExp) || ["#000"])[0];
@@ -5769,7 +5815,8 @@ if (_gsScope._gsDefine) { _gsScope._gsQueue.pop()(); } //necessary in case Tween
 (function(window, moduleName) {
 
 		"use strict";
-		var _globals = window.GreenSockGlobals = window.GreenSockGlobals || window;
+		var _exports = {},
+			_globals = window.GreenSockGlobals = window.GreenSockGlobals || window;
 		if (_globals.TweenLite) {
 			return; //in case the core set of classes is already loaded, don't instantiate twice.
 		}
@@ -5863,8 +5910,15 @@ if (_gsScope._gsDefine) { _gsScope._gsQueue.pop()(); } //necessary in case Tween
 							hasModule = (typeof(module) !== "undefined" && module.exports);
 							if (!hasModule && typeof(define) === "function" && define.amd){ //AMD
 								define((window.GreenSockAMDPath ? window.GreenSockAMDPath + "/" : "") + ns.split(".").pop(), [], function() { return cl; });
-							} else if (ns === moduleName && hasModule){ //node
-								module.exports = cl;
+							} else if (hasModule){ //node
+								if (ns === moduleName) {
+									module.exports = _exports[moduleName] = cl;
+									for (i in _exports) {
+										cl[i] = _exports[i];
+									}
+								} else if (_exports[moduleName]) {
+									_exports[moduleName][n] = cl;
+								}
 							}
 						}
 						for (i = 0; i < this.sc.length; i++) {
@@ -5972,6 +6026,9 @@ if (_gsScope._gsDefine) { _gsScope._gsQueue.pop()(); } //necessary in case Tween
 			var list = this._listeners[type],
 				index = 0,
 				listener, i;
+			if (this === _ticker && !_tickerActive) {
+				_ticker.wake();
+			}
 			if (list == null) {
 				this._listeners[type] = list = [];
 			}
@@ -5985,9 +6042,6 @@ if (_gsScope._gsDefine) { _gsScope._gsQueue.pop()(); } //necessary in case Tween
 				}
 			}
 			list.splice(index, 0, {c:callback, s:scope, up:useParam, pr:priority});
-			if (this === _ticker && !_tickerActive) {
-				_ticker.wake();
-			}
 		};
 
 		p.removeEventListener = function(type, callback) {
@@ -6682,7 +6736,7 @@ if (_gsScope._gsDefine) { _gsScope._gsQueue.pop()(); } //necessary in case Tween
 		p._firstPT = p._targets = p._overwrittenProps = p._startAt = null;
 		p._notifyPluginsOfEnabled = p._lazy = false;
 
-		TweenLite.version = "1.18.4";
+		TweenLite.version = "1.18.5";
 		TweenLite.defaultEase = p._ease = new Ease(null, null, 1, 1);
 		TweenLite.defaultOverwrite = "auto";
 		TweenLite.ticker = _ticker;
@@ -6812,7 +6866,7 @@ if (_gsScope._gsDefine) { _gsScope._gsQueue.pop()(); } //necessary in case Tween
 			_plugins = TweenLite._plugins = {},
 			_tweenLookup = _internals.tweenLookup = {},
 			_tweenLookupNum = 0,
-			_reservedProps = _internals.reservedProps = {ease:1, delay:1, overwrite:1, onComplete:1, onCompleteParams:1, onCompleteScope:1, useFrames:1, runBackwards:1, startAt:1, onUpdate:1, onUpdateParams:1, onUpdateScope:1, onStart:1, onStartParams:1, onStartScope:1, onReverseComplete:1, onReverseCompleteParams:1, onReverseCompleteScope:1, onRepeat:1, onRepeatParams:1, onRepeatScope:1, easeParams:1, yoyo:1, immediateRender:1, repeat:1, repeatDelay:1, data:1, paused:1, reversed:1, autoCSS:1, lazy:1, onOverwrite:1, callbackScope:1, stringFilter:1},
+			_reservedProps = _internals.reservedProps = {ease:1, delay:1, overwrite:1, onComplete:1, onCompleteParams:1, onCompleteScope:1, useFrames:1, runBackwards:1, startAt:1, onUpdate:1, onUpdateParams:1, onUpdateScope:1, onStart:1, onStartParams:1, onStartScope:1, onReverseComplete:1, onReverseCompleteParams:1, onReverseCompleteScope:1, onRepeat:1, onRepeatParams:1, onRepeatScope:1, easeParams:1, yoyo:1, immediateRender:1, repeat:1, repeatDelay:1, data:1, paused:1, reversed:1, autoCSS:1, lazy:1, onOverwrite:1, callbackScope:1, stringFilter:1, id:1},
 			_overwriteLookup = {none:0, all:1, auto:2, concurrent:3, allOnStart:4, preexisting:5, "true":1, "false":0},
 			_rootFramesTimeline = Animation._rootFramesTimeline = new SimpleTimeline(),
 			_rootTimeline = Animation._rootTimeline = new SimpleTimeline(),

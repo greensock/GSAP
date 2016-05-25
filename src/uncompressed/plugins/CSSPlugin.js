@@ -1,6 +1,6 @@
 /*!
- * VERSION: 1.18.4
- * DATE: 2016-04-26
+ * VERSION: 1.18.5
+ * DATE: 2016-05-24
  * UPDATES AND DOCS AT: http://greensock.com
  *
  * @license Copyright (c) 2008-2016, GreenSock. All rights reserved.
@@ -31,7 +31,7 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 			p = CSSPlugin.prototype = new TweenPlugin("css");
 
 		p.constructor = CSSPlugin;
-		CSSPlugin.version = "1.18.4";
+		CSSPlugin.version = "1.18.5";
 		CSSPlugin.API = 2;
 		CSSPlugin.defaultTransformPerspective = 0;
 		CSSPlugin.defaultSkewType = "compensated";
@@ -167,9 +167,13 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 					node = t,
 					style = _tempDiv.style,
 					neg = (v < 0),
+					precise = (v === 1),
 					pix, cache, time;
 				if (neg) {
 					v = -v;
+				}
+				if (precise) {
+					v *= 100;
 				}
 				if (sfx === "%" && p.indexOf("border") !== -1) {
 					pix = (v / 100) * (horiz ? t.clientWidth : t.clientHeight);
@@ -197,6 +201,9 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 					if (pix === 0 && !recurse) {
 						pix = _convertToPixels(t, p, v, sfx, true);
 					}
+				}
+				if (precise) {
+					pix /= 100;
 				}
 				return neg ? -pix : pix;
 			},
@@ -1261,7 +1268,8 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 			_getMatrix = function(e, force2D) {
 				var tm = e._gsTransform || new Transform(),
 					rnd = 100000,
-					isDefault, s, m, n, dec;
+					style = e.style,
+					isDefault, s, m, n, dec, none;
 				if (_transformProp) {
 					s = _getStyle(e, _transformPropCSS, null, true);
 				} else if (e.currentStyle) {
@@ -1270,9 +1278,29 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 					s = (s && s.length === 4) ? [s[0].substr(4), Number(s[2].substr(4)), Number(s[1].substr(4)), s[3].substr(4), (tm.x || 0), (tm.y || 0)].join(",") : "";
 				}
 				isDefault = (!s || s === "none" || s === "matrix(1, 0, 0, 1, 0, 0)");
+				if (isDefault && _transformProp && ((none = (_getComputedStyle(e).display === "none")) || !e.parentNode)) {
+					if (none) { //browsers don't report transforms accurately unless the element is in the DOM and has a display value that's not "none".
+						n = style.display;
+						style.display = "block";
+					}
+					if (!e.parentNode) {
+						dec = 1; //flag
+						_docElement.appendChild(e);
+					}
+					s = _getStyle(e, _transformPropCSS, null, true);
+					isDefault = (!s || s === "none" || s === "matrix(1, 0, 0, 1, 0, 0)");
+					if (n) {
+						style.display = n;
+					} else if (none) {
+						_removeProp(style, "display");
+					}
+					if (dec) {
+						_docElement.removeChild(e);
+					}
+				}
 				if (tm.svg || (e.getBBox && _isSVG(e))) {
-					if (isDefault && (e.style[_transformProp] + "").indexOf("matrix") !== -1) { //some browsers (like Chrome 40) don't correctly report transforms that are applied inline on an SVG element (they don't get included in the computed style), so we double-check here and accept matrix values
-						s = e.style[_transformProp];
+					if (isDefault && (style[_transformProp] + "").indexOf("matrix") !== -1) { //some browsers (like Chrome 40) don't correctly report transforms that are applied inline on an SVG element (they don't get included in the computed style), so we double-check here and accept matrix values
+						s = style[_transformProp];
 						isDefault = 0;
 					}
 					m = e.getAttribute("transform");
@@ -1321,7 +1349,7 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 
 				tm.svg = !!(t.getBBox && _isSVG(t));
 				if (tm.svg) {
-					_parseSVGOrigin(t, _getStyle(t, _transformOriginProp, _cs, false, "50% 50%") + "", tm, t.getAttribute("data-svg-origin"));
+					_parseSVGOrigin(t, _getStyle(t, _transformOriginProp, cs, false, "50% 50%") + "", tm, t.getAttribute("data-svg-origin"));
 					_useSVGTransformAttr = CSSPlugin.useSVGTransformAttr || _forceSVGTransformAttr;
 				}
 				m = _getMatrix(t);
@@ -1397,15 +1425,19 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 						tm.scaleX = ((Math.sqrt(a11 * a11 + a21 * a21) * rnd + 0.5) | 0) / rnd;
 						tm.scaleY = ((Math.sqrt(a22 * a22 + a23 * a23) * rnd + 0.5) | 0) / rnd;
 						tm.scaleZ = ((Math.sqrt(a32 * a32 + a33 * a33) * rnd + 0.5) | 0) / rnd;
-						tm.skewX = (a12 || a22) ? Math.atan2(a12, a22) * _RAD2DEG + tm.rotation : tm.skewX || 0;
-						if (Math.abs(tm.skewX) > 90 && Math.abs(tm.skewX) < 270) {
-							if (invX) {
-								tm.scaleX *= -1;
-								tm.skewX += (tm.rotation <= 0) ? 180 : -180;
-								tm.rotation += (tm.rotation <= 0) ? 180 : -180;
-							} else {
-								tm.scaleY *= -1;
-								tm.skewX += (tm.skewX <= 0) ? 180 : -180;
+						if (tm.rotationX || tm.rotationY) {
+							tm.skewX = 0;
+						} else {
+							tm.skewX = (a12 || a22) ? Math.atan2(a12, a22) * _RAD2DEG + tm.rotation : tm.skewX || 0;
+							if (Math.abs(tm.skewX) > 90 && Math.abs(tm.skewX) < 270) {
+								if (invX) {
+									tm.scaleX *= -1;
+									tm.skewX += (tm.rotation <= 0) ? 180 : -180;
+									tm.rotation += (tm.rotation <= 0) ? 180 : -180;
+								} else {
+									tm.scaleY *= -1;
+									tm.skewX += (tm.skewX <= 0) ? 180 : -180;
+								}
 							}
 						}
 						tm.perspective = a43 ? 1 / ((a43 < 0) ? -a43 : a43) : 0;
@@ -1417,7 +1449,7 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 							tm.y -= tm.yOrigin - (tm.yOrigin * a21 - tm.xOrigin * a22);
 						}
 
-					} else if ((!_supports3D || parse || !m.length || tm.x !== m[4] || tm.y !== m[5] || (!tm.rotationX && !tm.rotationY)) && !(tm.x !== undefined && _getStyle(t, "display", cs) === "none")) { //sometimes a 6-element matrix is returned even when we performed 3D transforms, like if rotationX and rotationY are 180. In cases like this, we still need to honor the 3D transforms. If we just rely on the 2D info, it could affect how the data is interpreted, like scaleY might get set to -1 or rotation could get offset by 180 degrees. For example, do a TweenLite.to(element, 1, {css:{rotationX:180, rotationY:180}}) and then later, TweenLite.to(element, 1, {css:{rotationX:0}}) and without this conditional logic in place, it'd jump to a state of being unrotated when the 2nd tween starts. Then again, we need to honor the fact that the user COULD alter the transforms outside of CSSPlugin, like by manually applying new css, so we try to sense that by looking at x and y because if those changed, we know the changes were made outside CSSPlugin and we force a reinterpretation of the matrix values. Also, in Webkit browsers, if the element's "display" is "none", its calculated style value will always return empty, so if we've already recorded the values in the _gsTransform object, we'll just rely on those.
+					} else if ((!_supports3D || parse || !m.length || tm.x !== m[4] || tm.y !== m[5] || (!tm.rotationX && !tm.rotationY))) { //sometimes a 6-element matrix is returned even when we performed 3D transforms, like if rotationX and rotationY are 180. In cases like this, we still need to honor the 3D transforms. If we just rely on the 2D info, it could affect how the data is interpreted, like scaleY might get set to -1 or rotation could get offset by 180 degrees. For example, do a TweenLite.to(element, 1, {css:{rotationX:180, rotationY:180}}) and then later, TweenLite.to(element, 1, {css:{rotationX:0}}) and without this conditional logic in place, it'd jump to a state of being unrotated when the 2nd tween starts. Then again, we need to honor the fact that the user COULD alter the transforms outside of CSSPlugin, like by manually applying new css, so we try to sense that by looking at x and y because if those changed, we know the changes were made outside CSSPlugin and we force a reinterpretation of the matrix values. Also, in Webkit browsers, if the element's "display" is "none", its calculated style value will always return empty, so if we've already recorded the values in the _gsTransform object, we'll just rely on those.
 						var k = (m.length >= 6),
 							a = k ? m[0] : 1,
 							b = m[1] || 0,
@@ -1799,15 +1831,8 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 				v = vars,
 				endRotations = {},
 				transformOriginString = "transformOrigin",
-				m1, m2, copy, orig, has3D, hasChange, dr, x, y, matrix;
-			if (vars.display) { //if the user is setting display during this tween, it may not be instantiated yet but we must force it here in order to get accurate readings. If display is "none", some browsers refuse to report the transform properties correctly.
-				copy = _getStyle(t, "display");
-				style.display = "block";
-				m1 = _getTransform(t, _cs, true, vars.parseTransform);
-				style.display = copy;
-			} else {
-				m1 = _getTransform(t, _cs, true, vars.parseTransform);
-			}
+				m1 = _getTransform(t, _cs, true, vars.parseTransform),
+				m2, copy, orig, has3D, hasChange, dr, x, y, matrix;
 			cssp._transform = m1;
 			if (typeof(v.transform) === "string" && _transformProp) { //for values like transform:"rotate(60deg) scale(0.5, 0.8)"
 				copy = _tempDiv.style; //don't use the original target because it might be SVG in which case some browsers don't report computed style correctly.
@@ -1830,7 +1855,7 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 						m2.y -= orig.yOffset - m1.yOffset;
 					}
 					if (x || y) {
-						matrix = _getMatrix(_tempDiv);
+						matrix = _getMatrix(_tempDiv, true);
 						m2.x -= x - (x * matrix[0] + y * matrix[2]);
 						m2.y -= y - (x * matrix[1] + y * matrix[3]);
 					}
@@ -2070,7 +2095,13 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 		_registerComplexSpecialProp("textShadow", {defaultValue:"0px 0px 0px #999", color:true, multi:true});
 		_registerComplexSpecialProp("autoRound,strictUnits", {parser:function(t, e, p, cssp, pt) {return pt;}}); //just so that we can ignore these properties (not tween them)
 		_registerComplexSpecialProp("border", {defaultValue:"0px solid #000", parser:function(t, e, p, cssp, pt, plugin) {
-				return this.parseComplex(t.style, this.format(_getStyle(t, "borderTopWidth", _cs, false, "0px") + " " + _getStyle(t, "borderTopStyle", _cs, false, "solid") + " " + _getStyle(t, "borderTopColor", _cs, false, "#000")), this.format(e), pt, plugin);
+			var bw = _getStyle(t, "borderTopWidth", _cs, false, "0px"),
+				end = this.format(e).split(" "),
+				esfx = end[0].replace(_suffixExp, "");
+			if (esfx !== "px") { //if we're animating to a non-px value, we need to convert the beginning width to that unit.
+				bw = (parseFloat(bw) / _convertToPixels(t, "borderTopWidth", 1, esfx)) + esfx;
+			}
+			return this.parseComplex(t.style, this.format(bw + " " + _getStyle(t, "borderTopStyle", _cs, false, "solid") + " " + _getStyle(t, "borderTopColor", _cs, false, "#000")), end.join(" "), pt, plugin);
 			}, color:true, formatter:function(v) {
 				var a = v.split(" ");
 				return a[0] + " " + (a[1] || "solid") + " " + (v.match(_colorExp) || ["#000"])[0];
@@ -2735,7 +2766,7 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 		return (_gsScope.GreenSockGlobals || _gsScope)[name];
 	};
 	if (typeof(define) === "function" && define.amd) { //AMD
-		define(["TweenLite"], getGlobal);
+		define(["../TweenLite"], getGlobal);
 	} else if (typeof(module) !== "undefined" && module.exports) { //node
 		require("../TweenLite.js");
 		module.exports = getGlobal();

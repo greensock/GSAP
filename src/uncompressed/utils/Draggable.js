@@ -1,6 +1,6 @@
 /*!
- * VERSION: 0.14.6
- * DATE: 2016-04-26
+ * VERSION: 0.14.7
+ * DATE: 2016-05-25
  * UPDATES AND DOCS AT: http://greensock.com
  *
  * Requires TweenLite and CSSPlugin version 1.17.0 or later (TweenMax contains both TweenLite and CSSPlugin). ThrowPropsPlugin is required for momentum-based continuation of movement after the mouse/touch is released (ThrowPropsPlugin is a membership benefit of Club GreenSock - http://greensock.com/club/).
@@ -8,7 +8,7 @@
  * @license Copyright (c) 2008-2016, GreenSock. All rights reserved.
  * This work is subject to the terms at http://greensock.com/standard-license or for
  * Club GreenSock members, the software agreement that was issued with your membership.
- * 
+ *
  * @author: Jack Doyle, jack@greensock.com
  */
 var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(global) !== "undefined") ? global : this || window; //helps ensure compatibility with AMD/RequireJS and CommonJS/Node
@@ -1400,11 +1400,11 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 						}
 					},
 
-					updateMatrix = function() {
+					updateMatrix = function(shiftStart) {
 						var start = matrix || [1,0,0,1,0,0],
 							a, b, c, d, tx, ty, determinant, pointerX, pointerY;
 						matrix = _getConcatenatedMatrix(target.parentNode, true);
-						if (self.isPressed && start.join(",") !== matrix.join(",")) { //if the matrix changes WHILE the element is pressed, we must adjust the startPointerX and startPointerY accordingly, so we invert the original matrix and figure out where the pointerX and pointerY were in the global space, then apply the new matrix to get the updated coordinates.
+						if (shiftStart && self.isPressed && start.join(",") !== matrix.join(",")) { //if the matrix changes WHILE the element is pressed, we must adjust the startPointerX and startPointerY accordingly, so we invert the original matrix and figure out where the pointerX and pointerY were in the global space, then apply the new matrix to get the updated coordinates.
 							a = start[0];
 							b = start[1];
 							c = start[2];
@@ -1425,7 +1425,7 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 
 					recordStartPositions = function() {
 						var edgeTolerance = 1 - self.edgeResistance;
-						updateMatrix();
+						updateMatrix(false);
 						if (matrix) {
 							startPointerX = self.pointerX * matrix[0] + self.pointerY * matrix[2] + matrix[4]; //translate to local coordinate system
 							startPointerY = self.pointerX * matrix[1] + self.pointerY * matrix[3] + matrix[5];
@@ -1510,7 +1510,7 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 
 					//called when the mouse is pressed (or touch starts)
 					onPress = function(e) {
-						var temp, i;
+						var i;
 						if (!enabled || self.isPressed || !e || ((e.type === "mousedown" || e.type === "pointerdown") && _getTime() - clickTime < 30 && _touchEventLookup[self.pointerEvent.type])) { //when we DON'T preventDefault() in order to accommodate touch-scrolling and the user just taps, many browsers also fire a mousedown/mouseup sequence AFTER the touchstart/touchend sequence, thus it'd result in two quick "click" events being dispatched. This line senses that condition and halts it on the subsequent mousedown.
 							return;
 						}
@@ -1994,10 +1994,10 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 					return self;
 				};
 
-				this.update = function(applyBounds, ignoreExternalChanges) {
+				this.update = function(applyBounds, sticky, ignoreExternalChanges) {
 					var x = self.x,
 						y = self.y;
-					updateMatrix();
+					updateMatrix(!sticky);
 					if (applyBounds) {
 						self.applyBounds();
 					} else {
@@ -2006,7 +2006,11 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 						}
 						syncXY(true);
 					}
-					if (self.isPressed && ((allowX && Math.abs(x - self.x) > 0.01) || (allowY && (Math.abs(y - self.y) > 0.01 && !rotationMode)))) {
+					setPointerPosition(self.pointerX, self.pointerY);
+					if (dirty) {
+						render(true);
+					}
+					if (self.isPressed && !sticky && ((allowX && Math.abs(x - self.x) > 0.01) || (allowY && (Math.abs(y - self.y) > 0.01 && !rotationMode)))) {
 						recordStartPositions();
 					}
 					if (self.autoScroll) {
@@ -2058,6 +2062,7 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 						tween:{},
 						setRatio:(_isOldIE ? function() { TweenLite.set(target, tempVars); } : CSSPlugin._internals.setTransformRatio || CSSPlugin._internals.set3DTransformRatio)
 					};
+					recordStartPositions();
 					self.update(true);
 					return self;
 				};
@@ -2159,7 +2164,7 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 		p.constructor = Draggable;
 		p.pointerX = p.pointerY = 0;
 		p.isDragging = p.isPressed = false;
-		Draggable.version = "0.14.6";
+		Draggable.version = "0.14.7";
 		Draggable.zIndex = 1000;
 
 		_addListener(_doc, "touchcancel", function() {
@@ -2269,7 +2274,7 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 		return (_gsScope.GreenSockGlobals || _gsScope)[name];
 	};
 	if (typeof(define) === "function" && define.amd) { //AMD
-		define(["TweenLite"], getGlobal);
+		define(["../TweenLite", "../plugins/CSSPlugin"], getGlobal);
 	} else if (typeof(module) !== "undefined" && module.exports) { //node
 		require("../TweenLite.js");
 		require("../plugins/CSSPlugin.js");

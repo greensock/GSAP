@@ -1,6 +1,6 @@
 /*!
- * VERSION: beta 1.3.5
- * DATE: 2016-04-19
+ * VERSION: 1.3.6
+ * DATE: 2016-05-24
  * UPDATES AND DOCS AT: http://greensock.com
  *
  * @license Copyright (c) 2008-2016, GreenSock. All rights reserved.
@@ -21,6 +21,12 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 			_corProps = {},
 			_globals = _gsScope._gsDefine.globals,
 			Segment = function(a, b, c, d) {
+				if (c === d) { //if c and d match, the final autoRotate value could lock at -90 degrees, so differentiate them slightly.
+					c = d - (d - b) / 1000000;
+				}
+				if (a === b) { //if a and b match, the starting autoRotate value could lock at -90 degrees, so differentiate them slightly.
+					b = a + (c - a) / 1000000;
+				}
 				this.a = a;
 				this.b = b;
 				this.c = c;
@@ -308,7 +314,7 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 			BezierPlugin = _gsScope._gsDefine.plugin({
 					propName: "bezier",
 					priority: -1,
-					version: "1.3.5",
+					version: "1.3.6",
 					API: 2,
 					global:true,
 
@@ -545,6 +551,7 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 						cssp._enableTransforms(false);
 					}
 					data.autoRotate = cssp._target._gsTransform;
+					data.proxy.rotation = data.autoRotate.rotation || 0;
 				}
 				plugin._onInitTween(data.proxy, v, cssp._tween);
 				return pt;
@@ -588,7 +595,7 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 		return (_gsScope.GreenSockGlobals || _gsScope)[name];
 	};
 	if (typeof(define) === "function" && define.amd) { //AMD
-		define(["TweenLite"], getGlobal);
+		define(["../TweenLite"], getGlobal);
 	} else if (typeof(module) !== "undefined" && module.exports) { //node
 		require("../TweenLite.js");
 		module.exports = getGlobal();
