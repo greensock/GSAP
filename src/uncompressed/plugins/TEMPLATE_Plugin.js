@@ -72,4 +72,4 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 
 	});
 
-}); if (_gsScope._gsDefine) { _gsScope._gsQueue.pop()(); }
+}); if (_gsScope._gsDefine) _gsScope._gsQueue.pop()();
