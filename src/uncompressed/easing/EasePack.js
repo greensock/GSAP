@@ -1,6 +1,6 @@
 /*!
- * VERSION: 1.15.4
- * DATE: 2016-05-24
+ * VERSION: 1.15.5
+ * DATE: 2016-07-08
  * UPDATES AND DOCS AT: http://greensock.com
  *
  * @license Copyright (c) 2008-2016, GreenSock. All rights reserved.
@@ -351,7 +351,7 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 		return (_gsScope.GreenSockGlobals || _gsScope);
 	};
 	if (typeof(define) === "function" && define.amd) { //AMD
-		define(["../TweenLite"], getGlobal);
+		define(["TweenLite"], getGlobal);
 	} else if (typeof(module) !== "undefined" && module.exports) { //node
 		require("../TweenLite.js");
 		module.exports = getGlobal();

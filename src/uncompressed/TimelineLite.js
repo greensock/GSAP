@@ -1,6 +1,6 @@
 /*!
- * VERSION: 1.18.5
- * DATE: 2016-05-24
+ * VERSION: 1.18.6
+ * DATE: 2016-07-08
  * UPDATES AND DOCS AT: http://greensock.com
  *
  * @license Copyright (c) 2008-2016, GreenSock. All rights reserved.
@@ -55,7 +55,7 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 					p, val;
 				for (p in alt) {
 					val = alt[p];
-					vars[p] = (typeof(val) === "function") ? val.call(targets[i], i) : val[i % val.length];
+					vars[p] = (typeof(val) === "function") ? val(i, targets[i]) : val[i % val.length];
 				}
 				delete vars.cycle;
 			},
@@ -69,7 +69,7 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 			},
 			p = TimelineLite.prototype = new SimpleTimeline();
 
-		TimelineLite.version = "1.18.5";
+		TimelineLite.version = "1.19.0";
 		p.constructor = TimelineLite;
 		p.kill()._gc = p._forcingPlayhead = p._hasPause = false;
 
@@ -773,7 +773,7 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 		return (_gsScope.GreenSockGlobals || _gsScope)[name];
 	};
 	if (typeof(define) === "function" && define.amd) { //AMD
-		define(["./TweenLite"], getGlobal);
+		define(["TweenLite"], getGlobal);
 	} else if (typeof(module) !== "undefined" && module.exports) { //node
 		require("./TweenLite.js"); //dependency
 		module.exports = getGlobal();

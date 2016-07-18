@@ -1,6 +1,6 @@
 /*!
- * VERSION: 1.18.5
- * DATE: 2016-05-24
+ * VERSION: 1.19.0
+ * DATE: 2016-07-14
  * UPDATES AND DOCS AT: http://greensock.com
  * 
  * Includes all of the following: TweenLite, TweenMax, TimelineLite, TimelineMax, EasePack, CSSPlugin, RoundPropsPlugin, BezierPlugin, AttrPlugin, DirectionalRotationPlugin
@@ -30,7 +30,7 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 					p, val;
 				for (p in alt) {
 					val = alt[p];
-					vars[p] = (typeof(val) === "function") ? val.call(targets[i], i) : val[i % val.length];
+					vars[p] = (typeof(val) === "function") ? val(i, targets[i]) : val[i % val.length];
 				}
 				delete vars.cycle;
 			},
@@ -50,7 +50,7 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 			p = TweenMax.prototype = TweenLite.to({}, 0.1, {}),
 			_blankArray = [];
 
-		TweenMax.version = "1.18.5";
+		TweenMax.version = "1.19.0";
 		p.constructor = TweenMax;
 		p.kill()._gc = false;
 		TweenMax.killTweensOf = TweenMax.killDelayedCallsTo = TweenLite.killTweensOf;
@@ -687,7 +687,7 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 			},
 			p = TimelineLite.prototype = new SimpleTimeline();
 
-		TimelineLite.version = "1.18.5";
+		TimelineLite.version = "1.19.0";
 		p.constructor = TimelineLite;
 		p.kill()._gc = p._forcingPlayhead = p._hasPause = false;
 
@@ -1412,12 +1412,13 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 			TweenLiteInternals = TweenLite._internals,
 			_lazyTweens = TweenLiteInternals.lazyTweens,
 			_lazyRender = TweenLiteInternals.lazyRender,
+			_globals = _gsScope._gsDefine.globals,
 			_easeNone = new Ease(null, null, 1, 0),
 			p = TimelineMax.prototype = new TimelineLite();
 
 		p.constructor = TimelineMax;
 		p.kill()._gc = false;
-		TimelineMax.version = "1.18.5";
+		TimelineMax.version = "1.19.0";
 
 		p.invalidate = function() {
 			this._yoyo = (this.vars.yoyo === true);
@@ -1456,13 +1457,14 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 		p.tweenTo = function(position, vars) {
 			vars = vars || {};
 			var copy = {ease:_easeNone, useFrames:this.usesFrames(), immediateRender:false},
+				Engine = (vars.repeat && _globals.TweenMax) || TweenLite,
 				duration, p, t;
 			for (p in vars) {
 				copy[p] = vars[p];
 			}
 			copy.time = this._parseTimeOrLabel(position);
 			duration = (Math.abs(Number(copy.time) - this._time) / this._timeScale) || 0.001;
-			t = new TweenLite(this, duration, copy);
+			t = new Engine(this, duration, copy);
 			copy.onStart = function() {
 				t.target.paused(true);
 				if (t.vars.time !== t.target.time() && duration === t.duration()) { //don't make the duration zero - if it's supposed to be zero, don't worry because it's already initting the tween and will complete immediately, effectively making the duration zero anyway. If we make duration zero, the tween won't run at all.
@@ -2208,7 +2210,7 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 			BezierPlugin = _gsScope._gsDefine.plugin({
 					propName: "bezier",
 					priority: -1,
-					version: "1.3.6",
+					version: "1.3.7",
 					API: 2,
 					global:true,
 
@@ -2219,7 +2221,7 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 							vars = {values:vars};
 						}
 						this._func = {};
-						this._round = {};
+						this._mod = {};
 						this._props = [];
 						this._timeRes = (vars.timeResolution == null) ? 6 : parseInt(vars.timeResolution, 10);
 						var values = vars.values || [],
@@ -2272,6 +2274,7 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 								}
 								p = autoRotate[i][2];
 								this._initialRotations[i] = (this._func[p] ? this._func[p].call(this._target) : this._target[p]) || 0;
+								this._overwriteProps.push(p);
 							}
 						}
 						this._startRatio = tween.vars.runBackwards ? 1 : 0; //we determine the starting ratio when the tween inits which is always 0 unless the tween has runBackwards:true (indicating it's a from() tween) in which case it's 1.
@@ -2342,8 +2345,8 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 							p = this._props[i];
 							b = this._beziers[p][curIndex];
 							val = (t * t * b.da + 3 * inv * (t * b.ca + inv * b.ba)) * t + b.a;
-							if (this._round[p]) {
-								val = Math.round(val);
+							if (this._mod[p]) {
+								val = this._mod[p](val, target);
 							}
 							if (func[p]) {
 								target[p](val);
@@ -2378,6 +2381,10 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 									y2 += ((b2.c + (b2.d - b2.c) * t) - y2) * t;
 
 									val = notStart ? Math.atan2(y2 - y1, x2 - x1) * conv + add : this._initialRotations[i];
+
+									if (this._mod[p]) {
+										val = this._mod[p](val, target); //for modProps
+									}
 
 									if (func[p]) {
 										target[p](val);
@@ -2446,18 +2453,21 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 					}
 					data.autoRotate = cssp._target._gsTransform;
 					data.proxy.rotation = data.autoRotate.rotation || 0;
+					cssp._overwriteProps.push("rotation");
 				}
 				plugin._onInitTween(data.proxy, v, cssp._tween);
 				return pt;
 			}});
 		};
 
-		p._roundProps = function(lookup, value) {
+		p._mod = function(lookup) {
 			var op = this._overwriteProps,
-				i = op.length;
+				i = op.length,
+				val;
 			while (--i > -1) {
-				if (lookup[op[i]] || lookup.bezier || lookup.bezierThrough) {
-					this._round[op[i]] = value;
+				val = lookup[op[i]];
+				if (val && typeof(val) === "function") {
+					this._mod[op[i]] = val;
 				}
 			}
 		};
@@ -2474,6 +2484,15 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 						if (a[i] === p) {
 							a.splice(i, 1);
 						}
+					}
+				}
+			}
+			a = this._autoRotate;
+			if (a) {
+				i = a.length;
+				while (--i > -1) {
+					if (lookup[a[i][2]]) {
+						a.splice(i, 1);
 					}
 				}
 			}
@@ -2517,7 +2536,7 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 			p = CSSPlugin.prototype = new TweenPlugin("css");
 
 		p.constructor = CSSPlugin;
-		CSSPlugin.version = "1.18.5";
+		CSSPlugin.version = "1.19.0";
 		CSSPlugin.API = 2;
 		CSSPlugin.defaultTransformPerspective = 0;
 		CSSPlugin.defaultSkewType = "compensated";
@@ -2585,6 +2604,8 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 					console.log(s);
 				}
 			},
+			_target, //when initting a CSSPlugin, we set this variable so that we can access it from within many other functions without having to pass it around as params
+			_index, //when initting a CSSPlugin, we set this variable so that we can access it from within many other functions without having to pass it around as params
 
 			_prefixCSS = "", //the non-camelCase vendor prefix like "-o-", "-moz-", "-ms-", or "-webkit-"
 			_prefix = "", //camelCase vendor prefix like "O", "ms", "Webkit", or "Moz".
@@ -2799,10 +2820,10 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 
 			// @private Parses position-related complex strings like "top left" or "50px 10px" or "70% 20%", etc. which are used for things like transformOrigin or backgroundPosition. Optionally decorates a supplied object (recObj) with the following properties: "ox" (offsetX), "oy" (offsetY), "oxp" (if true, "ox" is a percentage not a pixel value), and "oxy" (if true, "oy" is a percentage not a pixel value)
 			_parsePosition = function(v, recObj) {
-				if (v === "contain" || v === "auto" || v === "auto auto") {
+				if (v === "contain" || v === "auto" || v === "auto auto") { //note: Firefox uses "auto auto" as default whereas Chrome uses "auto".
 					return v + " ";
 				}
-				if (v == null || v === "") { //note: Firefox uses "auto auto" as default whereas Chrome uses "auto".
+				if (v == null || v === "") {
 					v = "0 0";
 				}
 				var a = v.split(" "),
@@ -2845,6 +2866,9 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 			 * @return {number} Amount of change between the beginning and ending values (relative values that have a "+=" or "-=" are recognized)
 			 */
 			_parseChange = function(e, b) {
+				if (typeof(e) === "function") {
+					e = e(_index, _target);
+				}
 				return (typeof(e) === "string" && e.charAt(1) === "=") ? parseInt(e.charAt(0) + "1", 10) * parseFloat(e.substr(2)) : (parseFloat(e) - parseFloat(b)) || 0;
 			},
 
@@ -2855,6 +2879,9 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 			 * @return {number} Parsed value
 			 */
 			_parseVal = function(v, d) {
+				if (typeof(v) === "function") {
+					v = v(_index, _target);
+				}
 				return (v == null) ? d : (typeof(v) === "string" && v.charAt(1) === "=") ? parseInt(v.charAt(0) + "1", 10) * parseFloat(v.substr(2)) + d : parseFloat(v) || 0;
 			},
 
@@ -2869,6 +2896,9 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 			_parseAngle = function(v, d, p, directionalEnd) {
 				var min = 0.000001,
 					cap, split, dif, result, isRelative;
+				if (typeof(v) === "function") {
+					v = v(_index, _target);
+				}
 				if (v == null) {
 					result = d;
 				} else if (typeof(v) === "number") {
@@ -3130,7 +3160,7 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 				};
 			},
 
-			// @private used when other plugins must tween values first, like BezierPlugin or ThrowPropsPlugin, etc. That plugin's setRatio() gets called first so that the values are updated, and then we loop through the MiniPropTweens  which handle copying the values into their appropriate slots so that they can then be applied correctly in the main CSSPlugin setRatio() method. Remember, we typically create a proxy object that has a bunch of uniquely-named properties that we feed to the sub-plugin and it does its magic normally, and then we must interpret those values and apply them to the css because often numbers must get combined/concatenated, suffixes added, etc. to work with css, like boxShadow could have 4 values plus a color.
+			// @private used when other plugins must tween values first, like BezierPlugin or ThrowPropsPlugin, etc. That plugin's setRatio() gets called first so that the values are updated, and then we loop through the MiniPropTweens which handle copying the values into their appropriate slots so that they can then be applied correctly in the main CSSPlugin setRatio() method. Remember, we typically create a proxy object that has a bunch of uniquely-named properties that we feed to the sub-plugin and it does its magic normally, and then we must interpret those values and apply them to the css because often numbers must get combined/concatenated, suffixes added, etc. to work with css, like boxShadow could have 4 values plus a color.
 			_setPluginRatio = _internals._setPluginRatio = function(v) {
 				this.plugin.setRatio(v);
 				var d = this.data,
@@ -3149,7 +3179,7 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 					mpt = mpt._next;
 				}
 				if (d.autoRotate) {
-					d.autoRotate.rotation = proxy.rotation;
+					d.autoRotate.rotation = d.mod ? d.mod(proxy.rotation, this.t) : proxy.rotation; //special case for ModifyPlugin to hook into an auto-rotating bezier
 				}
 				//at the end, we must set the CSSPropTween's "e" (end) value dynamically here because that's what is used in the final setRatio() method. Same for "b" at the beginning.
 				if (v === 1 || v === 0) {
@@ -3326,6 +3356,9 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 			_parseComplex = CSSPlugin.parseComplex = function(t, p, b, e, clrs, dflt, pt, pr, plugin, setRatio) {
 				//DEBUG: _log("parseComplex: "+p+", b: "+b+", e: "+e);
 				b = b || dflt || "";
+				if (typeof(e) === "function") {
+					e = e(_index, _target);
+				}
 				pt = new CSSPropTween(t, p, 0, 0, pt, (setRatio ? 2 : 1), null, false, pr, b, e);
 				e += ""; //ensures it's a string
 				if (clrs && _colorExp.test(e + b)) { //if colors are found, normalize the formatting to rgba() or hsla().
@@ -3531,7 +3564,7 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 			},
 
 			//creates a placeholder special prop for a plugin so that the property gets caught the first time a tween of it is attempted, and at that time it makes the plugin register itself, thus taking over for all future tweens of that property. This allows us to not mandate that things load in a particular order and it also allows us to log() an error that informs the user when they attempt to tween an external plugin-related property without loading its .js file.
-			_registerPluginProp = function(p) {
+			_registerPluginProp = _internals._registerPluginProp = function(p) {
 				if (!_specialProps[p]) {
 					var pluginName = p.charAt(0).toUpperCase() + p.substr(1) + "Plugin";
 					_registerComplexSpecialProp(p, {parser:function(t, e, p, cssp, pt, plugin, vars) {
@@ -4114,11 +4147,13 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 						a12 = Math.sin(angle - skew) * -sy;
 						a22 = Math.cos(angle - skew) * sy;
 						if (skew && t.skewType === "simple") { //by default, we compensate skewing on the other axis to make it look more natural, but you can set the skewType to "simple" to use the uncompensated skewing that CSS does
-							t1 = Math.tan(skew);
+							t1 = Math.tan(skew - t.skewY * _DEG2RAD);
 							t1 = Math.sqrt(1 + t1 * t1);
 							a12 *= t1;
 							a22 *= t1;
 							if (t.skewY) {
+								t1 = Math.tan(t.skewY * _DEG2RAD);
+								t1 = Math.sqrt(1 + t1 * t1);
 								a11 *= t1;
 								a21 *= t1;
 							}
@@ -4173,11 +4208,13 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 						cos = Math.cos(angle);
 						sin = Math.sin(angle);
 						if (t.skewType === "simple") { //by default, we compensate skewing on the other axis to make it look more natural, but you can set the skewType to "simple" to use the uncompensated skewing that CSS does
-							t1 = Math.tan(t.skewX * _DEG2RAD);
+							t1 = Math.tan((t.skewX - t.skewY) * _DEG2RAD);
 							t1 = Math.sqrt(1 + t1 * t1);
 							cos *= t1;
 							sin *= t1;
 							if (t.skewY) {
+								t1 = Math.tan(t.skewY * _DEG2RAD);
+								t1 = Math.sqrt(1 + t1 * t1);
 								a11 *= t1;
 								a21 *= t1;
 							}
@@ -4307,9 +4344,14 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 		p.x = p.y = p.z = p.skewX = p.skewY = p.rotation = p.rotationX = p.rotationY = p.zOrigin = p.xPercent = p.yPercent = p.xOffset = p.yOffset = 0;
 		p.scaleX = p.scaleY = p.scaleZ = 1;
 
-		_registerComplexSpecialProp("transform,scale,scaleX,scaleY,scaleZ,x,y,z,rotation,rotationX,rotationY,rotationZ,skewX,skewY,shortRotation,shortRotationX,shortRotationY,shortRotationZ,transformOrigin,svgOrigin,transformPerspective,directionalRotation,parseTransform,force3D,skewType,xPercent,yPercent,smoothOrigin", {parser:function(t, e, p, cssp, pt, plugin, vars) {
+		_registerComplexSpecialProp("transform,scale,scaleX,scaleY,scaleZ,x,y,z,rotation,rotationX,rotationY,rotationZ,skewX,skewY,shortRotation,shortRotationX,shortRotationY,shortRotationZ,transformOrigin,svgOrigin,transformPerspective,directionalRotation,parseTransform,force3D,skewType,xPercent,yPercent,smoothOrigin", {parser:function(t, e, parsingProp, cssp, pt, plugin, vars) {
 			if (cssp._lastParsedTransform === vars) { return pt; } //only need to parse the transform once, and only if the browser supports it.
 			cssp._lastParsedTransform = vars;
+			var swapFunc;
+			if (typeof(vars[parsingProp]) === "function") { //whatever property triggers the initial parsing might be a function-based value in which case it already got called in parse(), thus we don't want to call it again in here. The most efficient way to avoid this is to temporarily swap the value directly into the vars object, and then after we do all our parsing in this function, we'll swap it back again.
+				swapFunc = vars[parsingProp];
+				vars[parsingProp] = e;
+			}
 			var originalGSTransform = t._gsTransform,
 				style = t.style,
 				min = 0.000001,
@@ -4317,12 +4359,13 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 				v = vars,
 				endRotations = {},
 				transformOriginString = "transformOrigin",
-				m1 = _getTransform(t, _cs, true, vars.parseTransform),
-				m2, copy, orig, has3D, hasChange, dr, x, y, matrix;
+				m1 = _getTransform(t, _cs, true, v.parseTransform),
+				orig = v.transform && ((typeof(v.transform) === "function") ? v.transform(_index, _target) : v.transform),
+				m2, copy, has3D, hasChange, dr, x, y, matrix, p;
 			cssp._transform = m1;
-			if (typeof(v.transform) === "string" && _transformProp) { //for values like transform:"rotate(60deg) scale(0.5, 0.8)"
+			if (orig && typeof(orig) === "string" && _transformProp) { //for values like transform:"rotate(60deg) scale(0.5, 0.8)"
 				copy = _tempDiv.style; //don't use the original target because it might be SVG in which case some browsers don't report computed style correctly.
-				copy[_transformProp] = v.transform;
+				copy[_transformProp] = orig;
 				copy.display = "block"; //if display is "none", the browser often refuses to report the transform properties correctly.
 				copy.position = "absolute";
 				_doc.body.appendChild(_tempDiv);
@@ -4466,6 +4509,9 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 			if (hasChange) {
 				cssp._transformType = (!(m1.svg && _useSVGTransformAttr) && (has3D || this._transformType === 3)) ? 3 : 2; //quicker than calling cssp._enableTransforms();
 			}
+			if (swapFunc) {
+				vars[parsingProp] = swapFunc;
+			}
 			return pt;
 		}, prefix:true});
 
@@ -4557,7 +4603,10 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 			}
 			return this.parseComplex(t.style, bs, es, pt, plugin);
 		}, formatter:_parsePosition});
-		_registerComplexSpecialProp("backgroundSize", {defaultValue:"0 0", formatter:_parsePosition});
+		_registerComplexSpecialProp("backgroundSize", {defaultValue:"0 0", formatter:function(v) {
+			v += ""; //ensure it's a string
+			return _parsePosition(v.indexOf(" ") === -1 ? v + " " + v : v); //if set to something like "100% 100%", Safari typically reports the computed style as just "100%" (no 2nd value), but we should ensure that there are two values, so copy the first one. Otherwise, it'd be interpreted as "100% 0" (wrong).
+		}});
 		_registerComplexSpecialProp("perspective", {defaultValue:"0px", prefix:true});
 		_registerComplexSpecialProp("perspectiveOrigin", {defaultValue:"50% 50%", prefix:true});
 		_registerComplexSpecialProp("transformStyle", {prefix:true});
@@ -4790,13 +4839,14 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 		p._firstPT = p._lastParsedTransform = p._transform = null;
 
 		//gets called when the tween renders for the first time. This kicks everything off, recording start/end values, etc.
-		p._onInitTween = function(target, vars, tween) {
+		p._onInitTween = function(target, vars, tween, index) {
 			if (!target.nodeType) { //css is only for dom elements
 				return false;
 			}
-			this._target = target;
+			this._target = _target = target;
 			this._tween = tween;
 			this._vars = vars;
+			_index = index;
 			_autoRound = vars.autoRound;
 			_hasPriority = false;
 			_suffixMap = vars.suffixMap || CSSPlugin.suffixMap;
@@ -4896,6 +4946,9 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 				p, sp, bn, en, bs, es, bsfx, esfx, isStr, rel;
 			for (p in vars) {
 				es = vars[p]; //ending value string
+				if (typeof(es) === "function") {
+					es = es(_index, _target);
+				}
 				sp = _specialProps[p]; //SpecialProp lookup.
 				if (sp) {
 					pt = sp.parse(target, es, p, this, pt, plugin, vars);
@@ -5128,6 +5181,16 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 			return pt;
 		};
 
+		p._mod = function(lookup) {
+			var pt = this._firstPT;
+			while (pt) {
+				if (typeof(lookup[pt.p]) === "function" && lookup[pt.p] === Math.round) { //only gets called by RoundPropsPlugin (ModifyPlugin manages all the rendering internally for CSSPlugin properties that need modification). Remember, we handle rounding a bit differently in this plugin for performance reasons, leveraging "r" as an indicator that the value should be rounded internally..
+					pt.r = 1;
+				}
+				pt = pt._next;
+			}
+		};
+
 		//we need to make sure that if alpha or autoAlpha is killed, opacity is too. And autoAlpha affects the "visibility" property.
 		p._kill = function(lookup) {
 			var copy = lookup,
@@ -5153,6 +5216,14 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 					this._linkCSSP(pt._next, pt._next._next, xfirst._prev);
 				}
 				this._classNamePT = null;
+			}
+			pt = this._firstPT;
+			while (pt) {
+				if (pt.plugin && pt.plugin !== p && pt.plugin._kill) { //for plugins that are registered with CSSPlugin, we should notify them of the kill.
+					pt.plugin._kill(lookup);
+					p = pt.plugin;
+				}
+				pt = pt._next;
 			}
 			return TweenPlugin.prototype._kill.call(this, copy);
 		};
@@ -5262,7 +5333,7 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 
 		var RoundPropsPlugin = _gsScope._gsDefine.plugin({
 				propName: "roundProps",
-				version: "1.5",
+				version: "1.6.0",
 				priority: -1,
 				API: 2,
 
@@ -5276,7 +5347,7 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 			_roundLinkedList = function(node) {
 				while (node) {
 					if (!node.f && !node.blob) {
-						node.r = 1;
+						node.m = Math.round;
 					}
 					node = node._next;
 				}
@@ -5291,7 +5362,7 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 				rpt = tween._propLookup.roundProps,
 				prop, pt, next;
 			while (--i > -1) {
-				lookup[rp[i]] = 1;
+				lookup[rp[i]] = Math.round;
 			}
 			i = rp.length;
 			while (--i > -1) {
@@ -5300,7 +5371,7 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 				while (pt) {
 					next = pt._next; //record here, because it may get removed
 					if (pt.pg) {
-						pt.t._roundProps(lookup, true);
+						pt.t._mod(lookup);
 					} else if (pt.n === prop) {
 						if (pt.f === 2 && pt.t) { //a blob (text containing multiple numeric values)
 							_roundLinkedList(pt.t._firstPT);
@@ -5326,7 +5397,7 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 		};
 
 		p._add = function(target, p, s, c) {
-			this._addTween(target, p, s, s + c, p, true);
+			this._addTween(target, p, s, s + c, p, Math.round);
 			this._overwriteProps.push(p);
 		};
 
@@ -5352,16 +5423,20 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 		_gsScope._gsDefine.plugin({
 			propName: "attr",
 			API: 2,
-			version: "0.5.0",
+			version: "0.6.0",
 
 			//called when the tween renders for the first time. This is where initial values should be recorded and any setup routines should run.
-			init: function(target, value, tween) {
-				var p;
+			init: function(target, value, tween, index) {
+				var p, end;
 				if (typeof(target.setAttribute) !== "function") {
 					return false;
 				}
 				for (p in value) {
-					this._addTween(target, "setAttribute", target.getAttribute(p) + "", value[p] + "", p, false, p);
+					end = value[p];
+					if (typeof(end) === "function") {
+						end = end(index, target);
+					}
+					this._addTween(target, "setAttribute", target.getAttribute(p) + "", end + "", p, false, p);
 					this._overwriteProps.push(p);
 				}
 				return true;
@@ -5387,11 +5462,11 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
  */
 	_gsScope._gsDefine.plugin({
 		propName: "directionalRotation",
-		version: "0.2.1",
+		version: "0.3.0",
 		API: 2,
 
 		//called when the tween renders for the first time. This is where initial values should be recorded and any setup routines should run.
-		init: function(target, value, tween) {
+		init: function(target, value, tween, index) {
 			if (typeof(value) !== "object") {
 				value = {rotation:value};
 			}
@@ -5401,7 +5476,11 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 				p, v, start, end, dif, split;
 			for (p in value) {
 				if (p !== "useRadians") {
-					split = (value[p] + "").split("_");
+					end = value[p];
+					if (typeof(end) === "function") {
+						end = end(index, target);
+					}
+					split = (end + "").split("_");
 					v = split[0];
 					start = parseFloat( (typeof(target[p]) !== "function") ? target[p] : target[ ((p.indexOf("set") || typeof(target["get" + p.substr(3)]) !== "function") ? p : "get" + p.substr(3)) ]() );
 					end = this.finals[p] = (typeof(v) === "string" && v.charAt(1) === "=") ? start + parseInt(v.charAt(0) + "1", 10) * Number(v.substr(2)) : Number(v) || 0;
@@ -5906,7 +5985,7 @@ if (_gsScope._gsDefine) { _gsScope._gsQueue.pop()(); } //necessary in case Tween
 
 						//exports to multiple environments
 						if (global) {
-							_globals[n] = cl; //provides a way to avoid global namespace pollution. By default, the main classes like TweenLite, Power1, Strong, etc. are added to window unless a GreenSockGlobals is defined. So if you want to have things added to a custom object instead, just do something like window.GreenSockGlobals = {} before loading any GreenSock files. You can even set up an alias like window.GreenSockGlobals = windows.gs = {} so that you can access everything like gs.TweenLite. Also remember that ALL classes are added to the window.com.greensock object (in their respective packages, like com.greensock.easing.Power1, com.greensock.TweenLite, etc.)
+							_globals[n] = _exports[n] = cl; //provides a way to avoid global namespace pollution. By default, the main classes like TweenLite, Power1, Strong, etc. are added to window unless a GreenSockGlobals is defined. So if you want to have things added to a custom object instead, just do something like window.GreenSockGlobals = {} before loading any GreenSock files. You can even set up an alias like window.GreenSockGlobals = windows.gs = {} so that you can access everything like gs.TweenLite. Also remember that ALL classes are added to the window.com.greensock object (in their respective packages, like com.greensock.easing.Power1, com.greensock.TweenLite, etc.)
 							hasModule = (typeof(module) !== "undefined" && module.exports);
 							if (!hasModule && typeof(define) === "function" && define.amd){ //AMD
 								define((window.GreenSockAMDPath ? window.GreenSockAMDPath + "/" : "") + ns.split(".").pop(), [], function() { return cl; });
@@ -6062,6 +6141,9 @@ if (_gsScope._gsDefine) { _gsScope._gsQueue.pop()(); } //necessary in case Tween
 				i, t, listener;
 			if (list) {
 				i = list.length;
+				if (i > 1) {
+					list = list.slice(0); //in case addEventListener() is called from within a listener/callback (otherwise the index could change, resulting in a skip)
+				}
 				t = this._eventTarget;
 				while (--i > -1) {
 					listener = list[i];
@@ -6351,8 +6433,17 @@ if (_gsScope._gsDefine) { _gsScope._gsQueue.pop()(); } //necessary in case Tween
 		};
 
 		p._callback = function(type) {
-			var v = this.vars;
-			v[type].apply(v[type + "Scope"] || v.callbackScope || this, v[type + "Params"] || _blankArray);
+			var v = this.vars,
+				callback = v[type],
+				params = v[type + "Params"],
+				scope = v[type + "Scope"] || v.callbackScope || this,
+				l = params ? params.length : 0;
+			switch (l) { //speed optimization; call() is faster than apply() so use it when there are only a few parameters (which is by far most common). Previously we simply did var v = this.vars; v[type].apply(v[type + "Scope"] || v.callbackScope || this, v[type + "Params"] || _blankArray);
+				case 0: callback.call(scope); break;
+				case 1: callback.call(scope, params[0]); break;
+				case 2: callback.call(scope, params[0], params[1]); break;
+				default: callback.apply(scope, params);
+			}
 		};
 
 //----Animation getters/setters --------------------------------------------------------
@@ -6736,7 +6827,7 @@ if (_gsScope._gsDefine) { _gsScope._gsQueue.pop()(); } //necessary in case Tween
 		p._firstPT = p._targets = p._overwrittenProps = p._startAt = null;
 		p._notifyPluginsOfEnabled = p._lazy = false;
 
-		TweenLite.version = "1.18.5";
+		TweenLite.version = "1.19.0";
 		TweenLite.defaultEase = p._ease = new Ease(null, null, 1, 1);
 		TweenLite.defaultOverwrite = "auto";
 		TweenLite.ticker = _ticker;
@@ -6764,8 +6855,8 @@ if (_gsScope._gsDefine) { _gsScope._gsQueue.pop()(); } //necessary in case Tween
 					val;
 				while (pt) {
 					val = !pt.blob ? pt.c * v + pt.s : v ? this.join("") : this.start;
-					if (pt.r) {
-						val = Math.round(val);
+					if (pt.m) {
+						val = pt.m(val, this._target || pt.t);
 					} else if (val < min) if (val > -min) { //prevents issues with converting very small numbers to strings in the browser
 						val = 0;
 					}
@@ -6798,7 +6889,7 @@ if (_gsScope._gsDefine) { _gsScope._gsQueue.pop()(); } //necessary in case Tween
 				if (pt) {
 					pt._next = null;
 					pt.blob = 1;
-					a._firstPT = pt; //apply last in the linked list (which means inserting it first)
+					a._firstPT = a._applyPT = pt; //apply last in the linked list (which means inserting it first)
 				}
 				l = endNums.length;
 				for (i = 0; i < l; i++) {
@@ -6820,7 +6911,7 @@ if (_gsScope._gsDefine) { _gsScope._gsQueue.pop()(); } //necessary in case Tween
 						}
 						num = parseFloat(startNums[i]);
 						a.push(num);
-						a._firstPT = {_next: a._firstPT, t:a, p: a.length-1, s:num, c:((currentNum.charAt(1) === "=") ? parseInt(currentNum.charAt(0) + "1", 10) * parseFloat(currentNum.substr(2)) : (parseFloat(currentNum) - num)) || 0, f:0, r:(color && color < 4)};
+						a._firstPT = {_next: a._firstPT, t:a, p: a.length-1, s:num, c:((currentNum.charAt(1) === "=") ? parseInt(currentNum.charAt(0) + "1", 10) * parseFloat(currentNum.substr(2)) : (parseFloat(currentNum) - num)) || 0, f:0, m:(color && color < 4) ? Math.round : 0};
 						//note: we don't set _prev because we'll never need to remove individual PropTweens from this list.
 					}
 					charIndex += currentNum.length;
@@ -6833,11 +6924,14 @@ if (_gsScope._gsDefine) { _gsScope._gsQueue.pop()(); } //necessary in case Tween
 				return a;
 			},
 			//note: "funcParam" is only necessary for function-based getters/setters that require an extra parameter like getAttribute("width") and setAttribute("width", value). In this example, funcParam would be "width". Used by AttrPlugin for example.
-			_addPropTween = function(target, prop, start, end, overwriteProp, round, funcParam, stringFilter) {
+			_addPropTween = function(target, prop, start, end, overwriteProp, mod, funcParam, stringFilter, index) {
+				if (typeof(end) === "function") {
+					end = end(index || 0, target);
+				}
 				var s = (start === "get") ? target[prop] : start,
 					type = typeof(target[prop]),
 					isRelative = (typeof(end) === "string" && end.charAt(1) === "="),
-					pt = {t:target, p:prop, s:s, f:(type === "function"), pg:0, n:overwriteProp || prop, r:round, pr:0, c:isRelative ? parseInt(end.charAt(0) + "1", 10) * parseFloat(end.substr(2)) : (parseFloat(end) - s) || 0},
+					pt = {t:target, p:prop, s:s, f:(type === "function"), pg:0, n:overwriteProp || prop, m:(!mod ? 0 : (typeof(mod) === "function") ? mod : Math.round), pr:0, c:isRelative ? parseInt(end.charAt(0) + "1", 10) * parseFloat(end.substr(2)) : (parseFloat(end) - s) || 0},
 					blob, getterName;
 				if (type !== "number") {
 					if (type === "function" && start === "get") {
@@ -6848,7 +6942,7 @@ if (_gsScope._gsDefine) { _gsScope._gsQueue.pop()(); } //necessary in case Tween
 						//a blob (string that has multiple numbers in it)
 						pt.fp = funcParam;
 						blob = _blobDif(s, end, stringFilter || TweenLite.defaultStringFilter, pt);
-						pt = {t:blob, p:"setRatio", s:0, c:1, f:2, pg:0, n:overwriteProp || prop, pr:0}; //"2" indicates it's a Blob property tween. Needed for RoundPropsPlugin for example.
+						pt = {t:blob, p:"setRatio", s:0, c:1, f:2, pg:0, n:overwriteProp || prop, pr:0, m:0}; //"2" indicates it's a Blob property tween. Needed for RoundPropsPlugin for example.
 					} else if (!isRelative) {
 						pt.s = parseFloat(s);
 						pt.c = (parseFloat(end) - pt.s) || 0;
@@ -7037,7 +7131,7 @@ if (_gsScope._gsDefine) { _gsScope._gsQueue.pop()(); } //necessary in case Tween
 				dur = this._duration,
 				immediate = !!v.immediateRender,
 				ease = v.ease,
-				i, initPlugins, pt, p, startVars;
+				i, initPlugins, pt, p, startVars, l;
 			if (v.startAt) {
 				if (this._startAt) {
 					this._startAt.render(-1, true); //if we've run a startAt previously (when the tween instantiated), we should revert it so that the values re-instantiate correctly particularly for relative tweens. Without this, a TweenLite.fromTo(obj, 1, {x:"+=100"}, {x:"-=100"}), for example, would actually jump to +=200 because the startAt would run twice, doubling the relative change.
@@ -7100,14 +7194,14 @@ if (_gsScope._gsDefine) { _gsScope._gsQueue.pop()(); } //necessary in case Tween
 			this._firstPT = null;
 
 			if (this._targets) {
-				i = this._targets.length;
-				while (--i > -1) {
-					if ( this._initProps( this._targets[i], (this._propLookup[i] = {}), this._siblings[i], (op ? op[i] : null)) ) {
+				l = this._targets.length;
+				for (i = 0; i < l; i++) {
+					if ( this._initProps( this._targets[i], (this._propLookup[i] = {}), this._siblings[i], (op ? op[i] : null), i) ) {
 						initPlugins = true;
 					}
 				}
 			} else {
-				initPlugins = this._initProps(this.target, this._propLookup, this._siblings, op);
+				initPlugins = this._initProps(this.target, this._propLookup, this._siblings, op, 0);
 			}
 
 			if (initPlugins) {
@@ -7128,7 +7222,7 @@ if (_gsScope._gsDefine) { _gsScope._gsQueue.pop()(); } //necessary in case Tween
 			this._initted = true;
 		};
 
-		p._initProps = function(target, propLookup, siblings, overwrittenProps) {
+		p._initProps = function(target, propLookup, siblings, overwrittenProps, index) {
 			var p, i, initPlugins, plugin, pt, v;
 			if (target == null) {
 				return false;
@@ -7148,7 +7242,7 @@ if (_gsScope._gsDefine) { _gsScope._gsQueue.pop()(); } //necessary in case Tween
 						this.vars[p] = v = this._swapSelfInParams(v, this);
 					}
 
-				} else if (_plugins[p] && (plugin = new _plugins[p]())._onInitTween(target, this.vars[p], this)) {
+				} else if (_plugins[p] && (plugin = new _plugins[p]())._onInitTween(target, this.vars[p], this, index)) {
 
 					//t - target 		[object]
 					//p - property 		[string]
@@ -7158,7 +7252,8 @@ if (_gsScope._gsDefine) { _gsScope._gsQueue.pop()(); } //necessary in case Tween
 					//n - name			[string]
 					//pg - isPlugin 	[boolean]
 					//pr - priority		[number]
-					this._firstPT = pt = {_next:this._firstPT, t:plugin, p:"setRatio", s:0, c:1, f:1, n:p, pg:1, pr:plugin._priority};
+					//m - mod           [function | 0]
+					this._firstPT = pt = {_next:this._firstPT, t:plugin, p:"setRatio", s:0, c:1, f:1, n:p, pg:1, pr:plugin._priority, m:0};
 					i = plugin._overwriteProps.length;
 					while (--i > -1) {
 						propLookup[plugin._overwriteProps[i]] = this._firstPT;
@@ -7174,16 +7269,16 @@ if (_gsScope._gsDefine) { _gsScope._gsQueue.pop()(); } //necessary in case Tween
 					}
 
 				} else {
-					propLookup[p] = _addPropTween.call(this, target, p, "get", v, p, 0, null, this.vars.stringFilter);
+					propLookup[p] = _addPropTween.call(this, target, p, "get", v, p, 0, null, this.vars.stringFilter, index);
 				}
 			}
 
 			if (overwrittenProps) if (this._kill(overwrittenProps, target)) { //another tween may have tried to overwrite properties of this tween before init() was called (like if two tweens start at the same time, the one created second will run first)
-				return this._initProps(target, propLookup, siblings, overwrittenProps);
+				return this._initProps(target, propLookup, siblings, overwrittenProps, index);
 			}
 			if (this._overwrite > 1) if (this._firstPT) if (siblings.length > 1) if (_applyOverwrite(target, this, propLookup, this._overwrite, siblings)) {
 				this._kill(propLookup, target);
-				return this._initProps(target, propLookup, siblings, overwrittenProps);
+				return this._initProps(target, propLookup, siblings, overwrittenProps, index);
 			}
 			if (this._firstPT) if ((this.vars.lazy !== false && this._duration) || (this.vars.lazy && !this._duration)) { //zero duration tweens don't lazy render by default; everything else does.
 				_lazyLookup[target._gsTweenID] = true;
@@ -7563,7 +7658,7 @@ if (_gsScope._gsDefine) { _gsScope._gsQueue.pop()(); } //necessary in case Tween
 				}, true);
 
 		p = TweenPlugin.prototype;
-		TweenPlugin.version = "1.18.0";
+		TweenPlugin.version = "1.19.0";
 		TweenPlugin.API = 2;
 		p._firstPT = null;
 		p._addTween = _addPropTween;
@@ -7600,11 +7695,17 @@ if (_gsScope._gsDefine) { _gsScope._gsQueue.pop()(); } //necessary in case Tween
 			return false;
 		};
 
-		p._roundProps = function(lookup, value) {
-			var pt = this._firstPT;
+		p._mod = p._roundProps = function(lookup) {
+			var pt = this._firstPT,
+				val;
 			while (pt) {
-				if (lookup[this._propName] || (pt.n != null && lookup[ pt.n.split(this._propName + "_").join("") ])) { //some properties that are very plugin-specific add a prefix named after the _propName plus an underscore, so we need to ignore that extra stuff here.
-					pt.r = value;
+				val = lookup[this._propName] || (pt.n != null && lookup[ pt.n.split(this._propName + "_").join("") ]);
+				if (val && typeof(val) === "function") { //some properties that are very plugin-specific add a prefix named after the _propName plus an underscore, so we need to ignore that extra stuff here.
+					if (pt.f === 2) {
+						pt.t._applyPT.m = val;
+					} else {
+						pt.m = val;
+					}
 				}
 				pt = pt._next;
 			}
@@ -7660,7 +7761,7 @@ if (_gsScope._gsDefine) { _gsScope._gsQueue.pop()(); } //necessary in case Tween
 			var propName = config.propName,
 				priority = config.priority || 0,
 				overwriteProps = config.overwriteProps,
-				map = {init:"_onInitTween", set:"setRatio", kill:"_kill", round:"_roundProps", initAll:"_onInitAllProps"},
+				map = {init:"_onInitTween", set:"setRatio", kill:"_kill", round:"_mod", mod:"_mod", initAll:"_onInitAllProps"},
 				Plugin = _class("plugins." + propName.charAt(0).toUpperCase() + propName.substr(1) + "Plugin",
 					function() {
 						TweenPlugin.call(this, propName, priority);
@@ -7689,7 +7790,7 @@ if (_gsScope._gsDefine) { _gsScope._gsQueue.pop()(); } //necessary in case Tween
 			}
 			for (p in _defLookup) {
 				if (!_defLookup[p].func) {
-					window.console.log("GSAP encountered missing dependency: com.greensock." + p);
+					window.console.log("GSAP encountered missing dependency: " + p);
 				}
 			}
 		}

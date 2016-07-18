@@ -1,6 +1,6 @@
 /*!
- * VERSION: 0.1.2
- * DATE: 2014-07-17
+ * VERSION: 0.1.3
+ * DATE: 2016-07-12
  * UPDATES AND DOCS AT: http://greensock.com
  *
  * @license Copyright (c) 2008-2016, GreenSock. All rights reserved.
@@ -17,7 +17,7 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 	_gsScope._gsDefine.plugin({
 		propName: "endArray",
 		API: 2,
-		version: "0.1.2",
+		version: "0.1.3",
 
 		//called when the tween renders for the first time. This is where initial values should be recorded and any setup routines should run.
 		init: function(target, value, tween) {
@@ -25,7 +25,7 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 				a = this.a = [],
 				start, end;
 			this.target = target;
-			this._round = false;
+			this._mod = 0;
 			if (!i) {
 				return false;
 			}
@@ -39,9 +39,9 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 			return true;
 		},
 
-		round: function(lookup) {
-			if ("endArray" in lookup) {
-				this._round = true;
+		mod: function(lookup) {
+			if (typeof(lookup.endArray) === "function") {
+				this._mod = lookup.endArray;
 			}
 		},
 
@@ -50,11 +50,12 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 			var target = this.target,
 				a = this.a,
 				i = a.length,
+				mod = this._mod,
 				e, val;
-			if (this._round) {
+			if (mod) {
 				while (--i > -1) {
 					e = a[i];
-					target[e.i] = Math.round(e.s + e.c * ratio);
+					target[e.i] = mod(e.s + e.c * ratio, target);
 				}
 			} else {
 				while (--i > -1) {

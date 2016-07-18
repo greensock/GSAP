@@ -1,6 +1,6 @@
 /*!
- * VERSION: 1.3.6
- * DATE: 2016-05-24
+ * VERSION: 1.3.7
+ * DATE: 2016-07-12
  * UPDATES AND DOCS AT: http://greensock.com
  *
  * @license Copyright (c) 2008-2016, GreenSock. All rights reserved.
@@ -314,7 +314,7 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 			BezierPlugin = _gsScope._gsDefine.plugin({
 					propName: "bezier",
 					priority: -1,
-					version: "1.3.6",
+					version: "1.3.7",
 					API: 2,
 					global:true,
 
@@ -325,7 +325,7 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 							vars = {values:vars};
 						}
 						this._func = {};
-						this._round = {};
+						this._mod = {};
 						this._props = [];
 						this._timeRes = (vars.timeResolution == null) ? 6 : parseInt(vars.timeResolution, 10);
 						var values = vars.values || [],
@@ -378,6 +378,7 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 								}
 								p = autoRotate[i][2];
 								this._initialRotations[i] = (this._func[p] ? this._func[p].call(this._target) : this._target[p]) || 0;
+								this._overwriteProps.push(p);
 							}
 						}
 						this._startRatio = tween.vars.runBackwards ? 1 : 0; //we determine the starting ratio when the tween inits which is always 0 unless the tween has runBackwards:true (indicating it's a from() tween) in which case it's 1.
@@ -448,8 +449,8 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 							p = this._props[i];
 							b = this._beziers[p][curIndex];
 							val = (t * t * b.da + 3 * inv * (t * b.ca + inv * b.ba)) * t + b.a;
-							if (this._round[p]) {
-								val = Math.round(val);
+							if (this._mod[p]) {
+								val = this._mod[p](val, target);
 							}
 							if (func[p]) {
 								target[p](val);
@@ -484,6 +485,10 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 									y2 += ((b2.c + (b2.d - b2.c) * t) - y2) * t;
 
 									val = notStart ? Math.atan2(y2 - y1, x2 - x1) * conv + add : this._initialRotations[i];
+
+									if (this._mod[p]) {
+										val = this._mod[p](val, target); //for modProps
+									}
 
 									if (func[p]) {
 										target[p](val);
@@ -552,18 +557,21 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 					}
 					data.autoRotate = cssp._target._gsTransform;
 					data.proxy.rotation = data.autoRotate.rotation || 0;
+					cssp._overwriteProps.push("rotation");
 				}
 				plugin._onInitTween(data.proxy, v, cssp._tween);
 				return pt;
 			}});
 		};
 
-		p._roundProps = function(lookup, value) {
+		p._mod = function(lookup) {
 			var op = this._overwriteProps,
-				i = op.length;
+				i = op.length,
+				val;
 			while (--i > -1) {
-				if (lookup[op[i]] || lookup.bezier || lookup.bezierThrough) {
-					this._round[op[i]] = value;
+				val = lookup[op[i]];
+				if (val && typeof(val) === "function") {
+					this._mod[op[i]] = val;
 				}
 			}
 		};
@@ -583,6 +591,15 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 					}
 				}
 			}
+			a = this._autoRotate;
+			if (a) {
+				i = a.length;
+				while (--i > -1) {
+					if (lookup[a[i][2]]) {
+						a.splice(i, 1);
+					}
+				}
+			}
 			return this._super._kill.call(this, lookup);
 		};
 
@@ -595,7 +612,7 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 		return (_gsScope.GreenSockGlobals || _gsScope)[name];
 	};
 	if (typeof(define) === "function" && define.amd) { //AMD
-		define(["../TweenLite"], getGlobal);
+		define(["TweenLite"], getGlobal);
 	} else if (typeof(module) !== "undefined" && module.exports) { //node
 		require("../TweenLite.js");
 		module.exports = getGlobal();

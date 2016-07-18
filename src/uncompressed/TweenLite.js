@@ -1,6 +1,6 @@
 /*!
- * VERSION: 1.18.5
- * DATE: 2016-05-24
+ * VERSION: 1.19.0
+ * DATE: 2016-07-16
  * UPDATES AND DOCS AT: http://greensock.com
  *
  * @license Copyright (c) 2008-2016, GreenSock. All rights reserved.
@@ -103,7 +103,7 @@
 
 						//exports to multiple environments
 						if (global) {
-							_globals[n] = cl; //provides a way to avoid global namespace pollution. By default, the main classes like TweenLite, Power1, Strong, etc. are added to window unless a GreenSockGlobals is defined. So if you want to have things added to a custom object instead, just do something like window.GreenSockGlobals = {} before loading any GreenSock files. You can even set up an alias like window.GreenSockGlobals = windows.gs = {} so that you can access everything like gs.TweenLite. Also remember that ALL classes are added to the window.com.greensock object (in their respective packages, like com.greensock.easing.Power1, com.greensock.TweenLite, etc.)
+							_globals[n] = _exports[n] = cl; //provides a way to avoid global namespace pollution. By default, the main classes like TweenLite, Power1, Strong, etc. are added to window unless a GreenSockGlobals is defined. So if you want to have things added to a custom object instead, just do something like window.GreenSockGlobals = {} before loading any GreenSock files. You can even set up an alias like window.GreenSockGlobals = windows.gs = {} so that you can access everything like gs.TweenLite. Also remember that ALL classes are added to the window.com.greensock object (in their respective packages, like com.greensock.easing.Power1, com.greensock.TweenLite, etc.)
 							hasModule = (typeof(module) !== "undefined" && module.exports);
 							if (!hasModule && typeof(define) === "function" && define.amd){ //AMD
 								define((window.GreenSockAMDPath ? window.GreenSockAMDPath + "/" : "") + ns.split(".").pop(), [], function() { return cl; });
@@ -259,6 +259,9 @@
 				i, t, listener;
 			if (list) {
 				i = list.length;
+				if (i > 1) { 
+					list = list.slice(0); //in case addEventListener() is called from within a listener/callback (otherwise the index could change, resulting in a skip)
+				}
 				t = this._eventTarget;
 				while (--i > -1) {
 					listener = list[i];
@@ -548,8 +551,17 @@
 		};
 
 		p._callback = function(type) {
-			var v = this.vars;
-			v[type].apply(v[type + "Scope"] || v.callbackScope || this, v[type + "Params"] || _blankArray);
+			var v = this.vars,
+				callback = v[type],
+				params = v[type + "Params"],
+				scope = v[type + "Scope"] || v.callbackScope || this,
+				l = params ? params.length : 0;
+			switch (l) { //speed optimization; call() is faster than apply() so use it when there are only a few parameters (which is by far most common). Previously we simply did var v = this.vars; v[type].apply(v[type + "Scope"] || v.callbackScope || this, v[type + "Params"] || _blankArray);
+				case 0: callback.call(scope); break;
+				case 1: callback.call(scope, params[0]); break;
+				case 2: callback.call(scope, params[0], params[1]); break;
+				default: callback.apply(scope, params);
+			}
 		};
 
 //----Animation getters/setters --------------------------------------------------------
@@ -933,7 +945,7 @@
 		p._firstPT = p._targets = p._overwrittenProps = p._startAt = null;
 		p._notifyPluginsOfEnabled = p._lazy = false;
 
-		TweenLite.version = "1.18.5";
+		TweenLite.version = "1.19.0";
 		TweenLite.defaultEase = p._ease = new Ease(null, null, 1, 1);
 		TweenLite.defaultOverwrite = "auto";
 		TweenLite.ticker = _ticker;
@@ -961,8 +973,8 @@
 					val;
 				while (pt) {
 					val = !pt.blob ? pt.c * v + pt.s : v ? this.join("") : this.start;
-					if (pt.r) {
-						val = Math.round(val);
+					if (pt.m) {
+						val = pt.m(val, this._target || pt.t);
 					} else if (val < min) if (val > -min) { //prevents issues with converting very small numbers to strings in the browser
 						val = 0;
 					}
@@ -995,7 +1007,7 @@
 				if (pt) {
 					pt._next = null;
 					pt.blob = 1;
-					a._firstPT = pt; //apply last in the linked list (which means inserting it first)
+					a._firstPT = a._applyPT = pt; //apply last in the linked list (which means inserting it first)
 				}
 				l = endNums.length;
 				for (i = 0; i < l; i++) {
@@ -1017,7 +1029,7 @@
 						}
 						num = parseFloat(startNums[i]);
 						a.push(num);
-						a._firstPT = {_next: a._firstPT, t:a, p: a.length-1, s:num, c:((currentNum.charAt(1) === "=") ? parseInt(currentNum.charAt(0) + "1", 10) * parseFloat(currentNum.substr(2)) : (parseFloat(currentNum) - num)) || 0, f:0, r:(color && color < 4)};
+						a._firstPT = {_next: a._firstPT, t:a, p: a.length-1, s:num, c:((currentNum.charAt(1) === "=") ? parseInt(currentNum.charAt(0) + "1", 10) * parseFloat(currentNum.substr(2)) : (parseFloat(currentNum) - num)) || 0, f:0, m:(color && color < 4) ? Math.round : 0};
 						//note: we don't set _prev because we'll never need to remove individual PropTweens from this list.
 					}
 					charIndex += currentNum.length;
@@ -1030,11 +1042,14 @@
 				return a;
 			},
 			//note: "funcParam" is only necessary for function-based getters/setters that require an extra parameter like getAttribute("width") and setAttribute("width", value). In this example, funcParam would be "width". Used by AttrPlugin for example.
-			_addPropTween = function(target, prop, start, end, overwriteProp, round, funcParam, stringFilter) {
+			_addPropTween = function(target, prop, start, end, overwriteProp, mod, funcParam, stringFilter, index) {
+				if (typeof(end) === "function") {
+					end = end(index || 0, target);
+				}
 				var s = (start === "get") ? target[prop] : start,
 					type = typeof(target[prop]),
 					isRelative = (typeof(end) === "string" && end.charAt(1) === "="),
-					pt = {t:target, p:prop, s:s, f:(type === "function"), pg:0, n:overwriteProp || prop, r:round, pr:0, c:isRelative ? parseInt(end.charAt(0) + "1", 10) * parseFloat(end.substr(2)) : (parseFloat(end) - s) || 0},
+					pt = {t:target, p:prop, s:s, f:(type === "function"), pg:0, n:overwriteProp || prop, m:(!mod ? 0 : (typeof(mod) === "function") ? mod : Math.round), pr:0, c:isRelative ? parseInt(end.charAt(0) + "1", 10) * parseFloat(end.substr(2)) : (parseFloat(end) - s) || 0},
 					blob, getterName;
 				if (type !== "number") {
 					if (type === "function" && start === "get") {
@@ -1045,7 +1060,7 @@
 						//a blob (string that has multiple numbers in it)
 						pt.fp = funcParam;
 						blob = _blobDif(s, end, stringFilter || TweenLite.defaultStringFilter, pt);
-						pt = {t:blob, p:"setRatio", s:0, c:1, f:2, pg:0, n:overwriteProp || prop, pr:0}; //"2" indicates it's a Blob property tween. Needed for RoundPropsPlugin for example.
+						pt = {t:blob, p:"setRatio", s:0, c:1, f:2, pg:0, n:overwriteProp || prop, pr:0, m:0}; //"2" indicates it's a Blob property tween. Needed for RoundPropsPlugin for example.
 					} else if (!isRelative) {
 						pt.s = parseFloat(s);
 						pt.c = (parseFloat(end) - pt.s) || 0;
@@ -1234,7 +1249,7 @@
 				dur = this._duration,
 				immediate = !!v.immediateRender,
 				ease = v.ease,
-				i, initPlugins, pt, p, startVars;
+				i, initPlugins, pt, p, startVars, l;
 			if (v.startAt) {
 				if (this._startAt) {
 					this._startAt.render(-1, true); //if we've run a startAt previously (when the tween instantiated), we should revert it so that the values re-instantiate correctly particularly for relative tweens. Without this, a TweenLite.fromTo(obj, 1, {x:"+=100"}, {x:"-=100"}), for example, would actually jump to +=200 because the startAt would run twice, doubling the relative change.
@@ -1297,14 +1312,14 @@
 			this._firstPT = null;
 
 			if (this._targets) {
-				i = this._targets.length;
-				while (--i > -1) {
-					if ( this._initProps( this._targets[i], (this._propLookup[i] = {}), this._siblings[i], (op ? op[i] : null)) ) {
+				l = this._targets.length;
+				for (i = 0; i < l; i++) {
+					if ( this._initProps( this._targets[i], (this._propLookup[i] = {}), this._siblings[i], (op ? op[i] : null), i) ) {
 						initPlugins = true;
 					}
 				}
 			} else {
-				initPlugins = this._initProps(this.target, this._propLookup, this._siblings, op);
+				initPlugins = this._initProps(this.target, this._propLookup, this._siblings, op, 0);
 			}
 
 			if (initPlugins) {
@@ -1325,7 +1340,7 @@
 			this._initted = true;
 		};
 
-		p._initProps = function(target, propLookup, siblings, overwrittenProps) {
+		p._initProps = function(target, propLookup, siblings, overwrittenProps, index) {
 			var p, i, initPlugins, plugin, pt, v;
 			if (target == null) {
 				return false;
@@ -1345,7 +1360,7 @@
 						this.vars[p] = v = this._swapSelfInParams(v, this);
 					}
 
-				} else if (_plugins[p] && (plugin = new _plugins[p]())._onInitTween(target, this.vars[p], this)) {
+				} else if (_plugins[p] && (plugin = new _plugins[p]())._onInitTween(target, this.vars[p], this, index)) {
 
 					//t - target 		[object]
 					//p - property 		[string]
@@ -1355,7 +1370,8 @@
 					//n - name			[string]
 					//pg - isPlugin 	[boolean]
 					//pr - priority		[number]
-					this._firstPT = pt = {_next:this._firstPT, t:plugin, p:"setRatio", s:0, c:1, f:1, n:p, pg:1, pr:plugin._priority};
+					//m - mod           [function | 0]
+					this._firstPT = pt = {_next:this._firstPT, t:plugin, p:"setRatio", s:0, c:1, f:1, n:p, pg:1, pr:plugin._priority, m:0};
 					i = plugin._overwriteProps.length;
 					while (--i > -1) {
 						propLookup[plugin._overwriteProps[i]] = this._firstPT;
@@ -1371,16 +1387,16 @@
 					}
 
 				} else {
-					propLookup[p] = _addPropTween.call(this, target, p, "get", v, p, 0, null, this.vars.stringFilter);
+					propLookup[p] = _addPropTween.call(this, target, p, "get", v, p, 0, null, this.vars.stringFilter, index);
 				}
 			}
 
 			if (overwrittenProps) if (this._kill(overwrittenProps, target)) { //another tween may have tried to overwrite properties of this tween before init() was called (like if two tweens start at the same time, the one created second will run first)
-				return this._initProps(target, propLookup, siblings, overwrittenProps);
+				return this._initProps(target, propLookup, siblings, overwrittenProps, index);
 			}
 			if (this._overwrite > 1) if (this._firstPT) if (siblings.length > 1) if (_applyOverwrite(target, this, propLookup, this._overwrite, siblings)) {
 				this._kill(propLookup, target);
-				return this._initProps(target, propLookup, siblings, overwrittenProps);
+				return this._initProps(target, propLookup, siblings, overwrittenProps, index);
 			}
 			if (this._firstPT) if ((this.vars.lazy !== false && this._duration) || (this.vars.lazy && !this._duration)) { //zero duration tweens don't lazy render by default; everything else does.
 				_lazyLookup[target._gsTweenID] = true;
@@ -1760,7 +1776,7 @@
 				}, true);
 
 		p = TweenPlugin.prototype;
-		TweenPlugin.version = "1.18.0";
+		TweenPlugin.version = "1.19.0";
 		TweenPlugin.API = 2;
 		p._firstPT = null;
 		p._addTween = _addPropTween;
@@ -1797,11 +1813,17 @@
 			return false;
 		};
 
-		p._roundProps = function(lookup, value) {
-			var pt = this._firstPT;
+		p._mod = p._roundProps = function(lookup) {
+			var pt = this._firstPT,
+				val;
 			while (pt) {
-				if (lookup[this._propName] || (pt.n != null && lookup[ pt.n.split(this._propName + "_").join("") ])) { //some properties that are very plugin-specific add a prefix named after the _propName plus an underscore, so we need to ignore that extra stuff here.
-					pt.r = value;
+				val = lookup[this._propName] || (pt.n != null && lookup[ pt.n.split(this._propName + "_").join("") ]);
+				if (val && typeof(val) === "function") { //some properties that are very plugin-specific add a prefix named after the _propName plus an underscore, so we need to ignore that extra stuff here.
+					if (pt.f === 2) {
+						pt.t._applyPT.m = val;
+					} else {
+						pt.m = val;
+					}
 				}
 				pt = pt._next;
 			}
@@ -1857,7 +1879,7 @@
 			var propName = config.propName,
 				priority = config.priority || 0,
 				overwriteProps = config.overwriteProps,
-				map = {init:"_onInitTween", set:"setRatio", kill:"_kill", round:"_roundProps", initAll:"_onInitAllProps"},
+				map = {init:"_onInitTween", set:"setRatio", kill:"_kill", round:"_mod", mod:"_mod", initAll:"_onInitAllProps"},
 				Plugin = _class("plugins." + propName.charAt(0).toUpperCase() + propName.substr(1) + "Plugin",
 					function() {
 						TweenPlugin.call(this, propName, priority);
@@ -1886,7 +1908,7 @@
 			}
 			for (p in _defLookup) {
 				if (!_defLookup[p].func) {
-					window.console.log("GSAP encountered missing dependency: com.greensock." + p);
+					window.console.log("GSAP encountered missing dependency: " + p);
 				}
 			}
 		}

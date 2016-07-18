@@ -1,6 +1,6 @@
 /*!
- * VERSION: 1.18.5
- * DATE: 2016-05-24
+ * VERSION: 1.19.0
+ * DATE: 2016-07-14
  * UPDATES AND DOCS AT: http://greensock.com
  *
  * @license Copyright (c) 2008-2016, GreenSock. All rights reserved.
@@ -31,7 +31,7 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 			p = CSSPlugin.prototype = new TweenPlugin("css");
 
 		p.constructor = CSSPlugin;
-		CSSPlugin.version = "1.18.5";
+		CSSPlugin.version = "1.19.0";
 		CSSPlugin.API = 2;
 		CSSPlugin.defaultTransformPerspective = 0;
 		CSSPlugin.defaultSkewType = "compensated";
@@ -99,6 +99,8 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 					console.log(s);
 				}
 			},
+			_target, //when initting a CSSPlugin, we set this variable so that we can access it from within many other functions without having to pass it around as params
+			_index, //when initting a CSSPlugin, we set this variable so that we can access it from within many other functions without having to pass it around as params
 
 			_prefixCSS = "", //the non-camelCase vendor prefix like "-o-", "-moz-", "-ms-", or "-webkit-"
 			_prefix = "", //camelCase vendor prefix like "O", "ms", "Webkit", or "Moz".
@@ -313,10 +315,10 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 
 			// @private Parses position-related complex strings like "top left" or "50px 10px" or "70% 20%", etc. which are used for things like transformOrigin or backgroundPosition. Optionally decorates a supplied object (recObj) with the following properties: "ox" (offsetX), "oy" (offsetY), "oxp" (if true, "ox" is a percentage not a pixel value), and "oxy" (if true, "oy" is a percentage not a pixel value)
 			_parsePosition = function(v, recObj) {
-				if (v === "contain" || v === "auto" || v === "auto auto") {
+				if (v === "contain" || v === "auto" || v === "auto auto") { //note: Firefox uses "auto auto" as default whereas Chrome uses "auto".
 					return v + " ";
 				}
-				if (v == null || v === "") { //note: Firefox uses "auto auto" as default whereas Chrome uses "auto".
+				if (v == null || v === "") {
 					v = "0 0";
 				}
 				var a = v.split(" "),
@@ -359,6 +361,9 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 			 * @return {number} Amount of change between the beginning and ending values (relative values that have a "+=" or "-=" are recognized)
 			 */
 			_parseChange = function(e, b) {
+				if (typeof(e) === "function") {
+					e = e(_index, _target);
+				}
 				return (typeof(e) === "string" && e.charAt(1) === "=") ? parseInt(e.charAt(0) + "1", 10) * parseFloat(e.substr(2)) : (parseFloat(e) - parseFloat(b)) || 0;
 			},
 
@@ -369,6 +374,9 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 			 * @return {number} Parsed value
 			 */
 			_parseVal = function(v, d) {
+				if (typeof(v) === "function") {
+					v = v(_index, _target);
+				}
 				return (v == null) ? d : (typeof(v) === "string" && v.charAt(1) === "=") ? parseInt(v.charAt(0) + "1", 10) * parseFloat(v.substr(2)) + d : parseFloat(v) || 0;
 			},
 
@@ -383,6 +391,9 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 			_parseAngle = function(v, d, p, directionalEnd) {
 				var min = 0.000001,
 					cap, split, dif, result, isRelative;
+				if (typeof(v) === "function") {
+					v = v(_index, _target);
+				}
 				if (v == null) {
 					result = d;
 				} else if (typeof(v) === "number") {
@@ -644,7 +655,7 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 				};
 			},
 
-			// @private used when other plugins must tween values first, like BezierPlugin or ThrowPropsPlugin, etc. That plugin's setRatio() gets called first so that the values are updated, and then we loop through the MiniPropTweens  which handle copying the values into their appropriate slots so that they can then be applied correctly in the main CSSPlugin setRatio() method. Remember, we typically create a proxy object that has a bunch of uniquely-named properties that we feed to the sub-plugin and it does its magic normally, and then we must interpret those values and apply them to the css because often numbers must get combined/concatenated, suffixes added, etc. to work with css, like boxShadow could have 4 values plus a color.
+			// @private used when other plugins must tween values first, like BezierPlugin or ThrowPropsPlugin, etc. That plugin's setRatio() gets called first so that the values are updated, and then we loop through the MiniPropTweens which handle copying the values into their appropriate slots so that they can then be applied correctly in the main CSSPlugin setRatio() method. Remember, we typically create a proxy object that has a bunch of uniquely-named properties that we feed to the sub-plugin and it does its magic normally, and then we must interpret those values and apply them to the css because often numbers must get combined/concatenated, suffixes added, etc. to work with css, like boxShadow could have 4 values plus a color.
 			_setPluginRatio = _internals._setPluginRatio = function(v) {
 				this.plugin.setRatio(v);
 				var d = this.data,
@@ -663,7 +674,7 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 					mpt = mpt._next;
 				}
 				if (d.autoRotate) {
-					d.autoRotate.rotation = proxy.rotation;
+					d.autoRotate.rotation = d.mod ? d.mod(proxy.rotation, this.t) : proxy.rotation; //special case for ModifyPlugin to hook into an auto-rotating bezier
 				}
 				//at the end, we must set the CSSPropTween's "e" (end) value dynamically here because that's what is used in the final setRatio() method. Same for "b" at the beginning.
 				if (v === 1 || v === 0) {
@@ -840,6 +851,9 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 			_parseComplex = CSSPlugin.parseComplex = function(t, p, b, e, clrs, dflt, pt, pr, plugin, setRatio) {
 				//DEBUG: _log("parseComplex: "+p+", b: "+b+", e: "+e);
 				b = b || dflt || "";
+				if (typeof(e) === "function") {
+					e = e(_index, _target);
+				}
 				pt = new CSSPropTween(t, p, 0, 0, pt, (setRatio ? 2 : 1), null, false, pr, b, e);
 				e += ""; //ensures it's a string
 				if (clrs && _colorExp.test(e + b)) { //if colors are found, normalize the formatting to rgba() or hsla().
@@ -1045,7 +1059,7 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 			},
 
 			//creates a placeholder special prop for a plugin so that the property gets caught the first time a tween of it is attempted, and at that time it makes the plugin register itself, thus taking over for all future tweens of that property. This allows us to not mandate that things load in a particular order and it also allows us to log() an error that informs the user when they attempt to tween an external plugin-related property without loading its .js file.
-			_registerPluginProp = function(p) {
+			_registerPluginProp = _internals._registerPluginProp = function(p) {
 				if (!_specialProps[p]) {
 					var pluginName = p.charAt(0).toUpperCase() + p.substr(1) + "Plugin";
 					_registerComplexSpecialProp(p, {parser:function(t, e, p, cssp, pt, plugin, vars) {
@@ -1628,11 +1642,13 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 						a12 = Math.sin(angle - skew) * -sy;
 						a22 = Math.cos(angle - skew) * sy;
 						if (skew && t.skewType === "simple") { //by default, we compensate skewing on the other axis to make it look more natural, but you can set the skewType to "simple" to use the uncompensated skewing that CSS does
-							t1 = Math.tan(skew);
+							t1 = Math.tan(skew - t.skewY * _DEG2RAD);
 							t1 = Math.sqrt(1 + t1 * t1);
 							a12 *= t1;
 							a22 *= t1;
 							if (t.skewY) {
+								t1 = Math.tan(t.skewY * _DEG2RAD);
+								t1 = Math.sqrt(1 + t1 * t1);
 								a11 *= t1;
 								a21 *= t1;
 							}
@@ -1687,11 +1703,13 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 						cos = Math.cos(angle);
 						sin = Math.sin(angle);
 						if (t.skewType === "simple") { //by default, we compensate skewing on the other axis to make it look more natural, but you can set the skewType to "simple" to use the uncompensated skewing that CSS does
-							t1 = Math.tan(t.skewX * _DEG2RAD);
+							t1 = Math.tan((t.skewX - t.skewY) * _DEG2RAD);
 							t1 = Math.sqrt(1 + t1 * t1);
 							cos *= t1;
 							sin *= t1;
 							if (t.skewY) {
+								t1 = Math.tan(t.skewY * _DEG2RAD);
+								t1 = Math.sqrt(1 + t1 * t1);
 								a11 *= t1;
 								a21 *= t1;
 							}
@@ -1821,9 +1839,14 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 		p.x = p.y = p.z = p.skewX = p.skewY = p.rotation = p.rotationX = p.rotationY = p.zOrigin = p.xPercent = p.yPercent = p.xOffset = p.yOffset = 0;
 		p.scaleX = p.scaleY = p.scaleZ = 1;
 
-		_registerComplexSpecialProp("transform,scale,scaleX,scaleY,scaleZ,x,y,z,rotation,rotationX,rotationY,rotationZ,skewX,skewY,shortRotation,shortRotationX,shortRotationY,shortRotationZ,transformOrigin,svgOrigin,transformPerspective,directionalRotation,parseTransform,force3D,skewType,xPercent,yPercent,smoothOrigin", {parser:function(t, e, p, cssp, pt, plugin, vars) {
+		_registerComplexSpecialProp("transform,scale,scaleX,scaleY,scaleZ,x,y,z,rotation,rotationX,rotationY,rotationZ,skewX,skewY,shortRotation,shortRotationX,shortRotationY,shortRotationZ,transformOrigin,svgOrigin,transformPerspective,directionalRotation,parseTransform,force3D,skewType,xPercent,yPercent,smoothOrigin", {parser:function(t, e, parsingProp, cssp, pt, plugin, vars) {
 			if (cssp._lastParsedTransform === vars) { return pt; } //only need to parse the transform once, and only if the browser supports it.
 			cssp._lastParsedTransform = vars;
+			var swapFunc;
+			if (typeof(vars[parsingProp]) === "function") { //whatever property triggers the initial parsing might be a function-based value in which case it already got called in parse(), thus we don't want to call it again in here. The most efficient way to avoid this is to temporarily swap the value directly into the vars object, and then after we do all our parsing in this function, we'll swap it back again.
+				swapFunc = vars[parsingProp];
+				vars[parsingProp] = e;
+			}
 			var originalGSTransform = t._gsTransform,
 				style = t.style,
 				min = 0.000001,
@@ -1831,12 +1854,13 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 				v = vars,
 				endRotations = {},
 				transformOriginString = "transformOrigin",
-				m1 = _getTransform(t, _cs, true, vars.parseTransform),
-				m2, copy, orig, has3D, hasChange, dr, x, y, matrix;
+				m1 = _getTransform(t, _cs, true, v.parseTransform),
+				orig = v.transform && ((typeof(v.transform) === "function") ? v.transform(_index, _target) : v.transform),
+				m2, copy, has3D, hasChange, dr, x, y, matrix, p;
 			cssp._transform = m1;
-			if (typeof(v.transform) === "string" && _transformProp) { //for values like transform:"rotate(60deg) scale(0.5, 0.8)"
+			if (orig && typeof(orig) === "string" && _transformProp) { //for values like transform:"rotate(60deg) scale(0.5, 0.8)"
 				copy = _tempDiv.style; //don't use the original target because it might be SVG in which case some browsers don't report computed style correctly.
-				copy[_transformProp] = v.transform;
+				copy[_transformProp] = orig;
 				copy.display = "block"; //if display is "none", the browser often refuses to report the transform properties correctly.
 				copy.position = "absolute";
 				_doc.body.appendChild(_tempDiv);
@@ -1980,6 +2004,9 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 			if (hasChange) {
 				cssp._transformType = (!(m1.svg && _useSVGTransformAttr) && (has3D || this._transformType === 3)) ? 3 : 2; //quicker than calling cssp._enableTransforms();
 			}
+			if (swapFunc) {
+				vars[parsingProp] = swapFunc;
+			}
 			return pt;
 		}, prefix:true});
 
@@ -2071,7 +2098,10 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 			}
 			return this.parseComplex(t.style, bs, es, pt, plugin);
 		}, formatter:_parsePosition});
-		_registerComplexSpecialProp("backgroundSize", {defaultValue:"0 0", formatter:_parsePosition});
+		_registerComplexSpecialProp("backgroundSize", {defaultValue:"0 0", formatter:function(v) {
+			v += ""; //ensure it's a string
+			return _parsePosition(v.indexOf(" ") === -1 ? v + " " + v : v); //if set to something like "100% 100%", Safari typically reports the computed style as just "100%" (no 2nd value), but we should ensure that there are two values, so copy the first one. Otherwise, it'd be interpreted as "100% 0" (wrong).
+		}});
 		_registerComplexSpecialProp("perspective", {defaultValue:"0px", prefix:true});
 		_registerComplexSpecialProp("perspectiveOrigin", {defaultValue:"50% 50%", prefix:true});
 		_registerComplexSpecialProp("transformStyle", {prefix:true});
@@ -2304,13 +2334,14 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 		p._firstPT = p._lastParsedTransform = p._transform = null;
 
 		//gets called when the tween renders for the first time. This kicks everything off, recording start/end values, etc.
-		p._onInitTween = function(target, vars, tween) {
+		p._onInitTween = function(target, vars, tween, index) {
 			if (!target.nodeType) { //css is only for dom elements
 				return false;
 			}
-			this._target = target;
+			this._target = _target = target;
 			this._tween = tween;
 			this._vars = vars;
+			_index = index;
 			_autoRound = vars.autoRound;
 			_hasPriority = false;
 			_suffixMap = vars.suffixMap || CSSPlugin.suffixMap;
@@ -2410,6 +2441,9 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 				p, sp, bn, en, bs, es, bsfx, esfx, isStr, rel;
 			for (p in vars) {
 				es = vars[p]; //ending value string
+				if (typeof(es) === "function") {
+					es = es(_index, _target);
+				}
 				sp = _specialProps[p]; //SpecialProp lookup.
 				if (sp) {
 					pt = sp.parse(target, es, p, this, pt, plugin, vars);
@@ -2642,6 +2676,16 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 			return pt;
 		};
 
+		p._mod = function(lookup) {
+			var pt = this._firstPT;
+			while (pt) {
+				if (typeof(lookup[pt.p]) === "function" && lookup[pt.p] === Math.round) { //only gets called by RoundPropsPlugin (ModifyPlugin manages all the rendering internally for CSSPlugin properties that need modification). Remember, we handle rounding a bit differently in this plugin for performance reasons, leveraging "r" as an indicator that the value should be rounded internally..
+					pt.r = 1;
+				}
+				pt = pt._next;
+			}
+		};
+
 		//we need to make sure that if alpha or autoAlpha is killed, opacity is too. And autoAlpha affects the "visibility" property.
 		p._kill = function(lookup) {
 			var copy = lookup,
@@ -2667,6 +2711,14 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 					this._linkCSSP(pt._next, pt._next._next, xfirst._prev);
 				}
 				this._classNamePT = null;
+			}
+			pt = this._firstPT;
+			while (pt) {
+				if (pt.plugin && pt.plugin !== p && pt.plugin._kill) { //for plugins that are registered with CSSPlugin, we should notify them of the kill.
+					pt.plugin._kill(lookup);
+					p = pt.plugin;
+				}
+				pt = pt._next;
 			}
 			return TweenPlugin.prototype._kill.call(this, copy);
 		};
@@ -2766,7 +2818,7 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 		return (_gsScope.GreenSockGlobals || _gsScope)[name];
 	};
 	if (typeof(define) === "function" && define.amd) { //AMD
-		define(["../TweenLite"], getGlobal);
+		define(["TweenLite"], getGlobal);
 	} else if (typeof(module) !== "undefined" && module.exports) { //node
 		require("../TweenLite.js");
 		module.exports = getGlobal();

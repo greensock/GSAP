@@ -1,6 +1,6 @@
 /*!
- * VERSION: 1.7.6
- * DATE: 2015-12-10
+ * VERSION: 1.8.0
+ * DATE: 2016-07-09
  * UPDATES AND DOCS AT: http://greensock.com
  *
  * @license Copyright (c) 2008-2016, GreenSock. All rights reserved.
@@ -23,11 +23,55 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 				body = document.body;
 			return (element === _window || element === _doc || element === body) ? Math.max(_doc[scroll], body[scroll]) - (_window["inner" + dim] || _doc[client] || body[client]) : element[scroll] - element["offset" + dim];
 		},
+		_unwrapElement = function(value) {
+			if (typeof(value) === "string") {
+				value = TweenLite.selector(value);
+			}
+			if (value.length && value !== _window && value[0] && value[0].style && !value.nodeType) {
+				value = value[0];
+			}
+			return (value === _window || (value.nodeType && value.style)) ? value : null;
+		},
+		_buildGetter = function(e, axis) { //pass in an element and an axis ("x" or "y") and it'll return a getter function for the scroll position of that element (like scrollTop or scrollLeft, although if the element is the window, it'll use the pageXOffset/pageYOffset or the documentElement's scrollTop/scrollLeft or document.body's. Basically this streamlines things and makes a very fast getter across browsers.
+			var p = "scroll" + ((axis === "x") ? "Left" : "Top");
+			if (e === _window) {
+				if (e.pageXOffset != null) {
+					p = "page" + axis.toUpperCase() + "Offset";
+				} else if (_doc[p] != null) {
+					e = _doc;
+				} else {
+					e = document.body;
+				}
+			}
+			return function() {
+				return e[p];
+			};
+		},
+		_getOffset = function(element, container) {
+			var rect = _unwrapElement(element).getBoundingClientRect(),
+				isRoot = (!container || container === _window || container === document.body),
+				cRect = (isRoot ? _doc : container).getBoundingClientRect(),
+				offsets = {x: rect.left - cRect.left, y: rect.top - cRect.top};
+			if (!isRoot && container) { //only add the current scroll position if it's not the window/body.
+				offsets.x += _buildGetter(container, "x")();
+				offsets.y += _buildGetter(container, "y")();
+			}
+			return offsets;
+		},
+		_parseVal = function(value, target, axis) {
+			var type = typeof(value);
+			if (type === "number" || (type === "string" && value.charAt(1) === "=")) {
+				return value;
+			} else if (value === "max") {
+				return _max(target, axis);
+			}
+			return Math.min(_max(target, axis), _getOffset(value, target)[axis]);
+		},
 
 		ScrollToPlugin = _gsScope._gsDefine.plugin({
 			propName: "scrollTo",
 			API: 2,
-			version:"1.7.6",
+			version:"1.8.0",
 
 			//called when the tween renders for the first time. This is where initial values should be recorded and any setup routines should run.
 			init: function(target, value, tween) {
@@ -36,19 +80,26 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 				this._tween = tween;
 				if (typeof(value) !== "object") {
 					value = {y:value}; //if we don't receive an object as the parameter, assume the user intends "y".
+					if (typeof(value.y) === "string" && value.y !== "max" && value.y.charAt(1) !== "=") {
+						value.x = value.y;
+					}
+				} else if (value.nodeType) {
+					value = {y:value, x:value};
 				}
 				this.vars = value;
 				this._autoKill = (value.autoKill !== false);
+				this.getX = _buildGetter(target, "x");
+				this.getY = _buildGetter(target, "y");
 				this.x = this.xPrev = this.getX();
 				this.y = this.yPrev = this.getY();
 				if (value.x != null) {
-					this._addTween(this, "x", this.x, (value.x === "max") ? _max(target, "x") : value.x, "scrollTo_x", true);
+					this._addTween(this, "x", this.x, _parseVal(value.x, target, "x") - (value.offsetX || 0), "scrollTo_x", true);
 					this._overwriteProps.push("scrollTo_x");
 				} else {
 					this.skipX = true;
 				}
 				if (value.y != null) {
-					this._addTween(this, "y", this.y, (value.y === "max") ? _max(target, "y") : value.y, "scrollTo_y", true);
+					this._addTween(this, "y", this.y, _parseVal(value.y, target, "y") - (value.offsetY || 0), "scrollTo_y", true);
 					this._overwriteProps.push("scrollTo_y");
 				} else {
 					this.skipY = true;
@@ -63,7 +114,8 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 				var x = (this._wdw || !this.skipX) ? this.getX() : this.xPrev,
 					y = (this._wdw || !this.skipY) ? this.getY() : this.yPrev,
 					yDif = y - this.yPrev,
-					xDif = x - this.xPrev;
+					xDif = x - this.xPrev,
+					threshold = ScrollToPlugin.autoKillThreshold;
 
 				if (this.x < 0) { //can't scroll to a position less than 0! Might happen if someone uses a Back.easeOut or Elastic.easeOut when scrolling back to the top of the page (for example)
 					this.x = 0;
@@ -73,10 +125,10 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 				}
 				if (this._autoKill) {
 					//note: iOS has a bug that throws off the scroll by several pixels, so we need to check if it's within 7 pixels of the previous one that we set instead of just looking for an exact match.
-					if (!this.skipX && (xDif > 7 || xDif < -7) && x < _max(this._target, "x")) {
+					if (!this.skipX && (xDif > threshold || xDif < -threshold) && x < _max(this._target, "x")) {
 						this.skipX = true; //if the user scrolls separately, we should stop tweening!
 					}
-					if (!this.skipY && (yDif > 7 || yDif < -7) && y < _max(this._target, "y")) {
+					if (!this.skipY && (yDif > threshold || yDif < -threshold) && y < _max(this._target, "y")) {
 						this.skipY = true; //if the user scrolls separately, we should stop tweening!
 					}
 					if (this.skipX && this.skipY) {
@@ -104,14 +156,8 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 		p = ScrollToPlugin.prototype;
 
 	ScrollToPlugin.max = _max;
-
-	p.getX = function() {
-		return (!this._wdw) ? this._target.scrollLeft : (_window.pageXOffset != null) ? _window.pageXOffset : (_doc.scrollLeft != null) ? _doc.scrollLeft : document.body.scrollLeft;
-	};
-
-	p.getY = function() {
-		return (!this._wdw) ? this._target.scrollTop : (_window.pageYOffset != null) ? _window.pageYOffset : (_doc.scrollTop != null) ? _doc.scrollTop : document.body.scrollTop;
-	};
+	ScrollToPlugin.getOffset = _getOffset;
+	ScrollToPlugin.autoKillThreshold = 7;
 
 	p._kill = function(lookup) {
 		if (lookup.scrollTo_x) {
@@ -124,3 +170,17 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 	};
 
 }); if (_gsScope._gsDefine) { _gsScope._gsQueue.pop()(); }
+
+//export to AMD/RequireJS and CommonJS/Node (precursor to full modular build system coming at a later date)
+(function(name) {
+	"use strict";
+	var getGlobal = function() {
+		return (_gsScope.GreenSockGlobals || _gsScope)[name];
+	};
+	if (typeof(define) === "function" && define.amd) { //AMD
+		define(["TweenLite"], getGlobal);
+	} else if (typeof(module) !== "undefined" && module.exports) { //node
+		require("../TweenLite.js");
+		module.exports = getGlobal();
+	}
+}("ScrollToPlugin"));

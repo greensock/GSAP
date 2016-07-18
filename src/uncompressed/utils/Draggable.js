@@ -1,6 +1,6 @@
 /*!
- * VERSION: 0.14.7
- * DATE: 2016-05-25
+ * VERSION: 0.14.8
+ * DATE: 2016-07-18
  * UPDATES AND DOCS AT: http://greensock.com
  *
  * Requires TweenLite and CSSPlugin version 1.17.0 or later (TweenMax contains both TweenLite and CSSPlugin). ThrowPropsPlugin is required for momentum-based continuation of movement after the mouse/touch is released (ThrowPropsPlugin is a membership benefit of Club GreenSock - http://greensock.com/club/).
@@ -1139,7 +1139,7 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 					checkAutoScrollBounds = false,
 					isClickable = vars.clickableTest || _isClickable,
 					clickTime = 0,
-					enabled, scrollProxy, startPointerX, startPointerY, startElementX, startElementY, hasBounds, hasDragCallback, maxX, minX, maxY, minY, tempVars, cssVars, touch, touchID, rotationOrigin, dirty, old, snapX, snapY, isClicking, touchEventTarget, matrix, interrupted, startScrollTop, startScrollLeft, applyObj, allowNativeTouchScrolling, touchDragAxis, isDispatching, clickDispatch,
+					enabled, scrollProxy, startPointerX, startPointerY, startElementX, startElementY, hasBounds, hasDragCallback, maxX, minX, maxY, minY, tempVars, cssVars, touch, touchID, rotationOrigin, dirty, old, snapX, snapY, isClicking, touchEventTarget, matrix, interrupted, startScrollTop, startScrollLeft, applyObj, allowNativeTouchScrolling, touchDragAxis, isDispatching, clickDispatch, trustedClickDispatch,
 					//this method gets called on every tick of TweenLite.ticker which allows us to synchronize the renders to the core engine (which is typically synchronized with the display refresh via requestAnimationFrame). This is an optimization - it's better than applying the values inside the "mousemove" or "touchmove" event handler which may get called many times inbetween refreshes.
 					render = function(suppressEvents) {
 						if (self.autoScroll && self.isDragging && (checkAutoScrollBounds || dirty)) {
@@ -1269,6 +1269,7 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 									if (rotationMode) {
 										self.rotation = snappedValue;
 									}
+									dirty = true;
 								}
 							}
 							if (snapY) {
@@ -1276,9 +1277,10 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 								if (snappedValue !== self.y) {
 									self.y = snappedValue;
 								}
+								dirty = true;
 							}
 						}
-						if (x !== self.x || y !== self.y) {
+						if (dirty) {
 							render(true);
 						}
 						if (!skipOnUpdate) {
@@ -1478,6 +1480,12 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 						return (self.tween && self.tween.isActive());
 					},
 
+					removePlaceholder = function() {
+						if (_placeholderDiv.parentNode && !isTweening() && !self.isDragging) { //_placeholderDiv just props open auto-scrolling containers so they don't collapse as the user drags left/up. We remove it after dragging (and throwing, if necessary) finishes.
+							_placeholderDiv.parentNode.removeChild(_placeholderDiv);
+						}
+					},
+
 					buildSnapFunc = function(snap, min, max, factor) {
 						if (typeof(snap) === "function") {
 							return function(n) {
@@ -1562,7 +1570,7 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 						if (allowNativeTouchScrolling || self.autoScroll) {
 							_recordMaxScrolls(target.parentNode);
 						}
-						if (self.autoScroll && !rotationMode && !scrollProxy && target.parentNode && !target.getBBox && target.parentNode._gsMaxScrollX && !_placeholderDiv.parentNode) {//add a placeholder div to prevent the parent container from collapsing when the user drags the element left.
+						if (target.parentNode && (scrollProxy || (self.autoScroll && !rotationMode && target.parentNode._gsMaxScrollX && !_placeholderDiv.parentNode)) && !target.getBBox) { //add a placeholder div to prevent the parent container from collapsing when the user drags the element left.
 							_placeholderDiv.style.width = (target.parentNode.scrollWidth) + "px";
 							target.parentNode.appendChild(_placeholderDiv);
 						}
@@ -1750,7 +1758,8 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 						self.isPressed = false;
 						var originalEvent = e,
 							wasDragging = self.isDragging,
-							touches, i, syntheticEvent, eventTarget;
+							placeholderDelayedCall = TweenLite.delayedCall(0.001, removePlaceholder),
+							touches, i, syntheticEvent, eventTarget, syntheticClick;
 						if (touchEventTarget) {
 							_removeListener(touchEventTarget, "touchend", onRelease);
 							_removeListener(touchEventTarget, "touchmove", onMove);
@@ -1764,9 +1773,6 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 							_removeListener(e.target, "mouseup", onRelease);
 						}
 						dirty = false;
-						if (_placeholderDiv.parentNode) { //_placeholderDiv just props open auto-scrolling containers so they don't collapse as the user drags left/up.
-							_placeholderDiv.parentNode.removeChild(_placeholderDiv);
-						}
 						if (isClicking) {
 							if (e) {
 								_removeListener(e.target, "change", onRelease);
@@ -1817,7 +1823,7 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 								_dispatchEvent(self, "click", "onClick");
 								eventTarget = originalEvent.target || originalEvent.srcElement || target; //old IE uses srcElement
 								clickTime = _getTime();
-								TweenLite.delayedCall(0.00001, function() { // some browsers (like Firefox) won't trust script-generated clicks, so if the user tries to click on a video to play it, for example, it simply won't work. Since a regular "click" event will most likely be generated anyway (one that has its isTrusted flag set to true), we must slightly delay our script-generated click so that the "real"/trusted one is prioritized. Remember, when there are duplicate events in quick succession, we suppress all but the first one. Some browsers don't even trigger the "real" one at all, so our synthetic one is a safety valve that ensures that no matter what, a click event does get dispatched.
+								syntheticClick = function() { // some browsers (like Firefox) won't trust script-generated clicks, so if the user tries to click on a video to play it, for example, it simply won't work. Since a regular "click" event will most likely be generated anyway (one that has its isTrusted flag set to true), we must slightly delay our script-generated click so that the "real"/trusted one is prioritized. Remember, when there are duplicate events in quick succession, we suppress all but the first one. Some browsers don't even trigger the "real" one at all, so our synthetic one is a safety valve that ensures that no matter what, a click event does get dispatched.
 									if (clickTime !== clickDispatch && self.enabled() && !self.isPressed) {
 										if (eventTarget.click) { //some browsers (like mobile Safari) don't properly trigger the click event
 											eventTarget.click();
@@ -1827,7 +1833,10 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 											eventTarget.dispatchEvent(syntheticEvent);
 										}
 									}
-								});
+								};
+								if (!_isAndroid) { //iOS Safari requires the synthetic click to happen immediately or else it simply won't work, but Android doesn't play nice.
+									TweenLite.delayedCall(0.00001, syntheticClick); //in addition to the iOS bug workaround, there's a Firefox issue with clicking on things like a video to play, so we must fake a click event in a slightly delayed fashion. Previously, we listened for the "click" event with "capture" false which solved the video-click-to-play issue, but it would allow the "click" event to be dispatched twice like if you were using a jQuery.click() because that was handled in the capture phase, thus we had to switch to the capture phase to avoid the double-dispatching, but do the delayed synthetic click.
+								}
 							}
 						} else {
 							animate(vars.throwProps); //will skip if throwProps isn't defined or ThrowPropsPlugin isn't loaded.
@@ -1838,6 +1847,9 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 								}
 							}
 							_dispatchEvent(self, "release", "onRelease");
+						}
+						if (isTweening()) {
+							placeholderDelayedCall.duration( self.tween.duration() ); //sync the timing so that the placeholder DIV gets
 						}
 						if (wasDragging) {
 							_dispatchEvent(self, "dragend", "onDragEnd");
@@ -1865,25 +1877,32 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 						}
 					},
 
-					onClick = function(e) {
+					onClick = function(e) { //this was a huge pain in the neck to align all the various browsers and their behaviors. Chrome, Firefox, Safari, Opera, Android, and Microsoft Edge all handle events differently! Some will only trigger native behavior (like checkbox toggling) from trusted events. Others don't even support isTrusted, but require 2 events to flow through before triggering native behavior. Edge treats everything as trusted but also mandates that 2 flow through to trigger the correct native behavior.
 						var time = _getTime(),
-							recentlyClicked = time - clickTime < 40,
-							recentlyDragged = time - dragEndTime < 40;
-						if (recentlyClicked && clickDispatch !== clickTime) {
+							recentlyClicked = (time - clickTime < 40),
+							recentlyDragged = (time - dragEndTime < 40),
+							alreadyDispatched = (recentlyClicked && clickDispatch === clickTime),
+							isModern = !!e.preventDefault,
+							alreadyDispatchedTrusted = (recentlyClicked && trustedClickDispatch === clickTime),
+							trusted = e.isTrusted || (e.isTrusted == null && recentlyClicked && alreadyDispatched); //note: Safari doesn't support isTrusted, and it won't properly execute native behavior (like toggling checkboxes) on the first synthetic "click" event - we must wait for the 2nd and treat it as trusted (but stop propagation at that point). Confusing, I know. Don't you love cross-browser compatibility challenges?
+						if (isModern && (alreadyDispatched || (recentlyDragged && self.vars.suppressClickOnDrag !== false) )) {
+							e.stopImmediatePropagation();
+						}
+						if (recentlyClicked && (!alreadyDispatched || (trusted !== alreadyDispatchedTrusted))) { //let the first click pass through unhindered. Let the next one only if it's trusted, then no more (stop quick-succession ones)
+							if (trusted && alreadyDispatched) {
+								trustedClickDispatch = clickTime;
+							}
 							clickDispatch = clickTime;
 							return;
 						}
 						if (self.isPressed || recentlyDragged || recentlyClicked) {
-							if (e.preventDefault) {
-								e.preventDefault();
-								if (recentlyClicked || (recentlyDragged && self.vars.suppressClickOnDrag !== false)) {
-									e.stopImmediatePropagation(); //otherwise some browsers bubble up click events, creating a duplicate.
-								}
-							} else {
+							if (!isModern) {
 								e.returnValue = false;
-							}
-							if (e.preventManipulation) {
-								e.preventManipulation();  //for some Microsoft browsers
+							} else if (!trusted || !e.detail || !recentlyClicked) {
+								e.preventDefault();
+								if (e.preventManipulation) {
+									e.preventManipulation();  //for some Microsoft browsers
+								}
 							}
 						}
 					};
@@ -2006,9 +2025,11 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 						}
 						syncXY(true);
 					}
-					setPointerPosition(self.pointerX, self.pointerY);
-					if (dirty) {
-						render(true);
+					if (sticky) {
+						setPointerPosition(self.pointerX, self.pointerY);
+						if (dirty) {
+							render(true);
+						}
 					}
 					if (self.isPressed && !sticky && ((allowX && Math.abs(x - self.x) > 0.01) || (allowY && (Math.abs(y - self.y) > 0.01 && !rotationMode)))) {
 						recordStartPositions();
@@ -2033,7 +2054,7 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 							trigger = triggers[i];
 							_addListener(trigger, "mousedown", onPress);
 							_addListener(trigger, "touchstart", onPress);
-							_addListener(trigger, "click", onClick, true);
+							_addListener(trigger, "click", onClick, true); //note: used to pass true for capture but it prevented click-to-play-video functionality in Firefox.
 							if (!rotationMode) {
 								_setStyle(trigger, "cursor", vars.cursor || "move");
 							}
@@ -2164,7 +2185,7 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 		p.constructor = Draggable;
 		p.pointerX = p.pointerY = 0;
 		p.isDragging = p.isPressed = false;
-		Draggable.version = "0.14.7";
+		Draggable.version = "0.14.8";
 		Draggable.zIndex = 1000;
 
 		_addListener(_doc, "touchcancel", function() {
@@ -2274,7 +2295,7 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 		return (_gsScope.GreenSockGlobals || _gsScope)[name];
 	};
 	if (typeof(define) === "function" && define.amd) { //AMD
-		define(["../TweenLite", "../plugins/CSSPlugin"], getGlobal);
+		define(["TweenLite", "CSSPlugin"], getGlobal);
 	} else if (typeof(module) !== "undefined" && module.exports) { //node
 		require("../TweenLite.js");
 		require("../plugins/CSSPlugin.js");

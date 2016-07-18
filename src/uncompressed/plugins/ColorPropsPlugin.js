@@ -1,6 +1,6 @@
 /*!
- * VERSION: beta 1.4.2
- * DATE: 2016-04-19
+ * VERSION: beta 1.5.0
+ * DATE: 2016-07-14
  * UPDATES AND DOCS AT: http://greensock.com
  *
  * @license Copyright (c) 2008-2016, GreenSock. All rights reserved.
@@ -137,13 +137,13 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 
 		ColorPropsPlugin = _gsScope._gsDefine.plugin({
 			propName: "colorProps",
-			version: "1.4.2",
+			version: "1.5.0",
 			priority: -1,
 			API: 2,
 			global: true,
 
 			//called when the tween renders for the first time. This is where initial values should be recorded and any setup routines should run.
-			init: function(target, value, tween) {
+			init: function(target, value, tween, index) {
 				var p, proxy, pt, val;
 				this._target = target;
 				this._proxy = proxy = ((value.format + "").toUpperCase() === "NUMBER") ? {} : 0;
@@ -153,9 +153,12 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 							this._firstNumPT = pt = {_next:this._firstNumPT, t:target, p:p, f:(typeof(target[p]) === "function")};
 							proxy[p] = "rgb(" + _parseColor(!pt.f ? target[p] : target[ ((p.indexOf("set") || typeof(target["get" + p.substr(3)]) !== "function") ? p : "get" + p.substr(3)) ]()).join(",") + ")";
 							val = value[p];
+							if (typeof(val) === "function") {
+								val = val(index, target);
+							}
 							this._addTween(proxy, p, "get", ((typeof(val) === "number") ? "rgb(" + _parseColor(val, false).join(",") + ")" : val), p, null, null, _colorStringFilter);
 						} else {
-							this._addTween(target, p, "get", value[p], p, null, null, _colorStringFilter);
+							this._addTween(target, p, "get", value[p], p, null, null, _colorStringFilter, index);
 						}
 
 					}

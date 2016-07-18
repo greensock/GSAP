@@ -1,6 +1,6 @@
 /*!
- * VERSION: 1.18.5
- * DATE: 2016-05-24
+ * VERSION: 1.18.6
+ * DATE: 2016-07-12
  * UPDATES AND DOCS AT: http://greensock.com
  *
  * @license Copyright (c) 2008-2016, GreenSock. All rights reserved.
@@ -28,12 +28,13 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 			TweenLiteInternals = TweenLite._internals,
 			_lazyTweens = TweenLiteInternals.lazyTweens,
 			_lazyRender = TweenLiteInternals.lazyRender,
+			_globals = _gsScope._gsDefine.globals,
 			_easeNone = new Ease(null, null, 1, 0),
 			p = TimelineMax.prototype = new TimelineLite();
 			
 		p.constructor = TimelineMax;
 		p.kill()._gc = false;
-		TimelineMax.version = "1.18.5";
+		TimelineMax.version = "1.19.0";
 		
 		p.invalidate = function() {
 			this._yoyo = (this.vars.yoyo === true);
@@ -72,13 +73,14 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 		p.tweenTo = function(position, vars) {
 			vars = vars || {};
 			var copy = {ease:_easeNone, useFrames:this.usesFrames(), immediateRender:false},
+				Engine = (vars.repeat && _globals.TweenMax) || TweenLite,
 				duration, p, t;
 			for (p in vars) {
 				copy[p] = vars[p];
 			}
 			copy.time = this._parseTimeOrLabel(position);
 			duration = (Math.abs(Number(copy.time) - this._time) / this._timeScale) || 0.001;
-			t = new TweenLite(this, duration, copy);
+			t = new Engine(this, duration, copy);
 			copy.onStart = function() {
 				t.target.paused(true);
 				if (t.vars.time !== t.target.time() && duration === t.duration()) { //don't make the duration zero - if it's supposed to be zero, don't worry because it's already initting the tween and will complete immediately, effectively making the duration zero anyway. If we make duration zero, the tween won't run at all.
@@ -573,7 +575,7 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 			},
 			p = TimelineLite.prototype = new SimpleTimeline();
 
-		TimelineLite.version = "1.18.5";
+		TimelineLite.version = "1.19.0";
 		p.constructor = TimelineLite;
 		p.kill()._gc = p._forcingPlayhead = p._hasPause = false;
 
@@ -1276,7 +1278,7 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 		return (_gsScope.GreenSockGlobals || _gsScope)[name];
 	};
 	if (typeof(define) === "function" && define.amd) { //AMD
-		define(["./TweenLite"], getGlobal);
+		define(["TweenLite"], getGlobal);
 	} else if (typeof(module) !== "undefined" && module.exports) { //node
 		require("./TweenLite.js"); //dependency
 		module.exports = getGlobal();

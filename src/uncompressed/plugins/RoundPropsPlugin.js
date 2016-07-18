@@ -1,6 +1,6 @@
 /*!
- * VERSION: 1.5
- * DATE: 2015-08-28
+ * VERSION: 1.6.0
+ * DATE: 2015-07-16
  * UPDATES AND DOCS AT: http://greensock.com
  *
  * @license Copyright (c) 2008-2016, GreenSock. All rights reserved.
@@ -16,7 +16,7 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 
 		var RoundPropsPlugin = _gsScope._gsDefine.plugin({
 				propName: "roundProps",
-				version: "1.5",
+				version: "1.6.0",
 				priority: -1,
 				API: 2,
 
@@ -30,7 +30,7 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 			_roundLinkedList = function(node) {
 				while (node) {
 					if (!node.f && !node.blob) {
-						node.r = 1;
+						node.m = Math.round;
 					}
 					node = node._next;
 				}
@@ -45,7 +45,7 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 				rpt = tween._propLookup.roundProps,
 				prop, pt, next;
 			while (--i > -1) {
-				lookup[rp[i]] = 1;
+				lookup[rp[i]] = Math.round;
 			}
 			i = rp.length;
 			while (--i > -1) {
@@ -54,7 +54,7 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 				while (pt) {
 					next = pt._next; //record here, because it may get removed
 					if (pt.pg) {
-						pt.t._roundProps(lookup, true);
+						pt.t._mod(lookup);
 					} else if (pt.n === prop) {
 						if (pt.f === 2 && pt.t) { //a blob (text containing multiple numeric values)
 							_roundLinkedList(pt.t._firstPT);
@@ -80,7 +80,7 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 		};
 
 		p._add = function(target, p, s, c) {
-			this._addTween(target, p, s, s + c, p, true);
+			this._addTween(target, p, s, s + c, p, Math.round);
 			this._overwriteProps.push(p);
 		};
 

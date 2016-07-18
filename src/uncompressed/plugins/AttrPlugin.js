@@ -1,6 +1,6 @@
 /*!
- * VERSION: 0.5.0
- * DATE: 2015-08-29
+ * VERSION: 0.6.0
+ * DATE: 2016-07-13
  * UPDATES AND DOCS AT: http://greensock.com
  *
  * @license Copyright (c) 2008-2016, GreenSock. All rights reserved.
@@ -17,16 +17,20 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 	_gsScope._gsDefine.plugin({
 		propName: "attr",
 		API: 2,
-		version: "0.5.0",
+		version: "0.6.0",
 
 		//called when the tween renders for the first time. This is where initial values should be recorded and any setup routines should run.
-		init: function(target, value, tween) {
-			var p;
+		init: function(target, value, tween, index) {
+			var p, end;
 			if (typeof(target.setAttribute) !== "function") {
 				return false;
 			}
 			for (p in value) {
-				this._addTween(target, "setAttribute", target.getAttribute(p) + "", value[p] + "", p, false, p);
+				end = value[p];
+				if (typeof(end) === "function") {
+					end = end(index, target);
+				}
+				this._addTween(target, "setAttribute", target.getAttribute(p) + "", end + "", p, false, p);
 				this._overwriteProps.push(p);
 			}
 			return true;

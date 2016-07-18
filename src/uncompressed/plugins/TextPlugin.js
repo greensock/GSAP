@@ -1,6 +1,6 @@
 /*!
- * VERSION: 0.5.1
- * DATE: 2014-07-17
+ * VERSION: 0.5.2
+ * DATE: 2016-06-22
  * UPDATES AND DOCS AT: http://greensock.com
  *
  * @license Copyright (c) 2008-2016, GreenSock. All rights reserved.
@@ -33,12 +33,17 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 			TextPlugin = _gsScope._gsDefine.plugin({
 				propName: "text",
 				API: 2,
-				version:"0.5.1",
+				version:"0.5.2",
 
 				//called when the tween renders for the first time. This is where initial values should be recorded and any setup routines should run.
-				init: function(target, value, tween) {
-					var i, shrt;
-					if (!("innerHTML" in target)) {
+				init: function(target, value, tween, index) {
+					var i = target.nodeName.toUpperCase(),
+						shrt;
+					if (typeof(value) === "function") {
+						value = value(index, target);
+					}
+					this._svg = (target.getBBox && (i === "TEXT" || i === "TSPAN"));
+					if (!("innerHTML" in target) && !this._svg) {
 						return false;
 					}
 					this._target = target;
@@ -66,7 +71,7 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 						this._oldClass = value.oldClass;
 						this._hasClass = true;
 					}
-					i = this._original.length - this._text.length,
+					i = this._original.length - this._text.length;
 					shrt = (i < 0) ? this._original : this._text;
 					this._fillChar = value.fillChar || (value.padSpace ? "&nbsp;" : "");
 					if (i < 0) {
@@ -98,7 +103,11 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 					} else {
 						str = this._text.slice(0, i).join(this._delimiter) + this._delimiter + this._original.slice(i).join(this._delimiter);
 					}
-					this._target.innerHTML = (this._fillChar === "&nbsp;" && str.indexOf("  ") !== -1) ? str.split("  ").join("&nbsp;&nbsp;") : str;
+					if (this._svg) { //SVG text elements don't have an "innerHTML" in Microsoft browsers.
+						this._target.textContent = str;
+					} else {
+						this._target.innerHTML = (this._fillChar === "&nbsp;" && str.indexOf("  ") !== -1) ? str.split("  ").join("&nbsp;&nbsp;") : str;
+					}
 				}
 
 			}),

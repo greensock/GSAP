@@ -27,16 +27,16 @@ This is the public repository for GreenSock's JavaScript tools like <a href="htt
 * css-tricks.com article about how <a href="https://css-tricks.com/svg-animation-on-css-transforms/">GSAP solves cross-browser SVG animation challenges</a>
 
 ### CDN
-`<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/1.18.5/TweenMax.min.js"></script>`
+`<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/1.19.0/TweenMax.min.js"></script>`
 Click the green "Download GSAP" button at <a href="http://greensock.com/?download=GSAP-JS">http://greensock.com</a> for more options.
 
 ### NPM
 `npm install gsap`
-The default (main) file is TweenMax which also includes TweenLite, TimelineLite, TimelineMax, CSSPlugin, RoundPropsPlugin, BezierPlugin, AttrPlugin, DirectionalRotationPlugin, and all of the eases like Power1, Power2, Power3, Power4, Back, Bounce, Circ, Cubic, Elastic, Expo, Linear, Sine, RoughEase, SlowMo, SteppedEase, etc. Please make sure you're using at least version 1.18.5 for improved Node/NPM/Webpack/Browserify compatibility.
+The default (main) file is TweenMax which also includes TweenLite, TimelineLite, TimelineMax, CSSPlugin, RoundPropsPlugin, BezierPlugin, AttrPlugin, DirectionalRotationPlugin, and all of the eases like Power1, Power2, Power3, Power4, Back, Bounce, Circ, Cubic, Elastic, Expo, Linear, Sine, RoughEase, SlowMo, SteppedEase, etc. Please make sure you're using at least version 1.19.0
 
 ### Need help?
 Head over to the <a href="http://greensock.com/forums/">GreenSock forums</a> which are an excellent resource for learning and getting questions answered. Report any bugs there too please (it's also okay to file an issue on Github if you prefer).
 
 Copyright (c) 2008-2016, GreenSock. All rights reserved. 
 
-License: GreenSock's standard "no charge" license can be viewed at <a href="http://greensock.com/standard-license">http://greensock.com/standard-license</a>. <a href="http://greensock.com/club/">Club GreenSock</a> members are granted additional rights. See <a href="http://greensock.com/licensing/">http://greensock.com/licensing/</a> for details. Why doesn't GreenSock use an MIT (or similar) open source license, and why is that a *good* thing? This article explains it all: <a href="http://greensock.com/why-license/" target="_blank">http://greensock.com/why-license/</a>
+License: GreenSock's standard "no charge" license can be viewed at <a href="http://greensock.com/standard-license">http://greensock.com/standard-license</a>. <a href="http://greensock.com/club/">Club GreenSock</a> members are granted additional rights. See <a href="http://greensock.com/licensing/">http://greensock.com/licensing/</a> for details. Why doesn't GreenSock use an MIT (or similar) open source license, and why is that a **good** thing? This article explains it all: <a href="http://greensock.com/why-license/" target="_blank">http://greensock.com/why-license/</a>
