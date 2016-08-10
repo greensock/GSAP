@@ -36,6 +36,7 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 		CSSPlugin.defaultTransformPerspective = 0;
 		CSSPlugin.defaultSkewType = "compensated";
 		CSSPlugin.defaultSmoothOrigin = true;
+		CSSPlugin.defaultZeroOrigin = false;
 		p = "px"; //we'll reuse the "p" variable to keep file size down
 		CSSPlugin.suffixMap = {top:p, right:p, bottom:p, left:p, width:p, height:p, fontSize:p, padding:p, margin:p, perspective:p, lineHeight:""};
 
@@ -1227,6 +1228,9 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 					xOriginOld = tm.xOrigin; //record the original values before we alter them.
 					yOriginOld = tm.yOrigin;
 				}
+				if (CSSPlugin.defaultZeroOrigin) {
+					absolute = "0 0";
+				}
 				if (!absolute || (v = absolute.split(" ")).length < 2) {
 					b = e.getBBox();
 					local = _parsePosition(local).split(" ");
@@ -1266,7 +1270,7 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 						tm.xOffset = tm.yOffset = 0;
 					}
 				}
-				if (!skipRecord) {
+				if (!skipRecord && !CSSPlugin.defaultZeroOrigin) {
 					e.setAttribute("data-svg-origin", v.join(" "));
 				}
 			},
