@@ -7790,7 +7790,7 @@ if (_gsScope._gsDefine) { _gsScope._gsQueue.pop()(); } //necessary in case Tween
 			}
 			for (p in _defLookup) {
 				if (!_defLookup[p].func) {
-					window.console.log("GSAP encountered missing dependency: " + p);
+					console.log("GSAP encountered missing dependency: " + p);
 				}
 			}
 		}
