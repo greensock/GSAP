@@ -1,9 +1,9 @@
 /*!
- * VERSION: 0.2.0
- * DATE: 2016-07-12
+ * VERSION: 0.2.1
+ * DATE: 2017-01-17
  * UPDATES AND DOCS AT: http://greensock.com
  *
- * @license Copyright (c) 2008-2016, GreenSock. All rights reserved.
+ * @license Copyright (c) 2008-2017, GreenSock. All rights reserved.
  * This work is subject to the terms at http://greensock.com/standard-license or for
  * Club GreenSock members, the software agreement that was issued with your membership.
  * 
@@ -229,13 +229,13 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 	_gsScope._gsDefine.plugin({
 		propName: "easel",
 		priority: -1,
-		version: "0.2.0",
+		version: "0.2.1",
 		API: 2,
 
 		//called when the tween renders for the first time. This is where initial values should be recorded and any setup routines should run.
 		init: function(target, value, tween, index) {
 			this._target = target;
-			var p, pt, tint, colorMatrix, end;
+			var p, pt, tint, colorMatrix, end, labels, i;
 			for (p in value) {
 
 				end = value[p];
@@ -256,7 +256,14 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 
 				} else if (p === "frame") {
 					this._firstPT = pt = {_next:this._firstPT, t:target, p:"gotoAndStop", s:target.currentFrame, f:true, n:"frame", pr:0, type:0, m:Math.round};
-					pt.c = (typeof(end) === "number") ? end - pt.s : (typeof(end) === "string") ? parseFloat(end.split("=").join("")) : 0;
+					if (typeof(end) === "string" && end.charAt(1) !== "=" && (labels = target.labels)) {
+						for (i = 0; i < labels.length; i++) {
+							if (labels[i].label === end) {
+								end = labels[i].position;
+							}
+						}
+					}
+					pt.c = (typeof(end) === "number") ? end - pt.s : parseFloat((end+"").split("=").join(""));
 					if (pt._next) {
 						pt._next._prev = pt;
 					}
@@ -302,3 +309,16 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 	});
 
 }); if (_gsScope._gsDefine) { _gsScope._gsQueue.pop()(); }
+//export to AMD/RequireJS and CommonJS/Node (precursor to full modular build system coming at a later date)
+(function(name) {
+	"use strict";
+	var getGlobal = function() {
+		return (_gsScope.GreenSockGlobals || _gsScope)[name];
+	};
+	if (typeof(define) === "function" && define.amd) { //AMD
+		define(["TweenLite"], getGlobal);
+	} else if (typeof(module) !== "undefined" && module.exports) { //node
+		require("../TweenLite.js");
+		module.exports = getGlobal();
+	}
+}("EaselPlugin"));

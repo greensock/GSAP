@@ -1,12 +1,12 @@
 {
     "name": "gsap",
-    "version": "1.19.0",
+    "version": "1.19.1",
     "description": "The most flexible, high-performance animation library on the planet. Animate any property of any object. Solves browser quirks.",
     "author": {
         "name": "Jack Doyle",
         "url": "http://greensock.com/gsap/"
     },
-    "main": "./src/uncompressed/TweenMax.js",
+    "main": "./TweenMax.js",
     "dependencies": {
 
     },
