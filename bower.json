@@ -6,7 +6,7 @@
         "name": "Jack Doyle",
         "url": "http://greensock.com/gsap/"
     },
-    "main": "./TweenMax.js",
+    "main": "./src/uncompressed/TweenMax.js",
     "dependencies": {
 
     },
