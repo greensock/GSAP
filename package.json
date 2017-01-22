@@ -4,7 +4,7 @@
     "version": "1.19.1",
     "description": "Think of GSAP as the Swiss Army Knife of animation...but better. It animates anything JavaScript can touch (CSS properties, canvas library objects, SVG, generic objects, whatever) and it solves countless browser inconsistencies, all with blazing speed (up to 20x faster than jQuery), including automatic GPU-acceleration of transforms. See http://greensock.com/why-gsap/ for details. Most other libraries only animate CSS properties. Plus, their sequencing abilities and runtime controls pale by comparison. Simply put, GSAP is the most flexible high-performance animation library on the planet, which is probably why Google recommends it for JS-based animations and every major ad network excludes it from file size calculations. Unlike monolithic frameworks that dictate how you structure your apps, GSAP simply affects the animation layer; sprinkle it wherever you want. See http://greensock.com/gsap/ for details.",
     "homepage": "http://greensock.com/gsap/",
-	"main": "./TweenMax.js",
+	"main": "./src/uncompressed/TweenMax.js",
     "keywords": [
        "animation",
 	   "TweenLite",
