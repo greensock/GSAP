@@ -56,7 +56,7 @@
 			if (!TweenLite || !CSSPlugin || stale) {
 				TweenLite = null;
 				if (!_warned && window.console) {
-					window.console.log("The jquery.gsap.js plugin requires the TweenMax (or at least TweenLite and CSSPlugin) JavaScript file(s)." + (stale ? " Version " + version.join(".") + " is too old." : ""));
+					console.log("The jquery.gsap.js plugin requires the TweenMax (or at least TweenLite and CSSPlugin) JavaScript file(s)." + (stale ? " Version " + version.join(".") + " is too old." : ""));
 					_warned = true;
 				}
 				return;
