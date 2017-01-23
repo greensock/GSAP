@@ -1145,6 +1145,8 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 				this.autoScroll = vars.autoScroll || 0;
 				this.lockedAxis = null;
 				this.allowEventDefault = !!vars.allowEventDefault;
+				this.svgAttr = vars.svgAttr;
+				this.svgFindPoints = true;
 				var type = (vars.type || (_isOldIE ? "top,left" : "x,y")).toLowerCase(),
 					xyMode = (type.indexOf("x") !== -1 || type.indexOf("y") !== -1),
 					rotationMode = (type.indexOf("rotation") !== -1),
@@ -1249,7 +1251,17 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 										self.deltaX = x - applyObj.data.x;
 										applyObj.data.x = x;
 									}
-									applyObj.setRatio(1); //note: instead of doing TweenLite.set(), as a performance optimization we skip right to the method that renders the transforms inside CSSPlugin. For old versions of IE, though, we do a normal TweenLite.set() to leverage its ability to re-reroute to an IE-specific 2D renderer.
+									if (self.svgAttr) {
+										self.svgX = self.svgStartX + x;
+										self.svgY = self.svgStartY + y;
+										if (self.svgCircle) {
+											TweenLite.set(target, {attr:{cx:self.svgX, cy:self.svgY}});
+										} else {
+											TweenLite.set(target, {attr:{x:self.svgX, y:self.svgY}});
+										}
+									} else {
+										applyObj.setRatio(1); //note: instead of doing TweenLite.set(), as a performance optimization we skip right to the method that renders the transforms inside CSSPlugin. For old versions of IE, though, we do a normal TweenLite.set() to leverage its ability to re-reroute to an IE-specific 2D renderer.
+									}
 								} else {
 									if (allowY) {
 										self.deltaY = y - parseFloat(target.style.top || 0);
@@ -1281,6 +1293,30 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 						if (xyMode) {
 							self.y = target._gsTransform.y;
 							self.x = target._gsTransform.x;
+							if (self.svgAttr && self.svgFindPoints) {
+								self.svgFindPoints = false;
+								switch(target.tagName.toLowerCase()) {
+									case "filter":
+									case "foreignObject":
+									case "image":
+									case "rect":
+									case "svg":
+									case "text":
+									case "use":
+									case "tspan":
+										self.svgCircle = false;
+										self.svgStartX = Number(target.getAttributeNS(null, "x"));
+										self.svgStartY = Number(target.getAttributeNS(null, "y"));
+										break;
+									case "circle":
+										self.svgCircle = true;
+										self.svgStartX = Number(target.getAttributeNS(null, "cx"));
+										self.svgStartY = Number(target.getAttributeNS(null, "cy"));
+										break;
+									default:
+										self.svgAttr = false;
+								}
+							}
 						} else if (rotationMode) {
 							self.x = self.rotation = target._gsTransform.rotation;
 						} else if (scrollProxy) {

@@ -36,6 +36,7 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 		CSSPlugin.defaultTransformPerspective = 0;
 		CSSPlugin.defaultSkewType = "compensated";
 		CSSPlugin.defaultSmoothOrigin = true;
+		CSSPlugin.defaultZeroOrigin = false;
 		p = "px"; //we'll reuse the "p" variable to keep file size down
 		CSSPlugin.suffixMap = {top:p, right:p, bottom:p, left:p, width:p, height:p, fontSize:p, padding:p, margin:p, perspective:p, lineHeight:""};
 
@@ -1228,6 +1229,9 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 					xOriginOld = tm.xOrigin; //record the original values before we alter them.
 					yOriginOld = tm.yOrigin;
 				}
+				if (CSSPlugin.defaultZeroOrigin) {
+					absolute = "0 0";
+				}
 				if (!absolute || (v = absolute.split(" ")).length < 2) {
 					b = e.getBBox();
 					if (b.x === 0 && b.y === 0 && b.width + b.height === 0) { //some browsers (like Firefox) misreport the bounds if the element has zero width and height (it just assumes it's at x:0, y:0), thus we need to manually grab the position in that case.
@@ -1272,7 +1276,7 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 						tm.xOffset = tm.yOffset = 0;
 					}
 				}
-				if (!skipRecord) {
+				if (!skipRecord && !CSSPlugin.defaultZeroOrigin) {
 					e.setAttribute("data-svg-origin", v.join(" "));
 				}
 			},
