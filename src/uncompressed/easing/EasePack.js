@@ -351,7 +351,7 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 		return (_gsScope.GreenSockGlobals || _gsScope);
 	};
 	if (typeof(define) === "function" && define.amd) { //AMD
-		define(["TweenLite"], getGlobal);
+		define(["../TweenLite"], getGlobal);
 	} else if (typeof(module) !== "undefined" && module.exports) { //node
 		require("../TweenLite.js");
 		module.exports = getGlobal();

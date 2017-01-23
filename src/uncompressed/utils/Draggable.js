@@ -2413,7 +2413,7 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 		return (_gsScope.GreenSockGlobals || _gsScope)[name];
 	};
 	if (typeof(define) === "function" && define.amd) { //AMD
-		define(["TweenLite", "CSSPlugin"], getGlobal);
+		define(["../TweenLite", "../CSSPlugin"], getGlobal);
 	} else if (typeof(module) !== "undefined" && module.exports) { //node
 		require("../TweenLite.js");
 		require("../plugins/CSSPlugin.js");
