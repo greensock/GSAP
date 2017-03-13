@@ -11,8 +11,33 @@
  *
  * @author: Jack Doyle, jack@greensock.com
  */
-(function($) {
+(function (root, factory) {
+  if (typeof define === 'function' && define.amd) {
+    // AMD. Register as an anonymous module.
+    define(['TweenLite', 'CSSPlugin', 'jquery'], factory);
+  } else if (typeof exports === 'object') {
+    // CommonJS
+    factory(require('gsap/TweenLite'), require('gsap/CSSPlugin'), require('jquery'));
+  } else {
+    // Browser global
+    factory(root.TweenLite, root.CSSPlugin, root.jQuery);
+  }
+}(this, function (TweenLite, CSSPlugin, $) {
 	"use strict";
+
+  var
+    console = window.console || {},
+    err = Function.prototype.bind.call(console.error || console.log ||
+      function () {}, console);
+  if (!TweenLite) {
+    err("ERROR: The TweenLite main module could not be found. Please make sure it's loaded before this plugin or use an asynchronous loader like requirejs.");
+  }
+  if (!CSSPlugin) {
+    err("ERROR: The CSSPlugin main module could not be found. Please make sure it's loaded before this plugin or use an asynchronous loader like requirejs.");
+  }
+  if (!$) {
+    err("ERROR: jQuery could not be found. Please make sure it's loaded before GSAP or use an asynchronous loader like requirejs.");
+  }
 
 	var	_animate = $.fn.animate,
 		_stop = $.fn.stop,
@@ -182,4 +207,4 @@
 		}
 	};
 
-}(jQuery));
+}));
