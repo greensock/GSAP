@@ -6378,7 +6378,11 @@ if (_gsScope._gsDefine) { _gsScope._gsQueue.pop()(); } //necessary in case Tween
 				if (_tickerActive && _getTime() - _lastUpdate > 2000) {
 					_ticker.wake();
 				}
-				setTimeout(_checkTimeout, 2000);
+				var timeout = setTimeout(_checkTimeout, 2000);
+				if (timeout.unref) {
+					// `unref` allows a node process to exit even if the timeout’s callback hasn’t been invoked. Without it, the node process is hanging as this function is called every two seconds.
+					timeout.unref();
+				}
 			};
 		_checkTimeout();
 
