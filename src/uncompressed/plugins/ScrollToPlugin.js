@@ -14,7 +14,8 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 
 	"use strict";
 
-	var _doc = document.documentElement,
+	var _doc = _gsScope.document || {},
+    _docElement = _doc.documentElement || {},
 		_window = _gsScope,
 		_max = function(element, axis) {
 			var dim = (axis === "x") ? "Width" : "Height",
