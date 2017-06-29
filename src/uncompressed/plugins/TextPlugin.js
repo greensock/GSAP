@@ -1,6 +1,6 @@
 /*!
- * VERSION: 0.5.2
- * DATE: 2017-01-17
+ * VERSION: 0.6.0
+ * DATE: 2017-06-19
  * UPDATES AND DOCS AT: http://greensock.com
  *
  * @license Copyright (c) 2008-2017, GreenSock. All rights reserved.
@@ -30,10 +30,39 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 				}
 				return result;
 			},
+			_emojiStart = 0xD800,
+			_emojiEnd = 0xDBFF,
+			_emojiLowStart = 0xDC00,
+			_emojiRegionStart = 0x1F1E6,
+			_emojiRegionEnd = 0x1F1FF,
+			_emojiModStart = 0x1f3fb,
+			_emojiModEnd = 0x1f3ff,
+			_emojiPairCode = function(s) {
+				return ((s.charCodeAt(0) - _emojiStart) << 10) + (s.charCodeAt(1) - _emojiLowStart) + 0x10000;
+			},
+			_emojiSafeSplit = function(text, delimiter) { //like calling String.split(delimiter) except that it keeps emoji characters together.
+				if (delimiter !== "") {
+					return text.split(delimiter);
+				}
+				var l = text.length,
+					a = [],
+					character, i, emojiPair1, emojiPair2, j;
+				for (i = 0; i < l; i++) {
+					character = text.charAt(i);
+					if ((character.charCodeAt(0) >= _emojiStart && character.charCodeAt(0) <= _emojiEnd) || (text.charCodeAt(i+1) >= 0xFE00 && text.charCodeAt(i+1) <= 0xFE0F)) { //special emoji characters use 2 or 4 unicode characters that we must keep together.
+						emojiPair1 = _emojiPairCode(text.substr(i, 2));
+						emojiPair2 = _emojiPairCode(text.substr(i + 2, 2));
+						j = ((emojiPair1 >= _emojiRegionStart && emojiPair1 <= _emojiRegionEnd && emojiPair2 >= _emojiRegionStart && emojiPair2 <= _emojiRegionEnd) || (emojiPair2 >= _emojiModStart && emojiPair2 <= _emojiModEnd)) ? 4 : 2;
+						a.push(text.substr(i, j));
+						i += j - 1;
+					}
+				}
+				return a;
+			},
 			TextPlugin = _gsScope._gsDefine.plugin({
 				propName: "text",
 				API: 2,
-				version:"0.5.2",
+				version:"0.6.0",
 
 				//called when the tween renders for the first time. This is where initial values should be recorded and any setup routines should run.
 				init: function(target, value, tween, index) {
@@ -55,8 +84,8 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 						return true;
 					}
 					this._delimiter = value.delimiter || "";
-					this._original = _getText(target).replace(/\s+/g, " ").split(this._delimiter);
-					this._text = value.value.replace(/\s+/g, " ").split(this._delimiter);
+					this._original = _emojiSafeSplit(_getText(target).replace(/\s+/g, " "), this._delimiter);
+					this._text = _emojiSafeSplit(value.value.replace(/\s+/g, " "), this._delimiter);
 					this._runBackwards = (tween.vars.runBackwards === true);
 					if (this._runBackwards) {
 						i = this._original;
@@ -123,10 +152,10 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 	var getGlobal = function() {
 		return (_gsScope.GreenSockGlobals || _gsScope)[name];
 	};
-	if (typeof(define) === "function" && define.amd) { //AMD
-		define(["TweenLite"], getGlobal);
-	} else if (typeof(module) !== "undefined" && module.exports) { //node
+	if (typeof(module) !== "undefined" && module.exports) { //node
 		require("../TweenLite.js");
 		module.exports = getGlobal();
+	} else if (typeof(define) === "function" && define.amd) { //AMD
+		define(["TweenLite"], getGlobal);
 	}
 }("TextPlugin"));

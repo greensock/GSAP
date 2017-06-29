@@ -1,6 +1,6 @@
 /*!
- * VERSION: 0.15.0
- * DATE: 2017-01-17
+ * VERSION: 0.15.1
+ * DATE: 2017-06-19
  * UPDATES AND DOCS AT: http://greensock.com
  *
  * Requires TweenLite and CSSPlugin version 1.17.0 or later (TweenMax contains both TweenLite and CSSPlugin). ThrowPropsPlugin is required for momentum-based continuation of movement after the mouse/touch is released (ThrowPropsPlugin is a membership benefit of Club GreenSock - http://greensock.com/club/).
@@ -45,7 +45,7 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 			_dragCount = 0, //total number of elements currently being dragged
 			_prefix,
 			_isMultiTouching,
-			_isAndroid = (navigator.userAgent.toLowerCase().indexOf("android") !== -1), //Android handles touch events in an odd way and it's virtually impossible to "feature test" so we resort to UA sniffing
+			_isAndroid = (_gsScope.navigator && _gsScope.navigator.userAgent.toLowerCase().indexOf("android") !== -1), //Android handles touch events in an odd way and it's virtually impossible to "feature test" so we resort to UA sniffing
 			_lastDragTime = 0,
 			_temp1 = {}, // a simple object we reuse and populate (usually x/y properties) to conserve memory and improve performance.
 			_windowProxy = {}, //memory/performance optimization - we reuse this object during autoScroll to store window-related bounds/offsets.
@@ -318,6 +318,7 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 					wrapper = _createElement("div"),
 					style = div.style,
 					parent = _doc.body || _docElement,
+					isFlex = (_getStyle(parent, "display", true) === "flex"), //Firefox bug causes getScreenCTM() to return null when parent is display:flex and the element isn't rendered inside the window (like if it's below the scroll position)
 					matrix, e1, point, oldValue;
 				if (_doc.body && _transformProp) {
 					style.position = "absolute";
@@ -355,6 +356,9 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 				parent.removeChild(div);
 				// -- end _svgScrollOffset calculation.
 				parent.appendChild(svg);
+				if (isFlex) {
+					parent.style.display = "block"; //Firefox bug causes getScreenCTM() to return null when parent is display:flex and the element isn't rendered inside the window (like if it's below the scroll position)
+				}
 				matrix = svg.getScreenCTM();
 				e1 = matrix.e;
 				style.border = "50px solid red";
@@ -365,6 +369,9 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 				} else {
 					_svgBorderFactor = (e1 !== matrix.e) ? 1 : 0;
 					_svgBorderScales = (matrix.a !== 1);
+				}
+				if (isFlex) {
+					parent.style.display = "flex";
 				}
 				parent.removeChild(svg);
 			},
@@ -377,7 +384,7 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 			_transformPropCSS = _transformProp.replace(/^ms/g, "Ms").replace(/([A-Z])/g, "-$1").toLowerCase(),
 			_point1 = {}, //we reuse _point1 and _point2 objects inside matrix and point conversion methods to conserve memory and minimize garbage collection tasks.
 			_point2 = {},
-			_SVGElement = window.SVGElement,
+			_SVGElement = _gsScope.SVGElement,
 			_isSVG = function(e) {
 				return !!(_SVGElement && typeof(e.getBBox) === "function" && e.getCTM && (!e.parentNode || (e.parentNode.getBBox && e.parentNode.getCTM)));
 			},
@@ -496,7 +503,6 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 					}
 					decoratee.x = ((x.indexOf("%") !== -1) ? e.offsetWidth * parseFloat(x) / 100 : parseFloat(x));
 					decoratee.y = ((y.indexOf("%") !== -1) ? e.offsetHeight * parseFloat(y) / 100 : parseFloat(y));
-
 				}
 				return decoratee;
 			},
@@ -529,7 +535,7 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 				}
 				return cache;
 			},
-			_getOffset2DMatrix = function(e, offsetOrigin, parentOffsetOrigin, zeroOrigin) {
+			_getOffset2DMatrix = function(e, offsetOrigin, parentOffsetOrigin, zeroOrigin, isBase) {  //"isBase" helps us discern context - it should only be true when the element is the base one (the one at which we're starting to walk up the chain). It only matters in cases when it's an <svg> element itself because that's a case when we don't apply scaling.
 				if (e === window || !e || !e.style || !e.parentNode) {
 					return [1,0,0,1,0,0];
 				}
@@ -584,16 +590,20 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 						offsetOrigin.y -= offsetY;
 						sx = offsets.scaleX;
 						sy = offsets.scaleY;
-						offsetOrigin.x *= sx;
-						offsetOrigin.y *= sy;
+						if (!isBase) { //when getting the matrix for a root <svg> element itself (NOT in the context of an SVE element that's nested inside of it like a <path>), we do NOT apply the scaling!
+							offsetOrigin.x *= sx;
+							offsetOrigin.y *= sy;
+						}
 						m[0] *= sx;
 						m[1] *= sy;
 						m[2] *= sx;
 						m[3] *= sy;
-
 						if (!_isIE10orBelow) {
 							offsetOrigin.x += borderTranslateX;
 							offsetOrigin.y += borderTranslateY;
+						}
+						if (parentOffsetParent === _doc.body && offsets.offsetParent === _docElement) { //to avoid issues with margin/padding on the <body>, we always set the offsetParent to _docElement in the _getSVGOffsets() function but there's a condition we check later in this function for (parentOffsetParent === offsets.offsetParent) which would fail if we don't run this logic. In other words, parentOffsetParent may be <body> and the <svg>'s offsetParent is also <body> but artificially set to _docElement to avoid margin/padding issues.
+							parentOffsetParent = _docElement;
 						}
 					} else if (!_hasBorderBug && e.offsetParent) {
 						offsetOrigin.x += parseInt(_getStyle(e.offsetParent, "borderLeftWidth"), 10) || 0;
@@ -625,7 +635,7 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 				//note: we keep reusing _point1 and _point2 in order to minimize memory usage and garbage collection chores.
 				var originOffset = _getOffsetTransformOrigin(e, _point1),
 					parentOriginOffset = _getOffsetTransformOrigin(e.parentNode, _point2),
-					m = _getOffset2DMatrix(e, originOffset, parentOriginOffset),
+					m = _getOffset2DMatrix(e, originOffset, parentOriginOffset, false, true),
 					a, b, c, d, tx, ty, m2, determinant;
 				while ((e = e.parentNode) && e.parentNode && e !== _docElement) {
 					originOffset = parentOriginOffset;
@@ -1162,6 +1172,16 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 					clickTime = 0,
 					enabled, scrollProxy, startPointerX, startPointerY, startElementX, startElementY, hasBounds, hasDragCallback, maxX, minX, maxY, minY, tempVars, cssVars, touch, touchID, rotationOrigin, dirty, old, snapX, snapY, snapXY, isClicking, touchEventTarget, matrix, interrupted, startScrollTop, startScrollLeft, applyObj, allowNativeTouchScrolling, touchDragAxis, isDispatching, clickDispatch, trustedClickDispatch,
 
+					onContextMenu = function(e) { //used to prevent long-touch from triggering a context menu.
+						if (self.isPressed && e.which < 2) {
+							self.endDrag();
+						} else {
+							e.preventDefault();
+							e.stopPropagation();
+							return false;
+						}
+					},
+
 					//this method gets called on every tick of TweenLite.ticker which allows us to synchronize the renders to the core engine (which is typically synchronized with the display refresh via requestAnimationFrame). This is an optimization - it's better than applying the values inside the "mousemove" or "touchmove" event handler which may get called many times inbetween refreshes.
 					render = function(suppressEvents) {
 						if (self.autoScroll && self.isDragging && (checkAutoScrollBounds || dirty)) {
@@ -1430,7 +1450,7 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 							}
 							self.isThrowing = true;
 							overshootTolerance = (!isNaN(vars.overshootTolerance)) ? vars.overshootTolerance : (vars.edgeResistance === 1) ? 0 : (1 - self.edgeResistance) + 0.2;
-							self.tween = tween = ThrowPropsPlugin.to(scrollProxy || target, {throwProps:throwProps, ease:(vars.ease || _globals.Power3.easeOut), onComplete:onThrowComplete, onOverwrite:onThrowOverwrite, onUpdate:(vars.fastMode ? _dispatchEvent : syncXY), onUpdateParams:(vars.fastMode ? [self, "onthrowupdate", "onThrowUpdate"] : (snap && snap.radius) ? [false, true] : _emptyArray)}, (isNaN(vars.maxDuration) ? 2 : vars.maxDuration), (!isNaN(vars.minDuration) ? vars.minDuration : (overshootTolerance === 0) ? 0 : 0.5), overshootTolerance);
+							self.tween = tween = ThrowPropsPlugin.to(scrollProxy || target, {throwProps:throwProps, ease:(vars.ease || _globals.Power3.easeOut), onComplete:onThrowComplete, onOverwrite:onThrowOverwrite, onUpdate:(vars.fastMode ? _dispatchEvent : syncXY), onUpdateParams:(vars.fastMode ? [self, "onthrowupdate", "onThrowUpdate"] : (snap && snap.radius) ? [false, true] : _emptyArray)}, (isNaN(vars.maxDuration) ? 2 : vars.maxDuration), (!isNaN(vars.minDuration) ? vars.minDuration : (overshootTolerance === 0 || (typeof(throwProps) === "object" && throwProps.resistance > 1000)) ? 0 : 0.5), overshootTolerance);
 							if (!vars.fastMode) {
 								//to populate the end values, we just scrub the tween to the end, record the values, and then jump back to the beginning.
 								if (scrollProxy) {
@@ -1501,7 +1521,7 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 								self.applyBounds();
 							}
 							if (rotationMode) {
-								rotationOrigin = _localToGlobal(target, {x:0, y:0});
+								rotationOrigin = self.rotationOrigin = _localToGlobal(target, {x:0, y:0});
 								syncXY(true, true);
 								startElementX = self.x; //starting rotation (x always refers to rotation in type:"rotation", measured in degrees)
 								startElementY = self.y = Math.atan2(rotationOrigin.y - self.pointerY, self.pointerX - rotationOrigin.x) * _RAD2DEG;
@@ -1571,7 +1591,7 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 					},
 
 					buildPointSnapFunc = function(snap, minX, maxX, minY, maxY, radius, factor) {
-						radius = radius || _max;
+						radius = (radius && radius < _max) ? radius * radius : _max; //so we don't have to Math.sqrt() in the functions. Performance optimization.
 						if (typeof(snap) === "function") {
 							return function(point) {
 								var edgeTolerance = !self.isPressed ? 1 : 1 - self.edgeResistance,
@@ -1592,7 +1612,7 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 								if (radius < _max) {
 									dx = point.x - x;
 									dy = point.y - y;
-									if (Math.sqrt(dx * dx + dy * dy) > radius) {
+									if (dx * dx + dy * dy > radius) {
 										point.x = x;
 										point.y = y;
 									}
@@ -1610,7 +1630,7 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 									point = snap[i];
 									x = point.x - p.x;
 									y = point.y - p.y;
-									dist = Math.sqrt(x * x + y * y);
+									dist = x * x + y * y;
 									if (dist < minDist) {
 										closest = i;
 										minDist = dist;
@@ -1843,7 +1863,7 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 								}
 							}
 						}
-						if (!rotationMode) {
+						if (!rotationMode && !matrix) {
 							x = Math.round(x); //helps work around an issue with some Win Touch devices
 							y = Math.round(y);
 						}
@@ -2179,6 +2199,12 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 							}
 							_setStyle(trigger, "touchCallout", "none");
 							_setStyle(trigger, "touchAction", (allowX === allowY) ? "none" : allowX ? "pan-y" : "pan-x");
+							if (_isSVG(trigger)) { // a bug in chrome doesn't respect touch-action on SVG elements - it only works if we set it on the parent SVG.
+								_setStyle(trigger.ownerSVGElement || trigger, "touchAction", (allowX === allowY) ? "none" : allowX ? "pan-y" : "pan-x");
+							}
+							if (!this.vars.allowContextMenu) {
+								_addListener(trigger, "contextmenu", onContextMenu);
+							}
 						}
 						_setSelectable(triggers, false);
 					}
@@ -2225,6 +2251,7 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 							_removeListener(trigger, "mousedown", onPress);
 							_removeListener(trigger, "touchstart", onPress);
 							_removeListener(trigger, "click", onClick);
+							_removeListener(trigger, "contextmenu", onContextMenu);
 						}
 						_setSelectable(triggers, true);
 						if (touchEventTarget) {
@@ -2304,7 +2331,7 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 		p.constructor = Draggable;
 		p.pointerX = p.pointerY = p.startX = p.startY = p.deltaX = p.deltaY = 0;
 		p.isDragging = p.isPressed = false;
-		Draggable.version = "0.15.0";
+		Draggable.version = "0.15.1";
 		Draggable.zIndex = 1000;
 
 		_addListener(_doc, "touchcancel", function() {
@@ -2412,11 +2439,11 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 	var getGlobal = function() {
 		return (_gsScope.GreenSockGlobals || _gsScope)[name];
 	};
-	if (typeof(define) === "function" && define.amd) { //AMD
-		define(["TweenLite", "CSSPlugin"], getGlobal);
-	} else if (typeof(module) !== "undefined" && module.exports) { //node
+	if (typeof(module) !== "undefined" && module.exports) { //node
 		require("../TweenLite.js");
 		require("../plugins/CSSPlugin.js");
 		module.exports = getGlobal();
+	} else if (typeof(define) === "function" && define.amd) { //AMD
+		define(["TweenLite", "CSSPlugin"], getGlobal);
 	}
 }("Draggable"));
