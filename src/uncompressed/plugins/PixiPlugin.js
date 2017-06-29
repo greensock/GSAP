@@ -1,6 +1,6 @@
 /*!
- * VERSION: 0.1.0
- * DATE: 2017-06-28
+ * VERSION: 0.1.2
+ * DATE: 2017-06-29
  * UPDATES AND DOCS AT: http://greensock.com
  *
  * @license Copyright (c) 2008-2017, GreenSock. All rights reserved.
@@ -144,9 +144,6 @@ var _gsScope = (typeof module !== "undefined" && module.exports && typeof global
 		_lumB = 0.072169,
 
 		_applyMatrix = function(m, m2) {
-			if (!(m instanceof Array) || !(m2 instanceof Array)) {
-				return m2;
-			}
 			var temp = [],
 				i = 0,
 				z = 0,
@@ -162,9 +159,6 @@ var _gsScope = (typeof module !== "undefined" && module.exports && typeof global
 		},
 
 		_setSaturation = function(m, n) {
-			if (isNaN(n)) {
-				return m;
-			}
 			var inv = 1 - n,
 				r = inv * _lumR,
 				g = inv * _lumG,
@@ -173,9 +167,6 @@ var _gsScope = (typeof module !== "undefined" && module.exports && typeof global
 		},
 
 		_colorize = function(m, color, amount) {
-			if (isNaN(amount)) {
-				amount = 1;
-			}
 			var c = _parseColor(color),
 				r = c[0] / 255,
 				g = c[1] / 255,
@@ -185,9 +176,6 @@ var _gsScope = (typeof module !== "undefined" && module.exports && typeof global
 		},
 
 		_setHue = function(m, n) {
-			if (isNaN(n)) {
-				return m;
-			}
 			n *= Math.PI / 180;
 			var c = Math.cos(n),
 				s = Math.sin(n);
@@ -195,9 +183,6 @@ var _gsScope = (typeof module !== "undefined" && module.exports && typeof global
 		},
 
 		_setContrast = function(m, n) {
-			if (isNaN(n)) {
-				return m;
-			}
 			return _applyMatrix([n,0,0,0,0.5 * (1 - n), 0,n,0,0,0.5 * (1 - n), 0,0,n,0,0.5 * (1 - n), 0,0,0,1,0], m);
 		},
 
@@ -235,46 +220,87 @@ var _gsScope = (typeof module !== "undefined" && module.exports && typeof global
 			return temp.matrix;
 		},
 
+		_CMFdefaults = {contrast:1, saturation:1, colorizeAmount:0, colorize:"rgb(255,255,255)", hue:0, brightness:1},
+
 		_parseColorMatrixFilter = function(t, v, pg) {
 			var filter = _getFilter(t, "ColorMatrixFilter"),
 				cache = t._gsColorMatrixFilter = t._gsColorMatrixFilter || {contrast:1, saturation:1, colorizeAmount:0, colorize:"rgb(255,255,255)", hue:0, brightness:1},
-				clear = v.clearCMF || (("colorMatrixFilter" in v) && !v.colorMatrixFilter), //users should be able to clear/normalize a ColorMatrixFilter by setting pixi:{colorMatrixFilter:null}
+				combine = v.combineCMF && !("colorMatrixFilter" in v && !v.colorMatrixFilter),
 				i, matrix, startMatrix;
 			startMatrix = filter.matrix;
 			if (v.matrix && v.matrix.length === startMatrix.length) {
 				matrix = v.matrix;
+				if (cache.contrast !== 1) {
+					_addColorMatrixFilterCacheTween("contrast", pg, cache, _CMFdefaults);
+				}
+				if (cache.hue) {
+					_addColorMatrixFilterCacheTween("hue", pg, cache, _CMFdefaults);
+				}
+				if (cache.brightness !== 1) {
+					_addColorMatrixFilterCacheTween("brightness", pg, cache, _CMFdefaults);
+				}
+				if (cache.colorizeAmount) {
+					_addColorMatrixFilterCacheTween("colorize", pg, cache, _CMFdefaults);
+					_addColorMatrixFilterCacheTween("colorizeAmount", pg, cache, _CMFdefaults);
+				}
+				if (cache.saturation !== 1) {
+					_addColorMatrixFilterCacheTween("saturation", pg, cache, _CMFdefaults);
+				}
+
 			} else {
 				matrix = _idMatrix.slice();
 				if (v.contrast != null) {
 					matrix = _setContrast(matrix, Number(v.contrast));
 					_addColorMatrixFilterCacheTween("contrast", pg, cache, v);
-				} else if (!clear && cache.contrast !== 1) {
-					matrix = _setContrast(matrix, cache.contrast);
+				} else if (cache.contrast !== 1) {
+					if (combine) {
+						matrix = _setContrast(matrix, cache.contrast);
+					} else {
+						_addColorMatrixFilterCacheTween("contrast", pg, cache, _CMFdefaults);
+					}
 				}
 				if (v.hue != null) {
 					matrix = _setHue(matrix, Number(v.hue));
 					_addColorMatrixFilterCacheTween("hue", pg, cache, v);
-				} else if (!clear && cache.hue) {
-					matrix = _setHue(matrix, cache.hue);
+				} else if (cache.hue) {
+					if (combine) {
+						matrix = _setHue(matrix, cache.hue);
+					} else {
+						_addColorMatrixFilterCacheTween("hue", pg, cache, _CMFdefaults);
+					}
 				}
 				if (v.brightness != null) {
 					matrix = _applyBrightnessToMatrix(Number(v.brightness), matrix);
 					_addColorMatrixFilterCacheTween("brightness", pg, cache, v);
-				} else if (!clear && cache.brightness !== 1) {
-					matrix = _applyBrightnessToMatrix(cache.brightness, matrix);
+				} else if (cache.brightness !== 1) {
+					if (combine) {
+						matrix = _applyBrightnessToMatrix(cache.brightness, matrix);
+					} else {
+						_addColorMatrixFilterCacheTween("brightness", pg, cache, _CMFdefaults);
+					}
 				}
 				if (v.colorize != null) {
-					matrix = _colorize(matrix, v.colorize, Number(v.colorizeAmount));
+					v.colorizeAmount = ("colorizeAmount" in v) ? Number(v.colorizeAmount) : 1;
+					matrix = _colorize(matrix, v.colorize, v.colorizeAmount);
 					_addColorMatrixFilterCacheTween("colorize", pg, cache, v);
 					_addColorMatrixFilterCacheTween("colorizeAmount", pg, cache, v);
-				} else if (!clear && cache.colorizeAmount) {
-					matrix = _colorize(matrix, cache.colorize, cache.colorizeAmount);
+				} else if (cache.colorizeAmount) {
+					if (combine) {
+						matrix = _colorize(matrix, cache.colorize, cache.colorizeAmount);
+					} else {
+						_addColorMatrixFilterCacheTween("colorize", pg, cache, _CMFdefaults);
+						_addColorMatrixFilterCacheTween("colorizeAmount", pg, cache, _CMFdefaults);
+					}
 				}
 				if (v.saturation != null) {
 					matrix = _setSaturation(matrix, Number(v.saturation));
 					_addColorMatrixFilterCacheTween("saturation", pg, cache, v);
-				} else if (!clear && cache.saturation !== 1) {
-					matrix = _setSaturation(matrix, cache.saturation);
+				} else if (cache.saturation !== 1) {
+					if (combine) {
+						matrix = _setSaturation(matrix, cache.saturation);
+					} else {
+						_addColorMatrixFilterCacheTween("saturation", pg, cache, _CMFdefaults);
+					}
 				}
 			}
 			i = matrix.length;
@@ -321,7 +347,7 @@ var _gsScope = (typeof module !== "undefined" && module.exports && typeof global
 		_colorProps = {tint:1, lineColor:1, fillColor:1},
 		_xyContexts = "position,scale,skew,pivot,anchor,tilePosition,tileScale".split(","),
 		_contexts = {x:"position", y:"position", tileX:"tilePosition", tileY:"tilePosition"},
-		_colorMatrixFilterProps = {colorMatrixFilter:1, saturation:1, contrast:1, hue:1, colorize:1, colorizeAmount:1, brightness:1, clearCMF:1},
+		_colorMatrixFilterProps = {colorMatrixFilter:1, saturation:1, contrast:1, hue:1, colorize:1, colorizeAmount:1, brightness:1, combineCMF:1},
 		_DEG2RAD = Math.PI / 180,
         _degreesToRadians = function(value) {
 			return (typeof(value) === "string" && value.charAt(1) === "=") ? value.substr(0, 2) + (parseFloat(value.substr(2)) * _DEG2RAD) : value * _DEG2RAD;
@@ -359,7 +385,7 @@ var _gsScope = (typeof module !== "undefined" && module.exports && typeof global
         priority: 0,
         API: 2,
 		global: true,
-        version: "0.1.0",
+        version: "0.1.2",
 
         init: function (target, values, tween, index) {
             if (!target instanceof _gsScope.PIXI.DisplayObject) {

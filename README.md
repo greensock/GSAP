@@ -23,6 +23,7 @@ This is the public repository for GreenSock's JavaScript tools like <a href="htt
 * <a href="https://greensock.com/docs/">Full documentation</a>
 * <a href="https://greensock.com/forums/">Community forums</a>
 * <a href="https://greensock.com/examples-showcases">Examples &amp; showcases</a>
+* <a href="https://codepen.io/GreenSock/full/OPqpRJ/">Codepen with all bonus plugins</a> (try them for free on codepen)
 * <a href="https://greensock.com/why-gsap/">Why GSAP?</a> (a practical guide for developers)
 * <a href="https://greensock.com/draggable/">Draggable demo</a>
 * <a href="https://greensock.com/svg-tips/">Animating SVG with GSAP</a>
@@ -32,9 +33,9 @@ This is the public repository for GreenSock's JavaScript tools like <a href="htt
 
 ### CDN
 ```html
-<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/1.20.0/TweenMax.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/1.20.1/TweenMax.min.js"></script>
 ```
-Click the green "Download GSAP" button at <a href="https://greensock.com/?download=GSAP-JS">http://greensock.com</a> for more options. Most ad networks have it on their CDNs as well, so contact them for the appropriate URL(s). 
+Click the green "Download GSAP" button at <a href="https://greensock.com/?download=GSAP-JS">https://greensock.com</a> for more options. Most ad networks have it on their CDNs as well, so contact them for the appropriate URL(s). 
 
 ### NPM
 ```javascript
@@ -56,6 +57,7 @@ Sign up for a free GreenSock account to gain access to <a href="https://greensoc
 ### What is Club GreenSock? (video)
 
 [![What is Club GreenSock?](http://img.youtube.com/vi/03yJ6-Aq0gQ/0.jpg)](http://www.youtube.com/watch?v=03yJ6-Aq0gQ)
+
 <a href="https://greensock.com/club/">Sign up</a> anytime.
 
 ### Need help?

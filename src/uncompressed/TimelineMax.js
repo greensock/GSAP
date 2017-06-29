@@ -1,6 +1,6 @@
 /*!
- * VERSION: 1.20.0
- * DATE: 2017-06-27
+ * VERSION: 1.20.1
+ * DATE: 2017-06-29
  * UPDATES AND DOCS AT: http://greensock.com
  *
  * @license Copyright (c) 2008-2017, GreenSock. All rights reserved.
@@ -34,7 +34,7 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 			
 		p.constructor = TimelineMax;
 		p.kill()._gc = false;
-		TimelineMax.version = "1.20.0";
+		TimelineMax.version = "1.20.1";
 		
 		p.invalidate = function() {
 			this._yoyo = (this.vars.yoyo === true);
@@ -203,7 +203,7 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 					}
 				}
 
-				if (this._hasPause && !this._forcingPlayhead && !suppressEvents && time < dur) {
+				if (this._hasPause && !this._forcingPlayhead && !suppressEvents) {
 					time = this._time;
 					if (time >= prevTime || (this._repeat && prevCycle !== this._cycle)) {
 						tween = this._first;
@@ -222,7 +222,7 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 							tween = tween._prev;
 						}
 					}
-					if (pauseTween) {
+					if (pauseTween && pauseTween._startTime < dur) {
 						this._time = time = pauseTween._startTime;
 						this._totalTime = time + (this._cycle * (this._totalDuration + this._repeatDelay));
 					}
@@ -584,7 +584,7 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 			},
 			p = TimelineLite.prototype = new SimpleTimeline();
 
-		TimelineLite.version = "1.20.0";
+		TimelineLite.version = "1.20.1";
 		p.constructor = TimelineLite;
 		p.kill()._gc = p._forcingPlayhead = p._hasPause = false;
 

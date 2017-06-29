@@ -1,6 +1,6 @@
 /*!
- * VERSION: 0.6.5
- * DATE: 2017-06-19
+ * VERSION: 0.6.6
+ * DATE: 2017-06-29
  * UPDATES AND DOCS AT: http://greensock.com
  *
  * @license Copyright (c) 2008-2017, GreenSock. All rights reserved.
@@ -27,7 +27,7 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 
 		p._propName = "cssRule";
 		p.constructor = CSSRulePlugin;
-		CSSRulePlugin.version = "0.6.5";
+		CSSRulePlugin.version = "0.6.6";
 		CSSRulePlugin.API = 2;
 
 		/**
@@ -44,7 +44,7 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 				i = ss.length,
 				pseudo = (selector.charAt(0) === ":"),
 				j, curSS, cs, a;
-			selector = (pseudo ? "" : ",") + selector.toLowerCase() + ","; //note: old versions of IE report tag name selectors as upper case, so we just change everything to lowercase.
+			selector = (pseudo ? "" : ",") + selector.split("::").join(":").toLowerCase() + ","; //note: old versions of IE report tag name selectors as upper case, so we just change everything to lowercase.
 			if (pseudo) {
 				a = [];
 			}
