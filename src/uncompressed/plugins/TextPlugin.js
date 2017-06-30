@@ -1,17 +1,17 @@
 /*!
- * VERSION: 0.6.0
- * DATE: 2017-06-19
+ * VERSION: 0.6.1
+ * DATE: 2017-06-30
  * UPDATES AND DOCS AT: http://greensock.com
  *
  * @license Copyright (c) 2008-2017, GreenSock. All rights reserved.
  * This work is subject to the terms at http://greensock.com/standard-license or for
  * Club GreenSock members, the software agreement that was issued with your membership.
- * 
+ *
  * @author: Jack Doyle, jack@greensock.com
  */
 var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(global) !== "undefined") ? global : this || window; //helps ensure compatibility with AMD/RequireJS and CommonJS/Node
 (_gsScope._gsQueue || (_gsScope._gsQueue = [])).push( function() {
-	
+
 	"use strict";
 
 		var _getText = function(e) {
@@ -55,6 +55,8 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 						j = ((emojiPair1 >= _emojiRegionStart && emojiPair1 <= _emojiRegionEnd && emojiPair2 >= _emojiRegionStart && emojiPair2 <= _emojiRegionEnd) || (emojiPair2 >= _emojiModStart && emojiPair2 <= _emojiModEnd)) ? 4 : 2;
 						a.push(text.substr(i, j));
 						i += j - 1;
+					} else {
+						a.push(character);
 					}
 				}
 				return a;
@@ -62,7 +64,7 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 			TextPlugin = _gsScope._gsDefine.plugin({
 				propName: "text",
 				API: 2,
-				version:"0.6.0",
+				version:"0.6.1",
 
 				//called when the tween renders for the first time. This is where initial values should be recorded and any setup routines should run.
 				init: function(target, value, tween, index) {
@@ -141,7 +143,7 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 
 			}),
 			p = TextPlugin.prototype;
-		
+
 		p._newClass = p._oldClass = p._delimiter = "";
 
 }); if (_gsScope._gsDefine) { _gsScope._gsQueue.pop()(); }

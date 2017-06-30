@@ -1,8 +1,8 @@
 {
     "name": "gsap",
     "filename": "TweenMax.min.js",
-    "version": "1.20.1",
-    "description": "Think of GSAP as the Swiss Army Knife of animation. It animates anything JavaScript can touch (CSS properties, canvas library objects, SVG, generic objects, whatever) and solves countless browser inconsistencies, all with blazing speed (up to 20x faster than jQuery), including automatic GPU-acceleration of transforms. See http://greensock.com/why-gsap/ for details. Most other libraries only animate CSS properties. Plus, their sequencing abilities and runtime controls pale by comparison. Simply put, GSAP is the most flexible high-performance animation library on the planet, which is probably why Google recommends it for JS-based animations and every major ad network excludes it from file size calculations. Unlike monolithic frameworks that dictate how you structure your apps, GSAP simply affects the animation layer; sprinkle it wherever you want. See http://greensock.com/gsap/ for details.",
+    "version": "1.20.2",
+    "description": "Think of GSAP as the Swiss Army Knife of animation. It animates anything JavaScript can touch (CSS properties, canvas library objects, SVG, generic objects, whatever) and solves countless browser inconsistencies, all with blazing speed (up to 20x faster than jQuery), including automatic GPU-acceleration of transforms. See http://greensock.com/why-gsap/ for details. Most other libraries only animate CSS properties. Plus, their sequencing abilities and runtime controls pale by comparison. Simply put, GSAP is the most flexible high-performance animation library on the planet, which is probably why Google recommends it for JS-based animations and every major ad network excludes it from file size calculations. Unlike monolithic frameworks that dictate how you structure your apps, GSAP simply affects the animation layer; sprinkle it wherever you want. See https://greensock.com/gsap/ for details.",
     "homepage": "https://greensock.com/gsap/",
 	"main": "./src/uncompressed/TweenMax.js",
     "browser": {
@@ -53,10 +53,10 @@
        {
            "name": "Jack Doyle",
 		   "email": "jack@greensock.com",
-           "web": "http://greensock.com" 
+           "web": "https://greensock.com" 
        } 
    ],
-  "license": "Standard 'no charge' license: https://greensock.com/standard-license. Club GreenSock members get more: https://greensock.com/licensing/. Why GreenSock doesn't employ an MIT license: http://greensock.com/why-license/",
+  "license": "Standard 'no charge' license: https://greensock.com/standard-license. Club GreenSock members get more: https://greensock.com/licensing/. Why GreenSock doesn't employ an MIT license: https://greensock.com/why-license/",
    "bugs": {
        "url": "https://greensock.com/forums/"
    },

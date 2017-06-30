@@ -33,7 +33,7 @@ This is the public repository for GreenSock's JavaScript tools like <a href="htt
 
 ### CDN
 ```html
-<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/1.20.1/TweenMax.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/1.20.2/TweenMax.min.js"></script>
 ```
 Click the green "Download GSAP" button at <a href="https://greensock.com/?download=GSAP-JS">https://greensock.com</a> for more options. Most ad networks have it on their CDNs as well, so contact them for the appropriate URL(s). 
 
