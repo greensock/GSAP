@@ -1153,6 +1153,10 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 				this.edgeResistance = isNaN(vars.edgeResistance) ? 1 : parseFloat(vars.edgeResistance) || 0;
 				this.lockAxis = vars.lockAxis;
 				this.autoScroll = vars.autoScroll || 0;
+				this.autoScrollOffsetTop = vars.autoScrollOffsetTop || 40;
+				this.autoScrollOffsetBottom = vars.autoScrollOffsetBottom || 40;
+				this.autoScrollOffsetLeft = vars.autoScrollOffsetLeft || 40;
+				this.autoScrollOffsetRight = vars.autoScrollOffsetRight || 40;
 				this.lockedAxis = null;
 				this.allowEventDefault = !!vars.allowEventDefault;
 				var type = (vars.type || (_isOldIE ? "top,left" : "x,y")).toLowerCase(),
@@ -1202,12 +1206,12 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 									gap = parent._gsMaxScrollY - parent.scrollTop;
 									if (gap < 0) {
 										changeY = gap;
-									} else if (pointerY > rect.bottom - 40 && gap) {
+									} else if (pointerY > rect.bottom - self.autoScrollOffsetBottom && gap) {
 										checkAutoScrollBounds = true;
-										changeY = Math.min(gap, (autoScrollFactor * (1 - Math.max(0, (rect.bottom - pointerY)) / 40)) | 0);
-									} else if (pointerY < rect.top + 40 && parent.scrollTop) {
+										changeY = Math.min(gap, (autoScrollFactor * (1 - Math.max(0, (rect.bottom - pointerY)) / self.autoScrollOffsetBottom)) | 0);
+									} else if (pointerY < rect.top + self.autoScrollOffsetTop && parent.scrollTop) {
 										checkAutoScrollBounds = true;
-										changeY = -Math.min(parent.scrollTop, (autoScrollFactor * (1 - Math.max(0, (pointerY - rect.top)) / 40)) | 0);
+										changeY = -Math.min(parent.scrollTop, (autoScrollFactor * (1 - Math.max(0, (pointerY - rect.top)) / self.autoScrollOffsetTop)) | 0);
 									}
 									if (changeY) {
 										parent.scrollTop += changeY;
@@ -1217,12 +1221,12 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 									gap = parent._gsMaxScrollX - parent.scrollLeft;
 									if (gap < 0) {
 										changeX = gap;
-									} else if (pointerX > rect.right - 40 && gap) {
+									} else if (pointerX > rect.right - self.autoScrollOffsetRight && gap) {
 										checkAutoScrollBounds = true;
-										changeX = Math.min(gap, (autoScrollFactor * (1 - Math.max(0, (rect.right - pointerX)) / 40)) | 0);
-									} else if (pointerX < rect.left + 40 && parent.scrollLeft) {
+										changeX = Math.min(gap, (autoScrollFactor * (1 - Math.max(0, (rect.right - pointerX)) / self.autoScrollOffsetRight)) | 0);
+									} else if (pointerX < rect.left + self.autoScrollOffsetLeft && parent.scrollLeft) {
 										checkAutoScrollBounds = true;
-										changeX = -Math.min(parent.scrollLeft, (autoScrollFactor * (1 - Math.max(0, (pointerX - rect.left)) / 40)) | 0);
+										changeX = -Math.min(parent.scrollLeft, (autoScrollFactor * (1 - Math.max(0, (pointerX - rect.left)) / self.autoScrollOffsetLeft)) | 0);
 									}
 									if (changeX) {
 										parent.scrollLeft += changeX;
