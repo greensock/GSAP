@@ -259,21 +259,21 @@
 			if (!list) {
 				return null;
             }
-				i = list.length;
-				if (i > 1) { 
-					list = list.slice(0); //in case addEventListener() is called from within a listener/callback (otherwise the index could change, resulting in a skip)
-				}
-				t = this._eventTarget;
-				while (--i > -1) {
-					listener = list[i];
-					if (listener) {
-						if (listener.up) {
-							listener.c.call(listener.s || t, {type:type, target:t});
-						} else {
-							listener.c.call(listener.s || t);
-						}
+			i = list.length;
+			if (i > 1) {
+				list = list.slice(0); //in case addEventListener() is called from within a listener/callback (otherwise the index could change, resulting in a skip)
+			}
+			t = this._eventTarget;
+			while (--i > -1) {
+				listener = list[i];
+				if (listener) {
+					if (listener.up) {
+						listener.c.call(listener.s || t, {type:type, target:t});
+					} else {
+						listener.c.call(listener.s || t);
 					}
 				}
+			}
 
 		};
 
