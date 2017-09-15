@@ -575,20 +575,20 @@
 			if ((type || "").substr(0,2) !== "on") {
                 return this;
 			}
-				var v = this.vars;
-				if (arguments.length === 1) {
-					return v[type];
-				}
-				if (callback == null) {
-					delete v[type];
-				} else {
-					v[type] = callback;
-					v[type + "Params"] = (_isArray(params) && params.join("").indexOf("{self}") !== -1) ? this._swapSelfInParams(params) : params;
-					v[type + "Scope"] = scope;
-				}
-				if (type === "onUpdate") {
-					this._onUpdate = callback;
-				}
+			var v = this.vars;
+			if (arguments.length === 1) {
+				return v[type];
+			}
+			if (callback == null) {
+				delete v[type];
+			} else {
+				v[type] = callback;
+				v[type + "Params"] = (_isArray(params) && params.join("").indexOf("{self}") !== -1) ? this._swapSelfInParams(params) : params;
+				v[type + "Scope"] = scope;
+			}
+			if (type === "onUpdate") {
+				this._onUpdate = callback;
+			}
 			return this;
 		};
 
