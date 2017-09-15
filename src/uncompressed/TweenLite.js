@@ -256,23 +256,25 @@
 		p.dispatchEvent = function(type) {
 			var list = this._listeners[type],
 				i, t, listener;
-			if (list) {
-				i = list.length;
-				if (i > 1) { 
-					list = list.slice(0); //in case addEventListener() is called from within a listener/callback (otherwise the index could change, resulting in a skip)
-				}
-				t = this._eventTarget;
-				while (--i > -1) {
-					listener = list[i];
-					if (listener) {
-						if (listener.up) {
-							listener.c.call(listener.s || t, {type:type, target:t});
-						} else {
-							listener.c.call(listener.s || t);
-						}
+			if (!list) {
+				return null;
+            }
+			i = list.length;
+			if (i > 1) {
+				list = list.slice(0); //in case addEventListener() is called from within a listener/callback (otherwise the index could change, resulting in a skip)
+			}
+			t = this._eventTarget;
+			while (--i > -1) {
+				listener = list[i];
+				if (listener) {
+					if (listener.up) {
+						listener.c.call(listener.s || t, {type:type, target:t});
+					} else {
+						listener.c.call(listener.s || t);
 					}
 				}
 			}
+
 		};
 
 
@@ -570,21 +572,22 @@
 //----Animation getters/setters --------------------------------------------------------
 
 		p.eventCallback = function(type, callback, params, scope) {
-			if ((type || "").substr(0,2) === "on") {
-				var v = this.vars;
-				if (arguments.length === 1) {
-					return v[type];
-				}
-				if (callback == null) {
-					delete v[type];
-				} else {
-					v[type] = callback;
-					v[type + "Params"] = (_isArray(params) && params.join("").indexOf("{self}") !== -1) ? this._swapSelfInParams(params) : params;
-					v[type + "Scope"] = scope;
-				}
-				if (type === "onUpdate") {
-					this._onUpdate = callback;
-				}
+			if ((type || "").substr(0,2) !== "on") {
+                return this;
+			}
+			var v = this.vars;
+			if (arguments.length === 1) {
+				return v[type];
+			}
+			if (callback == null) {
+				delete v[type];
+			} else {
+				v[type] = callback;
+				v[type + "Params"] = (_isArray(params) && params.join("").indexOf("{self}") !== -1) ? this._swapSelfInParams(params) : params;
+				v[type + "Scope"] = scope;
+			}
+			if (type === "onUpdate") {
+				this._onUpdate = callback;
 			}
 			return this;
 		};
