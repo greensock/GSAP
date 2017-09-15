@@ -572,7 +572,9 @@
 //----Animation getters/setters --------------------------------------------------------
 
 		p.eventCallback = function(type, callback, params, scope) {
-			if ((type || "").substr(0,2) === "on") {
+			if ((type || "").substr(0,2) !== "on") {
+                return this;
+			}
 				var v = this.vars;
 				if (arguments.length === 1) {
 					return v[type];
@@ -587,7 +589,6 @@
 				if (type === "onUpdate") {
 					this._onUpdate = callback;
 				}
-			}
 			return this;
 		};
 
