@@ -256,7 +256,9 @@
 		p.dispatchEvent = function(type) {
 			var list = this._listeners[type],
 				i, t, listener;
-			if (list) {
+			if (!list) {
+				return null;
+            }
 				i = list.length;
 				if (i > 1) { 
 					list = list.slice(0); //in case addEventListener() is called from within a listener/callback (otherwise the index could change, resulting in a skip)
@@ -272,7 +274,7 @@
 						}
 					}
 				}
-			}
+
 		};
 
 
