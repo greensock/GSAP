@@ -14,7 +14,7 @@ GSAP is a JavaScript library for high-performance HTML5 animations that work in 
 
 Think of GSAP as the Swiss Army Knife of animation. It animates anything JavaScript can touch (CSS properties, canvas library objects, SVG, generic objects, whatever) and solves countless browser inconsistencies, all with blazing speed (up to 20x faster than jQuery), including automatic GPU-acceleration of transforms. See the <a href="https://greensock.com/why-gsap/">"Why GSAP?"</a> article for details. Most other libraries only animate CSS properties. Plus, their sequencing abilities and runtime controls pale by comparison. Simply put, GSAP is the most robust high-performance animation library on the planet, which is probably why Google recommends it for JS-based animations and every major ad network excludes it from file size calculations. Unlike monolithic frameworks that dictate how you structure your apps, GSAP is completely flexible; sprinkle it wherever you want.
 
-This is the public repository for GreenSock's JavaScript tools like <a href="https://greensock.com/gsap/" target="_blank">GSAP</a> and <a href="https://greensock.com/draggable/" target="_blank">Draggable</a>. "GSAP" describes all of the animation-related tools which include TweenLite, TweenMax, TimelineLite, TimelineMax, various plugins (like CSSPlugin for animating CSS properties of DOM elements), extra easing functions, etc. 
+This is the public repository for GreenSock's JavaScript tools like <a href="https://greensock.com/gsap/" target="_blank">GSAP</a> and <a href="https://greensock.com/draggable/" target="_blank">Draggable</a>. "GSAP" describes all of the animation-related tools which include TweenLite, TweenMax, TimelineLite, TimelineMax, various plugins (like CSSPlugin for animating CSS properties of DOM elements), extra <a href="https://greensock.com/ease-visualizer/">easing</a> functions, etc. 
 
 ### Resources
 
@@ -33,7 +33,7 @@ This is the public repository for GreenSock's JavaScript tools like <a href="htt
 
 ### CDN
 ```html
-<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/1.20.2/TweenMax.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/1.20.3/TweenMax.min.js"></script>
 ```
 Click the green "Download GSAP" button at <a href="https://greensock.com/?download=GSAP-JS">https://greensock.com</a> for more options. Most ad networks have it on their CDNs as well, so contact them for the appropriate URL(s). 
 
@@ -59,6 +59,12 @@ Sign up for a free GreenSock account to gain access to <a href="https://greensoc
 [![What is Club GreenSock?](http://img.youtube.com/vi/03yJ6-Aq0gQ/0.jpg)](http://www.youtube.com/watch?v=03yJ6-Aq0gQ)
 
 <a href="https://greensock.com/club/">Sign up</a> anytime.
+
+### Advanced playback controls &amp; debugging
+
+<a href="https://greensock.com/gsdevtools/">![GSDevTools](https://greensock.com/_img/github/GSDevTools-github-thumb.gif)</a>
+
+<a href="https://greensock.com/gsdevtools/">GSDevTools</a> adds a visual UI for controlling your GSAP animations which can significantly boost your workflow and productivity. It's membership benefit of <a href="https://greensock.com/club">Club GreenSock</a> (not included in this repository).
 
 ### Need help?
 Head over to the <a href="https://greensock.com/forums/">GreenSock forums</a> which are an excellent resource for learning and getting questions answered. Report any bugs there too please (it's also okay to file an issue on Github if you prefer).

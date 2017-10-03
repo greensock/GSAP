@@ -1,6 +1,6 @@
 /*!
- * VERSION: 0.6.1
- * DATE: 2017-06-30
+ * VERSION: 0.6.2
+ * DATE: 2017-08-02
  * UPDATES AND DOCS AT: http://greensock.com
  *
  * @license Copyright (c) 2008-2017, GreenSock. All rights reserved.
@@ -30,6 +30,13 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 				}
 				return result;
 			},
+			_emoji = "[\uE000-\uF8FF]|\uD83C[\uDC00-\uDFFF]|\uD83D[\uDC00-\uDFFF]|[\u2694-\u2697]|\uD83E[\uDD10-\uDD5D]|[\uD800-\uDBFF][\uDC00-\uDFFF]",
+			_emojiExp = new RegExp(_emoji),
+			_emojiAndCharsExp = new RegExp(_emoji + "|.", "g"),
+			_emojiSafeSplit = function(text, delimiter) {
+				return ((delimiter === "" || !delimiter) && _emojiExp.test(text)) ? text.match(_emojiAndCharsExp) : text.split(delimiter || "");
+			},
+			/* //previous emoji-related splitting. New method above is faster and more concise.
 			_emojiStart = 0xD800,
 			_emojiEnd = 0xDBFF,
 			_emojiLowStart = 0xDC00,
@@ -61,10 +68,11 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 				}
 				return a;
 			},
+			*/
 			TextPlugin = _gsScope._gsDefine.plugin({
 				propName: "text",
 				API: 2,
-				version:"0.6.1",
+				version:"0.6.2",
 
 				//called when the tween renders for the first time. This is where initial values should be recorded and any setup routines should run.
 				init: function(target, value, tween, index) {
