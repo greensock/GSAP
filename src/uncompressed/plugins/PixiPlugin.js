@@ -1,9 +1,9 @@
 /*!
- * VERSION: 0.2.0
- * DATE: 2017-07-13
+ * VERSION: 0.2.1
+ * DATE: 2018-02-15
  * UPDATES AND DOCS AT: http://greensock.com
  *
- * @license Copyright (c) 2008-2017, GreenSock. All rights reserved.
+ * @license Copyright (c) 2008-2018, GreenSock. All rights reserved.
  * PixiPlugin is subject to the terms at http://greensock.com/standard-license or for
  * Club GreenSock members, the software agreement that was issued with your membership.
  *
@@ -228,6 +228,9 @@ var _gsScope = (typeof module !== "undefined" && module.exports && typeof global
 				combine = v.combineCMF && !("colorMatrixFilter" in v && !v.colorMatrixFilter),
 				i, matrix, startMatrix;
 			startMatrix = filter.matrix;
+			if (v.resolution) {
+				filter.resolution = v.resolution;
+			}
 			if (v.matrix && v.matrix.length === startMatrix.length) {
 				matrix = v.matrix;
 				if (cache.contrast !== 1) {
@@ -385,7 +388,7 @@ var _gsScope = (typeof module !== "undefined" && module.exports && typeof global
         priority: 0,
         API: 2,
 		global: true,
-        version: "0.2.0",
+        version: "0.2.1",
 
         init: function (target, values, tween, index) {
             if (!target instanceof _gsScope.PIXI.DisplayObject) {

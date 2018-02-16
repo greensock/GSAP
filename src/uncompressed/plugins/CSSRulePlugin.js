@@ -1,9 +1,9 @@
 /*!
  * VERSION: 0.6.6
- * DATE: 2017-06-29
+ * DATE: 2018-02-15
  * UPDATES AND DOCS AT: http://greensock.com
  *
- * @license Copyright (c) 2008-2017, GreenSock. All rights reserved.
+ * @license Copyright (c) 2008-2018, GreenSock. All rights reserved.
  * This work is subject to the terms at http://greensock.com/standard-license or for
  * Club GreenSock members, the software agreement that was issued with your membership.
  * 
@@ -39,7 +39,7 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 		 * @return a reference to the style sheet (or an array of them in the case of a pseudo selector). If none was found, null is returned (or an empty array for a pseudo selector)
 		 */
 		CSSRulePlugin.getRule = function(selector) {
-			var ruleProp = _doc.all ? 'rules' : 'cssRules',
+			var ruleProp = _doc.all ? "rules" : "cssRules",
 				ss = _doc.styleSheets,
 				i = ss.length,
 				pseudo = (selector.charAt(0) === ":"),

@@ -1,11 +1,11 @@
 /*!
- * VERSION: 0.16.0
- * DATE: 2017-10-02
+ * VERSION: 0.16.2
+ * DATE: 2018-02-15
  * UPDATES AND DOCS AT: http://greensock.com
  *
  * Requires TweenLite and CSSPlugin version 1.17.0 or later (TweenMax contains both TweenLite and CSSPlugin). ThrowPropsPlugin is required for momentum-based continuation of movement after the mouse/touch is released (ThrowPropsPlugin is a membership benefit of Club GreenSock - http://greensock.com/club/).
  *
- * @license Copyright (c) 2008-2017, GreenSock. All rights reserved.
+ * @license Copyright (c) 2008-2018, GreenSock. All rights reserved.
  * This work is subject to the terms at http://greensock.com/standard-license or for
  * Club GreenSock members, the software agreement that was issued with your membership.
  *
@@ -792,7 +792,7 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 				var standard = types.split(","),
 					converted = ((_tempDiv.onpointerdown !== undefined) ? "pointerdown,pointermove,pointerup,pointercancel" : (_tempDiv.onmspointerdown !== undefined) ? "MSPointerDown,MSPointerMove,MSPointerUp,MSPointerCancel" : types).split(","),
 					obj = {},
-					i = 8;
+					i = 4;
 				while (--i > -1) {
 					obj[standard[i]] = converted[i];
 					obj[converted[i]] = standard[i];
@@ -802,7 +802,10 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 
 			_addListener = function(element, type, func, capture) {
 				if (element.addEventListener) {
-					element.addEventListener(_touchEventLookup[type] || type, func, capture);
+					element.addEventListener(_touchEventLookup[type], func, capture);
+					if (type !== _touchEventLookup[type]) { //some browsers actually support both, so must we.
+						element.addEventListener(type, func, capture);
+					}
 				} else if (element.attachEvent) {
 					element.attachEvent("on" + type, func);
 				}
@@ -810,7 +813,10 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 
 			_removeListener = function(element, type, func) {
 				if (element.removeEventListener) {
-					element.removeEventListener(_touchEventLookup[type] || type, func);
+					element.removeEventListener(_touchEventLookup[type], func);
+					if (type !== _touchEventLookup[type]) {
+						element.removeEventListener(type, func);
+					}
 				} else if (element.detachEvent) {
 					element.detachEvent("on" + type, func);
 				}
@@ -1805,8 +1811,10 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 							dif = self.y - y;
 							if (dif > 180) {
 								startElementY -= 360;
+								self.y = y;
 							} else if (dif < -180) {
 								startElementY += 360;
+								self.y = y;
 							}
 							if (self.x !== startElementX || Math.abs(startElementY - y) > minimumMovement) {
 								self.y = y;
@@ -2364,7 +2372,7 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 		p.constructor = Draggable;
 		p.pointerX = p.pointerY = p.startX = p.startY = p.deltaX = p.deltaY = 0;
 		p.isDragging = p.isPressed = false;
-		Draggable.version = "0.16.0";
+		Draggable.version = "0.16.1";
 		Draggable.zIndex = 1000;
 
 		_addListener(_doc, "touchcancel", function() {
