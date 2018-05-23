@@ -6,10 +6,21 @@
  * @license Copyright (c) 2008-2018, GreenSock. All rights reserved.
  * This work is subject to the terms at http://greensock.com/standard-license or for
  * Club GreenSock members, the software agreement that was issued with your membership.
- * 
+ *
  * @author: Jack Doyle, jack@greensock.com
  */
-(function(window, moduleName) {
+
+/* ES6 changes:
+	- declare and export _gsScope at top.
+	- set const TweenLite = the result of the main function
+	- export default TweenLite at the bottom
+	- return TweenLite at the bottom of the main function
+	- pass in _gsScope as the first parameter of the main function (which is actually at the bottom)
+	- remove the "export to multiple environments" in Definition().
+ */
+export const _gsScope = (typeof(window) !== "undefined") ? window : (typeof(module) !== "undefined" && module.exports && typeof(global) !== "undefined") ? global : this;
+
+export const TweenLite = (function(window, moduleName) {
 
 		"use strict";
 		var _exports = {},
@@ -105,6 +116,7 @@
 						//exports to multiple environments
 						if (global) {
 							_globals[n] = _exports[n] = cl; //provides a way to avoid global namespace pollution. By default, the main classes like TweenLite, Power1, Strong, etc. are added to window unless a GreenSockGlobals is defined. So if you want to have things added to a custom object instead, just do something like window.GreenSockGlobals = {} before loading any GreenSock files. You can even set up an alias like window.GreenSockGlobals = windows.gs = {} so that you can access everything like gs.TweenLite. Also remember that ALL classes are added to the window.com.greensock object (in their respective packages, like com.greensock.easing.Power1, com.greensock.TweenLite, etc.)
+							/*
 							if (typeof(module) !== "undefined" && module.exports) { //node
 								if (ns === moduleName) {
 									module.exports = _exports[moduleName] = cl;
@@ -117,6 +129,7 @@
 							} else if (typeof(define) === "function" && define.amd){ //AMD
 								define((window.GreenSockAMDPath ? window.GreenSockAMDPath + "/" : "") + ns.split(".").pop(), [], function() { return cl; });
 							}
+							*/
 						}
 						for (i = 0; i < this.sc.length; i++) {
 							this.sc[i].check();
@@ -258,7 +271,7 @@
 				i, t, listener;
 			if (list) {
 				i = list.length;
-				if (i > 1) { 
+				if (i > 1) {
 					list = list.slice(0); //in case addEventListener() is called from within a listener/callback (otherwise the index could change, resulting in a skip)
 				}
 				t = this._eventTarget;
@@ -1942,4 +1955,13 @@
 
 		_tickerActive = false; //ensures that the first official animation forces a ticker.tick() to update the time when it is instantiated
 
-})((typeof(module) !== "undefined" && module.exports && typeof(global) !== "undefined") ? global : this || window, "TweenLite");
+		return TweenLite;
+
+})(_gsScope, "TweenLite");
+
+const gs = _gsScope.com.greensock;
+export { TweenLite as default };
+export const SimpleTimeline = gs.core.SimpleTimeline;
+export const Animation = gs.core.Animation;
+export const {Ease, Linear, Power0, Power1, Power2, Power3, Power4, TweenPlugin} = _gsScope;
+export const EventDispatcher = gs.events.EventDispatcher;

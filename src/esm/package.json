@@ -1,0 +1,53 @@
+{
+    "name": "gsap",
+    "version": "1.20.5",
+    "description": "GSAP is a JavaScript library for creating high-performance animations that work in **every** major browser (or beyond the browser). No other library delivers such advanced sequencing, reliability, API efficiency, and tight control while solving real-world problems on over 4 million sites. GSAP works around countless browser inconsistencies; your animations 'just work'. Animate CSS properties, SVG, canvas libraries, custom properties of generic objects, colors, strings...pretty much anything! At its core, GSAP is a property manipulator, updating values over time very quickly with extreme accuracy. And it's up to 20x faster than jQuery! See http://greensock.com/why-gsap/ for details about what makes GSAP so special.",
+    "homepage": "https://greensock.com/gsap/",
+    "filename": "index.js",
+    "module": "index.js",
+    "main": "index.js",
+    "sideEffects": [
+        "./TweenLite.js",
+        "./index.js"
+    ],
+    "keywords": [
+        "animation",
+        "TweenLite",
+        "TweenMax",
+        "TimelineLite",
+        "TimelineMax",
+        "GSAP",
+        "GreenSock",
+        "easing",
+        "EasePack",
+        "PixiPlugin",
+        "CustomEase",
+        "jQuery",
+        "jquery.gsap.js",
+        "Bezier",
+        "SVG",
+        "3D",
+        "2D",
+        "transform",
+        "morph",
+        "morphing",
+        "svg",
+        "tweening"
+    ],
+    "maintainers": [
+        {
+            "name": "Jack Doyle",
+            "email": "jack@greensock.com",
+            "web": "https://greensock.com"
+        }
+    ],
+    "license": "Standard 'no charge' license: https://greensock.com/standard-license. Club GreenSock members get more: https://greensock.com/licensing/. Why GreenSock doesn't employ an MIT license: https://greensock.com/why-license/",
+    "bugs": {
+        "url": "https://greensock.com/forums/"
+    },
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/greensock/GreenSock-JS"
+    }
+
+}

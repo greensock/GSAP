@@ -1,6 +1,6 @@
 /*!
- * VERSION: 1.7.0
- * DATE: 2018-05-21
+ * VERSION: 1.6.0
+ * DATE: 2018-05-14
  * UPDATES AND DOCS AT: http://greensock.com
  *
  * @license Copyright (c) 2008-2018, GreenSock. All rights reserved.
@@ -9,12 +9,9 @@
  * 
  * @author: Jack Doyle, jack@greensock.com
  **/
-var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(global) !== "undefined") ? global : this || window; //helps ensure compatibility with AMD/RequireJS and CommonJS/Node
-(_gsScope._gsQueue || (_gsScope._gsQueue = [])).push( function() {
+import { _gsScope } from "./TweenLite";
 
-	"use strict";
-
-		var RoundPropsPlugin = _gsScope._gsDefine.plugin({
+export const RoundPropsPlugin = _gsScope._gsDefine.plugin({
 				propName: "roundProps",
 				version: "1.7.0",
 				priority: -1,
@@ -98,4 +95,4 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 			this._overwriteProps.push(p);
 		};
 
-}); if (_gsScope._gsDefine) { _gsScope._gsQueue.pop()(); }
+export { RoundPropsPlugin as default };
