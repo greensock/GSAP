@@ -1,6 +1,6 @@
 /*!
- * VERSION: 1.20.5
- * DATE: 2018-05-21
+ * VERSION: 2.0.0
+ * DATE: 2018-05-23
  * UPDATES AND DOCS AT: http://greensock.com
  *
  * @license Copyright (c) 2008-2018, GreenSock. All rights reserved.

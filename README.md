@@ -23,13 +23,13 @@ This is the public repository for GreenSock's JavaScript tools like <a href="htt
 ### CDN
 TweenMax is most popular because it has all the essential tools plus several common <a href="https://greensock.com/plugins/?product_id=4921">plugins</a>, all in one file:
 ```html
-<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/1.20.5/TweenMax.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/2.0.0/TweenMax.min.js"></script>
 ```
 Click the green "Download GSAP" button at <a href="https://greensock.com/?download=GSAP-JS">greensock.com</a> for more options. Click "customize" at the bottom of the resulting window to see all the extra plugins and tool URLs. 
 
 Draggable, for example, is at:
 ```html
-<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/1.20.5/utils/Draggable.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/2.0.0/utils/Draggable.min.js"></script>
 ```
 
 Most ad networks have GSAP on their CDNs as well, so contact them for the appropriate URL(s). 
@@ -49,12 +49,12 @@ import {TweenMax, Power2, TimelineLite} from "gsap/TweenMax";
 import Draggable from "gsap/Draggable";
 import ScrollToPlugin from "gsap/ScrollToPlugin";
 
-//or, as of 1.20.5, all tools are exported from the "all" file (excluding bonus plugins):
+//or, as of 2.0.0, all tools are exported from the "all" file (excluding bonus plugins):
 import {TweenMax, CSSPlugin, ScrollToPlugin, Draggable, Elastic} from "gsap/all";
 //if tree shaking dumps plugins, just reference them somewhere in your code like:
 const plugins = [CSSPlugin, ScrollToPlugin]; 
 ```
-As of version 1.20.5, the NPM files are ES modules, though there's also a /umd/ directory with UMD files for extra compatibility.
+As of version 2.0.0, the NPM files are ES modules, though there's also a /umd/ directory with UMD files for extra compatibility.
 
 For <a href="https://greensock.com/club/">Club GreenSock</a>-only plugins, download them from your GreenSock.com account and then treat them as part of your own JS payload or drop them into your node_modules/gsap folder. Post other questions in our <a href="https://greensock.com/forums/">forums</a> and we'd be happy to help.
 
