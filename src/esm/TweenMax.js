@@ -1,6 +1,6 @@
 /*!
- * VERSION: 2.0.0
- * DATE: 2018-05-23
+ * VERSION: 2.0.1
+ * DATE: 2018-05-30
  * UPDATES AND DOCS AT: http://greensock.com
  *
  * @license Copyright (c) 2008-2018, GreenSock. All rights reserved.
@@ -10,16 +10,16 @@
  * @author: Jack Doyle, jack@greensock.com
  **/
 
-import TweenLite, { TweenPlugin, Ease, Power0, Power1, Power2, Power3, Power4, Linear } from "./TweenLite";
-import TweenMaxBase from "./TweenMaxBase";
-import CSSPlugin from "./CSSPlugin";
-import AttrPlugin from "./AttrPlugin";
-import RoundPropsPlugin from "./RoundPropsPlugin";
-import DirectionalRotationPlugin from "./DirectionalRotationPlugin";
-import TimelineLite from "./TimelineLite";
-import TimelineMax from "./TimelineMax";
-import BezierPlugin from "./BezierPlugin";
-import { Back, Elastic, Bounce, RoughEase, SlowMo, SteppedEase, Circ, Expo, Sine, ExpoScaleEase } from "./EasePack";
+import TweenLite, { TweenPlugin, Ease, Power0, Power1, Power2, Power3, Power4, Linear } from "./TweenLite.js";
+import TweenMaxBase from "./TweenMaxBase.js";
+import CSSPlugin from "./CSSPlugin.js";
+import AttrPlugin from "./AttrPlugin.js";
+import RoundPropsPlugin from "./RoundPropsPlugin.js";
+import DirectionalRotationPlugin from "./DirectionalRotationPlugin.js";
+import TimelineLite from "./TimelineLite.js";
+import TimelineMax from "./TimelineMax.js";
+import BezierPlugin from "./BezierPlugin.js";
+import { Back, Elastic, Bounce, RoughEase, SlowMo, SteppedEase, Circ, Expo, Sine, ExpoScaleEase } from "./EasePack.js";
 
 //the following two lines are designed to prevent tree shaking of the classes that were historically included with TweenMax (otherwise, folks would have to reference CSSPlugin, for example, to ensure their CSS-related animations worked)
 export const TweenMax = TweenMaxBase;

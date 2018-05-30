@@ -1,6 +1,6 @@
 /*!
- * VERSION: 0.16.3
- * DATE: 2018-05-04
+ * VERSION: 0.16.4
+ * DATE: 2018-05-30
  * UPDATES AND DOCS AT: http://greensock.com
  *
  * Requires TweenLite and CSSPlugin version 1.17.0 or later (TweenMax contains both TweenLite and CSSPlugin). ThrowPropsPlugin is required for momentum-based continuation of movement after the mouse/touch is released (ThrowPropsPlugin is a membership benefit of Club GreenSock - http://greensock.com/club/).
@@ -2328,6 +2328,7 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 					self.isThrowing = false;
 					TweenLite.killTweensOf(scrollProxy || target, true, killProps);
 					self.disable();
+					TweenLite.set(triggers, {clearProps:"userSelect"});
 					delete _lookup[target._gsDragID];
 					return self;
 				};
@@ -2373,7 +2374,7 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 		p.constructor = Draggable;
 		p.pointerX = p.pointerY = p.startX = p.startY = p.deltaX = p.deltaY = 0;
 		p.isDragging = p.isPressed = false;
-		Draggable.version = "0.16.3";
+		Draggable.version = "0.16.4";
 		Draggable.zIndex = 1000;
 
 		_addListener(_doc, "touchcancel", function() {

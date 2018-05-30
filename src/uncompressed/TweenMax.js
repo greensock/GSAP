@@ -1,6 +1,6 @@
 /*!
- * VERSION: 2.0.0
- * DATE: 2018-05-23
+ * VERSION: 2.0.1
+ * DATE: 2018-05-30
  * UPDATES AND DOCS AT: http://greensock.com
  * 
  * Includes all of the following: TweenLite, TweenMax, TimelineLite, TimelineMax, EasePack, CSSPlugin, RoundPropsPlugin, BezierPlugin, AttrPlugin, DirectionalRotationPlugin
@@ -52,7 +52,7 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 			p = TweenMax.prototype = TweenLite.to({}, 0.1, {}),
 			_blankArray = [];
 
-		TweenMax.version = "2.0.0";
+		TweenMax.version = "2.0.1";
 		p.constructor = TweenMax;
 		p.kill()._gc = false;
 		TweenMax.killTweensOf = TweenMax.killDelayedCallsTo = TweenLite.killTweensOf;
@@ -701,7 +701,7 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 			},
 			p = TimelineLite.prototype = new SimpleTimeline();
 
-		TimelineLite.version = "2.0.0";
+		TimelineLite.version = "2.0.1";
 		p.constructor = TimelineLite;
 		p.kill()._gc = p._forcingPlayhead = p._hasPause = false;
 
@@ -1452,7 +1452,7 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 
 		p.constructor = TimelineMax;
 		p.kill()._gc = false;
-		TimelineMax.version = "2.0.0";
+		TimelineMax.version = "2.0.1";
 
 		p.invalidate = function() {
 			this._yoyo = (this.vars.yoyo === true);
@@ -6067,9 +6067,13 @@ if (_gsScope._gsDefine) { _gsScope._gsQueue.pop()(); } //necessary in case Tween
 		"use strict";
 		var _exports = {},
 			_doc = window.document,
-			_globals = window.GreenSockGlobals = window.GreenSockGlobals || window;
-		if (_globals.TweenLite) {
-			return _globals.TweenLite; //in case the core set of classes is already loaded, don't instantiate twice.
+			_globals = window.GreenSockGlobals = window.GreenSockGlobals || window,
+			existingModule = _globals[moduleName];
+		if (existingModule) {
+			if (typeof(module) !== "undefined" && module.exports) { //node
+				module.exports = existingModule;
+			}
+			return existingModule; //in case the core set of classes is already loaded, don't instantiate twice.
 		}
 		var _namespace = function(ns) {
 				var a = ns.split("."),
@@ -7011,7 +7015,7 @@ if (_gsScope._gsDefine) { _gsScope._gsQueue.pop()(); } //necessary in case Tween
 		p._firstPT = p._targets = p._overwrittenProps = p._startAt = null;
 		p._notifyPluginsOfEnabled = p._lazy = false;
 
-		TweenLite.version = "2.0.0";
+		TweenLite.version = "2.0.1";
 		TweenLite.defaultEase = p._ease = new Ease(null, null, 1, 1);
 		TweenLite.defaultOverwrite = "auto";
 		TweenLite.ticker = _ticker;

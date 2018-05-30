@@ -1,6 +1,6 @@
 /*!
  * VERSION: 1.2.0
- * DATE: 2018-05-14
+ * DATE: 2018-05-30
  * UPDATES AND DOCS AT: http://greensock.com
  * 
  * This file is to be used as a simple template for writing your own plugin. See the 
@@ -16,7 +16,7 @@
  * 
  * @author: Jack Doyle, jack@greensock.com
  **/
-import { _gsScope } from "./TweenLite";
+import { _gsScope } from "./TweenLite.js";
 
 export const YourPlugin = _gsScope._gsDefine.plugin({
 		propName: "yourCustomProperty", //the name of the property that will get intercepted and handled by this plugin (obviously change it to whatever you want, typically it is camelCase starting with lowercase).

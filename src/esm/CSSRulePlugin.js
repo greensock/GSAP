@@ -1,6 +1,6 @@
 /*!
  * VERSION: 0.6.6
- * DATE: 2018-05-14
+ * DATE: 2018-05-30
  * UPDATES AND DOCS AT: http://greensock.com
  *
  * @license Copyright (c) 2008-2018, GreenSock. All rights reserved.
@@ -9,8 +9,8 @@
  * 
  * @author: Jack Doyle, jack@greensock.com
  */
-import TweenLite, { _gsScope, TweenPlugin } from "./TweenLite";
-import CSSPlugin from "./CSSPlugin";
+import TweenLite, { _gsScope, TweenPlugin } from "./TweenLite.js";
+import CSSPlugin from "./CSSPlugin.js";
 
 _gsScope._gsDefine("plugins.CSSRulePlugin", ["plugins.TweenPlugin","TweenLite","plugins.CSSPlugin"], function() {
 

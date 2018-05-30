@@ -1,6 +1,6 @@
 /*!
- * VERSION: 2.0.0
- * DATE: 2018-05-23
+ * VERSION: 2.0.1
+ * DATE: 2018-05-30
  * UPDATES AND DOCS AT: http://greensock.com
  *
  * @license Copyright (c) 2008-2018, GreenSock. All rights reserved.
@@ -14,9 +14,13 @@
 		"use strict";
 		var _exports = {},
 			_doc = window.document,
-			_globals = window.GreenSockGlobals = window.GreenSockGlobals || window;
-		if (_globals.TweenLite) {
-			return _globals.TweenLite; //in case the core set of classes is already loaded, don't instantiate twice.
+			_globals = window.GreenSockGlobals = window.GreenSockGlobals || window,
+			existingModule = _globals[moduleName];
+		if (existingModule) {
+			if (typeof(module) !== "undefined" && module.exports) { //node
+				module.exports = existingModule;
+			}
+			return existingModule; //in case the core set of classes is already loaded, don't instantiate twice.
 		}
 		var _namespace = function(ns) {
 				var a = ns.split("."),
@@ -958,7 +962,7 @@
 		p._firstPT = p._targets = p._overwrittenProps = p._startAt = null;
 		p._notifyPluginsOfEnabled = p._lazy = false;
 
-		TweenLite.version = "2.0.0";
+		TweenLite.version = "2.0.1";
 		TweenLite.defaultEase = p._ease = new Ease(null, null, 1, 1);
 		TweenLite.defaultOverwrite = "auto";
 		TweenLite.ticker = _ticker;

@@ -1,6 +1,6 @@
 /*!
- * VERSION: 2.0.0
- * DATE: 2018-05-23
+ * VERSION: 2.0.1
+ * DATE: 2018-05-30
  * UPDATES AND DOCS AT: http://greensock.com
  *
  * @license Copyright (c) 2008-2018, GreenSock. All rights reserved.
@@ -18,7 +18,7 @@
 	- pass in _gsScope as the first parameter of the main function (which is actually at the bottom)
 	- remove the "export to multiple environments" in Definition().
  */
-export const _gsScope = (typeof(window) !== "undefined") ? window : (typeof(module) !== "undefined" && module.exports && typeof(global) !== "undefined") ? global : this;
+export const _gsScope = (typeof(window) !== "undefined") ? window : (typeof(module) !== "undefined" && module.exports && typeof(global) !== "undefined") ? global : this || {};
 
 export const TweenLite = (function(window, moduleName) {
 
@@ -971,7 +971,7 @@ export const TweenLite = (function(window, moduleName) {
 		p._firstPT = p._targets = p._overwrittenProps = p._startAt = null;
 		p._notifyPluginsOfEnabled = p._lazy = false;
 
-		TweenLite.version = "2.0.0";
+		TweenLite.version = "2.0.1";
 		TweenLite.defaultEase = p._ease = new Ease(null, null, 1, 1);
 		TweenLite.defaultOverwrite = "auto";
 		TweenLite.ticker = _ticker;
@@ -1963,5 +1963,12 @@ const gs = _gsScope.com.greensock;
 export { TweenLite as default };
 export const SimpleTimeline = gs.core.SimpleTimeline;
 export const Animation = gs.core.Animation;
-export const {Ease, Linear, Power0, Power1, Power2, Power3, Power4, TweenPlugin} = _gsScope;
+export const Ease = _gsScope.Ease;
+export const Linear = _gsScope.Linear;
+export const Power0 = Linear;
+export const Power1 = _gsScope.Power1;
+export const Power2 = _gsScope.Power2;
+export const Power3 = _gsScope.Power3;
+export const Power4 = _gsScope.Power4;
+export const TweenPlugin = _gsScope.TweenPlugin;
 export const EventDispatcher = gs.events.EventDispatcher;

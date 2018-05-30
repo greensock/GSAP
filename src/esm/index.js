@@ -1,6 +1,6 @@
 /*!
- * VERSION: 2.0.0
- * DATE: 2018-05-23
+ * VERSION: 2.0.1
+ * DATE: 2018-05-30
  * UPDATES AND DOCS AT: http://greensock.com
  *
  * @license Copyright (c) 2008-2018, GreenSock. All rights reserved.
@@ -9,16 +9,16 @@
  *
  * @author: Jack Doyle, jack@greensock.com
  **/
-import TweenLite, { _gsScope, TweenPlugin, Ease, Power0, Power1, Power2, Power3, Power4, Linear } from "./TweenLite";
-import TimelineLite from "./TimelineLite";
-import TimelineMax from "./TimelineMax";
-import TweenMax from "./TweenMax";
-import CSSPlugin from "./CSSPlugin";
-import AttrPlugin from "./AttrPlugin";
-import RoundPropsPlugin from "./RoundPropsPlugin";
-import DirectionalRotationPlugin from "./DirectionalRotationPlugin";
-import BezierPlugin from "./BezierPlugin";
-import { Back, Elastic, Bounce, RoughEase, SlowMo, SteppedEase, Circ, Expo, Sine, ExpoScaleEase } from "./EasePack";
+import TweenLite, { _gsScope, TweenPlugin, Ease, Power0, Power1, Power2, Power3, Power4, Linear } from "./TweenLite.js";
+import TimelineLite from "./TimelineLite.js";
+import TimelineMax from "./TimelineMax.js";
+import TweenMax from "./TweenMax.js";
+import CSSPlugin from "./CSSPlugin.js";
+import AttrPlugin from "./AttrPlugin.js";
+import RoundPropsPlugin from "./RoundPropsPlugin.js";
+import DirectionalRotationPlugin from "./DirectionalRotationPlugin.js";
+import BezierPlugin from "./BezierPlugin.js";
+import { Back, Elastic, Bounce, RoughEase, SlowMo, SteppedEase, Circ, Expo, Sine, ExpoScaleEase } from "./EasePack.js";
 
 
 export { TweenMax as default };

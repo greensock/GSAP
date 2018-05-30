@@ -1,6 +1,6 @@
 /*!
  * VERSION: 0.2.1
- * DATE: 2018-05-14
+ * DATE: 2018-05-30
  * UPDATES AND DOCS AT: http://greensock.com
  *
  * @license Copyright (c) 2008-2018, GreenSock. All rights reserved.
@@ -10,7 +10,7 @@
  * @author: Jack Doyle, jack@greensock.com
  */
 
-import { _gsScope } from "./TweenLite";
+import { _gsScope } from "./TweenLite.js";
 
 
     var _numExp = /(\d|\.)+/g,

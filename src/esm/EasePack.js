@@ -1,6 +1,6 @@
 /*!
  * VERSION: 1.16.0
- * DATE: 2018-05-14
+ * DATE: 2018-05-30
  * UPDATES AND DOCS AT: http://greensock.com
  *
  * @license Copyright (c) 2008-2018, GreenSock. All rights reserved.
@@ -10,7 +10,7 @@
  * @author: Jack Doyle, jack@greensock.com
  **/
 
-import { _gsScope, Ease, Linear, Power0, Power1, Power2, Power3, Power4 } from "./TweenLite";
+import { _gsScope, Ease, Linear, Power0, Power1, Power2, Power3, Power4 } from "./TweenLite.js";
 
 _gsScope._gsDefine("easing.Back", ["easing.Ease"], function() {
 		

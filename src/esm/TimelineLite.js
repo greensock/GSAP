@@ -1,6 +1,6 @@
 /*!
- * VERSION: 2.0.0
- * DATE: 2018-05-23
+ * VERSION: 2.0.1
+ * DATE: 2018-05-30
  * UPDATES AND DOCS AT: http://greensock.com
  *
  * @license Copyright (c) 2008-2018, GreenSock. All rights reserved.
@@ -9,7 +9,7 @@
  * 
  * @author: Jack Doyle, jack@greensock.com
  */
-import TweenLite, { _gsScope, Animation, SimpleTimeline } from "./TweenLite";
+import TweenLite, { _gsScope, Animation, SimpleTimeline } from "./TweenLite.js";
 
 _gsScope._gsDefine("TimelineLite", ["core.Animation","core.SimpleTimeline","TweenLite"], function() {
 
@@ -66,7 +66,7 @@ _gsScope._gsDefine("TimelineLite", ["core.Animation","core.SimpleTimeline","Twee
 			},
 			p = TimelineLite.prototype = new SimpleTimeline();
 
-		TimelineLite.version = "2.0.0";
+		TimelineLite.version = "2.0.1";
 		p.constructor = TimelineLite;
 		p.kill()._gc = p._forcingPlayhead = p._hasPause = false;
 

@@ -1,6 +1,6 @@
 /*!
- * VERSION: 2.0.0
- * DATE: 2018-05-23
+ * VERSION: 2.0.1
+ * DATE: 2018-05-30
  * UPDATES AND DOCS AT: http://greensock.com
  *
  * @license Copyright (c) 2008-2018, GreenSock. All rights reserved.
@@ -10,7 +10,7 @@
  * @author: Jack Doyle, jack@greensock.com
  **/
 
-import TweenLite, { _gsScope, Animation, SimpleTimeline, Ease, Power0, Power1, Power2, Power3, Power4, Linear  } from "./TweenLite";
+import TweenLite, { _gsScope, Animation, SimpleTimeline, Ease, Power0, Power1, Power2, Power3, Power4, Linear  } from "./TweenLite.js";
 
 
 _gsScope._gsDefine("TweenMax", ["core.Animation","core.SimpleTimeline","TweenLite"], function() {
@@ -49,7 +49,7 @@ _gsScope._gsDefine("TweenMax", ["core.Animation","core.SimpleTimeline","TweenLit
 			p = TweenMax.prototype = TweenLite.to({}, 0.1, {}),
 			_blankArray = [];
 
-		TweenMax.version = "2.0.0";
+		TweenMax.version = "2.0.1";
 		p.constructor = TweenMax;
 		p.kill()._gc = false;
 		TweenMax.killTweensOf = TweenMax.killDelayedCallsTo = TweenLite.killTweensOf;
