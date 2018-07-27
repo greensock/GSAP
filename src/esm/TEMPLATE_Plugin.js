@@ -71,4 +71,4 @@ export const YourPlugin = _gsScope._gsDefine.plugin({
 	});
 
 // Now export it for ES6
-export { YourPlugin, YourPlugin as default };
+export { YourPlugin as default };
