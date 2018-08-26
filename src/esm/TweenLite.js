@@ -1,6 +1,6 @@
 /*!
- * VERSION: 2.0.1
- * DATE: 2018-05-30
+ * VERSION: 2.0.2
+ * DATE: 2018-08-27
  * UPDATES AND DOCS AT: http://greensock.com
  *
  * @license Copyright (c) 2008-2018, GreenSock. All rights reserved.
@@ -12,15 +12,15 @@
 
 /* ES6 changes:
 	- declare and export _gsScope at top.
-	- set const TweenLite = the result of the main function
+	- set var TweenLite = the result of the main function
 	- export default TweenLite at the bottom
 	- return TweenLite at the bottom of the main function
 	- pass in _gsScope as the first parameter of the main function (which is actually at the bottom)
 	- remove the "export to multiple environments" in Definition().
  */
-export const _gsScope = (typeof(window) !== "undefined") ? window : (typeof(module) !== "undefined" && module.exports && typeof(global) !== "undefined") ? global : this || {};
+export var _gsScope = (typeof(window) !== "undefined") ? window : (typeof(module) !== "undefined" && module.exports && typeof(global) !== "undefined") ? global : this || {};
 
-export const TweenLite = (function(window, moduleName) {
+export var TweenLite = (function(window, moduleName) {
 
 		"use strict";
 		var _exports = {},
@@ -971,7 +971,7 @@ export const TweenLite = (function(window, moduleName) {
 		p._firstPT = p._targets = p._overwrittenProps = p._startAt = null;
 		p._notifyPluginsOfEnabled = p._lazy = false;
 
-		TweenLite.version = "2.0.1";
+		TweenLite.version = "2.0.2";
 		TweenLite.defaultEase = p._ease = new Ease(null, null, 1, 1);
 		TweenLite.defaultOverwrite = "auto";
 		TweenLite.ticker = _ticker;
@@ -1246,10 +1246,11 @@ export const TweenLite = (function(window, moduleName) {
 				i = oCount;
 				while (--i > -1) {
 					curTween = overlaps[i];
+					l = curTween._firstPT; //we need to discern if there were property tweens originally; if they all get removed in the next line's _kill() call, the tween should be killed. See https://github.com/greensock/GreenSock-JS/issues/278
 					if (mode === 2) if (curTween._kill(props, target, tween)) {
 						changed = true;
 					}
-					if (mode !== 2 || (!curTween._firstPT && curTween._initted)) {
+					if (mode !== 2 || (!curTween._firstPT && curTween._initted && l)) {
 						if (mode !== 2 && !_onOverwrite(curTween, tween)) {
 							continue;
 						}
@@ -1610,6 +1611,7 @@ export const TweenLite = (function(window, moduleName) {
 			}
 			target = (typeof(target) !== "string") ? (target || this._targets || this.target) : TweenLite.selector(target) || target;
 			var simultaneousOverwrite = (overwritingTween && this._time && overwritingTween._startTime === this._startTime && this._timeline === overwritingTween._timeline),
+				firstPT = this._firstPT,
 				i, overwrittenProps, p, pt, propLookup, changed, killProps, record, killed;
 			if ((_isArray(target) || _isSelector(target)) && typeof(target[0]) !== "number") {
 				i = target.length;
@@ -1683,7 +1685,7 @@ export const TweenLite = (function(window, moduleName) {
 							overwrittenProps[p] = 1;
 						}
 					}
-					if (!this._firstPT && this._initted) { //if all tweening properties are killed, kill the tween. Without this line, if there's a tween with multiple targets and then you killTweensOf() each target individually, the tween would technically still remain active and fire its onComplete even though there aren't any more properties tweening.
+					if (!this._firstPT && this._initted && firstPT) { //if all tweening properties are killed, kill the tween. Without this line, if there's a tween with multiple targets and then you killTweensOf() each target individually, the tween would technically still remain active and fire its onComplete even though there aren't any more properties tweening.
 						this._enabled(false, false);
 					}
 				}
@@ -1959,16 +1961,17 @@ export const TweenLite = (function(window, moduleName) {
 
 })(_gsScope, "TweenLite");
 
-const gs = _gsScope.com.greensock;
+export var globals = _gsScope.GreenSockGlobals;
+var nonGlobals = globals.com.greensock;
 export { TweenLite as default };
-export const SimpleTimeline = gs.core.SimpleTimeline;
-export const Animation = gs.core.Animation;
-export const Ease = _gsScope.Ease;
-export const Linear = _gsScope.Linear;
-export const Power0 = Linear;
-export const Power1 = _gsScope.Power1;
-export const Power2 = _gsScope.Power2;
-export const Power3 = _gsScope.Power3;
-export const Power4 = _gsScope.Power4;
-export const TweenPlugin = _gsScope.TweenPlugin;
-export const EventDispatcher = gs.events.EventDispatcher;
+export var SimpleTimeline = nonGlobals.core.SimpleTimeline;
+export var Animation = nonGlobals.core.Animation;
+export var Ease = globals.Ease;
+export var Linear = globals.Linear;
+export var Power0 = Linear;
+export var Power1 = globals.Power1;
+export var Power2 = globals.Power2;
+export var Power3 = globals.Power3;
+export var Power4 = globals.Power4;
+export var TweenPlugin = globals.TweenPlugin;
+export var EventDispatcher = nonGlobals.events.EventDispatcher;

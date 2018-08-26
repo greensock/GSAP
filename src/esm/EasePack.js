@@ -1,6 +1,6 @@
 /*!
- * VERSION: 1.16.0
- * DATE: 2018-05-30
+ * VERSION: 1.16.1
+ * DATE: 2018-08-27
  * UPDATES AND DOCS AT: http://greensock.com
  *
  * @license Copyright (c) 2008-2018, GreenSock. All rights reserved.
@@ -10,7 +10,7 @@
  * @author: Jack Doyle, jack@greensock.com
  **/
 
-import { _gsScope, Ease, Linear, Power0, Power1, Power2, Power3, Power4 } from "./TweenLite.js";
+import { _gsScope, globals, Ease, Linear, Power0, Power1, Power2, Power3, Power4 } from "./TweenLite.js";
 
 _gsScope._gsDefine("easing.Back", ["easing.Ease"], function() {
 		
@@ -361,14 +361,14 @@ _gsScope._gsDefine("easing.Back", ["easing.Ease"], function() {
 		
 	}, true);
 
-export const Back = _gsScope.Back;
-export const Elastic = _gsScope.Elastic;
-export const Bounce = _gsScope.Bounce;
-export const RoughEase = _gsScope.RoughEase;
-export const SlowMo = _gsScope.SlowMo;
-export const SteppedEase = _gsScope.SteppedEase;
-export const Circ = _gsScope.Circ;
-export const Expo = _gsScope.Expo;
-export const Sine = _gsScope.Sine;
-export const ExpoScaleEase = _gsScope.ExpoScaleEase;
+export var Back = globals.Back;
+export var Elastic = globals.Elastic;
+export var Bounce = globals.Bounce;
+export var RoughEase = globals.RoughEase;
+export var SlowMo = globals.SlowMo;
+export var SteppedEase = globals.SteppedEase;
+export var Circ = globals.Circ;
+export var Expo = globals.Expo;
+export var Sine = globals.Sine;
+export var ExpoScaleEase = globals.ExpoScaleEase;
 export { Linear, Power0, Power1, Power2, Power3, Power4 };

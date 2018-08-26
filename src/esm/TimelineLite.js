@@ -1,6 +1,6 @@
 /*!
- * VERSION: 2.0.1
- * DATE: 2018-05-30
+ * VERSION: 2.0.2
+ * DATE: 2018-08-27
  * UPDATES AND DOCS AT: http://greensock.com
  *
  * @license Copyright (c) 2008-2018, GreenSock. All rights reserved.
@@ -9,7 +9,7 @@
  * 
  * @author: Jack Doyle, jack@greensock.com
  */
-import TweenLite, { _gsScope, Animation, SimpleTimeline } from "./TweenLite.js";
+import TweenLite, { _gsScope, globals, Animation, SimpleTimeline } from "./TweenLite.js";
 
 _gsScope._gsDefine("TimelineLite", ["core.Animation","core.SimpleTimeline","TweenLite"], function() {
 
@@ -66,7 +66,7 @@ _gsScope._gsDefine("TimelineLite", ["core.Animation","core.SimpleTimeline","Twee
 			},
 			p = TimelineLite.prototype = new SimpleTimeline();
 
-		TimelineLite.version = "2.0.1";
+		TimelineLite.version = "2.0.2";
 		p.constructor = TimelineLite;
 		p.kill()._gc = p._forcingPlayhead = p._hasPause = false;
 
@@ -238,7 +238,10 @@ _gsScope._gsDefine("TimelineLite", ["core.Animation","core.SimpleTimeline","Twee
 			SimpleTimeline.prototype.add.call(this, value, position);
 
 			if (value._time) { //in case, for example, the _startTime is moved on a tween that has already rendered. Imagine it's at its end state, then the startTime is moved WAY later (after the end of this timeline), it should render at its beginning.
-				value.render((this.rawTime() - value._startTime) * value._timeScale, false, false);
+				curTime = Math.max(0, Math.min(value.totalDuration(), (this.rawTime() - value._startTime) * value._timeScale));
+				if (Math.abs(curTime - value._totalTime) > 0.00001) { //if an onComplete restarts the tween in a nested timeline, for example, there could be an endless loop without this logic (v2.0.2), like var masterTL = new TimelineMax({autoRemoveChildren: true}), tl = new TimelineMax(); tl.eventCallback("onComplete", function() { tl.restart() } );tl.fromTo('div', 1.1, { rotation: 0 }, { rotation: 360 }, 0);masterTL.add(tl);
+					value.render(curTime, false, false);
+				}
 			}
 
 			//if the timeline has already ended but the inserted tween/timeline extends the duration, we should enable this timeline again so that it renders properly. We should also align the playhead with the parent timeline's when appropriate.
@@ -780,5 +783,5 @@ _gsScope._gsDefine("TimelineLite", ["core.Animation","core.SimpleTimeline","Twee
 
 	}, true);
 
-export const TimelineLite = _gsScope.TimelineLite;
+export var TimelineLite = globals.TimelineLite;
 export { TimelineLite as default };

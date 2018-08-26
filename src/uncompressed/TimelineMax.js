@@ -1,6 +1,6 @@
 /*!
- * VERSION: 2.0.1
- * DATE: 2018-05-30
+ * VERSION: 2.0.2
+ * DATE: 2018-08-27
  * UPDATES AND DOCS AT: http://greensock.com
  *
  * @license Copyright (c) 2008-2018, GreenSock. All rights reserved.
@@ -34,7 +34,7 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 			
 		p.constructor = TimelineMax;
 		p.kill()._gc = false;
-		TimelineMax.version = "2.0.1";
+		TimelineMax.version = "2.0.2";
 		
 		p.invalidate = function() {
 			this._yoyo = (this.vars.yoyo === true);
@@ -588,7 +588,7 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 			},
 			p = TimelineLite.prototype = new SimpleTimeline();
 
-		TimelineLite.version = "2.0.1";
+		TimelineLite.version = "2.0.2";
 		p.constructor = TimelineLite;
 		p.kill()._gc = p._forcingPlayhead = p._hasPause = false;
 
@@ -760,7 +760,10 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 			SimpleTimeline.prototype.add.call(this, value, position);
 
 			if (value._time) { //in case, for example, the _startTime is moved on a tween that has already rendered. Imagine it's at its end state, then the startTime is moved WAY later (after the end of this timeline), it should render at its beginning.
-				value.render((this.rawTime() - value._startTime) * value._timeScale, false, false);
+				curTime = Math.max(0, Math.min(value.totalDuration(), (this.rawTime() - value._startTime) * value._timeScale));
+				if (Math.abs(curTime - value._totalTime) > 0.00001) { //if an onComplete restarts the tween in a nested timeline, for example, there could be an endless loop without this logic (v2.0.2), like var masterTL = new TimelineMax({autoRemoveChildren: true}), tl = new TimelineMax(); tl.eventCallback("onComplete", function() { tl.restart() } );tl.fromTo('div', 1.1, { rotation: 0 }, { rotation: 360 }, 0);masterTL.add(tl);
+					value.render(curTime, false, false);
+				}
 			}
 
 			//if the timeline has already ended but the inserted tween/timeline extends the duration, we should enable this timeline again so that it renders properly. We should also align the playhead with the parent timeline's when appropriate.
@@ -899,12 +902,15 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 			if (this._gc) {
 				this._enabled(true, false);
 			}
-			var totalDur = (!this._dirty) ? this._totalDuration : this.totalDuration(),
-				prevTime = this._time,
+			var prevTime = this._time,
+				totalDur = (!this._dirty) ? this._totalDuration : this.totalDuration(),
 				prevStart = this._startTime,
 				prevTimeScale = this._timeScale,
 				prevPaused = this._paused,
 				tween, isComplete, next, callback, internalForce, pauseTween, curTime;
+			if (prevTime !== this._time) { //if totalDuration() finds a child with a negative startTime and smoothChildTiming is true, things get shifted around internally so we need to adjust the time accordingly. For example, if a tween starts at -30 we must shift EVERYTHING forward 30 seconds and move this timeline's startTime backward by 30 seconds so that things align with the playhead (no jump).
+				time += this._time - prevTime;
+			}
 			if (time >= totalDur - 0.0000001 && time >= 0) { //to work around occasional floating point math artifacts.
 				this._totalTime = this._time = totalDur;
 				if (!this._reversed) if (!this._hasPausedChild()) {

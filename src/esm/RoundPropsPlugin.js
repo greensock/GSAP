@@ -1,6 +1,6 @@
 /*!
  * VERSION: 1.6.0
- * DATE: 2018-05-30
+ * DATE: 2018-08-27
  * UPDATES AND DOCS AT: http://greensock.com
  *
  * @license Copyright (c) 2008-2018, GreenSock. All rights reserved.
@@ -11,7 +11,7 @@
  **/
 import { _gsScope } from "./TweenLite.js";
 
-export const RoundPropsPlugin = _gsScope._gsDefine.plugin({
+export var RoundPropsPlugin = _gsScope._gsDefine.plugin({
 				propName: "roundProps",
 				version: "1.7.0",
 				priority: -1,

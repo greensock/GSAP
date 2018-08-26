@@ -1,6 +1,6 @@
 /*!
- * VERSION: 2.0.1
- * DATE: 2018-05-30
+ * VERSION: 2.0.2
+ * DATE: 2018-08-27
  * UPDATES AND DOCS AT: http://greensock.com
  *
  * @license Copyright (c) 2008-2018, GreenSock. All rights reserved.
@@ -10,7 +10,7 @@
  * @author: Jack Doyle, jack@greensock.com
  **/
 
-import TweenLite, { _gsScope, Animation, SimpleTimeline, Ease, Power0, Power1, Power2, Power3, Power4, Linear  } from "./TweenLite.js";
+import TweenLite, { _gsScope, globals, Animation, SimpleTimeline, Ease, Power0, Power1, Power2, Power3, Power4, Linear  } from "./TweenLite.js";
 
 
 _gsScope._gsDefine("TweenMax", ["core.Animation","core.SimpleTimeline","TweenLite"], function() {
@@ -49,7 +49,7 @@ _gsScope._gsDefine("TweenMax", ["core.Animation","core.SimpleTimeline","TweenLit
 			p = TweenMax.prototype = TweenLite.to({}, 0.1, {}),
 			_blankArray = [];
 
-		TweenMax.version = "2.0.1";
+		TweenMax.version = "2.0.2";
 		p.constructor = TweenMax;
 		p.kill()._gc = false;
 		TweenMax.killTweensOf = TweenMax.killDelayedCallsTo = TweenLite.killTweensOf;
@@ -631,7 +631,7 @@ _gsScope._gsDefine("TweenMax", ["core.Animation","core.SimpleTimeline","TweenLit
 
 	}, true);
 
-export const TweenMax = _gsScope.TweenMax;
-export const TweenMaxBase = TweenMax;
+export var TweenMax = globals.TweenMax;
+export var TweenMaxBase = TweenMax;
 export { TweenMax as default };
 export { TweenLite, Ease, Power0, Power1, Power2, Power3, Power4, Linear };

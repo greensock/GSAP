@@ -23,13 +23,13 @@ This is the public repository for GreenSock's JavaScript tools like <a href="htt
 ### CDN
 TweenMax is most popular because it has all the essential tools plus several common <a href="https://greensock.com/plugins/?product_id=4921">plugins</a>, all in one file:
 ```html
-<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/2.0.1/TweenMax.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/2.0.2/TweenMax.min.js"></script>
 ```
 Click the green "Download GSAP" button at <a href="https://greensock.com/?download=GSAP-JS">greensock.com</a> for more options. Click "customize" at the bottom of the resulting window to see all the extra plugins and tool URLs. 
 
 Draggable, for example, is at:
 ```html
-<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/2.0.1/utils/Draggable.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/2.0.2/utils/Draggable.min.js"></script>
 ```
 
 Most ad networks have GSAP on their CDNs as well, so contact them for the appropriate URL(s). 

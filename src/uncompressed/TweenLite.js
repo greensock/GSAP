@@ -1,6 +1,6 @@
 /*!
- * VERSION: 2.0.1
- * DATE: 2018-05-30
+ * VERSION: 2.0.2
+ * DATE: 2018-08-27
  * UPDATES AND DOCS AT: http://greensock.com
  *
  * @license Copyright (c) 2008-2018, GreenSock. All rights reserved.
@@ -962,7 +962,7 @@
 		p._firstPT = p._targets = p._overwrittenProps = p._startAt = null;
 		p._notifyPluginsOfEnabled = p._lazy = false;
 
-		TweenLite.version = "2.0.1";
+		TweenLite.version = "2.0.2";
 		TweenLite.defaultEase = p._ease = new Ease(null, null, 1, 1);
 		TweenLite.defaultOverwrite = "auto";
 		TweenLite.ticker = _ticker;
@@ -1237,10 +1237,11 @@
 				i = oCount;
 				while (--i > -1) {
 					curTween = overlaps[i];
+					l = curTween._firstPT; //we need to discern if there were property tweens originally; if they all get removed in the next line's _kill() call, the tween should be killed. See https://github.com/greensock/GreenSock-JS/issues/278
 					if (mode === 2) if (curTween._kill(props, target, tween)) {
 						changed = true;
 					}
-					if (mode !== 2 || (!curTween._firstPT && curTween._initted)) {
+					if (mode !== 2 || (!curTween._firstPT && curTween._initted && l)) {
 						if (mode !== 2 && !_onOverwrite(curTween, tween)) {
 							continue;
 						}
@@ -1601,6 +1602,7 @@
 			}
 			target = (typeof(target) !== "string") ? (target || this._targets || this.target) : TweenLite.selector(target) || target;
 			var simultaneousOverwrite = (overwritingTween && this._time && overwritingTween._startTime === this._startTime && this._timeline === overwritingTween._timeline),
+				firstPT = this._firstPT,
 				i, overwrittenProps, p, pt, propLookup, changed, killProps, record, killed;
 			if ((_isArray(target) || _isSelector(target)) && typeof(target[0]) !== "number") {
 				i = target.length;
@@ -1674,7 +1676,7 @@
 							overwrittenProps[p] = 1;
 						}
 					}
-					if (!this._firstPT && this._initted) { //if all tweening properties are killed, kill the tween. Without this line, if there's a tween with multiple targets and then you killTweensOf() each target individually, the tween would technically still remain active and fire its onComplete even though there aren't any more properties tweening.
+					if (!this._firstPT && this._initted && firstPT) { //if all tweening properties are killed, kill the tween. Without this line, if there's a tween with multiple targets and then you killTweensOf() each target individually, the tween would technically still remain active and fire its onComplete even though there aren't any more properties tweening.
 						this._enabled(false, false);
 					}
 				}

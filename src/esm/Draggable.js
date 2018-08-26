@@ -1,6 +1,6 @@
 /*!
- * VERSION: 0.16.4
- * DATE: 2018-05-30
+ * VERSION: 0.16.5
+ * DATE: 2018-08-27
  * UPDATES AND DOCS AT: http://greensock.com
  *
  * Requires TweenLite and CSSPlugin version 1.17.0 or later (TweenMax contains both TweenLite and CSSPlugin). ThrowPropsPlugin is required for momentum-based continuation of movement after the mouse/touch is released (ThrowPropsPlugin is a membership benefit of Club GreenSock - http://greensock.com/club/).
@@ -12,7 +12,7 @@
  * @author: Jack Doyle, jack@greensock.com
  */
 
-import TweenLite, { _gsScope, EventDispatcher } from "./TweenLite.js";
+import TweenLite, { _gsScope, globals, EventDispatcher } from "./TweenLite.js";
 import CSSPlugin from "./CSSPlugin.js";
 
 	_gsScope._gsDefine("utils.Draggable", ["events.EventDispatcher","TweenLite","plugins.CSSPlugin"], function() {
@@ -23,7 +23,8 @@ import CSSPlugin from "./CSSPlugin.js";
 			_tempVarsRotation = {css:{}},
 			_globals = _gsScope._gsDefine.globals,
 			_tempEvent = {}, //for populating with pageX/pageY in old versions of IE
-			_dummyElement = {style:{}},
+			_emptyFunc = function() { return false; },
+			_dummyElement = {style:{}, appendChild:_emptyFunc, removeChild:_emptyFunc},
 			_doc = _gsScope.document || {createElement: function() {return _dummyElement;}},
 			_docElement = _doc.documentElement || {},
 			_createElement = function(type) {
@@ -31,7 +32,6 @@ import CSSPlugin from "./CSSPlugin.js";
 			},
 			_tempDiv = _createElement("div"),
 			_emptyArray = [],
-			_emptyFunc = function() { return false; },
 			_RAD2DEG = 180 / Math.PI,
 			_max = 999999999999999,
 			_getTime = Date.now || function() {return new Date().getTime();},
@@ -216,7 +216,10 @@ import CSSPlugin from "./CSSPlugin.js";
 				}
 			},
 
-			_getComputedStyle = _doc.defaultView ? _doc.defaultView.getComputedStyle : _emptyFunc,
+			_getCSFunc = (typeof(window) !== "undefined" ? window : _doc.defaultView || {getComputedStyle:function() {}}).getComputedStyle,
+			_getComputedStyle = function(e, s) {
+				return _getCSFunc((e instanceof Element) ? e : e.host || (e.parentNode || {}).host || e, s); //the "host" stuff helps to accommodate ShadowDom objects.
+			},
 			_horizExp = /(?:Left|Right|Width)/i,
 			_suffixExp = /(?:\d|\-|\+|=|#|\.)*/g,
 			_convertToPixels = function(t, p, v, sfx, recurse) {
@@ -261,7 +264,7 @@ import CSSPlugin from "./CSSPlugin.js";
 					cs;
 				if (rv || rv === 0) {
 					return rv;
-				} else if (element.style[prop]) {
+				} else if (element.style && element.style[prop]) { //shadow dom elements don't have "style".
 					rv = element.style[prop];
 				} else if ((cs = _getComputedStyle(element))) {
 					rv = cs.getPropertyValue(prop.replace(/([A-Z])/g, "-$1").toLowerCase());
@@ -387,7 +390,7 @@ import CSSPlugin from "./CSSPlugin.js";
 			_isSVG = function(e) {
 				return !!(_SVGElement && typeof(e.getBBox) === "function" && e.getCTM && (!e.parentNode || (e.parentNode.getBBox && e.parentNode.getCTM)));
 			},
-			_isIE10orBelow = (((/MSIE ([0-9]{1,}[\.0-9]{0,})/).exec(navigator.userAgent) || (/Trident\/.*rv:([0-9]{1,}[\.0-9]{0,})/).exec(navigator.userAgent)) && parseFloat( RegExp.$1 ) < 11), //Ideally we'd avoid user agent sniffing, but there doesn't seem to be a way to feature-detect and sense a border-related bug that only affects IE10 and IE9.
+			_isIE10orBelow = (_gsScope.navigator && (((/MSIE ([0-9]{1,}[\.0-9]{0,})/).exec(_gsScope.navigator.userAgent) || (/Trident\/.*rv:([0-9]{1,}[\.0-9]{0,})/).exec(_gsScope.navigator.userAgent)) && parseFloat( RegExp.$1 ) < 11)), //Ideally we'd avoid user agent sniffing, but there doesn't seem to be a way to feature-detect and sense a border-related bug that only affects IE10 and IE9.
 			_tempTransforms = [],
 			_tempElements = [],
 			_getSVGOffsets = function(e) { //SVG elements don't always report offsetTop/offsetLeft/offsetParent at all (I'm looking at you, Firefox 29 and Android), so we have to do some work to manufacture those values. You can pass any SVG element and it'll spit back an object with offsetTop, offsetLeft, offsetParent, scaleX, and scaleY properties. We need the scaleX and scaleY to handle the way SVG can resize itself based on the container.
@@ -785,7 +788,7 @@ import CSSPlugin from "./CSSPlugin.js";
 				return result;
 			},
 
-			_isTouchDevice = (("ontouchstart" in _docElement) && ("orientation" in window)),
+			_isTouchDevice = (typeof(window) !== "undefined" && ("ontouchstart" in _docElement) && ("orientation" in window)),
 			_touchEventLookup = (function(types) { //we create an object that makes it easy to translate touch event types into their "pointer" counterparts if we're in a browser that uses those instead. Like IE10 uses "MSPointerDown" instead of "touchstart", for example.
 				var standard = types.split(","),
 					converted = ((_tempDiv.onpointerdown !== undefined) ? "pointerdown,pointermove,pointerup,pointercancel" : (_tempDiv.onmspointerdown !== undefined) ? "MSPointerDown,MSPointerMove,MSPointerUp,MSPointerCancel" : types).split(","),
@@ -1457,7 +1460,7 @@ import CSSPlugin from "./CSSPlugin.js";
 							}
 							self.isThrowing = true;
 							overshootTolerance = (!isNaN(vars.overshootTolerance)) ? vars.overshootTolerance : (vars.edgeResistance === 1) ? 0 : (1 - self.edgeResistance) + 0.2;
-							self.tween = tween = ThrowPropsPlugin.to(scrollProxy || target, {throwProps:throwProps, data:"_draggable", ease:(vars.ease || _globals.Power3.easeOut), onComplete:onThrowComplete, onOverwrite:onThrowOverwrite, onUpdate:(vars.fastMode ? _dispatchEvent : syncXY), onUpdateParams:(vars.fastMode ? [self, "onthrowupdate", "onThrowUpdate"] : (snap && snap.radius) ? [false, true] : _emptyArray)}, (isNaN(vars.maxDuration) ? 2 : vars.maxDuration), (!isNaN(vars.minDuration) ? vars.minDuration : (overshootTolerance === 0 || (typeof(throwProps) === "object" && throwProps.resistance > 1000)) ? 0 : 0.5), overshootTolerance);
+							self.tween = tween = ThrowPropsPlugin.to(scrollProxy || target, {throwProps:throwProps, data:"_draggable", ease:(vars.ease || _globals.Power3.easeOut), onComplete:onThrowComplete, onOverwrite:onThrowOverwrite, onUpdate:(vars.fastMode ? _dispatchEvent : syncXY), onUpdateParams:(vars.fastMode ? [self, "onthrowupdate", "onThrowUpdate"] : (snap && snap.radius) ? [false, true] : _emptyArray)}, Math.max(vars.minDuration || 0, vars.maxDuration || 0) || 2, (!isNaN(vars.minDuration) ? vars.minDuration : (overshootTolerance === 0 || (typeof(throwProps) === "object" && throwProps.resistance > 1000)) ? 0 : 0.5), overshootTolerance);
 							if (!vars.fastMode) {
 								//to populate the end values, we just scrub the tween to the end, record the values, and then jump back to the beginning.
 								if (scrollProxy) {
@@ -1675,6 +1678,7 @@ import CSSPlugin from "./CSSPlugin.js";
 						isClicking = (isClickable.call(self, e.target) && !vars.dragClickables && !force);
 						if (isClicking) {
 							_addListener(e.target, "change", onRelease); //in some browsers, when you mousedown on a <select> element, no mouseup gets dispatched! So we listen for a "change" event instead.
+							_dispatchEvent(self, "pressInit", "onPressInit");
 							_dispatchEvent(self, "press", "onPress");
 							_setSelectable(triggers, true); //accommodates things like inputs and elements with contentEditable="true" (otherwise user couldn't drag to select text)
 							return;
@@ -1700,6 +1704,7 @@ import CSSPlugin from "./CSSPlugin.js";
 						_addToRenderQueue(render); //causes the Draggable to render on each "tick" of TweenLite.ticker (performance optimization - updating values in a mousemove can cause them to happen too frequently, like multiple times between frame redraws which is wasteful, and it also prevents values from updating properly in IE8)
 						startPointerY = self.pointerY = e.pageY; //record the starting x and y so that we can calculate the movement from the original in _onMouseMove
 						startPointerX = self.pointerX = e.pageX;
+						_dispatchEvent(self, "pressInit", "onPressInit");
 						if (allowNativeTouchScrolling || self.autoScroll) {
 							_recordMaxScrolls(target.parentNode);
 						}
@@ -2373,7 +2378,7 @@ import CSSPlugin from "./CSSPlugin.js";
 		p.constructor = Draggable;
 		p.pointerX = p.pointerY = p.startX = p.startY = p.deltaX = p.deltaY = 0;
 		p.isDragging = p.isPressed = false;
-		Draggable.version = "0.16.4";
+		Draggable.version = "0.16.5";
 		Draggable.zIndex = 1000;
 
 		_addListener(_doc, "touchcancel", function() {
@@ -2473,5 +2478,5 @@ import CSSPlugin from "./CSSPlugin.js";
 
 	}, true);
 
-export const Draggable = _gsScope.Draggable;
+export var Draggable = globals.Draggable;
 export { Draggable as default };

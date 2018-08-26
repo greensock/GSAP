@@ -1,6 +1,6 @@
 /*!
  * VERSION: 0.1.3
- * DATE: 2018-05-30
+ * DATE: 2018-08-27
  * UPDATES AND DOCS AT: http://greensock.com
  *
  * @license Copyright (c) 2008-2018, GreenSock. All rights reserved.
@@ -11,7 +11,7 @@
  */
 import { _gsScope } from "./TweenLite.js";
 
-export const EndArrayPlugin = _gsScope._gsDefine.plugin({
+export var EndArrayPlugin = _gsScope._gsDefine.plugin({
 		propName: "endArray",
 		API: 2,
 		version: "0.1.3",

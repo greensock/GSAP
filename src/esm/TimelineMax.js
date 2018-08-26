@@ -1,6 +1,6 @@
 /*!
- * VERSION: 2.0.1
- * DATE: 2018-05-30
+ * VERSION: 2.0.2
+ * DATE: 2018-08-27
  * UPDATES AND DOCS AT: http://greensock.com
  *
  * @license Copyright (c) 2008-2018, GreenSock. All rights reserved.
@@ -10,7 +10,7 @@
  * @author: Jack Doyle, jack@greensock.com
  */
 
-import TweenLite, { _gsScope, Ease, Animation } from "./TweenLite.js";
+import TweenLite, { _gsScope, globals, Ease, Animation } from "./TweenLite.js";
 import TimelineLite from "./TimelineLite.js";
 
 _gsScope._gsDefine("TimelineMax", ["TimelineLite","TweenLite","easing.Ease"], function() {
@@ -33,7 +33,7 @@ _gsScope._gsDefine("TimelineMax", ["TimelineLite","TweenLite","easing.Ease"], fu
 			
 		p.constructor = TimelineMax;
 		p.kill()._gc = false;
-		TimelineMax.version = "2.0.1";
+		TimelineMax.version = "2.0.2";
 		
 		p.invalidate = function() {
 			this._yoyo = (this.vars.yoyo === true);
@@ -520,5 +520,5 @@ _gsScope._gsDefine("TimelineMax", ["TimelineLite","TweenLite","easing.Ease"], fu
 		
 	}, true);
 
-export const TimelineMax = _gsScope.TimelineMax;
+export var TimelineMax = globals.TimelineMax;
 export { TimelineLite, TimelineMax as default };

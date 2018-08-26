@@ -1,6 +1,6 @@
 /*!
- * VERSION: 0.6.6
- * DATE: 2018-05-30
+ * VERSION: 0.6.7
+ * DATE: 2018-08-27
  * UPDATES AND DOCS AT: http://greensock.com
  *
  * @license Copyright (c) 2008-2018, GreenSock. All rights reserved.
@@ -9,7 +9,7 @@
  * 
  * @author: Jack Doyle, jack@greensock.com
  */
-import TweenLite, { _gsScope, TweenPlugin } from "./TweenLite.js";
+import TweenLite, { _gsScope, globals, TweenPlugin } from "./TweenLite.js";
 import CSSPlugin from "./CSSPlugin.js";
 
 _gsScope._gsDefine("plugins.CSSRulePlugin", ["plugins.TweenPlugin","TweenLite","plugins.CSSPlugin"], function() {
@@ -25,7 +25,7 @@ _gsScope._gsDefine("plugins.CSSRulePlugin", ["plugins.TweenPlugin","TweenLite","
 
 		p._propName = "cssRule";
 		p.constructor = CSSRulePlugin;
-		CSSRulePlugin.version = "0.6.6";
+		CSSRulePlugin.version = "0.6.7";
 		CSSRulePlugin.API = 2;
 
 		/**
@@ -100,5 +100,5 @@ _gsScope._gsDefine("plugins.CSSRulePlugin", ["plugins.TweenPlugin","TweenLite","
 		
 	}, true);
 
-export const CSSRulePlugin = _gsScope.CSSRulePlugin;
+export var CSSRulePlugin = globals.CSSRulePlugin;
 export { CSSRulePlugin as default };

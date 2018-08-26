@@ -1,6 +1,6 @@
 /*!
  * VERSION: 1.2.0
- * DATE: 2018-05-30
+ * DATE: 2018-08-27
  * UPDATES AND DOCS AT: http://greensock.com
  * 
  * This file is to be used as a simple template for writing your own plugin. See the 
@@ -18,7 +18,7 @@
  **/
 import { _gsScope } from "./TweenLite.js";
 
-export const YourPlugin = _gsScope._gsDefine.plugin({
+export var YourPlugin = _gsScope._gsDefine.plugin({
 		propName: "yourCustomProperty", //the name of the property that will get intercepted and handled by this plugin (obviously change it to whatever you want, typically it is camelCase starting with lowercase).
 		priority: 0, //the priority in the rendering pipeline (0 by default). A priority of -1 would mean this plugin will run after all those with 0 or greater. A priority of 1 would get run before 0, etc. This only matters when a plugin relies on other plugins finishing their work before it runs (or visa-versa)
 		API: 2, //the API should stay 2 - it just gives us a way to know the method/property structure so that if in the future we change to a different TweenPlugin architecture, we can identify this plugin's structure.
@@ -71,4 +71,4 @@ export const YourPlugin = _gsScope._gsDefine.plugin({
 	});
 
 // Now export it for ES6
-export { YourPlugin, YourPlugin as default };
+export { YourPlugin as default };

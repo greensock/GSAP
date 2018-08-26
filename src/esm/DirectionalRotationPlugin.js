@@ -1,6 +1,6 @@
 /*!
  * VERSION: 0.3.1
- * DATE: 2018-05-30
+ * DATE: 2018-08-27
  * UPDATES AND DOCS AT: http://greensock.com
  *
  * @license Copyright (c) 2008-2018, GreenSock. All rights reserved.
@@ -12,7 +12,7 @@
 
 import { _gsScope } from "./TweenLite.js";
 
-export const DirectionalRotationPlugin = _gsScope._gsDefine.plugin({
+export var DirectionalRotationPlugin = _gsScope._gsDefine.plugin({
 		propName: "directionalRotation",
 		version: "0.3.1",
 		API: 2,

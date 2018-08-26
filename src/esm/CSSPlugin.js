@@ -1,6 +1,6 @@
 /*!
- * VERSION: 1.20.5
- * DATE: 2018-05-30
+ * VERSION: 2.0.2
+ * DATE: 2018-08-27
  * UPDATES AND DOCS AT: http://greensock.com
  *
  * @license Copyright (c) 2008-2018, GreenSock. All rights reserved.
@@ -9,7 +9,7 @@
  * 
  * @author: Jack Doyle, jack@greensock.com
  */
-import TweenLite, { _gsScope, TweenPlugin } from "./TweenLite.js";
+import TweenLite, { _gsScope, globals, TweenPlugin } from "./TweenLite.js";
 
 	_gsScope._gsDefine("plugins.CSSPlugin", ["plugins.TweenPlugin","TweenLite"], function() {
 
@@ -28,7 +28,7 @@ import TweenLite, { _gsScope, TweenPlugin } from "./TweenLite.js";
 			p = CSSPlugin.prototype = new TweenPlugin("css");
 
 		p.constructor = CSSPlugin;
-		CSSPlugin.version = "1.20.5";
+		CSSPlugin.version = "2.0.2";
 		CSSPlugin.API = 2;
 		CSSPlugin.defaultTransformPerspective = 0;
 		CSSPlugin.defaultSkewType = "compensated";
@@ -383,7 +383,11 @@ import TweenLite, { _gsScope, TweenPlugin } from "./TweenLite.js";
 				if (typeof(v) === "function") {
 					v = v(_index, _target);
 				}
-				return (v == null) ? d : (typeof(v) === "string" && v.charAt(1) === "=") ? parseInt(v.charAt(0) + "1", 10) * parseFloat(v.substr(2)) + d : parseFloat(v) || 0;
+				var isRelative = (typeof(v) === "string" && v.charAt(1) === "=");
+				if (typeof(v) === "string" && v.charAt(v.length - 2) === "v") { //convert vw and vh into px-equivalents.
+					v = (isRelative ? v.substr(0, 2) : 0) + (window["inner" + ((v.substr(-2) === "vh") ? "Height" : "Width")] * (parseFloat(isRelative ? v.substr(2) : v) / 100));
+				}
+				return (v == null) ? d : isRelative ? parseInt(v.charAt(0) + "1", 10) * parseFloat(v.substr(2)) + d : parseFloat(v) || 0;
 			},
 
 			/**
@@ -1941,6 +1945,9 @@ import TweenLite, { _gsScope, TweenPlugin } from "./TweenLite.js";
 				m2, copy, has3D, hasChange, dr, x, y, matrix, p;
 			m1.skewType = v.skewType || m1.skewType || CSSPlugin.defaultSkewType;
 			cssp._transform = m1;
+			if ("rotationZ" in v) {
+				v.rotation = v.rotationZ;
+			}
 			if (orig && typeof(orig) === "string" && _transformProp) { //for values like transform:"rotate(60deg) scale(0.5, 0.8)"
 				copy = _tempDiv.style; //don't use the original target because it might be SVG in which case some browsers don't report computed style correctly.
 				copy[_transformProp] = orig;
@@ -2013,7 +2020,7 @@ import TweenLite, { _gsScope, TweenPlugin } from "./TweenLite.js";
 					m2.yPercent = _parseVal(v.y, m1.yPercent);
 				}
 
-				m2.rotation = _parseAngle(("rotation" in v) ? v.rotation : ("shortRotation" in v) ? v.shortRotation + "_short" : ("rotationZ" in v) ? v.rotationZ : m1.rotation, m1.rotation, "rotation", endRotations);
+				m2.rotation = _parseAngle(("rotation" in v) ? v.rotation : ("shortRotation" in v) ? v.shortRotation + "_short" : m1.rotation, m1.rotation, "rotation", endRotations);
 				if (_supports3D) {
 					m2.rotationX = _parseAngle(("rotationX" in v) ? v.rotationX : ("shortRotationX" in v) ? v.shortRotationX + "_short" : m1.rotationX || 0, m1.rotationX, "rotationX", endRotations);
 					m2.rotationY = _parseAngle(("rotationY" in v) ? v.rotationY : ("shortRotationY" in v) ? v.shortRotationY + "_short" : m1.rotationY || 0, m1.rotationY, "rotationY", endRotations);
@@ -2896,5 +2903,5 @@ import TweenLite, { _gsScope, TweenPlugin } from "./TweenLite.js";
 
 	}, true);
 
-export const CSSPlugin = _gsScope.CSSPlugin;
+export var CSSPlugin = globals.CSSPlugin;
 export { CSSPlugin as default };
