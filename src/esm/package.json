@@ -1,6 +1,6 @@
 {
     "name": "gsap",
-    "version": "2.0.2",
+    "version": "2.1.0",
     "description": "GSAP is a JavaScript library for creating high-performance animations that work in **every** major browser (or beyond the browser). No other library delivers such advanced sequencing, reliability, API efficiency, and tight control while solving real-world problems on over 4 million sites. GSAP works around countless browser inconsistencies; your animations 'just work'. Animate CSS properties, SVG, canvas libraries, custom properties of generic objects, colors, strings...pretty much anything! At its core, GSAP is a property manipulator, updating values over time very quickly with extreme accuracy. And it's up to 20x faster than jQuery! See http://greensock.com/why-gsap/ for details about what makes GSAP so special.",
     "homepage": "https://greensock.com/gsap/",
     "filename": "index.js",
@@ -36,7 +36,7 @@
         "tweening"
     ],
     "browserify": {
-        "transform": ["babelify"]
+        "transform": [["babelify", { "presets": ["@babel/preset-env"] }]]
     },
     "maintainers": [
         {

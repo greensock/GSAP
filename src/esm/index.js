@@ -1,9 +1,9 @@
 /*!
- * VERSION: 2.0.2
- * DATE: 2018-08-27
+ * VERSION: 2.1.0
+ * DATE: 2019-02-07
  * UPDATES AND DOCS AT: http://greensock.com
  *
- * @license Copyright (c) 2008-2018, GreenSock. All rights reserved.
+ * @license Copyright (c) 2008-2019, GreenSock. All rights reserved.
  * This work is subject to the terms at http://greensock.com/standard-license or for
  * Club GreenSock members, the software agreement that was issued with your membership.
  *

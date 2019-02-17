@@ -1,14 +1,15 @@
 /*!
- * VERSION: 1.9.1
- * DATE: 2018-05-21
+ * VERSION: 1.9.2
+ * DATE: 2019-02-07
  * UPDATES AND DOCS AT: http://greensock.com
  *
- * @license Copyright (c) 2008-2018, GreenSock. All rights reserved.
+ * @license Copyright (c) 2008-2019, GreenSock. All rights reserved.
  * This work is subject to the terms at http://greensock.com/standard-license or for
  * Club GreenSock members, the software agreement that was issued with your membership.
  * 
  * @author: Jack Doyle, jack@greensock.com
  **/
+/* eslint-disable */
 var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(global) !== "undefined") ? global : this || window; //helps ensure compatibility with AMD/RequireJS and CommonJS/Node
 (_gsScope._gsQueue || (_gsScope._gsQueue = [])).push( function() {
 
@@ -70,16 +71,16 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 			return offsets;
 			*/
 		},
-		_parseVal = function(value, target, axis) {
+		_parseVal = function(value, target, axis, currentVal) {
 			var type = typeof(value);
-			return !isNaN(value) ? parseFloat(value) : (type === "number" || (type === "string" && value.charAt(1) === "=")) ? value : (value === "max") ? _max(target, axis) : Math.min(_max(target, axis), _getOffset(value, target)[axis]);
+			return !isNaN(value) ? parseFloat(value) : (type === "string" && value.charAt(1) === "=") ? parseInt(value.charAt(0) + "1", 10) * parseFloat(value.substr(2)) + currentVal : (value === "max") ? _max(target, axis) : Math.min(_max(target, axis), _getOffset(value, target)[axis]);
 		},
 
 		ScrollToPlugin = _gsScope._gsDefine.plugin({
 			propName: "scrollTo",
 			API: 2,
 			global: true,
-			version:"1.9.1",
+			version:"1.9.2",
 
 			//called when the tween renders for the first time. This is where initial values should be recorded and any setup routines should run.
 			init: function(target, value, tween) {
@@ -101,13 +102,13 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 				this.x = this.xPrev = this.getX();
 				this.y = this.yPrev = this.getY();
 				if (value.x != null) {
-					this._addTween(this, "x", this.x, _parseVal(value.x, target, "x") - (value.offsetX || 0), "scrollTo_x", true);
+					this._addTween(this, "x", this.x, _parseVal(value.x, target, "x", this.x) - (value.offsetX || 0), "scrollTo_x", true);
 					this._overwriteProps.push("scrollTo_x");
 				} else {
 					this.skipX = true;
 				}
 				if (value.y != null) {
-					this._addTween(this, "y", this.y, _parseVal(value.y, target, "y") - (value.offsetY || 0), "scrollTo_y", true);
+					this._addTween(this, "y", this.y, _parseVal(value.y, target, "y", this.y) - (value.offsetY || 0), "scrollTo_y", true);
 					this._overwriteProps.push("scrollTo_y");
 				} else {
 					this.skipY = true;

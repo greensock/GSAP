@@ -1,14 +1,16 @@
 /*!
- * VERSION: 2.0.2
- * DATE: 2018-08-27
+ * VERSION: 2.1.0
+ * DATE: 2019-02-15
  * UPDATES AND DOCS AT: http://greensock.com
  *
- * @license Copyright (c) 2008-2018, GreenSock. All rights reserved.
+ * @license Copyright (c) 2008-2019, GreenSock. All rights reserved.
  * This work is subject to the terms at http://greensock.com/standard-license or for
  * Club GreenSock members, the software agreement that was issued with your membership.
  * 
  * @author: Jack Doyle, jack@greensock.com
  */
+/* eslint-disable */
+
 import TweenLite, { _gsScope, globals, TweenPlugin } from "./TweenLite.js";
 
 	_gsScope._gsDefine("plugins.CSSPlugin", ["plugins.TweenPlugin","TweenLite"], function() {
@@ -28,7 +30,7 @@ import TweenLite, { _gsScope, globals, TweenPlugin } from "./TweenLite.js";
 			p = CSSPlugin.prototype = new TweenPlugin("css");
 
 		p.constructor = CSSPlugin;
-		CSSPlugin.version = "2.0.2";
+		CSSPlugin.version = "2.1.0";
 		CSSPlugin.API = 2;
 		CSSPlugin.defaultTransformPerspective = 0;
 		CSSPlugin.defaultSkewType = "compensated";
@@ -61,7 +63,7 @@ import TweenLite, { _gsScope, globals, TweenPlugin } from "./TweenLite.js";
 			_dummyElement = {style:{}},
 			_doc = _gsScope.document || {createElement: function() {return _dummyElement;}},
 			_createElement = function(type, ns) {
-				return _doc.createElementNS ? _doc.createElementNS(ns || "http://www.w3.org/1999/xhtml", type) : _doc.createElement(type);
+				return (ns && _doc.createElementNS) ? _doc.createElementNS(ns, type) : _doc.createElement(type);
 			},
 			_tempDiv = _createElement("div"),
 			_tempImg = _createElement("img"),
@@ -123,7 +125,10 @@ import TweenLite, { _gsScope, globals, TweenPlugin } from "./TweenLite.js";
 				return null;
 			},
 
-			_getComputedStyle = (typeof(window) !== "undefined" ? window : _doc.defaultView || {getComputedStyle:function() {}}).getComputedStyle,
+			_computedStyleScope = (typeof(window) !== "undefined" ? window : _doc.defaultView || {getComputedStyle:function() {}}),
+			_getComputedStyle = function(e) {
+				return _computedStyleScope.getComputedStyle(e); //to avoid errors in Microsoft Edge, we need to call getComputedStyle() from a specific scope, typically window.
+			},
 
 			/**
 			 * @private Returns the css style for a particular property of an element. For example, to get whatever the current "left" css value for an element with an ID of "myElement", you could do:
@@ -1058,6 +1063,7 @@ import TweenLite, { _gsScope, globals, TweenPlugin } from "./TweenLite.js";
 				this.multi = options.multi;
 				this.keyword = options.keyword;
 				this.dflt = options.defaultValue;
+				this.allowFunc = options.allowFunc;
 				this.pr = options.priority || 0;
 			},
 
@@ -1336,7 +1342,7 @@ import TweenLite, { _gsScope, globals, TweenPlugin } from "./TweenLite.js";
 				var tm = e._gsTransform || new Transform(),
 					rnd = 100000,
 					style = e.style,
-					isDefault, s, m, n, dec, none;
+					isDefault, s, m, n, dec, nextSibling, parent;
 				if (_transformProp) {
 					s = _getStyle(e, _transformPropCSS, null, true);
 				} else if (e.currentStyle) {
@@ -1345,24 +1351,31 @@ import TweenLite, { _gsScope, globals, TweenPlugin } from "./TweenLite.js";
 					s = (s && s.length === 4) ? [s[0].substr(4), Number(s[2].substr(4)), Number(s[1].substr(4)), s[3].substr(4), (tm.x || 0), (tm.y || 0)].join(",") : "";
 				}
 				isDefault = (!s || s === "none" || s === "matrix(1, 0, 0, 1, 0, 0)");
-				if (_transformProp && ((none = (!_getComputedStyle(e) || _getComputedStyle(e).display === "none")) || !e.parentNode)) { //note: Firefox returns null for getComputedStyle() if the element is in an iframe that has display:none. https://bugzilla.mozilla.org/show_bug.cgi?id=548397
-					if (none) { //browsers don't report transforms accurately unless the element is in the DOM and has a display value that's not "none". Firefox and Microsoft browsers have a partial bug where they'll report transforms even if display:none BUT not any percentage-based values like translate(-50%, 8px) will be reported as if it's translate(0, 8px).
-						n = style.display;
-						style.display = "block";
-					}
-					if (!e.parentNode) {
+				if (_transformProp && isDefault && !e.offsetParent) { //note: if offsetParent is null, that means the element isn't in the normal document flow, like if it has display:none or one of its ancestors has display:none). Firefox returns null for getComputedStyle() if the element is in an iframe that has display:none. https://bugzilla.mozilla.org/show_bug.cgi?id=548397
+					//browsers don't report transforms accurately unless the element is in the DOM and has a display value that's not "none". Firefox and Microsoft browsers have a partial bug where they'll report transforms even if display:none BUT not any percentage-based values like translate(-50%, 8px) will be reported as if it's translate(0, 8px).
+					n = style.display;
+					style.display = "block";
+					parent = e.parentNode;
+					if (!parent || !e.offsetParent) {
 						dec = 1; //flag
-						_docElement.appendChild(e);
+						nextSibling = e.nextSibling;
+						_docElement.appendChild(e); //we must add it to the DOM in order to get values properly
 					}
 					s = _getStyle(e, _transformPropCSS, null, true);
 					isDefault = (!s || s === "none" || s === "matrix(1, 0, 0, 1, 0, 0)");
 					if (n) {
 						style.display = n;
-					} else if (none) {
+					} else {
 						_removeProp(style, "display");
 					}
 					if (dec) {
-						_docElement.removeChild(e);
+						if (nextSibling) {
+							parent.insertBefore(e, nextSibling);
+						} else if (parent) {
+							parent.appendChild(e);
+						} else {
+							_docElement.removeChild(e);
+						}
 					}
 				}
 				if (tm.svg || (e.getCTM && _isSVG(e))) {
@@ -1924,12 +1937,7 @@ import TweenLite, { _gsScope, globals, TweenPlugin } from "./TweenLite.js";
 		_registerComplexSpecialProp("transform,scale,scaleX,scaleY,scaleZ,x,y,z,rotation,rotationX,rotationY,rotationZ,skewX,skewY,shortRotation,shortRotationX,shortRotationY,shortRotationZ,transformOrigin,svgOrigin,transformPerspective,directionalRotation,parseTransform,force3D,skewType,xPercent,yPercent,smoothOrigin", {parser:function(t, e, parsingProp, cssp, pt, plugin, vars) {
 			if (cssp._lastParsedTransform === vars) { return pt; } //only need to parse the transform once, and only if the browser supports it.
 			cssp._lastParsedTransform = vars;
-			var scaleFunc = (vars.scale && typeof(vars.scale) === "function") ? vars.scale : 0, //if there's a function-based "scale" value, swap in the resulting numeric value temporarily. Otherwise, if it's called for both scaleX and scaleY independently, they may not match (like if the function uses Math.random()).
-				swapFunc;
-			if (typeof(vars[parsingProp]) === "function") { //whatever property triggers the initial parsing might be a function-based value in which case it already got called in parse(), thus we don't want to call it again in here. The most efficient way to avoid this is to temporarily swap the value directly into the vars object, and then after we do all our parsing in this function, we'll swap it back again.
-				swapFunc = vars[parsingProp];
-				vars[parsingProp] = e;
-			}
+			var scaleFunc = (vars.scale && typeof(vars.scale) === "function") ? vars.scale : 0; //if there's a function-based "scale" value, swap in the resulting numeric value temporarily. Otherwise, if it's called for both scaleX and scaleY independently, they may not match (like if the function uses Math.random()).
 			if (scaleFunc) {
 				vars.scale = scaleFunc(_index, t);
 			}
@@ -2053,7 +2061,7 @@ import TweenLite, { _gsScope, globals, TweenPlugin } from "./TweenLite.js";
 				}
 			}
 
-			orig = v.transformOrigin;
+			orig = (typeof(v.transformOrigin) === "function") ? v.transformOrigin(_index, _target) : v.transformOrigin;
 			if (m1.svg && (orig || v.svgOrigin)) {
 				x = m1.xOffset; //when we change the origin, in order to prevent things from jumping we adjust the x/y so we must record those here so that we can create PropTweens for them and flip them at the same time as the origin
 				y = m1.yOffset;
@@ -2070,14 +2078,18 @@ import TweenLite, { _gsScope, globals, TweenPlugin } from "./TweenLite.js";
 				if (_transformProp) {
 					hasChange = true;
 					p = _transformOriginProp;
-					orig = (orig || _getStyle(t, p, _cs, false, "50% 50%")) + ""; //cast as string to avoid errors
+					if (!orig) {
+						orig = (_getStyle(t, p, _cs, false, "50% 50%") + "").split(" ");
+						orig = orig[0] + " " + orig[1] + " " + m1.zOrigin + "px";
+					}
+					orig += "";
 					pt = new CSSPropTween(style, p, 0, 0, pt, -1, transformOriginString);
 					pt.b = style[p];
 					pt.plugin = plugin;
 					if (_supports3D) {
 						copy = m1.zOrigin;
 						orig = orig.split(" ");
-						m1.zOrigin = ((orig.length > 2 && !(copy !== 0 && orig[2] === "0px")) ? parseFloat(orig[2]) : copy) || 0; //Safari doesn't handle the z part of transformOrigin correctly, so we'll manually handle it in the _set3DTransformRatio() method.
+						m1.zOrigin = ((orig.length > 2) ? parseFloat(orig[2]) : copy) || 0; //Safari doesn't handle the z part of transformOrigin correctly, so we'll manually handle it in the _set3DTransformRatio() method.
 						pt.xs0 = pt.e = orig[0] + " " + (orig[1] || "50%") + " 0px"; //we must define a z value of 0px specifically otherwise iOS 5 Safari will stick with the old one (if one was defined)!
 						pt = new CSSPropTween(m1, "zOrigin", 0, 0, pt, -1, pt.n); //we must create a CSSPropTween for the _gsTransform.zOrigin so that it gets reset properly at the beginning if the tween runs backward (as opposed to just setting m1.zOrigin here)
 						pt.b = copy;
@@ -2094,16 +2106,14 @@ import TweenLite, { _gsScope, globals, TweenPlugin } from "./TweenLite.js";
 			if (hasChange) {
 				cssp._transformType = (!(m1.svg && _useSVGTransformAttr) && (has3D || this._transformType === 3)) ? 3 : 2; //quicker than calling cssp._enableTransforms();
 			}
-			if (swapFunc) {
-				vars[parsingProp] = swapFunc;
-			}
 			if (scaleFunc) {
 				vars.scale = scaleFunc;
 			}
 			return pt;
-		}, prefix:true});
+		}, allowFunc:true, prefix:true});
 
 		_registerComplexSpecialProp("boxShadow", {defaultValue:"0px 0px 0px 0px #999", prefix:true, color:true, multi:true, keyword:"inset"});
+		_registerComplexSpecialProp("clipPath", {defaultValue:"inset(0px)", prefix:true, multi:true, formatter:_getFormatter("inset(0px 0px 0px 0px)", false, true)});
 
 		_registerComplexSpecialProp("borderRadius", {defaultValue:"0px", parser:function(t, e, p, cssp, pt, plugin) {
 			e = this.format(e);
@@ -2534,10 +2544,10 @@ import TweenLite, { _gsScope, globals, TweenPlugin } from "./TweenLite.js";
 				p, sp, bn, en, bs, es, bsfx, esfx, isStr, rel;
 			for (p in vars) {
 				es = vars[p]; //ending value string
-				if (typeof(es) === "function") {
+				sp = _specialProps[p]; //SpecialProp lookup.
+				if (typeof(es) === "function" && !(sp && sp.allowFunc)) {
 					es = es(_index, _target);
 				}
-				sp = _specialProps[p]; //SpecialProp lookup.
 				if (sp) {
 					pt = sp.parse(target, es, p, this, pt, plugin, vars);
 				} else if (p.substr(0,2) === "--") { //for tweening CSS variables (which always start with "--"). To maximize performance and simplicity, we bypass CSSPlugin altogether and just add a normal property tween to the tween instance itself.

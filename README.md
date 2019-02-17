@@ -2,7 +2,7 @@
 
 #### Ultra high-performance, professional-grade animation for the modern web
 
-GSAP is a JavaScript library for creating high-performance animations that work in **every** major browser. No other library delivers such advanced sequencing, reliability, API efficiency, and tight control while solving real-world problems on over 4 million sites. GSAP works around countless browser inconsistencies; your animations 'just work'. CSS properties, SVG, canvas libraries, custom properties of generic objects, colors, strings...animate anything! At its core, GSAP is a high-speed property manipulator, updating values over time with extreme accuracy. It's up to 20x faster than jQuery! See the <a href="https://greensock.com/why-gsap/">"Why GSAP?"</a> article for what makes GSAP so special.
+GSAP is a JavaScript library for creating high-performance animations that work in **every** major browser. No other library delivers such advanced sequencing, reliability, API efficiency, and tight control while solving real-world problems on over 7 million sites. GSAP works around countless browser inconsistencies; your animations 'just work'. CSS properties, SVG, canvas libraries, custom properties of generic objects, colors, strings...animate anything! At its core, GSAP is a high-speed property manipulator, updating values over time with extreme accuracy. It's up to 20x faster than jQuery! See the <a href="https://greensock.com/why-gsap/">"Why GSAP?"</a> article for what makes GSAP so special.
 
 <a href="https://greensock.com/docs">Full documentation</a>
 
@@ -23,13 +23,13 @@ This is the public repository for GreenSock's JavaScript tools like <a href="htt
 ### CDN
 TweenMax is most popular because it has all the essential tools plus several common <a href="https://greensock.com/plugins/?product_id=4921">plugins</a>, all in one file:
 ```html
-<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/2.0.2/TweenMax.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/2.1.0/TweenMax.min.js"></script>
 ```
 Click the green "Download GSAP" button at <a href="https://greensock.com/?download=GSAP-JS">greensock.com</a> for more options. Click "customize" at the bottom of the resulting window to see all the extra plugins and tool URLs. 
 
 Draggable, for example, is at:
 ```html
-<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/2.0.2/utils/Draggable.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/2.1.0/utils/Draggable.min.js"></script>
 ```
 
 Most ad networks have GSAP on their CDNs as well, so contact them for the appropriate URL(s). 
@@ -49,12 +49,12 @@ import {TweenMax, Power2, TimelineLite} from "gsap/TweenMax";
 import Draggable from "gsap/Draggable";
 import ScrollToPlugin from "gsap/ScrollToPlugin";
 
-//or, as of 2.0.0, all tools are exported from the "all" file (excluding bonus plugins):
+//or, as of 2.0, all tools are exported from the "all" file (excluding bonus plugins):
 import {TweenMax, CSSPlugin, ScrollToPlugin, Draggable, Elastic} from "gsap/all";
 //if tree shaking dumps plugins, just reference them somewhere in your code like:
 const plugins = [CSSPlugin, ScrollToPlugin]; 
 ```
-As of version 2.0.0, the NPM files are ES modules, though there's also a /umd/ directory with UMD files for extra compatibility.
+As of version 2.0, the NPM files are ES modules, though there's also a /umd/ directory with UMD files for extra compatibility.
 
 For <a href="https://greensock.com/club/">Club GreenSock</a>-only plugins, download them from your GreenSock.com account and then treat them as part of your own JS payload or drop them into your node_modules/gsap folder. Post other questions in our <a href="https://greensock.com/forums/">forums</a> and we'd be happy to help.
 
@@ -97,4 +97,4 @@ Sign up for a free GreenSock account to gain access to <a href="https://greensoc
 ### License
 GreenSock's standard "no charge" license can be viewed at <a href="https://greensock.com/standard-license">http://greensock.com/standard-license</a>. <a href="https://greensock.com/club/">Club GreenSock</a> members are granted additional rights. See <a href="https://greensock.com/licensing/">http://greensock.com/licensing/</a> for details. Why doesn't GreenSock use an MIT (or similar) open source license, and why is that a **good** thing? This article explains it all: <a href="https://greensock.com/why-license/" target="_blank">http://greensock.com/why-license/</a>
 
-Copyright (c) 2008-2018, GreenSock. All rights reserved. 
+Copyright (c) 2008-2019, GreenSock. All rights reserved. 

@@ -10,12 +10,13 @@
  * of your property is. This way of defining a plugin was introduced in version 1.9.0 - previous versions
  * of TweenLite won't work with this.
  *
- * @license Copyright (c) 2008-2018, GreenSock. All rights reserved.
+ * @license Copyright (c) 2008-2019, GreenSock. All rights reserved.
  * This work is subject to the terms at http://greensock.com/standard-license or for
  * Club GreenSock members, the software agreement that was issued with your membership.
  * 
  * @author: Jack Doyle, jack@greensock.com
  **/
+/* eslint-disable */
 var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(global) !== "undefined") ? global : this || window; //helps ensure compatibility with AMD/RequireJS and CommonJS/Node
 (_gsScope._gsQueue || (_gsScope._gsQueue = [])).push( function() {
 	//ignore the line above this and at the very end - those are for ensuring things load in the proper order

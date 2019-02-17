@@ -5,12 +5,13 @@
  *
  * Requires TweenLite version 1.8.0 or higher and CSSPlugin.
  *
- * @license Copyright (c) 2013-2018, GreenSock. All rights reserved.
+ * @license Copyright (c) 2013-2019, GreenSock. All rights reserved.
  * This work is subject to the terms at http://greensock.com/standard-license or for
  * Club GreenSock members, the software agreement that was issued with your membership.
  *
  * @author: Jack Doyle, jack@greensock.com
  */
+/* eslint-disable */
 (function($) {
 	"use strict";
 

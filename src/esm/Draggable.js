@@ -1,16 +1,17 @@
 /*!
- * VERSION: 0.16.5
- * DATE: 2018-08-27
+ * VERSION: 0.17.0
+ * DATE: 2019-02-07
  * UPDATES AND DOCS AT: http://greensock.com
  *
  * Requires TweenLite and CSSPlugin version 1.17.0 or later (TweenMax contains both TweenLite and CSSPlugin). ThrowPropsPlugin is required for momentum-based continuation of movement after the mouse/touch is released (ThrowPropsPlugin is a membership benefit of Club GreenSock - http://greensock.com/club/).
  *
- * @license Copyright (c) 2008-2018, GreenSock. All rights reserved.
+ * @license Copyright (c) 2008-2019, GreenSock. All rights reserved.
  * This work is subject to the terms at http://greensock.com/standard-license or for
  * Club GreenSock members, the software agreement that was issued with your membership.
  *
  * @author: Jack Doyle, jack@greensock.com
  */
+/* eslint-disable */
 
 import TweenLite, { _gsScope, globals, EventDispatcher } from "./TweenLite.js";
 import CSSPlugin from "./CSSPlugin.js";
@@ -48,6 +49,7 @@ import CSSPlugin from "./CSSPlugin.js";
 			_lastDragTime = 0,
 			_temp1 = {}, // a simple object we reuse and populate (usually x/y properties) to conserve memory and improve performance.
 			_windowProxy = {}, //memory/performance optimization - we reuse this object during autoScroll to store window-related bounds/offsets.
+			_supportsPassive,
 			_slice = function(a) { //don't use Array.prototype.slice.call(target, 0) because that doesn't work in IE8 with a NodeList that's returned by querySelectorAll()
 				if (typeof(a) === "string") {
 					a = TweenLite.selector(a);
@@ -216,9 +218,9 @@ import CSSPlugin from "./CSSPlugin.js";
 				}
 			},
 
-			_getCSFunc = (typeof(window) !== "undefined" ? window : _doc.defaultView || {getComputedStyle:function() {}}).getComputedStyle,
+			_computedStyleScope = (typeof(window) !== "undefined" ? window : _doc.defaultView || {getComputedStyle:function() {}}),
 			_getComputedStyle = function(e, s) {
-				return _getCSFunc((e instanceof Element) ? e : e.host || (e.parentNode || {}).host || e, s); //the "host" stuff helps to accommodate ShadowDom objects.
+				return _computedStyleScope.getComputedStyle((e instanceof Element) ? e : e.host || (e.parentNode || {}).host || e, s); //the "host" stuff helps to accommodate ShadowDom objects.
 			},
 			_horizExp = /(?:Left|Right|Width)/i,
 			_suffixExp = /(?:\d|\-|\+|=|#|\.)*/g,
@@ -425,15 +427,12 @@ import CSSPlugin from "./CSSPlugin.js";
 				}
 				//walk up the ancestors and record any non-identity transforms (and reset them to "none") until we reach the offsetParent. We must do this so that the getBoundingClientRect() is accurate for measuring the offsetTop/offsetLeft. We'll revert the values later...
 				_tempElements.length = _tempTransforms.length = 0;
-				while (curElement) {
+				while (curElement && curElement.parentNode) {
 					m = _getStyle(curElement, _transformProp, true);
 					if (m !== "matrix(1, 0, 0, 1, 0, 0)" && m !== "none" && m !== "translate3d(0px, 0px, 0px)") {
 						_tempElements.push(curElement);
 						_tempTransforms.push(curElement.style[_transformProp]);
 						curElement.style[_transformProp] = "none";
-					}
-					if (curElement === offsetParent) {
-						break;
 					}
 					curElement = curElement.parentNode;
 				}
@@ -613,11 +612,16 @@ import CSSPlugin from "./CSSPlugin.js";
 					isRoot = (parent === _docElement || parent === _doc.body);
 					m[4] = Number(m[4]) + offsetOrigin.x + (offsets.offsetLeft || 0) - parentOffsetOrigin.x - (isRoot ? 0 : parent.scrollLeft || 0);
 					m[5] = Number(m[5]) + offsetOrigin.y + (offsets.offsetTop || 0) - parentOffsetOrigin.y - (isRoot ? 0 : parent.scrollTop || 0);
-					if (parent && _getStyle(e, "position", cs) === "fixed") { //fixed position elements should factor in the scroll position of the document.
+					if (parent && _getStyle(e, "position", true) === "fixed") { //fixed position elements should factor in the scroll position of the document.
 						m[4] += _getDocScrollLeft();
 						m[5] += _getDocScrollTop();
-					}
-					if (parent && parent !== _docElement && parentOffsetParent === offsets.offsetParent && !parentCache.isSVG && (!_hasReparentBug || _getOffset2DMatrix(parent).join("") === "100100")) {
+						parent = parent.offsetParent;
+						while (parent) {
+							m[4] -= parent.offsetLeft;
+							m[5] -= parent.offsetTop;
+							parent = parent.offsetParent;
+						}
+					} else if (parent && parent !== _docElement && parentOffsetParent === offsets.offsetParent && !parentCache.isSVG && (!_hasReparentBug || _getOffset2DMatrix(parent).join("") === "100100")) {
 						offsets = (parentCache.isSVGRoot) ? _getSVGOffsets(parent) : parent;
 						m[4] -= offsets.offsetLeft || 0;
 						m[5] -= offsets.offsetTop || 0;
@@ -672,9 +676,9 @@ import CSSPlugin from "./CSSPlugin.js";
 				}
 				return m;
 			},
-			_localToGlobal = function(e, p, fromTopLeft, decoratee, zeroOrigin) {
+			_localToGlobal = function(e, p, fromTopLeft, decoratee) {
 				e = _unwrapElement(e);
-				var m = _getConcatenatedMatrix(e, false, zeroOrigin),
+				var m = _getConcatenatedMatrix(e, false),
 					x = p.x,
 					y = p.y;
 				if (fromTopLeft) {
@@ -735,8 +739,10 @@ import CSSPlugin from "./CSSPlugin.js";
 						viewBoxY = parseFloat(viewBox[1]);
 						borderLeft = parseFloat(cs.borderLeftWidth) || 0;
 						borderTop = parseFloat(cs.borderTopWidth) || 0;
-						right -= width - ((width - borderLeft) / cache.scaleX) - viewBoxX;
-						bottom -= height - ((height - borderTop) / cache.scaleY) - viewBoxY;
+						left /= cache.scaleX;
+						top /= cache.scaleY;
+						right = left + width - (width - ((width - borderLeft) / cache.scaleX) - viewBoxX);
+						bottom = top + height - (height - ((height - borderTop) / cache.scaleY) - viewBoxY);
 						left -= borderLeft / cache.scaleX - viewBoxX;
 						top -= borderTop / cache.scaleY - viewBoxY;
 						if (computedDimensions) { //when we had to use computed styles, factor in the border now.
@@ -798,13 +804,21 @@ import CSSPlugin from "./CSSPlugin.js";
 					obj[standard[i]] = converted[i];
 					obj[converted[i]] = standard[i];
 				}
+				//to avoid problems in iOS 9, test to see if the browser supports the "passive" option on addEventListener().
+				try {
+					_docElement.addEventListener("test", null, Object.defineProperty({}, "passive", {
+						get: function () {
+							_supportsPassive = 1;
+						}
+					}));
+				} catch (e) {}
 				return obj;
 			}("touchstart,touchmove,touchend,touchcancel")),
 
 			_addListener = function(element, type, func, capture) {
 				if (element.addEventListener) {
 					var touchType = _touchEventLookup[type];
-					capture = capture || {passive:false};
+					capture = capture || (_supportsPassive ? {passive:false} : null);
 					element.addEventListener(touchType || type, func, capture);
 					if (touchType && type !== touchType) { //some browsers actually support both, so must we.
 						element.addEventListener(type, func, capture);
@@ -1571,6 +1585,12 @@ import CSSPlugin from "./CSSPlugin.js";
 					},
 
 					buildSnapFunc = function(snap, min, max, factor) {
+						if (min == null) {
+							min = -_max;
+						}
+						if (max == null) {
+							max = _max;
+						}
 						if (typeof(snap) === "function") {
 							return function(n) {
 								var edgeTolerance = !self.isPressed ? 1 : 1 - self.edgeResistance; //if we're tweening, disable the edgeTolerance because it's already factored into the tweening values (we don't want to apply it multiple times)
@@ -1675,7 +1695,7 @@ import CSSPlugin from "./CSSPlugin.js";
 						if (e && e.target) {
 							_addListener(e.target, "mouseup", onRelease); //we also have to listen directly on the element because some browsers don't bubble up the event to the _doc on elements with contentEditable="true"
 						}
-						isClicking = (isClickable.call(self, e.target) && !vars.dragClickables && !force);
+						isClicking = (isClickable.call(self, e.target) && vars.dragClickables !== false && !force);
 						if (isClicking) {
 							_addListener(e.target, "change", onRelease); //in some browsers, when you mousedown on a <select> element, no mouseup gets dispatched! So we listen for a "change" event instead.
 							_dispatchEvent(self, "pressInit", "onPressInit");
@@ -1727,10 +1747,10 @@ import CSSPlugin from "./CSSPlugin.js";
 						}
 						self.isPressed = true;
 						hasDragCallback = !!(vars.onDrag || self._listeners.drag);
-						if (!rotationMode) {
+						if (!rotationMode && (vars.cursor !== false || vars.activeCursor)) {
 							i = triggers.length;
 							while (--i > -1) {
-								_setStyle(triggers[i], "cursor", vars.cursor || "move");
+								_setStyle(triggers[i], "cursor", vars.activeCursor || vars.cursor || "move");
 							}
 						}
 						_dispatchEvent(self, "press", "onPress");
@@ -1945,7 +1965,7 @@ import CSSPlugin from "./CSSPlugin.js";
 						if (!rotationMode) {
 							i = triggers.length;
 							while (--i > -1) {
-								_setStyle(triggers[i], "cursor", vars.cursor || "move");
+								_setStyle(triggers[i], "cursor", vars.cursor || (vars.cursor !== false ? "move" : null));
 							}
 						}
 						if (wasDragging) {
@@ -2007,7 +2027,7 @@ import CSSPlugin from "./CSSPlugin.js";
 							}
 						} else {
 							animate(vars.throwProps); //will skip if throwProps isn't defined or ThrowPropsPlugin isn't loaded.
-							if (!_isOldIE && !self.allowEventDefault && originalEvent && (vars.dragClickables || !isClickable.call(self, originalEvent.target)) && wasDragging && (!allowNativeTouchScrolling || (touchDragAxis && allowNativeTouchScrolling === touchDragAxis)) && originalEvent.cancelable !== false) {
+							if (!_isOldIE && !self.allowEventDefault && originalEvent && (vars.dragClickables !== false || !isClickable.call(self, originalEvent.target)) && wasDragging && (!allowNativeTouchScrolling || (touchDragAxis && allowNativeTouchScrolling === touchDragAxis)) && originalEvent.cancelable !== false) {
 								originalEvent.preventDefault();
 								if (originalEvent.preventManipulation) {
 									originalEvent.preventManipulation();  //for some Microsoft browsers
@@ -2240,7 +2260,7 @@ import CSSPlugin from "./CSSPlugin.js";
 							_addListener(trigger, "mousedown", onPress);
 							_addListener(trigger, "touchstart", onPress);
 							_addListener(trigger, "click", onClick, true); //note: used to pass true for capture but it prevented click-to-play-video functionality in Firefox.
-							if (!rotationMode) {
+							if (!rotationMode && vars.cursor !== false) {
 								_setStyle(trigger, "cursor", vars.cursor || "move");
 							}
 							_setStyle(trigger, "touchCallout", "none");
@@ -2378,7 +2398,7 @@ import CSSPlugin from "./CSSPlugin.js";
 		p.constructor = Draggable;
 		p.pointerX = p.pointerY = p.startX = p.startY = p.deltaX = p.deltaY = 0;
 		p.isDragging = p.isPressed = false;
-		Draggable.version = "0.16.5";
+		Draggable.version = "0.17.0";
 		Draggable.zIndex = 1000;
 
 		_addListener(_doc, "touchcancel", function() {
