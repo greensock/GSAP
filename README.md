@@ -23,13 +23,13 @@ This is the public repository for GreenSock's JavaScript tools like <a href="htt
 ### CDN
 TweenMax is most popular because it has all the essential tools plus several common <a href="https://greensock.com/plugins/?product_id=4921">plugins</a>, all in one file:
 ```html
-<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/2.1.0/TweenMax.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/2.1.1/TweenMax.min.js"></script>
 ```
 Click the green "Download GSAP" button at <a href="https://greensock.com/?download=GSAP-JS">greensock.com</a> for more options. Click "customize" at the bottom of the resulting window to see all the extra plugins and tool URLs. 
 
 Draggable, for example, is at:
 ```html
-<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/2.1.0/utils/Draggable.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/2.1.1/utils/Draggable.min.js"></script>
 ```
 
 Most ad networks have GSAP on their CDNs as well, so contact them for the appropriate URL(s). 
@@ -67,6 +67,7 @@ For <a href="https://greensock.com/club/">Club GreenSock</a>-only plugins, downl
 * <a href="https://greensock.com/docs/NPMUsage">NPM &amp; Webpack usage guide</a>
 * <a href="https://greensock.com/examples-showcases">Examples &amp; showcases</a>
 * <a href="https://greensock.com/why-gsap/">Why GSAP?</a> (a practical guide for developers)
+* <a href="https://codepen.io/GreenSock/full/jdawKx">Advanced staggers</a>
 * <a href="https://greensock.com/draggable/">Draggable demo</a>
 * <a href="https://greensock.com/svg-tips/">Animating SVG with GSAP</a>
 * <a href="https://greensock.com/club/">Club GreenSock</a> (get access to bonus plugins and tools not in this repository)

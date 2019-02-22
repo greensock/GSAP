@@ -1,6 +1,6 @@
 /*!
- * VERSION: 2.1.0
- * DATE: 2019-02-11
+ * VERSION: 2.1.1
+ * DATE: 2019-02-21
  * UPDATES AND DOCS AT: http://greensock.com
  *
  * @license Copyright (c) 2008-2019, GreenSock. All rights reserved.
@@ -35,7 +35,7 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 			
 		p.constructor = TimelineMax;
 		p.kill()._gc = false;
-		TimelineMax.version = "2.1.0";
+		TimelineMax.version = "2.1.1";
 		
 		p.invalidate = function() {
 			this._yoyo = !!this.vars.yoyo;
@@ -478,7 +478,7 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 			}
 			var duration = this._duration,
 				cycle = this._cycle,
-				cycleDur = cycle * (duration * this._repeatDelay);
+				cycleDur = cycle * (duration + this._repeatDelay);
 			if (value > duration) {
 				value = duration;
 			}
@@ -593,12 +593,12 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 				}
 				return toVars;
 			},
-			//for distributing values across an array. Can accept a number, a function or (most commonly) a function which can contain the following properties: {base, amount, from, ease, grid, axis, length}. Returns a function that expects the following parameters: index, target, array. Recognizes the following
+			//for distributing values across an array. Can accept a number, a function or (most commonly) a function which can contain the following properties: {base, amount, from, ease, grid, axis, length, each}. Returns a function that expects the following parameters: index, target, array. Recognizes the following
 			_distribute = function(v) {
 				if (typeof(v) === "function") {
 					return v;
 				}
-				var vars = isNaN(v) ? v : {n:1, from:(v < 0) ? ((v = -v) && "end") : 0}, //n:1 is just to indicate v was a number; we leverage that later to set v according to the length we get. If a number is passed in, we treat it like the old stagger value where 0.1, for example, would mean that things would be distributed with 0.1 between each element in the array rather than a total "amount" that's chunked out among them all.
+				var vars = (typeof(v) === "object") ? v : {each:v}, //n:1 is just to indicate v was a number; we leverage that later to set v according to the length we get. If a number is passed in, we treat it like the old stagger value where 0.1, for example, would mean that things would be distributed with 0.1 between each element in the array rather than a total "amount" that's chunked out among them all.
 					ease = vars.ease,
 					from = vars.from || 0,
 					base = vars.base || 0,
@@ -635,15 +635,16 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 						}
 						distances.max = max - min;
 						distances.min = min;
-						distances.v = vars.n ? l * (v || 0) : vars.amount;
+						distances.v = l = vars.amount || (vars.each * (wrap > l ? l : Math.max(wrap, l / wrap) | 0)) || 0;
+						distances.b = (l < 0) ? base - l : base;
 					}
 					l = (distances[i] - distances.min) / distances.max;
-					return base + (ease ? ease.getRatio(l) : l) * distances.v;
+					return distances.b + (ease ? ease.getRatio(l) : l) * distances.v;
 				};
 			},
 			p = TimelineLite.prototype = new SimpleTimeline();
 
-		TimelineLite.version = "2.1.0";
+		TimelineLite.version = "2.1.1";
 		TimelineLite.distribute = _distribute;
 		p.constructor = TimelineLite;
 		p.kill()._gc = p._forcingPlayhead = p._hasPause = false;

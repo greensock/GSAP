@@ -1,6 +1,6 @@
 /*!
- * VERSION: 2.1.0
- * DATE: 2019-02-15
+ * VERSION: 2.1.1
+ * DATE: 2019-02-21
  * UPDATES AND DOCS AT: http://greensock.com
  *
  * @license Copyright (c) 2008-2019, GreenSock. All rights reserved.
@@ -972,7 +972,7 @@ export var TweenLite = (function(window) {
 		p._firstPT = p._targets = p._overwrittenProps = p._startAt = null;
 		p._notifyPluginsOfEnabled = p._lazy = false;
 
-		TweenLite.version = "2.1.0";
+		TweenLite.version = "2.1.1";
 		TweenLite.defaultEase = p._ease = new Ease(null, null, 1, 1);
 		TweenLite.defaultOverwrite = "auto";
 		TweenLite.ticker = _ticker;

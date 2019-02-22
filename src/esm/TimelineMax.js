@@ -1,6 +1,6 @@
 /*!
- * VERSION: 2.1.0
- * DATE: 2019-02-15
+ * VERSION: 2.1.1
+ * DATE: 2019-02-21
  * UPDATES AND DOCS AT: http://greensock.com
  *
  * @license Copyright (c) 2008-2019, GreenSock. All rights reserved.
@@ -34,7 +34,7 @@ _gsScope._gsDefine("TimelineMax", ["TimelineLite","TweenLite","easing.Ease"], fu
 
 		p.constructor = TimelineMax;
 		p.kill()._gc = false;
-		TimelineMax.version = "2.1.0";
+		TimelineMax.version = "2.1.1";
 
 		p.invalidate = function() {
 			this._yoyo = !!this.vars.yoyo;
@@ -477,7 +477,7 @@ _gsScope._gsDefine("TimelineMax", ["TimelineLite","TweenLite","easing.Ease"], fu
 			}
 			var duration = this._duration,
 				cycle = this._cycle,
-				cycleDur = cycle * (duration * this._repeatDelay);
+				cycleDur = cycle * (duration + this._repeatDelay);
 			if (value > duration) {
 				value = duration;
 			}
