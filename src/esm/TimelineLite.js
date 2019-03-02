@@ -1,6 +1,6 @@
 /*!
- * VERSION: 2.1.1
- * DATE: 2019-02-21
+ * VERSION: 2.1.2
+ * DATE: 2019-03-01
  * UPDATES AND DOCS AT: http://greensock.com
  *
  * @license Copyright (c) 2008-2019, GreenSock. All rights reserved.
@@ -70,7 +70,7 @@ _gsScope._gsDefine("TimelineLite", ["core.Animation","core.SimpleTimeline","Twee
 			_defaultImmediateRender = function(tl, toVars, fromVars, defaultFalse) { //default to immediateRender:true unless otherwise set in toVars, fromVars or if defaultFalse is passed in as true
 				var ir = "immediateRender";
 				if (!(ir in toVars)) {
-					toVars[ir] = !(tl._paused || (fromVars && fromVars[ir] === false) || defaultFalse);
+					toVars[ir] = !((fromVars && fromVars[ir] === false) || defaultFalse);
 				}
 				return toVars;
 			},
@@ -125,7 +125,7 @@ _gsScope._gsDefine("TimelineLite", ["core.Animation","core.SimpleTimeline","Twee
 			},
 			p = TimelineLite.prototype = new SimpleTimeline();
 
-		TimelineLite.version = "2.1.1";
+		TimelineLite.version = "2.1.2";
 		TimelineLite.distribute = _distribute;
 		p.constructor = TimelineLite;
 		p.kill()._gc = p._forcingPlayhead = p._hasPause = false;

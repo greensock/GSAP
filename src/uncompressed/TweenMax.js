@@ -1,6 +1,6 @@
 /*!
- * VERSION: 2.1.1
- * DATE: 2019-02-21
+ * VERSION: 2.1.2
+ * DATE: 2019-03-01
  * UPDATES AND DOCS AT: http://greensock.com
  * 
  * Includes all of the following: TweenLite, TweenMax, TimelineLite, TimelineMax, EasePack, CSSPlugin, RoundPropsPlugin, BezierPlugin, AttrPlugin, DirectionalRotationPlugin
@@ -102,7 +102,7 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 			p = TweenMax.prototype = TweenLite.to({}, 0.1, {}),
 			_blankArray = [];
 
-		TweenMax.version = "2.1.1";
+		TweenMax.version = "2.1.2";
 		p.constructor = TweenMax;
 		p.kill()._gc = false;
 		TweenMax.killTweensOf = TweenMax.killDelayedCallsTo = TweenLite.killTweensOf;
@@ -738,7 +738,7 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 			_defaultImmediateRender = function(tl, toVars, fromVars, defaultFalse) { //default to immediateRender:true unless otherwise set in toVars, fromVars or if defaultFalse is passed in as true
 				var ir = "immediateRender";
 				if (!(ir in toVars)) {
-					toVars[ir] = !(tl._paused || (fromVars && fromVars[ir] === false) || defaultFalse);
+					toVars[ir] = !((fromVars && fromVars[ir] === false) || defaultFalse);
 				}
 				return toVars;
 			},
@@ -793,7 +793,7 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 			},
 			p = TimelineLite.prototype = new SimpleTimeline();
 
-		TimelineLite.version = "2.1.1";
+		TimelineLite.version = "2.1.2";
 		TimelineLite.distribute = _distribute;
 		p.constructor = TimelineLite;
 		p.kill()._gc = p._forcingPlayhead = p._hasPause = false;
@@ -1546,7 +1546,7 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 
 		p.constructor = TimelineMax;
 		p.kill()._gc = false;
-		TimelineMax.version = "2.1.1";
+		TimelineMax.version = "2.1.2";
 
 		p.invalidate = function() {
 			this._yoyo = !!this.vars.yoyo;
@@ -7122,7 +7122,7 @@ if (_gsScope._gsDefine) { _gsScope._gsQueue.pop()(); } //necessary in case Tween
 		p._firstPT = p._targets = p._overwrittenProps = p._startAt = null;
 		p._notifyPluginsOfEnabled = p._lazy = false;
 
-		TweenLite.version = "2.1.1";
+		TweenLite.version = "2.1.2";
 		TweenLite.defaultEase = p._ease = new Ease(null, null, 1, 1);
 		TweenLite.defaultOverwrite = "auto";
 		TweenLite.ticker = _ticker;

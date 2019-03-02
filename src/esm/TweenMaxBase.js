@@ -1,6 +1,6 @@
 /*!
- * VERSION: 2.1.1
- * DATE: 2019-02-21
+ * VERSION: 2.1.2
+ * DATE: 2019-03-01
  * UPDATES AND DOCS AT: http://greensock.com
  *
  * @license Copyright (c) 2008-2019, GreenSock. All rights reserved.
@@ -99,7 +99,7 @@ _gsScope._gsDefine("TweenMax", ["core.Animation","core.SimpleTimeline","TweenLit
 			p = TweenMax.prototype = TweenLite.to({}, 0.1, {}),
 			_blankArray = [];
 
-		TweenMax.version = "2.1.1";
+		TweenMax.version = "2.1.2";
 		p.constructor = TweenMax;
 		p.kill()._gc = false;
 		TweenMax.killTweensOf = TweenMax.killDelayedCallsTo = TweenLite.killTweensOf;

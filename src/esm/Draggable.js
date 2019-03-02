@@ -1,6 +1,6 @@
 /*!
- * VERSION: 0.17.0
- * DATE: 2019-02-07
+ * VERSION: 0.17.1
+ * DATE: 2019-02-28
  * UPDATES AND DOCS AT: http://greensock.com
  *
  * Requires TweenLite and CSSPlugin version 1.17.0 or later (TweenMax contains both TweenLite and CSSPlugin). ThrowPropsPlugin is required for momentum-based continuation of movement after the mouse/touch is released (ThrowPropsPlugin is a membership benefit of Club GreenSock - http://greensock.com/club/).
@@ -1695,7 +1695,7 @@ import CSSPlugin from "./CSSPlugin.js";
 						if (e && e.target) {
 							_addListener(e.target, "mouseup", onRelease); //we also have to listen directly on the element because some browsers don't bubble up the event to the _doc on elements with contentEditable="true"
 						}
-						isClicking = (isClickable.call(self, e.target) && vars.dragClickables !== false && !force);
+						isClicking = (isClickable.call(self, e.target) && vars.dragClickables === false && !force);
 						if (isClicking) {
 							_addListener(e.target, "change", onRelease); //in some browsers, when you mousedown on a <select> element, no mouseup gets dispatched! So we listen for a "change" event instead.
 							_dispatchEvent(self, "pressInit", "onPressInit");
@@ -2398,7 +2398,7 @@ import CSSPlugin from "./CSSPlugin.js";
 		p.constructor = Draggable;
 		p.pointerX = p.pointerY = p.startX = p.startY = p.deltaX = p.deltaY = 0;
 		p.isDragging = p.isPressed = false;
-		Draggable.version = "0.17.0";
+		Draggable.version = "0.17.1";
 		Draggable.zIndex = 1000;
 
 		_addListener(_doc, "touchcancel", function() {

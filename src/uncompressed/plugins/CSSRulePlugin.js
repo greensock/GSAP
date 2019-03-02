@@ -1,6 +1,6 @@
 /*!
- * VERSION: 0.6.6
- * DATE: 2018-02-15
+ * VERSION: 0.6.8
+ * DATE: 2018-02-22
  * UPDATES AND DOCS AT: http://greensock.com
  *
  * @license Copyright (c) 2008-2019, GreenSock. All rights reserved.
@@ -28,7 +28,7 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 
 		p._propName = "cssRule";
 		p.constructor = CSSRulePlugin;
-		CSSRulePlugin.version = "0.6.6";
+		CSSRulePlugin.version = "0.6.8";
 		CSSRulePlugin.API = 2;
 
 		/**
@@ -94,7 +94,12 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 		// @private gets called every time the tween updates, passing the new ratio (typically a value between 0 and 1, but not always (for example, if an Elastic.easeOut is used, the value can jump above 1 mid-tween). It will always start and 0 and end at 1.
 		p.setRatio = function(v) {
 			_superSetRatio.call(this, v);
-			this._ss.cssText = this._proxy.cssText;
+			var proxy = this._proxy,
+				ss = this._ss,
+				i = proxy.length;
+			while (--i > -1) {
+				ss[proxy[i]] = proxy[proxy[i]];
+			}
 		};
 		
 		

@@ -1,6 +1,6 @@
 /*!
- * VERSION: 2.1.1
- * DATE: 2019-02-21
+ * VERSION: 2.1.2
+ * DATE: 2019-03-01
  * UPDATES AND DOCS AT: http://greensock.com
  *
  * @license Copyright (c) 2008-2019, GreenSock. All rights reserved.
@@ -35,7 +35,7 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 			
 		p.constructor = TimelineMax;
 		p.kill()._gc = false;
-		TimelineMax.version = "2.1.1";
+		TimelineMax.version = "2.1.2";
 		
 		p.invalidate = function() {
 			this._yoyo = !!this.vars.yoyo;
@@ -589,7 +589,7 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 			_defaultImmediateRender = function(tl, toVars, fromVars, defaultFalse) { //default to immediateRender:true unless otherwise set in toVars, fromVars or if defaultFalse is passed in as true
 				var ir = "immediateRender";
 				if (!(ir in toVars)) {
-					toVars[ir] = !(tl._paused || (fromVars && fromVars[ir] === false) || defaultFalse);
+					toVars[ir] = !((fromVars && fromVars[ir] === false) || defaultFalse);
 				}
 				return toVars;
 			},
@@ -635,7 +635,7 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 						}
 						distances.max = max - min;
 						distances.min = min;
-						distances.v = l = vars.amount || (vars.each * (wrap > l ? l : Math.max(wrap, l / wrap) | 0)) || 0;
+						distances.v = l = vars.amount || (vars.each * (wrap > l ? l : !axis ? Math.max(wrap, l / wrap) : axis === "y" ? l / wrap : wrap)) || 0;
 						distances.b = (l < 0) ? base - l : base;
 					}
 					l = (distances[i] - distances.min) / distances.max;
@@ -644,7 +644,7 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 			},
 			p = TimelineLite.prototype = new SimpleTimeline();
 
-		TimelineLite.version = "2.1.1";
+		TimelineLite.version = "2.1.2";
 		TimelineLite.distribute = _distribute;
 		p.constructor = TimelineLite;
 		p.kill()._gc = p._forcingPlayhead = p._hasPause = false;
