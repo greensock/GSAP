@@ -1,6 +1,6 @@
 /*!
- * VERSION: 2.1.2
- * DATE: 2019-03-01
+ * VERSION: 2.1.3
+ * DATE: 2019-05-17
  * UPDATES AND DOCS AT: http://greensock.com
  *
  * @license Copyright (c) 2008-2019, GreenSock. All rights reserved.

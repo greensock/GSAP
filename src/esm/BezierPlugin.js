@@ -1,6 +1,6 @@
 /*!
- * VERSION: 1.3.8
- * DATE: 2018-05-30
+ * VERSION: 1.3.9
+ * DATE: 2019-05-17
  * UPDATES AND DOCS AT: http://greensock.com
  *
  * @license Copyright (c) 2008-2019, GreenSock. All rights reserved.
@@ -312,7 +312,7 @@ import { _gsScope } from "./TweenLite.js";
 			BezierPlugin = _gsScope._gsDefine.plugin({
 					propName: "bezier",
 					priority: -1,
-					version: "1.3.8",
+					version: "1.3.9",
 					API: 2,
 					global:true,
 
@@ -389,26 +389,26 @@ import { _gsScope } from "./TweenLite.js";
 							func = this._func,
 							target = this._target,
 							notStart = (v !== this._startRatio),
-							curIndex, inv, i, p, b, t, val, l, lengths, curSeg;
+							curIndex, inv, i, p, b, t, val, l, lengths, curSeg, v1;
 						if (!this._timeRes) {
 							curIndex = (v < 0) ? 0 : (v >= 1) ? segments - 1 : (segments * v) >> 0;
 							t = (v - (curIndex * (1 / segments))) * segments;
 						} else {
 							lengths = this._lengths;
 							curSeg = this._curSeg;
-							v *= this._length;
+							v1 = v * this._length;
 							i = this._li;
 							//find the appropriate segment (if the currently cached one isn't correct)
-							if (v > this._l2 && i < segments - 1) {
+							if (v1 > this._l2 && i < segments - 1) {
 								l = segments - 1;
-								while (i < l && (this._l2 = lengths[++i]) <= v) {	}
+								while (i < l && (this._l2 = lengths[++i]) <= v1) {	}
 								this._l1 = lengths[i-1];
 								this._li = i;
 								this._curSeg = curSeg = this._segments[i];
 								this._s2 = curSeg[(this._s1 = this._si = 0)];
-							} else if (v < this._l1 && i > 0) {
-								while (i > 0 && (this._l1 = lengths[--i]) >= v) { }
-								if (i === 0 && v < this._l1) {
+							} else if (v1 < this._l1 && i > 0) {
+								while (i > 0 && (this._l1 = lengths[--i]) >= v1) { }
+								if (i === 0 && v1 < this._l1) {
 									this._l1 = 0;
 								} else {
 									i++;
@@ -421,16 +421,16 @@ import { _gsScope } from "./TweenLite.js";
 							}
 							curIndex = i;
 							//now find the appropriate sub-segment (we split it into the number of pieces that was defined by "precision" and measured each one)
-							v -= this._l1;
+							v1 -= this._l1;
 							i = this._si;
-							if (v > this._s2 && i < curSeg.length - 1) {
+							if (v1 > this._s2 && i < curSeg.length - 1) {
 								l = curSeg.length - 1;
-								while (i < l && (this._s2 = curSeg[++i]) <= v) {	}
+								while (i < l && (this._s2 = curSeg[++i]) <= v1) {	}
 								this._s1 = curSeg[i-1];
 								this._si = i;
-							} else if (v < this._s1 && i > 0) {
-								while (i > 0 && (this._s1 = curSeg[--i]) >= v) {	}
-								if (i === 0 && v < this._s1) {
+							} else if (v1 < this._s1 && i > 0) {
+								while (i > 0 && (this._s1 = curSeg[--i]) >= v1) {	}
+								if (i === 0 && v1 < this._s1) {
 									this._s1 = 0;
 								} else {
 									i++;
@@ -438,7 +438,7 @@ import { _gsScope } from "./TweenLite.js";
 								this._s2 = curSeg[i];
 								this._si = i;
 							}
-							t = ((i + (v - this._s1) / (this._s2 - this._s1)) * this._prec) || 0;
+							t = (v === 1) ? 1 : ((i + (v1 - this._s1) / (this._s2 - this._s1)) * this._prec) || 0;
 						}
 						inv = 1 - t;
 

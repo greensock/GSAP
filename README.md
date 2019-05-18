@@ -2,7 +2,7 @@
 
 #### Ultra high-performance, professional-grade animation for the modern web
 
-GSAP is a JavaScript library for creating high-performance animations that work in **every** major browser. No other library delivers such advanced sequencing, reliability, API efficiency, and tight control while solving real-world problems on over 7.5 million sites. GSAP works around countless browser inconsistencies; your animations 'just work'. CSS properties, SVG, canvas libraries, custom properties of generic objects, colors, strings...animate anything! At its core, GSAP is a high-speed property manipulator, updating values over time with extreme accuracy. It's up to 20x faster than jQuery! See the <a href="https://greensock.com/why-gsap/">"Why GSAP?"</a> article for what makes GSAP so special.
+GSAP is a JavaScript library for creating high-performance animations that work in **every** major browser. No other library delivers such advanced sequencing, reliability, API efficiency, and tight control while solving real-world problems on over 8 million sites. GSAP works around countless browser inconsistencies; your animations 'just work'. CSS properties, SVG, canvas libraries, custom properties of generic objects, colors, strings...animate anything! At its core, GSAP is a high-speed property manipulator, updating values over time with extreme accuracy. It's up to 20x faster than jQuery! See the <a href="https://greensock.com/why-gsap/">"Why GSAP?"</a> article for what makes GSAP so special.
 
 <a href="https://greensock.com/docs">Full documentation</a>
 
@@ -23,13 +23,13 @@ This is the public repository for GreenSock's JavaScript tools like <a href="htt
 ### CDN
 TweenMax is most popular because it has all the essential tools plus several common <a href="https://greensock.com/plugins/?product_id=4921">plugins</a>, all in one file:
 ```html
-<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/2.1.2/TweenMax.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/2.1.3/TweenMax.min.js"></script>
 ```
 Click the green "Download GSAP" button at <a href="https://greensock.com/?download=GSAP-JS">greensock.com</a> for more options. Click "customize" at the bottom of the resulting window to see all the extra plugins and tool URLs. 
 
 Draggable, for example, is at:
 ```html
-<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/2.1.2/utils/Draggable.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/2.1.3/utils/Draggable.min.js"></script>
 ```
 
 Most ad networks have GSAP on their CDNs as well, so contact them for the appropriate URL(s). 

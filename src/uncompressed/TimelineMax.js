@@ -1,6 +1,6 @@
 /*!
- * VERSION: 2.1.2
- * DATE: 2019-03-01
+ * VERSION: 2.1.3
+ * DATE: 2019-05-17
  * UPDATES AND DOCS AT: http://greensock.com
  *
  * @license Copyright (c) 2008-2019, GreenSock. All rights reserved.
@@ -35,7 +35,7 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 			
 		p.constructor = TimelineMax;
 		p.kill()._gc = false;
-		TimelineMax.version = "2.1.2";
+		TimelineMax.version = "2.1.3";
 		
 		p.invalidate = function() {
 			this._yoyo = !!this.vars.yoyo;
@@ -211,35 +211,34 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 						}
 					}
 				}
+			}
 
-				if (self._hasPause && !self._forcingPlayhead && !suppressEvents) {
-					time = self._time;
-					if (time >= prevTime || (self._repeat && prevCycle !== self._cycle)) {
-						tween = self._first;
-						while (tween && tween._startTime <= time && !pauseTween) {
-							if (!tween._duration) if (tween.data === "isPause" && !tween.ratio && !(tween._startTime === 0 && self._rawPrevTime === 0)) {
-								pauseTween = tween;
-							}
-							tween = tween._next;
+			if (self._hasPause && !self._forcingPlayhead && !suppressEvents) {
+				time = self._time;
+				if (time > prevTime || (self._repeat && prevCycle !== self._cycle)) {
+					tween = self._first;
+					while (tween && tween._startTime <= time && !pauseTween) {
+						if (!tween._duration) if (tween.data === "isPause" && !tween.ratio && !(tween._startTime === 0 && self._rawPrevTime === 0)) {
+							pauseTween = tween;
 						}
-					} else {
-						tween = self._last;
-						while (tween && tween._startTime >= time && !pauseTween) {
-							if (!tween._duration) if (tween.data === "isPause" && tween._rawPrevTime > 0) {
-								pauseTween = tween;
-							}
-							tween = tween._prev;
-						}
+						tween = tween._next;
 					}
-					if (pauseTween) {
-						pauseTime = self._startTime + (pauseTween._startTime / self._timeScale);
-						if (pauseTween._startTime < dur) {
-							self._time = self._rawPrevTime = time = pauseTween._startTime;
-							self._totalTime = time + (self._cycle * (self._totalDuration + self._repeatDelay));
+				} else {
+					tween = self._last;
+					while (tween && tween._startTime >= time && !pauseTween) {
+						if (!tween._duration) if (tween.data === "isPause" && tween._rawPrevTime > 0) {
+							pauseTween = tween;
 						}
+						tween = tween._prev;
 					}
 				}
-
+				if (pauseTween) {
+					pauseTime = self._startTime + (self._reversed ? self._duration - pauseTween._startTime : pauseTween._startTime) / self._timeScale;
+					if (pauseTween._startTime < dur) {
+						self._time = self._rawPrevTime = time = pauseTween._startTime;
+						self._totalTime = time + (self._cycle * (self._totalDuration + self._repeatDelay));
+					}
+				}
 			}
 			
 			if (self._cycle !== prevCycle) if (!self._locked) {
@@ -635,7 +634,7 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 						}
 						distances.max = max - min;
 						distances.min = min;
-						distances.v = l = vars.amount || (vars.each * (wrap > l ? l : !axis ? Math.max(wrap, l / wrap) : axis === "y" ? l / wrap : wrap)) || 0;
+						distances.v = l = vars.amount || (vars.each * (wrap > l ? l - 1 : !axis ? Math.max(wrap, l / wrap) : axis === "y" ? l / wrap : wrap)) || 0;
 						distances.b = (l < 0) ? base - l : base;
 					}
 					l = (distances[i] - distances.min) / distances.max;
@@ -644,7 +643,7 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 			},
 			p = TimelineLite.prototype = new SimpleTimeline();
 
-		TimelineLite.version = "2.1.2";
+		TimelineLite.version = "2.1.3";
 		TimelineLite.distribute = _distribute;
 		p.constructor = TimelineLite;
 		p.kill()._gc = p._forcingPlayhead = p._hasPause = false;
@@ -961,6 +960,29 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 			if (prevTime !== self._time) { //if totalDuration() finds a child with a negative startTime and smoothChildTiming is true, things get shifted around internally so we need to adjust the time accordingly. For example, if a tween starts at -30 we must shift EVERYTHING forward 30 seconds and move this timeline's startTime backward by 30 seconds so that things align with the playhead (no jump).
 				time += self._time - prevTime;
 			}
+			if (self._hasPause && !self._forcingPlayhead && !suppressEvents) {
+				if (time > prevTime) {
+					tween = self._first;
+					while (tween && tween._startTime <= time && !pauseTween) {
+						if (!tween._duration) if (tween.data === "isPause" && !tween.ratio && !(tween._startTime === 0 && self._rawPrevTime === 0)) {
+							pauseTween = tween;
+						}
+						tween = tween._next;
+					}
+				} else {
+					tween = self._last;
+					while (tween && tween._startTime >= time && !pauseTween) {
+						if (!tween._duration) if (tween.data === "isPause" && tween._rawPrevTime > 0) {
+							pauseTween = tween;
+						}
+						tween = tween._prev;
+					}
+				}
+				if (pauseTween) {
+					self._time = self._totalTime = time = pauseTween._startTime;
+					pauseTime = self._startTime + (self._reversed ? self._duration - time : time) / self._timeScale;
+				}
+			}
 			if (time >= totalDur - _tinyNum && time >= 0) { //to work around occasional floating point math artifacts.
 				self._totalTime = self._time = totalDur;
 				if (!self._reversed) if (!self._hasPausedChild()) {
@@ -1013,31 +1035,6 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 				}
 
 			} else {
-
-				if (self._hasPause && !self._forcingPlayhead && !suppressEvents) {
-					if (time >= prevTime) {
-						tween = self._first;
-						while (tween && tween._startTime <= time && !pauseTween) {
-							if (!tween._duration) if (tween.data === "isPause" && !tween.ratio && !(tween._startTime === 0 && self._rawPrevTime === 0)) {
-								pauseTween = tween;
-							}
-							tween = tween._next;
-						}
-					} else {
-						tween = self._last;
-						while (tween && tween._startTime >= time && !pauseTween) {
-							if (!tween._duration) if (tween.data === "isPause" && tween._rawPrevTime > 0) {
-								pauseTween = tween;
-							}
-							tween = tween._prev;
-						}
-					}
-					if (pauseTween) {
-						self._time = self._totalTime = time = pauseTween._startTime;
-						pauseTime = self._startTime + (time / self._timeScale);
-					}
-				}
-
 				self._totalTime = self._time = self._rawPrevTime = time;
 			}
 			if ((self._time === prevTime || !self._first) && !force && !internalForce && !pauseTween) {

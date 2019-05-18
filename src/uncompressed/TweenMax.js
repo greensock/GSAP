@@ -1,6 +1,6 @@
 /*!
- * VERSION: 2.1.2
- * DATE: 2019-03-01
+ * VERSION: 2.1.3
+ * DATE: 2019-05-17
  * UPDATES AND DOCS AT: http://greensock.com
  * 
  * Includes all of the following: TweenLite, TweenMax, TimelineLite, TimelineMax, EasePack, CSSPlugin, RoundPropsPlugin, BezierPlugin, AttrPlugin, DirectionalRotationPlugin
@@ -77,7 +77,7 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 						}
 						distances.max = max - min;
 						distances.min = min;
-						distances.v = l = vars.amount || (vars.each * (wrap > l ? l : !axis ? Math.max(wrap, l / wrap) : axis === "y" ? l / wrap : wrap)) || 0;
+						distances.v = l = vars.amount || (vars.each * (wrap > l ? l - 1 : !axis ? Math.max(wrap, l / wrap) : axis === "y" ? l / wrap : wrap)) || 0;
 						distances.b = (l < 0) ? base - l : base;
 					}
 					l = (distances[i] - distances.min) / distances.max;
@@ -102,7 +102,7 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 			p = TweenMax.prototype = TweenLite.to({}, 0.1, {}),
 			_blankArray = [];
 
-		TweenMax.version = "2.1.2";
+		TweenMax.version = "2.1.3";
 		p.constructor = TweenMax;
 		p.kill()._gc = false;
 		TweenMax.killTweensOf = TweenMax.killDelayedCallsTo = TweenLite.killTweensOf;
@@ -598,7 +598,7 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 //---- GETTERS / SETTERS ----------------------------------------------------------------------------------------------------------
 		
 		p.progress = function(value, suppressEvents) {
-			return (!arguments.length) ? this._time / this.duration() : this.totalTime( this.duration() * ((this._yoyo && (this._cycle & 1) !== 0) ? 1 - value : value) + (this._cycle * (this._duration + this._repeatDelay)), suppressEvents);
+			return (!arguments.length) ? (this.duration() ? this._time / this._duration : this.ratio) : this.totalTime( this.duration() * ((this._yoyo && (this._cycle & 1) !== 0) ? 1 - value : value) + (this._cycle * (this._duration + this._repeatDelay)), suppressEvents);
 		};
 		
 		p.totalProgress = function(value, suppressEvents) {
@@ -784,7 +784,7 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 						}
 						distances.max = max - min;
 						distances.min = min;
-						distances.v = l = vars.amount || (vars.each * (wrap > l ? l : !axis ? Math.max(wrap, l / wrap) : axis === "y" ? l / wrap : wrap)) || 0;
+						distances.v = l = vars.amount || (vars.each * (wrap > l ? l - 1 : !axis ? Math.max(wrap, l / wrap) : axis === "y" ? l / wrap : wrap)) || 0;
 						distances.b = (l < 0) ? base - l : base;
 					}
 					l = (distances[i] - distances.min) / distances.max;
@@ -793,7 +793,7 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 			},
 			p = TimelineLite.prototype = new SimpleTimeline();
 
-		TimelineLite.version = "2.1.2";
+		TimelineLite.version = "2.1.3";
 		TimelineLite.distribute = _distribute;
 		p.constructor = TimelineLite;
 		p.kill()._gc = p._forcingPlayhead = p._hasPause = false;
@@ -1110,6 +1110,29 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 			if (prevTime !== self._time) { //if totalDuration() finds a child with a negative startTime and smoothChildTiming is true, things get shifted around internally so we need to adjust the time accordingly. For example, if a tween starts at -30 we must shift EVERYTHING forward 30 seconds and move this timeline's startTime backward by 30 seconds so that things align with the playhead (no jump).
 				time += self._time - prevTime;
 			}
+			if (self._hasPause && !self._forcingPlayhead && !suppressEvents) {
+				if (time > prevTime) {
+					tween = self._first;
+					while (tween && tween._startTime <= time && !pauseTween) {
+						if (!tween._duration) if (tween.data === "isPause" && !tween.ratio && !(tween._startTime === 0 && self._rawPrevTime === 0)) {
+							pauseTween = tween;
+						}
+						tween = tween._next;
+					}
+				} else {
+					tween = self._last;
+					while (tween && tween._startTime >= time && !pauseTween) {
+						if (!tween._duration) if (tween.data === "isPause" && tween._rawPrevTime > 0) {
+							pauseTween = tween;
+						}
+						tween = tween._prev;
+					}
+				}
+				if (pauseTween) {
+					self._time = self._totalTime = time = pauseTween._startTime;
+					pauseTime = self._startTime + (self._reversed ? self._duration - time : time) / self._timeScale;
+				}
+			}
 			if (time >= totalDur - _tinyNum && time >= 0) { //to work around occasional floating point math artifacts.
 				self._totalTime = self._time = totalDur;
 				if (!self._reversed) if (!self._hasPausedChild()) {
@@ -1162,31 +1185,6 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 				}
 
 			} else {
-
-				if (self._hasPause && !self._forcingPlayhead && !suppressEvents) {
-					if (time >= prevTime) {
-						tween = self._first;
-						while (tween && tween._startTime <= time && !pauseTween) {
-							if (!tween._duration) if (tween.data === "isPause" && !tween.ratio && !(tween._startTime === 0 && self._rawPrevTime === 0)) {
-								pauseTween = tween;
-							}
-							tween = tween._next;
-						}
-					} else {
-						tween = self._last;
-						while (tween && tween._startTime >= time && !pauseTween) {
-							if (!tween._duration) if (tween.data === "isPause" && tween._rawPrevTime > 0) {
-								pauseTween = tween;
-							}
-							tween = tween._prev;
-						}
-					}
-					if (pauseTween) {
-						self._time = self._totalTime = time = pauseTween._startTime;
-						pauseTime = self._startTime + (time / self._timeScale);
-					}
-				}
-
 				self._totalTime = self._time = self._rawPrevTime = time;
 			}
 			if ((self._time === prevTime || !self._first) && !force && !internalForce && !pauseTween) {
@@ -1546,7 +1544,7 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 
 		p.constructor = TimelineMax;
 		p.kill()._gc = false;
-		TimelineMax.version = "2.1.2";
+		TimelineMax.version = "2.1.3";
 
 		p.invalidate = function() {
 			this._yoyo = !!this.vars.yoyo;
@@ -1722,35 +1720,34 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 						}
 					}
 				}
+			}
 
-				if (self._hasPause && !self._forcingPlayhead && !suppressEvents) {
-					time = self._time;
-					if (time >= prevTime || (self._repeat && prevCycle !== self._cycle)) {
-						tween = self._first;
-						while (tween && tween._startTime <= time && !pauseTween) {
-							if (!tween._duration) if (tween.data === "isPause" && !tween.ratio && !(tween._startTime === 0 && self._rawPrevTime === 0)) {
-								pauseTween = tween;
-							}
-							tween = tween._next;
+			if (self._hasPause && !self._forcingPlayhead && !suppressEvents) {
+				time = self._time;
+				if (time > prevTime || (self._repeat && prevCycle !== self._cycle)) {
+					tween = self._first;
+					while (tween && tween._startTime <= time && !pauseTween) {
+						if (!tween._duration) if (tween.data === "isPause" && !tween.ratio && !(tween._startTime === 0 && self._rawPrevTime === 0)) {
+							pauseTween = tween;
 						}
-					} else {
-						tween = self._last;
-						while (tween && tween._startTime >= time && !pauseTween) {
-							if (!tween._duration) if (tween.data === "isPause" && tween._rawPrevTime > 0) {
-								pauseTween = tween;
-							}
-							tween = tween._prev;
-						}
+						tween = tween._next;
 					}
-					if (pauseTween) {
-						pauseTime = self._startTime + (pauseTween._startTime / self._timeScale);
-						if (pauseTween._startTime < dur) {
-							self._time = self._rawPrevTime = time = pauseTween._startTime;
-							self._totalTime = time + (self._cycle * (self._totalDuration + self._repeatDelay));
+				} else {
+					tween = self._last;
+					while (tween && tween._startTime >= time && !pauseTween) {
+						if (!tween._duration) if (tween.data === "isPause" && tween._rawPrevTime > 0) {
+							pauseTween = tween;
 						}
+						tween = tween._prev;
 					}
 				}
-
+				if (pauseTween) {
+					pauseTime = self._startTime + (self._reversed ? self._duration - pauseTween._startTime : pauseTween._startTime) / self._timeScale;
+					if (pauseTween._startTime < dur) {
+						self._time = self._rawPrevTime = time = pauseTween._startTime;
+						self._totalTime = time + (self._cycle * (self._totalDuration + self._repeatDelay));
+					}
+				}
 			}
 
 			if (self._cycle !== prevCycle) if (!self._locked) {
@@ -2349,7 +2346,7 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 			BezierPlugin = _gsScope._gsDefine.plugin({
 					propName: "bezier",
 					priority: -1,
-					version: "1.3.8",
+					version: "1.3.9",
 					API: 2,
 					global:true,
 
@@ -2426,26 +2423,26 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 							func = this._func,
 							target = this._target,
 							notStart = (v !== this._startRatio),
-							curIndex, inv, i, p, b, t, val, l, lengths, curSeg;
+							curIndex, inv, i, p, b, t, val, l, lengths, curSeg, v1;
 						if (!this._timeRes) {
 							curIndex = (v < 0) ? 0 : (v >= 1) ? segments - 1 : (segments * v) >> 0;
 							t = (v - (curIndex * (1 / segments))) * segments;
 						} else {
 							lengths = this._lengths;
 							curSeg = this._curSeg;
-							v *= this._length;
+							v1 = v * this._length;
 							i = this._li;
 							//find the appropriate segment (if the currently cached one isn't correct)
-							if (v > this._l2 && i < segments - 1) {
+							if (v1 > this._l2 && i < segments - 1) {
 								l = segments - 1;
-								while (i < l && (this._l2 = lengths[++i]) <= v) {	}
+								while (i < l && (this._l2 = lengths[++i]) <= v1) {	}
 								this._l1 = lengths[i-1];
 								this._li = i;
 								this._curSeg = curSeg = this._segments[i];
 								this._s2 = curSeg[(this._s1 = this._si = 0)];
-							} else if (v < this._l1 && i > 0) {
-								while (i > 0 && (this._l1 = lengths[--i]) >= v) { }
-								if (i === 0 && v < this._l1) {
+							} else if (v1 < this._l1 && i > 0) {
+								while (i > 0 && (this._l1 = lengths[--i]) >= v1) { }
+								if (i === 0 && v1 < this._l1) {
 									this._l1 = 0;
 								} else {
 									i++;
@@ -2458,16 +2455,16 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 							}
 							curIndex = i;
 							//now find the appropriate sub-segment (we split it into the number of pieces that was defined by "precision" and measured each one)
-							v -= this._l1;
+							v1 -= this._l1;
 							i = this._si;
-							if (v > this._s2 && i < curSeg.length - 1) {
+							if (v1 > this._s2 && i < curSeg.length - 1) {
 								l = curSeg.length - 1;
-								while (i < l && (this._s2 = curSeg[++i]) <= v) {	}
+								while (i < l && (this._s2 = curSeg[++i]) <= v1) {	}
 								this._s1 = curSeg[i-1];
 								this._si = i;
-							} else if (v < this._s1 && i > 0) {
-								while (i > 0 && (this._s1 = curSeg[--i]) >= v) {	}
-								if (i === 0 && v < this._s1) {
+							} else if (v1 < this._s1 && i > 0) {
+								while (i > 0 && (this._s1 = curSeg[--i]) >= v1) {	}
+								if (i === 0 && v1 < this._s1) {
 									this._s1 = 0;
 								} else {
 									i++;
@@ -2475,7 +2472,7 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 								this._s2 = curSeg[i];
 								this._si = i;
 							}
-							t = ((i + (v - this._s1) / (this._s2 - this._s1)) * this._prec) || 0;
+							t = (v === 1) ? 1 : ((i + (v1 - this._s1) / (this._s2 - this._s1)) * this._prec) || 0;
 						}
 						inv = 1 - t;
 
@@ -2675,7 +2672,7 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 			p = CSSPlugin.prototype = new TweenPlugin("css");
 
 		p.constructor = CSSPlugin;
-		CSSPlugin.version = "2.1.0";
+		CSSPlugin.version = "2.1.3";
 		CSSPlugin.API = 2;
 		CSSPlugin.defaultTransformPerspective = 0;
 		CSSPlugin.defaultSkewType = "compensated";
@@ -2687,6 +2684,7 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 		var _numExp = /(?:\-|\.|\b)(\d|\.|e\-)+/g,
 			_relNumExp = /(?:\d|\-\d|\.\d|\-\.\d|\+=\d|\-=\d|\+=.\d|\-=\.\d)+/g,
 			_valuesExp = /(?:\+=|\-=|\-|\b)[\d\-\.]+[a-zA-Z0-9]*(?:%|\b)/gi, //finds all the values that begin with numbers or += or -= and then a number. Includes suffixes. We use this to split complex values apart like "1px 5px 20px rgb(255,102,51)"
+			_valuesExpWithCommas = /(?:\+=|\-=|\-|\b)[\d\-\.]+[a-zA-Z0-9]*(?:%|\b),?/gi, //finds all the values that begin with numbers or += or -= and then a number. Includes suffixes. We use this to split complex values apart like "1px 5px 20px rgb(255,102,51)"
 			_NaNExp = /(?![+-]?\d*\.?\d+|[+-]|e[+-]\d+)[^0-9]/g, //also allows scientific notation and doesn't kill the leading -/+ in -= and +=
 			_suffixExp = /(?:\d|\-|\+|=|#|\.)*/g,
 			_opacityExp = /opacity *= *([^)]*)/i,
@@ -2708,7 +2706,8 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 			_dummyElement = {style:{}},
 			_doc = _gsScope.document || {createElement: function() {return _dummyElement;}},
 			_createElement = function(type, ns) {
-				return (ns && _doc.createElementNS) ? _doc.createElementNS(ns, type) : _doc.createElement(type);
+				var e = _doc.createElementNS ? _doc.createElementNS(ns || "http://www.w3.org/1999/xhtml", type) : _doc.createElement(type);
+				return e.style ? e : _doc.createElement(type); //some environments won't allow access to the element's style when created with a namespace in which case we default to the standard createElement() to work around the issue. Also note that when GSAP is embedded directly inside an SVG file, createElement() won't allow access to the style object in Firefox (see https://greensock.com/forums/topic/20215-problem-using-tweenmax-in-standalone-self-containing-svg-file-err-cannot-set-property-csstext-of-undefined/).
 			},
 			_tempDiv = _createElement("div"),
 			_tempImg = _createElement("img"),
@@ -3288,14 +3287,14 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 						}
 						return a.join(",");
 					}
-					vals = v.match(_valuesExp) || [];
+					vals = v.match(delim === "," ? _valuesExp : _valuesExpWithCommas) || [];
 					i = vals.length;
 					if (numVals > i--) {
 						while (++i < numVals) {
 							vals[i] = collapsible ? vals[(((i - 1) / 2) | 0)] : dVals[i];
 						}
 					}
-					return pfx + vals.join(delim) + sfx;
+					return ((pfx && v !== "none") ? v.substr(0, v.indexOf(vals[0])) || pfx : pfx) + vals.join(delim) + sfx; //note: prefix might be different, like for clipPath it could start with inset( or polygon(
 				};
 				return formatter;
 			},
@@ -3878,7 +3877,7 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 				//IE and Android stock don't support CSS transforms on SVG elements, so we must write them to the "transform" attribute. We populate this variable in the _parseTransform() method, and only if/when we come across an SVG element
 				var force = _ieVers || (/Android/i.test(_agent) && !_gsScope.chrome),
 					svg, rect, width;
-				if (_doc.createElementNS && !force) { //IE8 and earlier doesn't support SVG anyway
+				if (_doc.createElementNS && _docElement.appendChild && !force) { //IE8 and earlier doesn't support SVG anyway
 					svg = _createSVG("svg", _docElement);
 					rect = _createSVG("rect", svg, {width:100, height:50, x:100});
 					width = rect.getBoundingClientRect().width;
@@ -3996,7 +3995,7 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 					s = (s && s.length === 4) ? [s[0].substr(4), Number(s[2].substr(4)), Number(s[1].substr(4)), s[3].substr(4), (tm.x || 0), (tm.y || 0)].join(",") : "";
 				}
 				isDefault = (!s || s === "none" || s === "matrix(1, 0, 0, 1, 0, 0)");
-				if (_transformProp && isDefault && !e.offsetParent) { //note: if offsetParent is null, that means the element isn't in the normal document flow, like if it has display:none or one of its ancestors has display:none). Firefox returns null for getComputedStyle() if the element is in an iframe that has display:none. https://bugzilla.mozilla.org/show_bug.cgi?id=548397
+				if (_transformProp && isDefault && !e.offsetParent && e !== _docElement) { //note: if offsetParent is null, that means the element isn't in the normal document flow, like if it has display:none or one of its ancestors has display:none). Firefox returns null for getComputedStyle() if the element is in an iframe that has display:none. https://bugzilla.mozilla.org/show_bug.cgi?id=548397
 					//browsers don't report transforms accurately unless the element is in the DOM and has a display value that's not "none". Firefox and Microsoft browsers have a partial bug where they'll report transforms even if display:none BUT not any percentage-based values like translate(-50%, 8px) will be reported as if it's translate(0, 8px).
 					n = style.display;
 					style.display = "block";
@@ -4758,7 +4757,7 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 		}, allowFunc:true, prefix:true});
 
 		_registerComplexSpecialProp("boxShadow", {defaultValue:"0px 0px 0px 0px #999", prefix:true, color:true, multi:true, keyword:"inset"});
-		_registerComplexSpecialProp("clipPath", {defaultValue:"inset(0px)", prefix:true, multi:true, formatter:_getFormatter("inset(0px 0px 0px 0px)", false, true)});
+		_registerComplexSpecialProp("clipPath", {defaultValue:"inset(0%)", prefix:true, multi:true, formatter:_getFormatter("inset(0% 0% 0% 0%)", false, true)});
 
 		_registerComplexSpecialProp("borderRadius", {defaultValue:"0px", parser:function(t, e, p, cssp, pt, plugin) {
 			e = this.format(e);
@@ -5012,7 +5011,9 @@ var _gsScope = (typeof(module) !== "undefined" && module.exports && typeof(globa
 			difData = _cssDif(t, bs, _getAllStyles(t), vars, cnptLookup);
 			t.setAttribute("class", b);
 			pt.data = difData.firstMPT;
-			t.style.cssText = cssText; //we recorded cssText before we swapped classes and ran _getAllStyles() because in cases when a className tween is overwritten, we remove all the related tweening properties from that class change (otherwise class-specific stuff can't override properties we've directly set on the target's style object due to specificity).
+			if (t.style.cssText !== cssText) { //only apply if things change. Otherwise, in cases like a background-image that's pulled dynamically, it could cause a refresh. See https://greensock.com/forums/topic/20368-possible-gsap-bug-switching-classnames-in-chrome/.
+				t.style.cssText = cssText; //we recorded cssText before we swapped classes and ran _getAllStyles() because in cases when a className tween is overwritten, we remove all the related tweening properties from that class change (otherwise class-specific stuff can't override properties we've directly set on the target's style object due to specificity).
+			}
 			pt = pt.xfirst = cssp.parse(t, difData.difs, pt, plugin); //we record the CSSPropTween as the xfirst so that we can handle overwriting propertly (if "className" gets overwritten, we must kill all the properties associated with the className part of the tween, so we can loop through from xfirst to the pt itself)
 			return pt;
 		}});
@@ -7122,7 +7123,7 @@ if (_gsScope._gsDefine) { _gsScope._gsQueue.pop()(); } //necessary in case Tween
 		p._firstPT = p._targets = p._overwrittenProps = p._startAt = null;
 		p._notifyPluginsOfEnabled = p._lazy = false;
 
-		TweenLite.version = "2.1.2";
+		TweenLite.version = "2.1.3";
 		TweenLite.defaultEase = p._ease = new Ease(null, null, 1, 1);
 		TweenLite.defaultOverwrite = "auto";
 		TweenLite.ticker = _ticker;

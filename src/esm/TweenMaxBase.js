@@ -1,6 +1,6 @@
 /*!
- * VERSION: 2.1.2
- * DATE: 2019-03-01
+ * VERSION: 2.1.3
+ * DATE: 2019-05-17
  * UPDATES AND DOCS AT: http://greensock.com
  *
  * @license Copyright (c) 2008-2019, GreenSock. All rights reserved.
@@ -74,7 +74,7 @@ _gsScope._gsDefine("TweenMax", ["core.Animation","core.SimpleTimeline","TweenLit
 						}
 						distances.max = max - min;
 						distances.min = min;
-						distances.v = l = vars.amount || (vars.each * (wrap > l ? l : !axis ? Math.max(wrap, l / wrap) : axis === "y" ? l / wrap : wrap)) || 0;
+						distances.v = l = vars.amount || (vars.each * (wrap > l ? l - 1 : !axis ? Math.max(wrap, l / wrap) : axis === "y" ? l / wrap : wrap)) || 0;
 						distances.b = (l < 0) ? base - l : base;
 					}
 					l = (distances[i] - distances.min) / distances.max;
@@ -99,7 +99,7 @@ _gsScope._gsDefine("TweenMax", ["core.Animation","core.SimpleTimeline","TweenLit
 			p = TweenMax.prototype = TweenLite.to({}, 0.1, {}),
 			_blankArray = [];
 
-		TweenMax.version = "2.1.2";
+		TweenMax.version = "2.1.3";
 		p.constructor = TweenMax;
 		p.kill()._gc = false;
 		TweenMax.killTweensOf = TweenMax.killDelayedCallsTo = TweenLite.killTweensOf;
@@ -595,7 +595,7 @@ _gsScope._gsDefine("TweenMax", ["core.Animation","core.SimpleTimeline","TweenLit
 //---- GETTERS / SETTERS ----------------------------------------------------------------------------------------------------------
 
 		p.progress = function(value, suppressEvents) {
-			return (!arguments.length) ? this._time / this.duration() : this.totalTime( this.duration() * ((this._yoyo && (this._cycle & 1) !== 0) ? 1 - value : value) + (this._cycle * (this._duration + this._repeatDelay)), suppressEvents);
+			return (!arguments.length) ? (this.duration() ? this._time / this._duration : this.ratio) : this.totalTime( this.duration() * ((this._yoyo && (this._cycle & 1) !== 0) ? 1 - value : value) + (this._cycle * (this._duration + this._repeatDelay)), suppressEvents);
 		};
 
 		p.totalProgress = function(value, suppressEvents) {

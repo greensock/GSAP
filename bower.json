@@ -1,6 +1,6 @@
 {
     "name": "gsap",
-    "version": "2.1.2",
+    "version": "2.1.3",
     "description": "The most flexible, high-performance animation library on the planet. Animate any property of any object. Solves browser quirks.",
     "author": {
         "name": "Jack Doyle",

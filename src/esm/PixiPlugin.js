@@ -1,6 +1,6 @@
 /*!
- * VERSION: 0.2.1
- * DATE: 2018-05-30
+ * VERSION: 0.3.0
+ * DATE: 2019-05-13
  * UPDATES AND DOCS AT: http://greensock.com
  *
  * @license Copyright (c) 2008-2019, GreenSock. All rights reserved.
@@ -389,13 +389,14 @@ import { _gsScope } from "./TweenLite.js";
         priority: 0,
         API: 2,
 		global: true,
-        version: "0.2.1",
+        version: "0.3.0",
 
         init: function (target, values, tween, index) {
             if (!target instanceof _gsScope.PIXI.DisplayObject) {
                 return false;
             }
-            var context, axis, value, colorMatrix, filter, p, padding, colorSetter, i, data, pt;
+            var isV4 =  _gsScope.PIXI.VERSION.charAt(0) === "4",
+	            context, axis, value, colorMatrix, filter, p, padding, colorSetter, i, data, pt;
             for (p in values) {
                 context = _contexts[p];
                 value = values[p];
@@ -431,12 +432,12 @@ import { _gsScope } from "./TweenLite.js";
 						colorSetter = _buildColorSetter(tween, this);
 					}
 					if ((p === "lineColor" || p === "fillColor") && target instanceof _gsScope.PIXI.Graphics) {
-						data = target.graphicsData;
+						data = (target.geometry || target).graphicsData; //"geometry" was introduced in PIXI version 5
 						i = data.length;
 						while (--i > -1) {
-							_addColorTween(data[i], p, value, colorSetter, this);
+							_addColorTween(isV4 ? data[i] : data[i][p.substr(0, 4) + "Style"], isV4 ? p : "color", value, colorSetter, this);
 						}
-						colorSetter.graphics = target;
+						colorSetter.graphics = target.geometry || target;
 					} else {
 						_addColorTween(target, p, value, colorSetter, this);
 					}
@@ -460,5 +461,8 @@ import { _gsScope } from "./TweenLite.js";
 	PixiPlugin.parseColor = _parseColor;
 	PixiPlugin.formatColors = _formatColors;
 	PixiPlugin.colorStringFilter = _colorStringFilter;
+	PixiPlugin.registerPIXI = function(PIXI) {
+		_gsScope.PIXI = PIXI;
+	};
 
 export { PixiPlugin, PixiPlugin as default };

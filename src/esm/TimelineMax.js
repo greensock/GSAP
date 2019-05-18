@@ -1,6 +1,6 @@
 /*!
- * VERSION: 2.1.2
- * DATE: 2019-03-01
+ * VERSION: 2.1.3
+ * DATE: 2019-05-17
  * UPDATES AND DOCS AT: http://greensock.com
  *
  * @license Copyright (c) 2008-2019, GreenSock. All rights reserved.
@@ -34,7 +34,7 @@ _gsScope._gsDefine("TimelineMax", ["TimelineLite","TweenLite","easing.Ease"], fu
 
 		p.constructor = TimelineMax;
 		p.kill()._gc = false;
-		TimelineMax.version = "2.1.2";
+		TimelineMax.version = "2.1.3";
 
 		p.invalidate = function() {
 			this._yoyo = !!this.vars.yoyo;
@@ -210,35 +210,34 @@ _gsScope._gsDefine("TimelineMax", ["TimelineLite","TweenLite","easing.Ease"], fu
 						}
 					}
 				}
+			}
 
-				if (self._hasPause && !self._forcingPlayhead && !suppressEvents) {
-					time = self._time;
-					if (time >= prevTime || (self._repeat && prevCycle !== self._cycle)) {
-						tween = self._first;
-						while (tween && tween._startTime <= time && !pauseTween) {
-							if (!tween._duration) if (tween.data === "isPause" && !tween.ratio && !(tween._startTime === 0 && self._rawPrevTime === 0)) {
-								pauseTween = tween;
-							}
-							tween = tween._next;
+			if (self._hasPause && !self._forcingPlayhead && !suppressEvents) {
+				time = self._time;
+				if (time > prevTime || (self._repeat && prevCycle !== self._cycle)) {
+					tween = self._first;
+					while (tween && tween._startTime <= time && !pauseTween) {
+						if (!tween._duration) if (tween.data === "isPause" && !tween.ratio && !(tween._startTime === 0 && self._rawPrevTime === 0)) {
+							pauseTween = tween;
 						}
-					} else {
-						tween = self._last;
-						while (tween && tween._startTime >= time && !pauseTween) {
-							if (!tween._duration) if (tween.data === "isPause" && tween._rawPrevTime > 0) {
-								pauseTween = tween;
-							}
-							tween = tween._prev;
-						}
+						tween = tween._next;
 					}
-					if (pauseTween) {
-						pauseTime = self._startTime + (pauseTween._startTime / self._timeScale);
-						if (pauseTween._startTime < dur) {
-							self._time = self._rawPrevTime = time = pauseTween._startTime;
-							self._totalTime = time + (self._cycle * (self._totalDuration + self._repeatDelay));
+				} else {
+					tween = self._last;
+					while (tween && tween._startTime >= time && !pauseTween) {
+						if (!tween._duration) if (tween.data === "isPause" && tween._rawPrevTime > 0) {
+							pauseTween = tween;
 						}
+						tween = tween._prev;
 					}
 				}
-
+				if (pauseTween) {
+					pauseTime = self._startTime + (self._reversed ? self._duration - pauseTween._startTime : pauseTween._startTime) / self._timeScale;
+					if (pauseTween._startTime < dur) {
+						self._time = self._rawPrevTime = time = pauseTween._startTime;
+						self._totalTime = time + (self._cycle * (self._totalDuration + self._repeatDelay));
+					}
+				}
 			}
 
 			if (self._cycle !== prevCycle) if (!self._locked) {

@@ -1,6 +1,6 @@
 /*!
- * VERSION: 2.1.0
- * DATE: 2019-02-15
+ * VERSION: 2.1.3
+ * DATE: 2019-05-17
  * UPDATES AND DOCS AT: http://greensock.com
  *
  * @license Copyright (c) 2008-2019, GreenSock. All rights reserved.
@@ -30,7 +30,7 @@ import TweenLite, { _gsScope, globals, TweenPlugin } from "./TweenLite.js";
 			p = CSSPlugin.prototype = new TweenPlugin("css");
 
 		p.constructor = CSSPlugin;
-		CSSPlugin.version = "2.1.0";
+		CSSPlugin.version = "2.1.3";
 		CSSPlugin.API = 2;
 		CSSPlugin.defaultTransformPerspective = 0;
 		CSSPlugin.defaultSkewType = "compensated";
@@ -42,6 +42,7 @@ import TweenLite, { _gsScope, globals, TweenPlugin } from "./TweenLite.js";
 		var _numExp = /(?:\-|\.|\b)(\d|\.|e\-)+/g,
 			_relNumExp = /(?:\d|\-\d|\.\d|\-\.\d|\+=\d|\-=\d|\+=.\d|\-=\.\d)+/g,
 			_valuesExp = /(?:\+=|\-=|\-|\b)[\d\-\.]+[a-zA-Z0-9]*(?:%|\b)/gi, //finds all the values that begin with numbers or += or -= and then a number. Includes suffixes. We use this to split complex values apart like "1px 5px 20px rgb(255,102,51)"
+			_valuesExpWithCommas = /(?:\+=|\-=|\-|\b)[\d\-\.]+[a-zA-Z0-9]*(?:%|\b),?/gi, //finds all the values that begin with numbers or += or -= and then a number. Includes suffixes. We use this to split complex values apart like "1px 5px 20px rgb(255,102,51)"
 			_NaNExp = /(?![+-]?\d*\.?\d+|[+-]|e[+-]\d+)[^0-9]/g, //also allows scientific notation and doesn't kill the leading -/+ in -= and +=
 			_suffixExp = /(?:\d|\-|\+|=|#|\.)*/g,
 			_opacityExp = /opacity *= *([^)]*)/i,
@@ -63,7 +64,8 @@ import TweenLite, { _gsScope, globals, TweenPlugin } from "./TweenLite.js";
 			_dummyElement = {style:{}},
 			_doc = _gsScope.document || {createElement: function() {return _dummyElement;}},
 			_createElement = function(type, ns) {
-				return (ns && _doc.createElementNS) ? _doc.createElementNS(ns, type) : _doc.createElement(type);
+				var e = _doc.createElementNS ? _doc.createElementNS(ns || "http://www.w3.org/1999/xhtml", type) : _doc.createElement(type);
+				return e.style ? e : _doc.createElement(type); //some environments won't allow access to the element's style when created with a namespace in which case we default to the standard createElement() to work around the issue. Also note that when GSAP is embedded directly inside an SVG file, createElement() won't allow access to the style object in Firefox (see https://greensock.com/forums/topic/20215-problem-using-tweenmax-in-standalone-self-containing-svg-file-err-cannot-set-property-csstext-of-undefined/).
 			},
 			_tempDiv = _createElement("div"),
 			_tempImg = _createElement("img"),
@@ -643,14 +645,14 @@ import TweenLite, { _gsScope, globals, TweenPlugin } from "./TweenLite.js";
 						}
 						return a.join(",");
 					}
-					vals = v.match(_valuesExp) || [];
+					vals = v.match(delim === "," ? _valuesExp : _valuesExpWithCommas) || [];
 					i = vals.length;
 					if (numVals > i--) {
 						while (++i < numVals) {
 							vals[i] = collapsible ? vals[(((i - 1) / 2) | 0)] : dVals[i];
 						}
 					}
-					return pfx + vals.join(delim) + sfx;
+					return ((pfx && v !== "none") ? v.substr(0, v.indexOf(vals[0])) || pfx : pfx) + vals.join(delim) + sfx; //note: prefix might be different, like for clipPath it could start with inset( or polygon(
 				};
 				return formatter;
 			},
@@ -1233,7 +1235,7 @@ import TweenLite, { _gsScope, globals, TweenPlugin } from "./TweenLite.js";
 				//IE and Android stock don't support CSS transforms on SVG elements, so we must write them to the "transform" attribute. We populate this variable in the _parseTransform() method, and only if/when we come across an SVG element
 				var force = _ieVers || (/Android/i.test(_agent) && !_gsScope.chrome),
 					svg, rect, width;
-				if (_doc.createElementNS && !force) { //IE8 and earlier doesn't support SVG anyway
+				if (_doc.createElementNS && _docElement.appendChild && !force) { //IE8 and earlier doesn't support SVG anyway
 					svg = _createSVG("svg", _docElement);
 					rect = _createSVG("rect", svg, {width:100, height:50, x:100});
 					width = rect.getBoundingClientRect().width;
@@ -1351,7 +1353,7 @@ import TweenLite, { _gsScope, globals, TweenPlugin } from "./TweenLite.js";
 					s = (s && s.length === 4) ? [s[0].substr(4), Number(s[2].substr(4)), Number(s[1].substr(4)), s[3].substr(4), (tm.x || 0), (tm.y || 0)].join(",") : "";
 				}
 				isDefault = (!s || s === "none" || s === "matrix(1, 0, 0, 1, 0, 0)");
-				if (_transformProp && isDefault && !e.offsetParent) { //note: if offsetParent is null, that means the element isn't in the normal document flow, like if it has display:none or one of its ancestors has display:none). Firefox returns null for getComputedStyle() if the element is in an iframe that has display:none. https://bugzilla.mozilla.org/show_bug.cgi?id=548397
+				if (_transformProp && isDefault && !e.offsetParent && e !== _docElement) { //note: if offsetParent is null, that means the element isn't in the normal document flow, like if it has display:none or one of its ancestors has display:none). Firefox returns null for getComputedStyle() if the element is in an iframe that has display:none. https://bugzilla.mozilla.org/show_bug.cgi?id=548397
 					//browsers don't report transforms accurately unless the element is in the DOM and has a display value that's not "none". Firefox and Microsoft browsers have a partial bug where they'll report transforms even if display:none BUT not any percentage-based values like translate(-50%, 8px) will be reported as if it's translate(0, 8px).
 					n = style.display;
 					style.display = "block";
@@ -2113,7 +2115,7 @@ import TweenLite, { _gsScope, globals, TweenPlugin } from "./TweenLite.js";
 		}, allowFunc:true, prefix:true});
 
 		_registerComplexSpecialProp("boxShadow", {defaultValue:"0px 0px 0px 0px #999", prefix:true, color:true, multi:true, keyword:"inset"});
-		_registerComplexSpecialProp("clipPath", {defaultValue:"inset(0px)", prefix:true, multi:true, formatter:_getFormatter("inset(0px 0px 0px 0px)", false, true)});
+		_registerComplexSpecialProp("clipPath", {defaultValue:"inset(0%)", prefix:true, multi:true, formatter:_getFormatter("inset(0% 0% 0% 0%)", false, true)});
 
 		_registerComplexSpecialProp("borderRadius", {defaultValue:"0px", parser:function(t, e, p, cssp, pt, plugin) {
 			e = this.format(e);
@@ -2367,7 +2369,9 @@ import TweenLite, { _gsScope, globals, TweenPlugin } from "./TweenLite.js";
 			difData = _cssDif(t, bs, _getAllStyles(t), vars, cnptLookup);
 			t.setAttribute("class", b);
 			pt.data = difData.firstMPT;
-			t.style.cssText = cssText; //we recorded cssText before we swapped classes and ran _getAllStyles() because in cases when a className tween is overwritten, we remove all the related tweening properties from that class change (otherwise class-specific stuff can't override properties we've directly set on the target's style object due to specificity).
+			if (t.style.cssText !== cssText) { //only apply if things change. Otherwise, in cases like a background-image that's pulled dynamically, it could cause a refresh. See https://greensock.com/forums/topic/20368-possible-gsap-bug-switching-classnames-in-chrome/.
+				t.style.cssText = cssText; //we recorded cssText before we swapped classes and ran _getAllStyles() because in cases when a className tween is overwritten, we remove all the related tweening properties from that class change (otherwise class-specific stuff can't override properties we've directly set on the target's style object due to specificity).
+			}
 			pt = pt.xfirst = cssp.parse(t, difData.difs, pt, plugin); //we record the CSSPropTween as the xfirst so that we can handle overwriting propertly (if "className" gets overwritten, we must kill all the properties associated with the className part of the tween, so we can loop through from xfirst to the pt itself)
 			return pt;
 		}});
