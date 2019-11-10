@@ -1,7 +1,8 @@
 import gsap from "./gsap-core.js";
 import CSSPlugin from "./CSSPlugin.js";
-gsap.registerPlugin(CSSPlugin);
-export { gsap as default, gsap, CSSPlugin };
+var gsapWithCSS = gsap.registerPlugin(CSSPlugin) || gsap; // to protect from tree shaking
+
+export { gsapWithCSS as gsap, gsapWithCSS as default, CSSPlugin };
 export { TweenMax, TweenLite, TimelineMax, TimelineLite, Power0, Power1, Power2, Power3, Power4, Linear, Quad, Cubic, Quart, Quint, Strong, Elastic, Back, SteppedEase, Bounce, Sine, Expo, Circ, wrap, wrapYoyo, distribute, random, snap, normalize, getUnit, clamp, splitColor, toArray, mapRange, pipe, unitize, interpolate } from "./gsap-core.js";
 export * from "./Draggable.js";
 export * from "./CSSRulePlugin.js";

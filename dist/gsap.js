@@ -19,7 +19,7 @@
   }
 
   /*!
-   * GSAP 3.0.0
+   * GSAP 3.0.1
    * https://greensock.com
    *
    * @license Copyright 2008-2019, GreenSock. All rights reserved.
@@ -1182,7 +1182,7 @@
             _globals.gsap = gsap;
             (_win.gsapVersions || (_win.gsapVersions = [])).push(gsap.version);
 
-            _install(_installScope || _win.GreenSockGlobals || _win);
+            _install(_installScope || _win.GreenSockGlobals || !_win.gsap && _win || {});
 
             _raf = _win.requestAnimationFrame;
           }
@@ -3584,7 +3584,7 @@
       }
     }
   }, _buildModifierPlugin("roundProps", _roundModifier), _buildModifierPlugin("modifiers"), _buildModifierPlugin("snap", snap));
-  Tween.version = Timeline.version = gsap.version = "3.0.0";
+  Tween.version = Timeline.version = gsap.version = "3.0.1";
   _coreReady = 1;
 
   if (_windowExists()) {
@@ -3858,7 +3858,7 @@
       parent.removeChild(_tempDiv);
 
       if (horizontal && unit === "%") {
-        cache = parent._gsap = parent._gsap || {};
+        cache = _getCache(parent);
         cache.time = _ticker.time;
         cache.width = px / curValue * amount;
       }
@@ -4813,7 +4813,7 @@
 
   gsap.registerPlugin(CSSPlugin);
 
-  gsap.registerPlugin(CSSPlugin);
+  var gsapWithCSS = gsap.registerPlugin(CSSPlugin) || gsap;
 
   exports.Back = Back;
   exports.Bounce = Bounce;
@@ -4838,8 +4838,8 @@
   exports.TimelineMax = Timeline;
   exports.TweenLite = Tween;
   exports.TweenMax = Tween;
-  exports.default = gsap;
-  exports.gsap = gsap;
+  exports.default = gsapWithCSS;
+  exports.gsap = gsapWithCSS;
 
   Object.defineProperty(exports, '__esModule', { value: true });
 

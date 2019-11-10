@@ -1,5 +1,5 @@
 /*!
- * CSSPlugin 3.0.0
+ * CSSPlugin 3.0.1
  * https://greensock.com
  *
  * Copyright 2008-2019, GreenSock. All rights reserved.
@@ -9,7 +9,7 @@
 */
 
 /* eslint-disable */
-import { gsap, _getProperty, _numExp, getUnit, _isString, _isUndefined, _renderComplexString, _relExp, _forEachName, _sortPropTweensByPriority, _colorStringFilter, _checkPlugin, _replaceRandom, _plugins, GSCache, PropTween, _config, _ticker, _round, _missingPlugin, _getSetter, _setDefaults, _removeLinkedListItem //for the commented-out className feature.
+import { gsap, _getProperty, _numExp, getUnit, _isString, _isUndefined, _renderComplexString, _relExp, _forEachName, _sortPropTweensByPriority, _colorStringFilter, _checkPlugin, _replaceRandom, _plugins, GSCache, PropTween, _config, _ticker, _round, _missingPlugin, _getSetter, _getCache, _setDefaults, _removeLinkedListItem //for the commented-out className feature.
 } from "./gsap-core.js";
 
 var _win,
@@ -271,7 +271,7 @@ _convertToUnit = function _convertToUnit(target, property, value, unit) {
     parent.removeChild(_tempDiv);
 
     if (horizontal && unit === "%") {
-      cache = parent._gsap = parent._gsap || {};
+      cache = _getCache(parent);
       cache.time = _ticker.time;
       cache.width = px / curValue * amount;
     }
