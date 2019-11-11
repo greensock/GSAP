@@ -11,7 +11,7 @@ interface arrayType {
 
 
 
-declare namespace GSAPStatic {
+export declare namespace GSAPStatic {
   /* 
     type easeStrings = 'power0.none'
     | 'power1.in'
@@ -465,7 +465,7 @@ declare namespace GSAPStatic {
 	   * @returns {Timeline}
 	   * @memberof Timeline
 	   */
-		add(value: Tween | Timeline | string | string[], position?: positionType, align?: string, stagger?: number | string): this;
+		add(value: Tween | Tween[] | Timeline | Timeline[] | string | string[], position?: positionType): this;
 
 
 
@@ -822,35 +822,11 @@ declare namespace GSAPStatic {
   const gsap: gsap;
 }
 
-
-
-
-
-
-
-
-
-
-declare const gsap: GSAPStatic.gsap;
-declare const TweenLite: typeof GSAPStatic.Tween;
-declare const TweenMax: typeof GSAPStatic.Tween;
-declare const TimelineLite: typeof GSAPStatic.Timeline;
-declare const TimelineMax: typeof GSAPStatic.Timeline;
-
 declare module "gsap" {
-
-  const gsap: GSAPStatic.gsap;
-  const TweenLite: typeof GSAPStatic.Tween;
-  const TweenMax: typeof GSAPStatic.Tween;
-  const TimelineLite: typeof GSAPStatic.Timeline;
-  const TimelineMax: typeof GSAPStatic.Timeline;
-
-  export {
-    gsap,
-    gsap as default,
-    TweenLite,
-    TweenMax,
-    TimelineLite,
-    TimelineMax
-  }
+  export const gsap: GSAPStatic.gsap;
+  export const TweenLite: typeof GSAPStatic.Tween;
+  export const TweenMax: typeof GSAPStatic.Tween;
+  export const TimelineLite: typeof GSAPStatic.Timeline;
+  export const TimelineMax: typeof GSAPStatic.Timeline;
+  export default gsap;
 }
