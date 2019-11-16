@@ -465,7 +465,7 @@ declare namespace GSAPStatic {
 	   * @returns {Timeline}
 	   * @memberof Timeline
 	   */
-		add(value: Tween | Timeline | string | string[], position?: positionType, align?: string, stagger?: number | string): this;
+		add(value: Tween | Timeline | string | string[] | Function, position?: positionType, align?: string, stagger?: number | string): this;
 
 
 
