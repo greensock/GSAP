@@ -698,7 +698,7 @@ declare namespace GSAPStatic {
 
 
 
-    delayedCall(delay: number, callback: callbackFn, params?: string[], scope?: any): Tween; // TODO: investigate scope, try to eliminate 'any'
+    delayedCall(delay: number, callback: callbackFn, params?: any[], scope?: any): Tween; // TODO: investigate scope, try to eliminate 'any'
 
 
 
