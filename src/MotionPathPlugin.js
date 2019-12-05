@@ -1,5 +1,5 @@
 /*!
- * MotionPathPlugin 3.0.0
+ * MotionPathPlugin 3.0.2
  * https://greensock.com
  *
  * @license Copyright 2008-2019, GreenSock. All rights reserved.
@@ -112,7 +112,7 @@ let _xProps = ["x","translateX","left","marginLeft"],
 
 
 export const MotionPathPlugin = {
-	version:"3.0.0",
+	version:"3.0.2",
 	name:"motionPath",
 	register(core, Plugin, propTween) {
 		gsap = core;
@@ -200,6 +200,8 @@ export const MotionPathPlugin = {
 	transformRawPath: transformRawPath,
 	convertToPath: (targets, swap) => _toArray(targets).map(target => convertToPath(target, swap !== false)),
 	getGlobalMatrix: getGlobalMatrix,
+	getPositionOnPath: getPositionOnPath,
+	cacheRawPathMeasurements: cacheRawPathMeasurements,
 	arrayToRawPath(value, vars) {
 		vars = vars || {};
 		let segment = _populateSegmentFromArray(_populateSegmentFromArray([], value, vars.x || "x", 0), value, vars.y || "y", 1);

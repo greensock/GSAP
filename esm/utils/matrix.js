@@ -1,5 +1,5 @@
 /*!
- * matrix 3.0.0
+ * matrix 3.0.2
  * https://greensock.com
  *
  * Copyright 2008-2019, GreenSock. All rights reserved.
@@ -51,6 +51,18 @@ _divTemps = [],
 },
     _svgOwner = function _svgOwner(element) {
   return element.ownerSVGElement || ((element.tagName + "").toLowerCase() === "svg" ? element : null);
+},
+    _isFixed = function _isFixed(element) {
+  if (_win.getComputedStyle(element).position === "fixed") {
+    return true;
+  }
+
+  element = element.parentNode;
+
+  if (element && element.nodeType === 1) {
+    // avoid document fragments which will throw an error.
+    return _isFixed(element);
+  }
 },
     _createSibling = function _createSibling(element, i) {
   if (element.parentNode && (_doc || _setDoc(element))) {
@@ -115,7 +127,7 @@ _divTemps = [],
       x: 0,
       y: 0
     } : element.getBBox();
-    m = element.transform.baseVal;
+    m = element.transform ? element.transform.baseVal : []; // IE11 doesn't follow the spec.
 
     if (m.length) {
       m = m.consolidate().matrix;
@@ -140,6 +152,7 @@ _divTemps = [],
     m = _win.getComputedStyle(element);
     container.style[_transformProp] = m[_transformProp];
     container.style[_transformOriginProp] = m[_transformOriginProp];
+    container.style.position = m.position === "fixed" ? "fixed" : "absolute";
     element.parentNode.appendChild(container);
   }
 
@@ -253,7 +266,7 @@ function () {
 //     ty = m.b * x + m.d * y + m.f
 
 export function getGlobalMatrix(element, inverse) {
-  if (!element.parentNode) {
+  if (!element || !element.parentNode) {
     return new Matrix2D();
   }
 
@@ -264,7 +277,8 @@ export function getGlobalMatrix(element, inverse) {
       b2 = temps[1].getBoundingClientRect(),
       b3 = temps[2].getBoundingClientRect(),
       parent = container.parentNode,
-      m = new Matrix2D((b2.left - b1.left) / 100, (b2.top - b1.top) / 100, (b3.left - b1.left) / 100, (b3.top - b1.top) / 100, b1.left + _getDocScrollLeft(), b1.top + _getDocScrollTop());
+      isFixed = _isFixed(element),
+      m = new Matrix2D((b2.left - b1.left) / 100, (b2.top - b1.top) / 100, (b3.left - b1.left) / 100, (b3.top - b1.top) / 100, b1.left + (isFixed ? 0 : _getDocScrollLeft()), b1.top + (isFixed ? 0 : _getDocScrollTop()));
 
   parent.removeChild(container);
   return inverse ? m.inverse() : m;

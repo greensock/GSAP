@@ -1,5 +1,5 @@
 /*!
- * Draggable 3.0.0
+ * Draggable 3.0.2
  * https://greensock.com
  *
  * @license Copyright 2008-2019, GreenSock. All rights reserved.
@@ -43,6 +43,14 @@ let gsap, _win, _doc, _docElement, _body, _tempDiv, _placeholderDiv, _coreInitte
 			copy[p] = factor ? obj[p] * factor : obj[p];
 		}
 		return copy;
+	},
+	_extend = (obj, defaults) => {
+		for (let p in defaults) {
+			if (!(p in obj)) {
+				obj[p] = defaults[p];
+			}
+		}
+		return obj;
 	},
 	_renderQueueTick = () => _renderQueue.forEach(func => func()),
 	_addToRenderQueue = func => {
@@ -113,8 +121,8 @@ let gsap, _win, _doc, _docElement, _body, _tempDiv, _placeholderDiv, _coreInitte
 		_isMultiTouching = (event.touches && _dragCount < event.touches.length);
 		_addListener(event.target, "touchend", _onMultiTouchDocumentEnd);
 	},
-	_getDocScrollTop = () => _win.pageYOffset  || _doc.scrollTop || _docElement.scrollTop || _body.scrollTop || 0,
-	_getDocScrollLeft = () => _win.pageXOffset || _doc.scrollLeft || _docElement.scrollLeft || _body.scrollLeft || 0,
+	_getDocScrollTop = doc => _win.pageYOffset  || doc.scrollTop || doc.documentElement.scrollTop || doc.body.scrollTop || 0,
+	_getDocScrollLeft = doc => _win.pageXOffset || doc.scrollLeft || doc.documentElement.scrollLeft || doc.body.scrollLeft || 0,
 	_addScrollListener = (e, callback) => {
 		_addListener(e, "scroll", callback);
 		if (!_isRoot(e.parentNode)) {
@@ -127,7 +135,7 @@ let gsap, _win, _doc, _docElement, _body, _tempDiv, _placeholderDiv, _coreInitte
 			_removeScrollListener(e.parentNode, callback);
 		}
 	},
-	_isRoot = e => !!(!e || e === _docElement || e === _doc || e === _doc.body || e === _win || !e.nodeType || !e.parentNode),
+	_isRoot = e => !!(!e || e === _docElement || e.nodeType === 9 || e === _doc.body || e === _win || !e.nodeType || !e.parentNode),
 	_getMaxScroll = (element, axis) => {
 		let dim = (axis === "x") ? "Width" : "Height",
 			scroll = "scroll" + dim,
@@ -171,7 +179,8 @@ let gsap, _win, _doc, _docElement, _body, _tempDiv, _placeholderDiv, _coreInitte
 			_tempRect.height = _tempRect.bottom = ((e.innerHeight || 0) - 20 < _docElement.clientHeight) ? _docElement.clientHeight : e.innerHeight || _body.clientHeight || 0;
 			return _tempRect;
 		}
-		let r = !_isUndefined(e.pageX) ? {left: e.pageX - _getDocScrollLeft(), top: e.pageY - _getDocScrollTop(), right: e.pageX - _getDocScrollLeft() + 1, bottom: e.pageY - _getDocScrollTop() + 1} : (!e.nodeType && !_isUndefined(e.left) && !_isUndefined(e.top)) ? e : _toArray(e)[0].getBoundingClientRect();
+		let doc = e.ownerDocument || _doc,
+			r = !_isUndefined(e.pageX) ? {left: e.pageX - _getDocScrollLeft(doc), top: e.pageY - _getDocScrollTop(doc), right: e.pageX - _getDocScrollLeft(doc) + 1, bottom: e.pageY - _getDocScrollTop(doc) + 1} : (!e.nodeType && !_isUndefined(e.left) && !_isUndefined(e.top)) ? e : _toArray(e)[0].getBoundingClientRect();
 		if (_isUndefined(r.right) && !_isUndefined(r.width)) {
 			r.right = r.left + r.width;
 			r.bottom = r.top + r.height;
@@ -212,12 +221,13 @@ let gsap, _win, _doc, _docElement, _body, _tempDiv, _placeholderDiv, _coreInitte
 	_getElementBounds = (element, context) => {
 		context = _toArray(context)[0];
 		let isSVG = (element.getBBox && element.ownerSVGElement),
+			doc = element.ownerDocument || _doc,
 			left, right, top, bottom, matrix, p1, p2, p3, p4, bbox, width, height, cs, contextParent;
 		if (element === _win) {
-			top = _getDocScrollTop();
-			left = _getDocScrollLeft();
-			right = left + (_docElement.clientWidth || element.innerWidth || _doc.body.clientWidth || 0);
-			bottom = top + (((element.innerHeight || 0) - 20 < _docElement.clientHeight) ? _docElement.clientHeight : element.innerHeight || _body.clientHeight || 0); //some browsers (like Firefox) ignore absolutely positioned elements, and collapse the height of the documentElement, so it could be 8px, for example, if you have just an absolutely positioned div. In that case, we use the innerHeight to resolve this.
+			top = _getDocScrollTop(doc);
+			left = _getDocScrollLeft(doc);
+			right = left + (doc.documentElement.clientWidth || element.innerWidth || doc.body.clientWidth || 0);
+			bottom = top + (((element.innerHeight || 0) - 20 < doc.documentElement.clientHeight) ? doc.documentElement.clientHeight : element.innerHeight || doc.body.clientHeight || 0); //some browsers (like Firefox) ignore absolutely positioned elements, and collapse the height of the documentElement, so it could be 8px, for example, if you have just an absolutely positioned div. In that case, we use the innerHeight to resolve this.
 		} else if (context === _win || _isUndefined(context)) {
 			return element.getBoundingClientRect();
 		} else {
@@ -226,15 +236,18 @@ let gsap, _win, _doc, _docElement, _body, _tempDiv, _placeholderDiv, _coreInitte
 				bbox = element.getBBox();
 				width = bbox.width;
 				height = bbox.height;
-			} else if (element.viewBox && (bbox = element.viewBox.baseVal)) {
-				left = bbox.x || 0;
-				top = bbox.y || 0;
-				width = bbox.width;
-				height = bbox.height;
 			} else {
-				cs = _getComputedStyle(element);
-				width = parseFloat(cs.width) || element.clientWidth || 0;
-				height = parseFloat(cs.height) || element.clientHeight || 0;
+				if (element.viewBox && (bbox = element.viewBox.baseVal)) {
+					left = bbox.x || 0;
+					top = bbox.y || 0;
+					width = bbox.width;
+					height = bbox.height;
+				}
+				if (!width) {
+					cs = _getComputedStyle(element);
+					width = (parseFloat(cs.width) || element.clientWidth || 0) + parseFloat(cs.borderLeftWidth) + parseFloat(cs.borderRightWidth);
+					height = (parseFloat(cs.height) || element.clientHeight || 0) + parseFloat(cs.borderTopWidth) + parseFloat(cs.borderBottomWidth);
+				}
 			}
 			right = width;
 			bottom = height;
@@ -312,7 +325,8 @@ let gsap, _win, _doc, _docElement, _body, _tempDiv, _placeholderDiv, _coreInitte
 		while (i--) {
 			e = elements[i];
 			e.ondragstart = e.onselectstart = selectable ? null : _emptyFunc;
-			_setStyle(e, "userSelect", (selectable ? "text" : "none"));
+			//setStyle(e, "userSelect", (selectable ? "text" : "none"));
+			gsap.set(e, {lazy:true, userSelect: (selectable ? "text" : "none")});
 		}
 	},
 	_isFixed = element => {
@@ -320,23 +334,228 @@ let gsap, _win, _doc, _docElement, _body, _tempDiv, _placeholderDiv, _coreInitte
 			return true;
 		}
 		element = element.parentNode;
-		if (element && element !== _docElement) {
+		if (element && element.nodeType === 1) { // avoid document fragments which will throw an error.
 			return _isFixed(element);
 		}
 	},
+	_supports3D, _addPaddingBR,
+
+	//The ScrollProxy class wraps an element's contents into another div (we call it "content") that we either add padding when necessary or apply a translate3d() transform in order to overscroll (scroll past the boundaries). This allows us to simply set the scrollTop/scrollLeft (or top/left for easier reverse-axis orientation, which is what we do in Draggable) and it'll do all the work for us. For example, if we tried setting scrollTop to -100 on a normal DOM element, it wouldn't work - it'd look the same as setting it to 0, but if we set scrollTop of a ScrollProxy to -100, it'll give the correct appearance by either setting paddingTop of the wrapper to 100 or applying a 100-pixel translateY.
+	ScrollProxy = function(element, vars) {
+		element = gsap.utils.toArray(element)[0];
+		vars = vars || {};
+		let content = document.createElement("div"),
+			style = content.style,
+			node = element.firstChild,
+			offsetTop = 0,
+			offsetLeft = 0,
+			prevTop = element.scrollTop,
+			prevLeft = element.scrollLeft,
+			scrollWidth = element.scrollWidth,
+			scrollHeight = element.scrollHeight,
+			extraPadRight = 0,
+			maxLeft = 0,
+			maxTop = 0,
+			elementWidth, elementHeight, contentHeight, nextNode, transformStart, transformEnd;
+		if (_supports3D && vars.force3D !== false) {
+			transformStart = "translate3d(";
+			transformEnd = "px,0px)";
+		} else if (_transformProp) {
+			transformStart = "translate(";
+			transformEnd = "px)";
+		}
+		this.scrollTop = function(value, force) {
+			if (!arguments.length) {
+				return -this.top();
+			}
+			this.top(-value, force);
+		};
+		this.scrollLeft = function(value, force) {
+			if (!arguments.length) {
+				return -this.left();
+			}
+			this.left(-value, force);
+		};
+		this.left = function(value, force) {
+			if (!arguments.length) {
+				return -(element.scrollLeft + offsetLeft);
+			}
+			let dif = element.scrollLeft - prevLeft,
+				oldOffset = offsetLeft;
+			if ((dif > 2 || dif < -2) && !force) { //if the user interacts with the scrollbar (or something else scrolls it, like the mouse wheel), we should kill any tweens of the ScrollProxy.
+				prevLeft = element.scrollLeft;
+				gsap.killTweensOf(this, {left:1, scrollLeft:1});
+				this.left(-prevLeft);
+				if (vars.onKill) {
+					vars.onKill();
+				}
+				return;
+			}
+			value = -value; //invert because scrolling works in the opposite direction
+			if (value < 0) {
+				offsetLeft = (value - 0.5) | 0;
+				value = 0;
+			} else if (value > maxLeft) {
+				offsetLeft = (value - maxLeft) | 0;
+				value = maxLeft;
+			} else {
+				offsetLeft = 0;
+			}
+			if (offsetLeft || oldOffset) {
+				if (!this._skip) {
+					style[_transformProp] = transformStart + -offsetLeft + "px," + -offsetTop + transformEnd;
+				}
+				if (offsetLeft + extraPadRight >= 0) {
+					style.paddingRight =  offsetLeft + extraPadRight + "px";
+				}
+			}
+			element.scrollLeft = value | 0;
+			prevLeft = element.scrollLeft; //don't merge this with the line above because some browsers adjust the scrollLeft after it's set, so in order to be 100% accurate in tracking it, we need to ask the browser to report it.
+		};
+		this.top = function(value, force) {
+			if (!arguments.length) {
+				return -(element.scrollTop + offsetTop);
+			}
+			let dif = element.scrollTop - prevTop,
+				oldOffset = offsetTop;
+			if ((dif > 2 || dif < -2) && !force) { //if the user interacts with the scrollbar (or something else scrolls it, like the mouse wheel), we should kill any tweens of the ScrollProxy.
+				prevTop = element.scrollTop;
+				gsap.killTweensOf(this, {top:1, scrollTop:1});
+				this.top(-prevTop);
+				if (vars.onKill) {
+					vars.onKill();
+				}
+				return;
+			}
+			value = -value; //invert because scrolling works in the opposite direction
+			if (value < 0) {
+				offsetTop = (value - 0.5) | 0;
+				value = 0;
+			} else if (value > maxTop) {
+				offsetTop = (value - maxTop) | 0;
+				value = maxTop;
+			} else {
+				offsetTop = 0;
+			}
+			if (offsetTop || oldOffset) {
+				if (!this._skip) {
+					style[_transformProp] = transformStart + -offsetLeft + "px," + -offsetTop + transformEnd;
+				}
+			}
+			element.scrollTop = value | 0;
+			prevTop = element.scrollTop;
+		};
+
+		this.maxScrollTop = () => maxTop;
+		this.maxScrollLeft = () => maxLeft;
+
+		this.disable = function() {
+			node = content.firstChild;
+			while (node) {
+				nextNode = node.nextSibling;
+				element.appendChild(node);
+				node = nextNode;
+			}
+			if (element === content.parentNode) { //in case disable() is called when it's already disabled.
+				element.removeChild(content);
+			}
+		};
+		this.enable = function() {
+			node = element.firstChild;
+			if (node === content) {
+				return;
+			}
+			while (node) {
+				nextNode = node.nextSibling;
+				content.appendChild(node);
+				node = nextNode;
+			}
+			element.appendChild(content);
+			this.calibrate();
+		};
+		this.calibrate = function(force) {
+			let widthMatches = (element.clientWidth === elementWidth),
+				cs, x, y;
+			prevTop = element.scrollTop;
+			prevLeft = element.scrollLeft;
+			if (widthMatches && element.clientHeight === elementHeight && content.offsetHeight === contentHeight && scrollWidth === element.scrollWidth && scrollHeight === element.scrollHeight && !force) {
+				return; //no need to recalculate things if the width and height haven't changed.
+			}
+			if (offsetTop || offsetLeft) {
+				x = this.left();
+				y = this.top();
+				this.left(-element.scrollLeft);
+				this.top(-element.scrollTop);
+			}
+			cs = _getComputedStyle(element);
+			//first, we need to remove any width constraints to see how the content naturally flows so that we can see if it's wider than the containing element. If so, we've got to record the amount of overage so that we can apply that as padding in order for browsers to correctly handle things. Then we switch back to a width of 100% (without that, some browsers don't flow the content correctly)
+			if (!widthMatches || force) {
+				style.display = "block";
+				style.width = "auto";
+				style.paddingRight = "0px";
+				extraPadRight = Math.max(0, element.scrollWidth - element.clientWidth);
+				//if the content is wider than the container, we need to add the paddingLeft and paddingRight in order for things to behave correctly.
+				if (extraPadRight) {
+					extraPadRight += parseFloat(cs.paddingLeft) + (_addPaddingBR ? parseFloat(cs.paddingRight) : 0);
+				}
+			}
+			style.display = "inline-block";
+			style.position = "relative";
+			style.overflow = "visible";
+			style.verticalAlign = "top";
+			style.boxSizing = "content-box";
+			style.width = "100%";
+			style.paddingRight = extraPadRight + "px";
+			//some browsers neglect to factor in the bottom padding when calculating the scrollHeight, so we need to add that padding to the content when that happens. Allow a 2px margin for error
+			if (_addPaddingBR) {
+				style.paddingBottom = cs.paddingBottom;
+			}
+			elementWidth = element.clientWidth;
+			elementHeight = element.clientHeight;
+			scrollWidth = element.scrollWidth;
+			scrollHeight = element.scrollHeight;
+			maxLeft = element.scrollWidth - elementWidth;
+			maxTop = element.scrollHeight - elementHeight;
+			contentHeight = content.offsetHeight;
+			style.display = "block";
+			if (x || y) {
+				this.left(x);
+				this.top(y);
+			}
+		};
+		this.content = content;
+		this.element = element;
+		this._skip = false;
+		this.enable();
+	},
 	_initCore = required => {
-		if (_windowExists()) {
+		if (_windowExists() && document.body) {
 			_win = window;
 			_doc = document;
 			_docElement = _doc.documentElement;
 			_body = _doc.body;
 			_tempDiv = _createElement("div");
 			_supportsPointer = !!window.PointerEvent;
-			_placeholderDiv = _doc.createElement("div");
+			_placeholderDiv = _createElement("div");
 			_placeholderDiv.style.cssText = "visibility:hidden;height:1px;top:-1px;pointer-events:none;position:relative;clear:both;cursor:grab";
 			_defaultCursor = _placeholderDiv.style.cursor === "grab" ? "grab" : "move";
 			_isAndroid = (_win.navigator && _win.navigator.userAgent.toLowerCase().indexOf("android") !== -1); //Android handles touch events in an odd way and it's virtually impossible to "feature test" so we resort to UA sniffing
 			_isTouchDevice = ("ontouchstart" in _docElement) && ("orientation" in _win);
+			_addPaddingBR = (function() { //this function is in charge of analyzing browser behavior related to padding. It sets the _addPaddingBR to true if the browser doesn't normally factor in the bottom or right padding on the element inside the scrolling area, and it sets _addPaddingLeft to true if it's a browser that requires the extra offset (offsetLeft) to be added to the paddingRight (like Opera).
+				let div = _createElement("div"),
+					child = _createElement("div"),
+					childStyle = child.style,
+					parent = _body,
+					val;
+				childStyle.display = "inline-block";
+				childStyle.position = "relative";
+				div.style.cssText = child.innerHTML = "width:90px;height:40px;padding:10px;overflow:auto;visibility:hidden";
+				div.appendChild(child);
+				parent.appendChild(div);
+				val = (child.offsetHeight + 18 > div.scrollHeight); //div.scrollHeight should be child.offsetHeight + 20 because of the 10px of padding on each side, but some browsers ignore one side. We allow a 2px margin of error.
+				parent.removeChild(div);
+				return val;
+			}());
 			_touchEventLookup = (function(types) { //we create an object that makes it easy to translate touch event types into their "pointer" counterparts if we're in a browser that uses those instead. Like IE10 uses "MSPointerDown" instead of "touchstart", for example.
 				let standard = types.split(","),
 					converted = (!_isUndefined(_tempDiv.onpointerdown) ? "pointerdown,pointermove,pointerup,pointercancel" : !_isUndefined(_tempDiv.onmspointerdown) ? "MSPointerDown,MSPointerMove,MSPointerUp,MSPointerCancel" : types).split(","),
@@ -374,6 +593,7 @@ let gsap, _win, _doc, _docElement, _body, _tempDiv, _placeholderDiv, _coreInitte
 			_transformProp = _checkPrefix(_transformProp);
 			_transformOriginProp = _checkPrefix(_transformOriginProp);
 			_toArray = gsap.utils.toArray;
+			_supports3D = !!_checkPrefix("perspective");
 		} else if (required) {
 			console.warn("Please gsap.registerPlugin(Draggable)");
 		}
@@ -440,15 +660,15 @@ export class Draggable extends EventDispatcher {
 		this.lockedAxis = null;
 		this.allowEventDefault = !!vars.allowEventDefault;
 
-		gsap.set(target, {x:"+=0"}); // to ensure that transforms are instantiated.
+		gsap.getProperty(target, "x"); // to ensure that transforms are instantiated.
 
 		let type = (vars.type || "x,y").toLowerCase(),
 			xyMode = (~type.indexOf("x") || ~type.indexOf("y")),
 			rotationMode = (type.indexOf("rotation") !== -1),
 			xProp = rotationMode ? "rotation" : xyMode ? "x" : "left",
 			yProp = xyMode ? "y" : "top",
-			allowX = !!(~type.indexOf("x") || ~type.indexOf("left")),
-			allowY = !!(~type.indexOf("y") || ~type.indexOf("top")),
+			allowX = !!(~type.indexOf("x") || ~type.indexOf("left") || type === "scroll"),
+			allowY = !!(~type.indexOf("y") || ~type.indexOf("top") || type === "scroll"),
 			minimumMovement = vars.minimumMovement || 2,
 			self = this,
 			triggers = _toArray(vars.trigger || vars.handle || target),
@@ -464,7 +684,8 @@ export class Draggable extends EventDispatcher {
 			gsCache = target._gsap || gsap.core.getCache(target),
 			isFixed = _isFixed(target),
 			getPropAsNum = (property, unit) => parseFloat(gsCache.get(target, property, unit)),
-			enabled, startPointerX, startPointerY, startElementX, startElementY, hasBounds, hasDragCallback, hasMoveCallback, maxX, minX, maxY, minY, touch, touchID, rotationOrigin, dirty, old, snapX, snapY, snapXY, isClicking, touchEventTarget, matrix, interrupted, startScrollTop, startScrollLeft, allowNativeTouchScrolling, touchDragAxis, isDispatching, clickDispatch, trustedClickDispatch,
+			ownerDoc = target.ownerDocument || _doc,
+			enabled, scrollProxy, startPointerX, startPointerY, startElementX, startElementY, hasBounds, hasDragCallback, hasMoveCallback, maxX, minX, maxY, minY, touch, touchID, rotationOrigin, dirty, old, snapX, snapY, snapXY, isClicking, touchEventTarget, matrix, interrupted, startScrollTop, startScrollLeft, allowNativeTouchScrolling, touchDragAxis, isDispatching, clickDispatch, trustedClickDispatch,
 
 			onContextMenu = e => { //used to prevent long-touch from triggering a context menu.
 				if (self.isPressed && e.which < 2) {
@@ -483,8 +704,8 @@ export class Draggable extends EventDispatcher {
 						autoScrollFactor = self.autoScroll * 15, //multiplying by 15 just gives us a better "feel" speed-wise.
 						parent, isRoot, rect, pointerX, pointerY, changeX, changeY, gap;
 					checkAutoScrollBounds = false;
-					_windowProxy.scrollTop = ((_win.pageYOffset != null) ? _win.pageYOffset : (_docElement.scrollTop != null) ? _docElement.scrollTop : _body.scrollTop);
-					_windowProxy.scrollLeft = ((_win.pageXOffset != null) ? _win.pageXOffset : (_docElement.scrollLeft != null) ? _docElement.scrollLeft : _body.scrollLeft);
+					_windowProxy.scrollTop = ((_win.pageYOffset != null) ? _win.pageYOffset : (ownerDoc.documentElement.scrollTop != null) ? ownerDoc.documentElement.scrollTop : ownerDoc.body.scrollTop);
+					_windowProxy.scrollLeft = ((_win.pageXOffset != null) ? _win.pageXOffset : (ownerDoc.documentElement.scrollLeft != null) ? ownerDoc.documentElement.scrollLeft : ownerDoc.body.scrollLeft);
 					pointerX = self.pointerX - _windowProxy.scrollLeft;
 					pointerY = self.pointerY - _windowProxy.scrollTop;
 					while (e && !isRoot) { //walk up the chain and sense wherever the pointer is within 40px of an edge that's scrollable.
@@ -538,7 +759,16 @@ export class Draggable extends EventDispatcher {
 						gsCache.rotation = x + "deg";
 						gsCache.renderTransform(1, gsCache);
 					} else {
-						if (xyMode) {
+						if (scrollProxy) {
+							if (allowY) {
+								self.deltaY = y - scrollProxy.top();
+								scrollProxy.top(y);
+							}
+							if (allowX) {
+								self.deltaX = x - scrollProxy.left();
+								scrollProxy.left(x);
+							}
+						} else if (xyMode) {
 							if (allowY) {
 								self.deltaY = y - parseFloat(gsCache.y);
 								gsCache.y = y + "px";
@@ -588,6 +818,9 @@ export class Draggable extends EventDispatcher {
 					self.y = parseFloat(gsCache.y);
 				} else if (rotationMode) {
 					self.x = self.rotation = parseFloat(gsCache.rotation);
+				} else if (scrollProxy) {
+					self.y = scrollProxy.top();
+					self.x = scrollProxy.left();
 				} else {
 					self.y = parseInt(target.style.top || ((cs = _getComputedStyle(target)) && cs.top), 10) || 0;
 					self.x = parseInt(target.style.left || (cs || {}).left, 10) || 0;
@@ -725,7 +958,13 @@ export class Draggable extends EventDispatcher {
 			calculateBounds = () => {
 				let bounds, targetBounds, snap, snapIsRaw;
 				hasBounds = false;
-				if (!!vars.bounds) {
+				if (scrollProxy) {
+					scrollProxy.calibrate();
+					self.minX = minX = -scrollProxy.maxScrollLeft();
+					self.minY = minY = -scrollProxy.maxScrollTop();
+					self.maxX = maxX = self.maxY = maxY = 0;
+					hasBounds = true;
+				} else if (!!vars.bounds) {
 					bounds = _getBounds(vars.bounds, target.parentNode); //could be a selector/jQuery object or a DOM element or a generic object like {top:0, left:100, width:1000, height:800} or {minX:100, maxX:1100, minY:0, maxY:800}
 					if (rotationMode) {
 						self.minX = minX = bounds.left;
@@ -739,10 +978,10 @@ export class Draggable extends EventDispatcher {
 						self.maxY = maxY = bounds.maxY;
 					} else {
 						targetBounds = _getBounds(target, target.parentNode);
-						self.minX = minX = getPropAsNum(xProp) + bounds.left - targetBounds.left;
-						self.minY = minY = getPropAsNum(yProp) + bounds.top - targetBounds.top;
-						self.maxX = maxX = minX + (bounds.width - targetBounds.width);
-						self.maxY = maxY = minY + (bounds.height - targetBounds.height);
+						self.minX = minX = Math.round(getPropAsNum(xProp, "px") + bounds.left - targetBounds.left);
+						self.minY = minY = Math.round(getPropAsNum(yProp, "px") + bounds.top - targetBounds.top);
+						self.maxX = maxX = Math.round(minX + (bounds.width - targetBounds.width));
+						self.maxY = maxY = Math.round(minY + (bounds.height - targetBounds.height));
 					}
 					if (minX > maxX) {
 						self.minX = maxX;
@@ -768,13 +1007,13 @@ export class Draggable extends EventDispatcher {
 						snapY = null;
 					} else {
 						if (snap.points) {
-							snapXY = buildPointSnapFunc((snapIsRaw ? snap : snap.points), minX, maxX, minY, maxY, snap.radius, 1);
+							snapXY = buildPointSnapFunc((snapIsRaw ? snap : snap.points), minX, maxX, minY, maxY, snap.radius, scrollProxy ? -1 : 1);
 						} else {
 							if (allowX) {
-								snapX = buildSnapFunc((snapIsRaw ? snap : snap.x || snap.left || snap.scrollLeft), minX, maxX, 1);
+								snapX = buildSnapFunc((snapIsRaw ? snap : snap.x || snap.left || snap.scrollLeft), minX, maxX, scrollProxy ? -1 : 1);
 							}
 							if (allowY) {
-								snapY = buildSnapFunc((snapIsRaw ? snap : snap.y || snap.top || snap.scrollTop), minY, maxY, 1);
+								snapY = buildSnapFunc((snapIsRaw ? snap : snap.y || snap.top || snap.scrollTop), minY, maxY, scrollProxy ? -1 : 1);
 							}
 						}
 					}
@@ -800,10 +1039,10 @@ export class Draggable extends EventDispatcher {
 							inertia.rotation = _parseInertia(self, snapIsRaw ? snap : snap.rotation, maxX, minX, 1, forceZeroVelocity);
 						} else {
 							if (allowX) {
-								inertia[xProp] = _parseInertia(self, snapIsRaw ? snap : snap.points || snap.x || snap.left, maxX, minX, 1, forceZeroVelocity || (self.lockedAxis === "x"));
+								inertia[xProp] = _parseInertia(self, snapIsRaw ? snap : snap.points || snap.x || snap.left, maxX, minX, scrollProxy ? -1 : 1, forceZeroVelocity || (self.lockedAxis === "x"));
 							}
 							if (allowY) {
-								inertia[yProp] = _parseInertia(self, snapIsRaw ? snap : snap.points || snap.y || snap.top, maxY, minY, 1, forceZeroVelocity || (self.lockedAxis === "y"));
+								inertia[yProp] = _parseInertia(self, snapIsRaw ? snap : snap.points || snap.y || snap.top, maxY, minY, scrollProxy ? -1 : 1, forceZeroVelocity || (self.lockedAxis === "y"));
 							}
 							if (snap.points || (_isArray(snap) && _isObject(snap[0]))) {
 								inertia.linkedProps = xProp + "," + yProp;
@@ -813,9 +1052,21 @@ export class Draggable extends EventDispatcher {
 					}
 					self.isThrowing = true;
 					overshootTolerance = (!isNaN(vars.overshootTolerance)) ? vars.overshootTolerance : (vars.edgeResistance === 1) ? 0 : (1 - self.edgeResistance) + 0.2;
-					inertia.duration = {max:Math.max(vars.minDuration || 0, vars.maxDuration || 0) || 2, min:(!isNaN(vars.minDuration) ? vars.minDuration : (overshootTolerance === 0 || (_isObject(inertia) && inertia.resistance > 1000)) ? 0 : 0.5), overshoot:overshootTolerance};
-					self.tween = tween = gsap.to(target, {inertia:inertia, data:"_draggable", onComplete:onThrowComplete, onInterrupt:onThrowInterrupt, onUpdate:(vars.fastMode ? _dispatchEvent : syncXY), onUpdateParams:(vars.fastMode ? [self, "onthrowupdate", "onThrowUpdate"] : (snap && snap.radius) ? [false, true] : [])});
+					if (!inertia.duration) {
+						inertia.duration = {max:Math.max(vars.minDuration || 0, ("maxDuration" in vars) ? vars.maxDuration : 2), min:(!isNaN(vars.minDuration) ? vars.minDuration : (overshootTolerance === 0 || (_isObject(inertia) && inertia.resistance > 1000)) ? 0 : 0.5), overshoot:overshootTolerance};
+					}
+					self.tween = tween = gsap.to(scrollProxy || target, {
+						inertia: inertia,
+						data: "_draggable",
+						onComplete: onThrowComplete,
+						onInterrupt: onThrowInterrupt,
+						onUpdate: (vars.fastMode ? _dispatchEvent : syncXY),
+						onUpdateParams: (vars.fastMode ? [self, "onthrowupdate", "onThrowUpdate"] : (snap && snap.radius) ? [false, true] : [])
+					});
 					if (!vars.fastMode) {
+						if (scrollProxy) {
+							scrollProxy._skip = true; //Microsoft browsers have a bug that causes them to briefly render the position incorrectly (it flashes to the end state when we seek() the tween even though we jump right back to the current position, and this only seems to happen when we're affecting both top and left), so we set a _suspendTransforms flag to prevent it from actually applying the values in the ScrollProxy.
+						}
 						tween.render(tween.duration(), true, true);
 						syncXY(true, true);
 						self.endX = self.x;
@@ -825,6 +1076,9 @@ export class Draggable extends EventDispatcher {
 						}
 						tween.play(0);
 						syncXY(true, true);
+						if (scrollProxy) {
+							scrollProxy._skip = false; //Microsoft browsers have a bug that causes them to briefly render the position incorrectly (it flashes to the end state when we seek() the tween even though we jump right back to the current position, and this only seems to happen when we're affecting both top and left), so we set a _suspendTransforms flag to prevent it from actually applying the values in the ScrollProxy.
+						}
 					}
 				} else if (hasBounds) {
 					self.applyBounds();
@@ -832,10 +1086,10 @@ export class Draggable extends EventDispatcher {
 			},
 
 			updateMatrix = shiftStart => {
-				let start = matrix || new Matrix2D(),
+				let start = matrix,
 					p;
 				matrix = getGlobalMatrix(target.parentNode, true);
-				if (shiftStart && self.isPressed && !matrix.equals(start)) { //if the matrix changes WHILE the element is pressed, we must adjust the startPointerX and startPointerY accordingly, so we invert the original matrix and figure out where the pointerX and pointerY were in the global space, then apply the new matrix to get the updated coordinates.
+				if (shiftStart && self.isPressed && !matrix.equals(start || new Matrix2D())) { //if the matrix changes WHILE the element is pressed, we must adjust the startPointerX and startPointerY accordingly, so we invert the original matrix and figure out where the pointerX and pointerY were in the global space, then apply the new matrix to get the updated coordinates.
 					p = start.inverse().apply({x:startPointerX, y:startPointerY});
 					matrix.apply(p, p);
 					startPointerX = p.x;
@@ -848,7 +1102,7 @@ export class Draggable extends EventDispatcher {
 
 			recordStartPositions = () => {
 				let edgeTolerance = 1 - self.edgeResistance,
-					parsedOrigin, parent;
+					parsedOrigin, parent, x, y;
 				updateMatrix(false);
 				if (matrix) {
 					_point1.x = self.pointerX;
@@ -861,26 +1115,37 @@ export class Draggable extends EventDispatcher {
 					setPointerPosition(self.pointerX, self.pointerY);
 					render(true);
 				}
-
-				//if the element is in the process of tweening, don't force snapping to occur because it could make it jump. Imagine the user throwing, then before it's done, clicking on the element in its inbetween state.
-				if (isTweening()) {
-					syncXY(true, true);
+				if (scrollProxy) {
 					calculateBounds();
+					startElementY = scrollProxy.top();
+					startElementX = scrollProxy.left();
 				} else {
-					self.applyBounds();
-				}
-				if (rotationMode) {
-					parsedOrigin = target.ownerSVGElement ? [gsCache.xOrigin - target.getBBox().x, gsCache.yOrigin - target.getBBox().y] : (_getComputedStyle(target)[_transformOriginProp] || "0 0").split(" ");
-					rotationOrigin = self.rotationOrigin = getGlobalMatrix(target).apply({x:parseFloat(parsedOrigin[0]) || 0, y:parseFloat(parsedOrigin[1]) || 0});
-					syncXY(true, true);
-					startElementX = self.x; //starting rotation (x always refers to rotation in type:"rotation", measured in degrees)
-					startElementY = self.y = Math.atan2(rotationOrigin.y - self.pointerY, self.pointerX - rotationOrigin.x) * _RAD2DEG;
-				} else {
-					parent = !isFixed && target.parentNode;
-					startScrollTop = parent ? parent.scrollTop || 0 : 0;
-					startScrollLeft = parent ? parent.scrollLeft || 0 : 0;
-					startElementY = getPropAsNum(yProp); //record the starting top and left values so that we can just add the mouse's movement to them later.
-					startElementX = getPropAsNum(xProp);
+					//if the element is in the process of tweening, don't force snapping to occur because it could make it jump. Imagine the user throwing, then before it's done, clicking on the element in its inbetween state.
+					if (isTweening()) {
+						syncXY(true, true);
+						calculateBounds();
+					} else {
+						self.applyBounds();
+					}
+					if (rotationMode) {
+						parsedOrigin = target.ownerSVGElement ? [gsCache.xOrigin - target.getBBox().x, gsCache.yOrigin - target.getBBox().y] : (_getComputedStyle(target)[_transformOriginProp] || "0 0").split(" ");
+						rotationOrigin = self.rotationOrigin = getGlobalMatrix(target).apply({x: parseFloat(parsedOrigin[0]) || 0, y: parseFloat(parsedOrigin[1]) || 0});
+						syncXY(true, true);
+						x = self.pointerX - rotationOrigin.x;
+						y = rotationOrigin.y - self.pointerY;
+						if (isFixed) {
+							x -= _getDocScrollLeft(ownerDoc);
+							y += _getDocScrollTop(ownerDoc);
+						}
+						startElementX = self.x; //starting rotation (x always refers to rotation in type:"rotation", measured in degrees)
+						startElementY = self.y = Math.atan2(y, x) * _RAD2DEG;
+					} else {
+						parent = !isFixed && target.parentNode;
+						startScrollTop = parent ? parent.scrollTop || 0 : 0;
+						startScrollLeft = parent ? parent.scrollLeft || 0 : 0;
+						startElementY = getPropAsNum(yProp, "px"); //record the starting top and left values so that we can just add the mouse's movement to them later.
+						startElementX = getPropAsNum(xProp, "px");
+					}
 				}
 
 				if (hasBounds && edgeTolerance) {
@@ -918,18 +1183,18 @@ export class Draggable extends EventDispatcher {
 				interrupted = isTweening();
 				self.pointerEvent = e;
 				if (_touchEventLookup[e.type]) { //note: on iOS, BOTH touchmove and mousemove are dispatched, but the mousemove has pageY and pageX of 0 which would mess up the calculations and needlessly hurt performance.
-					touchEventTarget = ~e.type.indexOf("touch") ? (e.currentTarget || e.target) : _doc; //pointer-based touches (for Microsoft browsers) don't remain locked to the original target like other browsers, so we must use the document instead. The event type would be "MSPointerDown" or "pointerdown".
+					touchEventTarget = ~e.type.indexOf("touch") ? (e.currentTarget || e.target) : ownerDoc; //pointer-based touches (for Microsoft browsers) don't remain locked to the original target like other browsers, so we must use the document instead. The event type would be "MSPointerDown" or "pointerdown".
 					_addListener(touchEventTarget, "touchend", onRelease);
 					_addListener(touchEventTarget, "touchmove", onMove);
 					_addListener(touchEventTarget, "touchcancel", onRelease);
-					_addListener(_doc, "touchstart", _onMultiTouchDocument);
+					_addListener(ownerDoc, "touchstart", _onMultiTouchDocument);
 				} else {
 					touchEventTarget = null;
-					_addListener(_doc, "mousemove", onMove); //attach these to the document instead of the box itself so that if the user's mouse moves too quickly (and off of the box), things still work.
+					_addListener(ownerDoc, "mousemove", onMove); //attach these to the document instead of the box itself so that if the user's mouse moves too quickly (and off of the box), things still work.
 				}
 				touchDragAxis = null;
 				if (!_supportsPointer) {
-					_addListener(_doc, "mouseup", onRelease);
+					_addListener(ownerDoc, "mouseup", onRelease);
 					if (e && e.target) {
 						_addListener(e.target, "mouseup", onRelease); //we also have to listen directly on the element because some browsers don't bubble up the event to the _doc on elements with contentEditable="true"
 					}
@@ -963,7 +1228,7 @@ export class Draggable extends EventDispatcher {
 				if (allowNativeTouchScrolling || self.autoScroll) {
 					_recordMaxScrolls(target.parentNode);
 				}
-				if (target.parentNode && self.autoScroll && !rotationMode && target.parentNode._gsMaxScrollX && !_placeholderDiv.parentNode && !target.getBBox) { //add a placeholder div to prevent the parent container from collapsing when the user drags the element left.
+				if (target.parentNode && self.autoScroll && !scrollProxy && !rotationMode && target.parentNode._gsMaxScrollX && !_placeholderDiv.parentNode && !target.getBBox) { //add a placeholder div to prevent the parent container from collapsing when the user drags the element left.
 					_placeholderDiv.style.width = target.parentNode.scrollWidth + "px";
 					target.parentNode.appendChild(_placeholderDiv);
 				}
@@ -972,9 +1237,12 @@ export class Draggable extends EventDispatcher {
 					self.tween.kill();
 				}
 				self.isThrowing = false;
-				gsap.killTweensOf(target, killProps, true); //in case the user tries to drag it before the last tween is done.
+				gsap.killTweensOf(scrollProxy || target, killProps, true); //in case the user tries to drag it before the last tween is done.
+				if (scrollProxy) {
+					gsap.killTweensOf(target, {scrollTo:1}, true); //just in case the original target's scroll position is being tweened somewhere else.
+				}
 				self.tween = self.lockedAxis = null;
-				if (vars.zIndexBoost || (!rotationMode && vars.zIndexBoost !== false)) {
+				if (vars.zIndexBoost || (!rotationMode && !scrollProxy && vars.zIndexBoost !== false)) {
 					target.style.zIndex = Draggable.zIndex++;
 				}
 				self.isPressed = true;
@@ -983,7 +1251,8 @@ export class Draggable extends EventDispatcher {
 				if (!rotationMode && (vars.cursor !== false || vars.activeCursor)) {
 					i = triggers.length;
 					while (--i > -1) {
-						_setStyle(triggers[i], "cursor", vars.activeCursor || vars.cursor || (_defaultCursor === "grab" ? "grabbing" : _defaultCursor));
+						//_setStyle(triggers[i], "cursor", vars.activeCursor || vars.cursor || (_defaultCursor === "grab" ? "grabbing" : _defaultCursor));
+						gsap.set(triggers[i], {cursor: vars.activeCursor || vars.cursor || (_defaultCursor === "grab" ? "grabbing" : _defaultCursor)});
 					}
 				}
 				_dispatchEvent(self, "press", "onPress");
@@ -1045,7 +1314,7 @@ export class Draggable extends EventDispatcher {
 				if (self.autoScroll) {
 					checkAutoScrollBounds = true;
 				}
-				setPointerPosition(e.pageX - (isFixed ? _getDocScrollLeft() : 0), e.pageY - (isFixed ? _getDocScrollTop() : 0), hasMoveCallback);
+				setPointerPosition(e.pageX - (isFixed ? _getDocScrollLeft(ownerDoc) : 0), e.pageY - (isFixed ? _getDocScrollTop(ownerDoc) : 0), hasMoveCallback);
 			},
 
 			setPointerPosition = (pointerX, pointerY, invokeOnMove) => {
@@ -1188,13 +1457,13 @@ export class Draggable extends EventDispatcher {
 					_removeListener(touchEventTarget, "touchend", onRelease);
 					_removeListener(touchEventTarget, "touchmove", onMove);
 					_removeListener(touchEventTarget, "touchcancel", onRelease);
-					_removeListener(_doc, "touchstart", _onMultiTouchDocument);
+					_removeListener(ownerDoc, "touchstart", _onMultiTouchDocument);
 				} else {
-					_removeListener(_doc, "mousemove", onMove);
+					_removeListener(ownerDoc, "mousemove", onMove);
 				}
 				_removeListener(_win, "touchforcechange", _preventDefault);
 				if (!_supportsPointer) {
-					_removeListener(_doc, "mouseup", onRelease);
+					_removeListener(ownerDoc, "mouseup", onRelease);
 					if (e && e.target) {
 						_removeListener(e.target, "mouseup", onRelease);
 					}
@@ -1258,8 +1527,8 @@ export class Draggable extends EventDispatcher {
 							if (clickTime !== clickDispatch && self.enabled() && !self.isPressed && !originalEvent.defaultPrevented) {
 								if (eventTarget.click) { //some browsers (like mobile Safari) don't properly trigger the click event
 									eventTarget.click();
-								} else if (_doc.createEvent) {
-									syntheticEvent = _doc.createEvent("MouseEvents");
+								} else if (ownerDoc.createEvent) {
+									syntheticEvent = ownerDoc.createEvent("MouseEvents");
 									syntheticEvent.initMouseEvent("click", true, true, _win, 1, self.pointerEvent.screenX, self.pointerEvent.screenY, self.pointerX, self.pointerY, false, false, false, false, 0, null);
 									eventTarget.dispatchEvent(syntheticEvent);
 								}
@@ -1286,7 +1555,7 @@ export class Draggable extends EventDispatcher {
 			},
 
 			updateScroll = e => {
-				if (e && self.isDragging) {
+				if (e && self.isDragging && !scrollProxy) {
 					let parent = e.target || target.parentNode,
 						deltaX = parent.scrollLeft - parent._gsScrollX,
 						deltaY = parent.scrollTop - parent._gsScrollY;
@@ -1386,15 +1655,15 @@ export class Draggable extends EventDispatcher {
 			return direction;
 		};
 
-		this.applyBounds = newBounds => {
+		this.applyBounds = (newBounds, sticky) => {
 			let x, y, forceZeroVelocity, e, parent, isRoot;
 			if (newBounds && vars.bounds !== newBounds) {
 				vars.bounds = newBounds;
-				return self.update(true);
+				return self.update(true, sticky);
 			}
 			syncXY(true);
 			calculateBounds();
-			if (hasBounds) {
+			if (hasBounds && !isTweening()) {
 				x = self.x;
 				y = self.y;
 				if (x > maxX) {
@@ -1420,8 +1689,8 @@ export class Draggable extends EventDispatcher {
 					if (self.autoScroll && !self.isDragging) {
 						_recordMaxScrolls(target.parentNode);
 						e = target;
-						_windowProxy.scrollTop = ((_win.pageYOffset != null) ? _win.pageYOffset : (_docElement.scrollTop != null) ? _docElement.scrollTop : _body.scrollTop);
-						_windowProxy.scrollLeft = ((_win.pageXOffset != null) ? _win.pageXOffset : (_docElement.scrollLeft != null) ? _docElement.scrollLeft : _body.scrollLeft);
+						_windowProxy.scrollTop = ((_win.pageYOffset != null) ? _win.pageYOffset : (ownerDoc.documentElement.scrollTop != null) ? ownerDoc.documentElement.scrollTop : ownerDoc.body.scrollTop);
+						_windowProxy.scrollLeft = ((_win.pageXOffset != null) ? _win.pageXOffset : (ownerDoc.documentElement.scrollLeft != null) ? ownerDoc.documentElement.scrollLeft : ownerDoc.body.scrollLeft);
 						while (e && !isRoot) { //walk up the chain and sense wherever the scrollTop/scrollLeft exceeds the maximum.
 							isRoot = _isRoot(e.parentNode);
 							parent = isRoot ? _windowProxy : e.parentNode;
@@ -1466,8 +1735,7 @@ export class Draggable extends EventDispatcher {
 				_recordMaxScrolls(target.parentNode);
 				checkAutoScrollBounds = self.isDragging;
 				render(true);
-			}
-			if (self.autoScroll) { //in case reparenting occurred.
+				//in case reparenting occurred.
 				_removeScrollListener(target, updateScroll);
 				_addScrollListener(target, updateScroll);
 			}
@@ -1475,7 +1743,8 @@ export class Draggable extends EventDispatcher {
 		};
 
 		this.enable = type => {
-			let id, i, trigger;
+			let vars = {lazy: true},
+				id, i, trigger;
 			if (type !== "soft") {
 				i = triggers.length;
 				while (--i > -1) {
@@ -1486,12 +1755,15 @@ export class Draggable extends EventDispatcher {
 					_addListener(trigger, "touchstart", onPress);
 					_addListener(trigger, "click", onClick, true); //note: used to pass true for capture but it prevented click-to-play-video functionality in Firefox.
 					if (!rotationMode && vars.cursor !== false) {
-						_setStyle(trigger, "cursor", vars.cursor || _defaultCursor);
+						vars.cursor = vars.cursor || _defaultCursor;
 					}
-					_setStyle(trigger, "touchCallout", "none");
-					_setStyle(trigger, "touchAction", (allowX === allowY) ? "none" : vars.allowNativeTouchScrolling || vars.allowEventDefault ? "manipulation" : allowX ? "pan-y" : "pan-x");
+					if (gsap.utils.checkPrefix("touchCallout")) {
+						vars.touchCallout = "none";
+					}
+					vars.touchAction = (allowX === allowY) ? "none" : vars.allowNativeTouchScrolling || vars.allowEventDefault ? "manipulation" : allowX ? "pan-y" : "pan-x";
+					gsap.set(trigger, vars);
 					if (trigger.getBBox && trigger.ownerSVGElement) { // a bug in chrome doesn't respect touch-action on SVG elements - it only works if we set it on the parent SVG.
-						_setStyle(trigger.ownerSVGElement, "touchAction", (allowX === allowY) ? "none" : vars.allowNativeTouchScrolling || vars.allowEventDefault ? "manipulation" : allowX ? "pan-y" : "pan-x");
+						gsap.set(trigger.ownerSVGElement, {touchAction: (allowX === allowY) ? "none" : vars.allowNativeTouchScrolling || vars.allowEventDefault ? "manipulation" : allowX ? "pan-y" : "pan-x"});
 					}
 					if (!self.vars.allowContextMenu) {
 						_addListener(trigger, "contextmenu", onContextMenu);
@@ -1502,13 +1774,18 @@ export class Draggable extends EventDispatcher {
 			_addScrollListener(target, updateScroll);
 			enabled = true;
 			if (InertiaPlugin && type !== "soft") {
-				InertiaPlugin.track(target, (xyMode ? "x,y" : rotationMode ? "rotation" : "top,left"));
+				InertiaPlugin.track(scrollProxy || target, (xyMode ? "x,y" : rotationMode ? "rotation" : "top,left"));
 			}
 			target._gsDragID = id = "d" + (_lookupCount++);
 			_lookup[id] = self;
-			//syncXY();
-			recordStartPositions();
-			self.update(true);
+			if (scrollProxy) {
+				scrollProxy.enable();
+				scrollProxy.element._gsDragID = id;
+			}
+			if (vars.bounds) {
+				recordStartPositions();
+				self.applyBounds();
+			}
 			return self;
 		};
 
@@ -1538,13 +1815,16 @@ export class Draggable extends EventDispatcher {
 					_removeListener(touchEventTarget, "touchend", onRelease);
 					_removeListener(touchEventTarget, "touchmove", onMove);
 				}
-				_removeListener(_doc, "mouseup", onRelease);
-				_removeListener(_doc, "mousemove", onMove);
+				_removeListener(ownerDoc, "mouseup", onRelease);
+				_removeListener(ownerDoc, "mousemove", onMove);
 			}
 			_removeScrollListener(target, updateScroll);
 			enabled = false;
 			if (InertiaPlugin && type !== "soft") {
-				InertiaPlugin.untrack(target, (xyMode ? "x,y" : rotationMode ? "rotation" : "top,left"));
+				InertiaPlugin.untrack(scrollProxy || target, (xyMode ? "x,y" : rotationMode ? "rotation" : "top,left"));
+			}
+			if (scrollProxy) {
+				scrollProxy.disable();
 			}
 			_removeFromRenderQueue(render);
 			self.isDragging = self.isPressed = isClicking = false;
@@ -1560,12 +1840,23 @@ export class Draggable extends EventDispatcher {
 
 		this.kill = function() {
 			self.isThrowing = false;
-			gsap.killTweensOf(target, killProps, true);
+			gsap.killTweensOf(scrollProxy || target, killProps, true);
 			self.disable();
 			gsap.set(triggers, {clearProps:"userSelect"});
 			delete _lookup[target._gsDragID];
 			return self;
 		};
+
+		if (~type.indexOf("scroll")) {
+			scrollProxy = this.scrollProxy = new ScrollProxy(target, _extend({onKill:function() { //ScrollProxy's onKill() gets called if/when the ScrollProxy senses that the user interacted with the scroll position manually (like using the scrollbar). IE9 doesn't fire the "mouseup" properly when users drag the scrollbar of an element, so this works around that issue.
+					if (self.isPressed) {
+						onRelease(null);
+					}}}, vars));
+			//a bug in many Android devices' stock browser causes scrollTop to get forced back to 0 after it is altered via JS, so we set overflow to "hidden" on mobile/touch devices (they hide the scroll bar anyway). That works around the bug. (This bug is discussed at https://code.google.com/p/android/issues/detail?id=19625)
+			target.style.overflowY = (allowY && !_isTouchDevice) ? "auto" : "hidden";
+			target.style.overflowX = (allowX && !_isTouchDevice) ? "auto" : "hidden";
+			target = scrollProxy.content;
+		}
 
 		if (rotationMode) {
 			killProps.rotation = 1;
@@ -1637,7 +1928,7 @@ export class Draggable extends EventDispatcher {
 _setDefaults(Draggable.prototype, {pointerX:0, pointerY: 0, startX: 0, startY: 0, deltaX: 0, deltaY: 0, isDragging: false, isPressed: false});
 
 Draggable.zIndex = 1000;
-Draggable.version = "3.0.0";
+Draggable.version = "3.0.2";
 
 _getGSAP() && gsap.registerPlugin(Draggable);
 

@@ -1,5 +1,5 @@
 /*!
- * paths 3.0.0
+ * paths 3.0.2
  * https://greensock.com
  *
  * Copyright 2008-2019, GreenSock. All rights reserved.
@@ -493,19 +493,28 @@ function measureSegment(segment, startIndex, bezierQty) {
     y2 = segment[j + 1] - y1;
     xd = xd1 = yd = yd1 = 0;
 
-    for (i = 1; i <= resolution; i++) {
-      t = inc * i;
-      inv = 1 - t;
-      xd = xd1 - (xd1 = (t * t * x4 + 3 * inv * (t * x3 + inv * x2)) * t);
-      yd = yd1 - (yd1 = (t * t * y4 + 3 * inv * (t * y3 + inv * y2)) * t);
-      l = _sqrt(yd * yd + xd * xd);
-
-      if (l < min) {
-        min = l;
+    if (_abs(x4) < 1e-5 && _abs(y4) < 1e-5 && _abs(x2) + _abs(y2) < 1e-5) {
+      //dump points that are sufficiently close (basically right on top of each other, making a bezier super tiny or 0 length)
+      if (segment.length > 8) {
+        segment.splice(j, 6);
+        j -= 6;
+        endIndex -= 6;
       }
+    } else {
+      for (i = 1; i <= resolution; i++) {
+        t = inc * i;
+        inv = 1 - t;
+        xd = xd1 - (xd1 = (t * t * x4 + 3 * inv * (t * x3 + inv * x2)) * t);
+        yd = yd1 - (yd1 = (t * t * y4 + 3 * inv * (t * y3 + inv * y2)) * t);
+        l = _sqrt(yd * yd + xd * xd);
 
-      length += l;
-      samples[samplesIndex++] = length;
+        if (l < min) {
+          min = l;
+        }
+
+        length += l;
+        samples[samplesIndex++] = length;
+      }
     }
 
     x1 += x4;

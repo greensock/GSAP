@@ -2,10 +2,10 @@
 	typeof exports === 'object' && typeof module !== 'undefined' ? factory(exports) :
 	typeof define === 'function' && define.amd ? define(['exports'], factory) :
 	(global = global || self, factory(global.window = global.window || {}));
-}(this, function (exports) { 'use strict';
+}(this, (function (exports) { 'use strict';
 
 	/*!
-	 * CSSRulePlugin 3.0.0
+	 * CSSRulePlugin 3.0.2
 	 * https://greensock.com
 	 *
 	 * @license Copyright 2008-2019, GreenSock. All rights reserved.
@@ -51,7 +51,7 @@
 	};
 
 	var CSSRulePlugin = {
-	  version: "3.0.0",
+	  version: "3.0.2",
 	  name: "cssRule",
 	  init: function init(target, value, tween, index, targets) {
 	    if (!_checkRegister() || typeof target.cssText === "undefined") {
@@ -135,4 +135,4 @@
 
 	Object.defineProperty(exports, '__esModule', { value: true });
 
-}));
+})));

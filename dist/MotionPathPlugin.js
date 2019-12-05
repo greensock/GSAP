@@ -2,7 +2,7 @@
 	typeof exports === 'object' && typeof module !== 'undefined' ? factory(exports) :
 	typeof define === 'function' && define.amd ? define(['exports'], factory) :
 	(global = global || self, factory(global.window = global.window || {}));
-}(this, function (exports) { 'use strict';
+}(this, (function (exports) { 'use strict';
 
 	var _svgPathExp = /[achlmqstvz]|(-?\d*\.?\d*(?:e[\-+]?\d+)?)[0-9]/ig,
 	    _numbersExp = /(?:(-)?\d*\.?\d*(?:e[\-+]?\d+)?)[0-9]/ig,
@@ -464,19 +464,27 @@
 	    y2 = segment[j + 1] - y1;
 	    xd = xd1 = yd = yd1 = 0;
 
-	    for (i = 1; i <= resolution; i++) {
-	      t = inc * i;
-	      inv = 1 - t;
-	      xd = xd1 - (xd1 = (t * t * x4 + 3 * inv * (t * x3 + inv * x2)) * t);
-	      yd = yd1 - (yd1 = (t * t * y4 + 3 * inv * (t * y3 + inv * y2)) * t);
-	      l = _sqrt(yd * yd + xd * xd);
-
-	      if (l < min) {
-	        min = l;
+	    if (_abs(x4) < 1e-5 && _abs(y4) < 1e-5 && _abs(x2) + _abs(y2) < 1e-5) {
+	      if (segment.length > 8) {
+	        segment.splice(j, 6);
+	        j -= 6;
+	        endIndex -= 6;
 	      }
+	    } else {
+	      for (i = 1; i <= resolution; i++) {
+	        t = inc * i;
+	        inv = 1 - t;
+	        xd = xd1 - (xd1 = (t * t * x4 + 3 * inv * (t * x3 + inv * x2)) * t);
+	        yd = yd1 - (yd1 = (t * t * y4 + 3 * inv * (t * y3 + inv * y2)) * t);
+	        l = _sqrt(yd * yd + xd * xd);
 
-	      length += l;
-	      samples[samplesIndex++] = length;
+	        if (l < min) {
+	          min = l;
+	        }
+
+	        length += l;
+	        samples[samplesIndex++] = length;
+	      }
 	    }
 
 	    x1 += x4;
@@ -1097,6 +1105,17 @@
 	    _svgOwner = function _svgOwner(element) {
 	  return element.ownerSVGElement || ((element.tagName + "").toLowerCase() === "svg" ? element : null);
 	},
+	    _isFixed = function _isFixed(element) {
+	  if (_win.getComputedStyle(element).position === "fixed") {
+	    return true;
+	  }
+
+	  element = element.parentNode;
+
+	  if (element && element.nodeType === 1) {
+	    return _isFixed(element);
+	  }
+	},
 	    _createSibling = function _createSibling(element, i) {
 	  if (element.parentNode && (_doc || _setDoc(element))) {
 	    var svg = _svgOwner(element),
@@ -1160,7 +1179,7 @@
 	      x: 0,
 	      y: 0
 	    } : element.getBBox();
-	    m = element.transform.baseVal;
+	    m = element.transform ? element.transform.baseVal : [];
 
 	    if (m.length) {
 	      m = m.consolidate().matrix;
@@ -1185,6 +1204,7 @@
 	    m = _win.getComputedStyle(element);
 	    container.style[_transformProp] = m[_transformProp];
 	    container.style[_transformOriginProp] = m[_transformOriginProp];
+	    container.style.position = m.position === "fixed" ? "fixed" : "absolute";
 	    element.parentNode.appendChild(container);
 	  }
 
@@ -1289,7 +1309,7 @@
 	  return Matrix2D;
 	}();
 	function getGlobalMatrix(element, inverse) {
-	  if (!element.parentNode) {
+	  if (!element || !element.parentNode) {
 	    return new Matrix2D();
 	  }
 
@@ -1300,14 +1320,15 @@
 	      b2 = temps[1].getBoundingClientRect(),
 	      b3 = temps[2].getBoundingClientRect(),
 	      parent = container.parentNode,
-	      m = new Matrix2D((b2.left - b1.left) / 100, (b2.top - b1.top) / 100, (b3.left - b1.left) / 100, (b3.top - b1.top) / 100, b1.left + _getDocScrollLeft(), b1.top + _getDocScrollTop());
+	      isFixed = _isFixed(element),
+	      m = new Matrix2D((b2.left - b1.left) / 100, (b2.top - b1.top) / 100, (b3.left - b1.left) / 100, (b3.top - b1.top) / 100, b1.left + (isFixed ? 0 : _getDocScrollLeft()), b1.top + (isFixed ? 0 : _getDocScrollTop()));
 
 	  parent.removeChild(container);
 	  return inverse ? m.inverse() : m;
 	}
 
 	/*!
-	 * MotionPathPlugin 3.0.0
+	 * MotionPathPlugin 3.0.2
 	 * https://greensock.com
 	 *
 	 * @license Copyright 2008-2019, GreenSock. All rights reserved.
@@ -1453,7 +1474,7 @@
 	};
 
 	var MotionPathPlugin = {
-	  version: "3.0.0",
+	  version: "3.0.2",
 	  name: "motionPath",
 	  register: function register(core, Plugin, propTween) {
 	    gsap = core;
@@ -1563,6 +1584,8 @@
 	    });
 	  },
 	  getGlobalMatrix: getGlobalMatrix,
+	  getPositionOnPath: getPositionOnPath,
+	  cacheRawPathMeasurements: cacheRawPathMeasurements,
 	  arrayToRawPath: function arrayToRawPath(value, vars) {
 	    vars = vars || {};
 
@@ -1582,4 +1605,4 @@
 
 	Object.defineProperty(exports, '__esModule', { value: true });
 
-}));
+})));

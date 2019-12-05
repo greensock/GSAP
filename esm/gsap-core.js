@@ -3,7 +3,7 @@ function _assertThisInitialized(self) { if (self === void 0) { throw new Referen
 function _inheritsLoose(subClass, superClass) { subClass.prototype = Object.create(superClass.prototype); subClass.prototype.constructor = subClass; subClass.__proto__ = superClass; }
 
 /*!
- * GSAP 3.0.1
+ * GSAP 3.0.2
  * https://greensock.com
  *
  * @license Copyright 2008-2019, GreenSock. All rights reserved.
@@ -80,7 +80,7 @@ _relExp = /[\+-]=-?[\.\d]+/,
   return (_installScope = _merge(scope, _globals)) && gsap;
 },
     _missingPlugin = function _missingPlugin(property, value) {
-  return console.warn("Invalid", property, "tween of", value, "Missing plugin? gsap.registerPlugin()");
+  return console.warn("Invalid property", property, "set to", value, "Missing plugin? gsap.registerPlugin()");
 },
     _warn = function _warn(message, suppress) {
   return !suppress && console.warn(message);
@@ -105,7 +105,7 @@ _relExp = /[\+-]=-?[\.\d]+/,
       i;
 
   if (!_isObject(target) && !_isFunction(target)) {
-    return _isArray(targets) ? targets : [targets];
+    targets = [targets];
   }
 
   if (!(harnessPlugin = (target._gsap || {}).harness)) {
@@ -119,7 +119,7 @@ _relExp = /[\+-]=-?[\.\d]+/,
   i = targets.length;
 
   while (i--) {
-    targets[i]._gsap || (targets[i]._gsap = new GSCache(targets[i], harnessPlugin));
+    targets[i] && (targets[i]._gsap || (targets[i]._gsap = new GSCache(targets[i], harnessPlugin))) || targets.splice(i, 1);
   }
 
   return targets;
@@ -369,8 +369,7 @@ _round = function _round(value) {
   return !animation || animation._ts && _hasNoPausedAncestors(animation.parent);
 },
     _elapsedCycleDuration = function _elapsedCycleDuration(animation) {
-  var cycleDuration;
-  return animation._repeat ? (cycleDuration = animation.duration() + animation._rDelay) * ~~(animation._tTime / cycleDuration) : 0;
+  return animation._repeat ? ~~(animation._tTime / (animation = animation.duration() + animation._rDelay)) * animation : 0;
 },
     _parentToChildTotalTime = function _parentToChildTotalTime(parentTime, child) {
   return child._ts > 0 ? (parentTime - child._start) * child._ts : (child._dirty ? child.totalDuration() : child._tDur) + (parentTime - child._start) * child._ts;
@@ -427,7 +426,7 @@ _addToTimeline = function _addToTimeline(timeline, child, position) {
     return 1;
   }
 
-  if (!force && tween._pt && tween.vars.lazy) {
+  if (!force && tween._pt && (tween._dur && tween.vars.lazy !== false || !tween._dur && tween.vars.lazy)) {
     _lazyTweens.push(tween);
 
     tween._lazy = [totalTime, suppressEvents];
@@ -461,7 +460,7 @@ _addToTimeline = function _addToTimeline(timeline, child, position) {
     if (iteration !== prevIteration) {
       prevRatio = 1 - ratio;
 
-      if (tween.vars.repeatRefresh) {
+      if (tween.vars.repeatRefresh && tween._initted) {
         tween.invalidate();
       }
     }
@@ -472,11 +471,8 @@ _addToTimeline = function _addToTimeline(timeline, child, position) {
     return;
   }
 
-  if (ratio !== prevRatio || force) {
-    if (!suppressEvents || totalTime) {
-      //when the playhead arrives at EXACTLY time 0 (right on top) of a zero-duration tween, we need to discern if events are suppressed so that when the playhead moves again (next time), it'll trigger the callback. If events are NOT suppressed, obviously the callback would be triggered in this render. Basically, the callback should fire either when the playhead ARRIVES or LEAVES this exact spot, not both. Imagine doing a timeline.seek(0) and there's a callback that sits at 0. Since events are suppressed on that seek() by default, nothing will fire, but when the playhead moves off of that position, the callback should fire. This behavior is what people intuitively expect.
-      tween._zTime = totalTime;
-    }
+  if (ratio !== prevRatio || force || tween._zTime === _tinyNum || !totalTime && tween._zTime) {
+    tween._zTime = totalTime || (suppressEvents ? _tinyNum : 0); //when the playhead arrives at EXACTLY time 0 (right on top) of a zero-duration tween, we need to discern if events are suppressed so that when the playhead moves again (next time), it'll trigger the callback. If events are NOT suppressed, obviously the callback would be triggered in this render. Basically, the callback should fire either when the playhead ARRIVES or LEAVES this exact spot, not both. Imagine doing a timeline.seek(0) and there's a callback that sits at 0. Since events are suppressed on that seek() by default, nothing will fire, but when the playhead moves off of that position, the callback should fire. This behavior is what people intuitively expect.
 
     tween.ratio = ratio;
 
@@ -517,7 +513,7 @@ _addToTimeline = function _addToTimeline(timeline, child, position) {
       if (!suppressEvents) {
         _callback(tween, tween.ratio ? "onComplete" : "onReverseComplete", true);
 
-        tween._prom && tween.ratio && tween._prom();
+        tween._prom && tween._prom();
       }
     }
   }
@@ -613,7 +609,7 @@ _addToTimeline = function _addToTimeline(timeline, child, position) {
 },
     _slice = [].slice,
     _isArrayLike = function _isArrayLike(value) {
-  return _isObject(value) && "length" in value && value.length - 1 in value && _isObject(value[0]) && value !== _win;
+  return value && _isObject(value) && "length" in value && value.length - 1 in value && _isObject(value[0]) && !value.nodeType && value !== _win;
 },
     _flatten = function _flatten(ar, leaveStrings, accumulator) {
   if (accumulator === void 0) {
@@ -933,7 +929,7 @@ distribute = function distribute(v) {
     _lazyRender();
   }
 
-  return params ? callback.apply(scope, params) : callback.call(scope, animation);
+  return params ? callback.apply(scope, params) : callback.call(scope);
 },
     _interrupt = function _interrupt(animation) {
   _removeFromParent(animation);
@@ -1620,6 +1616,8 @@ function () {
     }
 
     if (this._tTime !== _totalTime || !this._dur) {
+      this._ts || (this._pTime = _totalTime); // otherwise, if an animation is paused, then the playhead is moved back to zero, then resumed, it'd revert back to the original time at the pause
+
       _lazySafeRender(this, _totalTime, suppressEvents);
     }
 
@@ -1627,7 +1625,7 @@ function () {
   };
 
   _proto.time = function time(value, suppressEvents) {
-    return arguments.length ? this.totalTime(value + _elapsedCycleDuration(this), suppressEvents) : this._time;
+    return arguments.length ? this.totalTime((value + _elapsedCycleDuration(this)) % this.duration() || (value ? this._dur : 0), suppressEvents) : this._time; // note: if the modulus results in 0, the playhead could be exactly at the end or the beginning, and we always defer to the END with a non-zero value, otherwise if you set the time() to the very end (duration()), it would render at the START!
   };
 
   _proto.totalProgress = function totalProgress(value, suppressEvents) {
@@ -1635,7 +1633,7 @@ function () {
   };
 
   _proto.progress = function progress(value, suppressEvents) {
-    return arguments.length ? this.totalTime(this.duration() * value + _elapsedCycleDuration(this), suppressEvents) : this.duration() ? this._time / this._dur : this.ratio;
+    return arguments.length ? this.totalTime(this.duration() * (this._yoyo && !(this.iteration() & 1) ? 1 - value : value) + _elapsedCycleDuration(this), suppressEvents) : this.duration() ? this._time / this._dur : this.ratio;
   };
 
   _proto.iteration = function iteration(value, suppressEvents) {
@@ -1804,11 +1802,11 @@ function () {
     return this;
   };
 
-  _proto.isActive = function isActive() {
+  _proto.isActive = function isActive(hasStarted) {
     var parent = this.parent || this._dp,
         start = this._start,
         rawTime;
-    return !parent || this._ts && this._initted && parent.isActive() && (rawTime = parent.rawTime(true)) >= start && rawTime < this.endTime(true) - _tinyNum;
+    return !parent || this._ts && (this._initted || !hasStarted) && parent.isActive(hasStarted) && (rawTime = parent.rawTime(true)) >= start && rawTime < this.endTime(true) - _tinyNum;
   };
 
   _proto.eventCallback = function eventCallback(type, callback, params) {
@@ -1838,15 +1836,28 @@ function () {
   _proto.then = function then(onFulfilled) {
     var _this = this;
 
-    if (onFulfilled === void 0) {
-      onFulfilled = _emptyFunc;
-    }
-
     return new Promise(function (resolve) {
-      _this._prom = function () {
-        onFulfilled(_this);
-        resolve();
+      var f = onFulfilled || _passThrough,
+          _resolve = function _resolve() {
+        var _then = _this.then;
+        _this.then = null; // temporarily null the then() method to avoid an infinite loop (see https://github.com/greensock/GSAP/issues/322)
+
+        f = f(_this);
+
+        if (f && (f.then || f === _this)) {
+          _this._prom = f;
+          _this.then = _then;
+        }
+
+        resolve(f);
+        _this.then = _then;
       };
+
+      if (_this._initted && _this.totalProgress() === 1 && _this._ts >= 0 || !_this._tTime && _this._ts < 0) {
+        _resolve();
+      } else {
+        _this._prom = _resolve;
+      }
     });
   };
 
@@ -1867,6 +1878,7 @@ _setDefaults(Animation.prototype, {
   _repeat: 0,
   _yoyo: false,
   parent: 0,
+  _initted: false,
   _rDelay: 0,
   _ts: 1,
   _dp: 0,
@@ -1963,7 +1975,7 @@ function (_Animation) {
         tDur = this._dirty ? this.totalDuration() : this._tDur,
         dur = this._dur,
         tTime = totalTime > tDur - _tinyNum && totalTime >= 0 && this !== _globalTimeline ? tDur : totalTime < _tinyNum ? 0 : totalTime,
-        crossingStart = this._zTime < 0 !== totalTime < 0 && this._initted,
+        crossingStart = this._zTime < 0 !== totalTime < 0 && (this._initted || !dur),
         time,
         child,
         next,
@@ -2164,7 +2176,7 @@ function (_Animation) {
         if (!suppressEvents && !(totalTime < 0 && !prevTime)) {
           _callback(this, tTime === tDur ? "onComplete" : "onReverseComplete", true);
 
-          this._prom && tTime === tDur && this._prom();
+          this._prom && this._prom();
         }
       }
     }
@@ -2330,7 +2342,7 @@ function (_Animation) {
         i = tweens.length;
 
     while (i--) {
-      tweens[i].kill(targets, props);
+      _overwritingTween !== tweens[i] && tweens[i].kill(targets, props);
     }
 
     return this;
@@ -2344,7 +2356,7 @@ function (_Animation) {
 
     while (child) {
       if (child instanceof Tween) {
-        if (_arrayContainsAny(child._targets, parsedTargets) && (!onlyActive || child.isActive())) {
+        if (_arrayContainsAny(child._targets, parsedTargets) && (!onlyActive || child.isActive(onlyActive === "started"))) {
           a.push(child);
         }
       } else if ((children = child.getTweensOf(parsedTargets, onlyActive)).length) {
@@ -2661,7 +2673,7 @@ var _addComplexStringPropTween = function _addComplexStringPropTween(target, pro
     }
 
     if (end.charAt(1) === "=") {
-      end = parseFloat(parsedStart) + parseFloat(end.substr(2)) * (end.charAt(0) === "-" ? -1 : 1) + getUnit(parsedStart);
+      end = parseFloat(parsedStart) + parseFloat(end.substr(2)) * (end.charAt(0) === "-" ? -1 : 1) + (getUnit(parsedStart) || 0);
     }
   }
 
@@ -2818,17 +2830,13 @@ _initTween = function _initTween(tween, time) {
           immediateRender: immediateRender,
           //zero-duration tweens render immediately by default, but if we're not specifically instructed to render this tween immediately, we should skip this and merely _init() to record the starting values (rendering them immediately would push them to completion which is wasteful in that case - we'd have to render(-1) immediately after)
           stagger: 0,
-          parent: parent //ensures that nested tweens that had a stagger are handled properly, like gsap.from(".class", {y:gsap.utils.cycle([-100,100])})
+          parent: parent //ensures that nested tweens that had a stagger are handled properly, like gsap.from(".class", {y:gsap.utils.wrap([-100,100])})
 
         })));
 
         if (!immediateRender) {
-          _initTween(tween._startAt, time); //ensures that the initial values are recorded
+          _initTween(tween._startAt, _tinyNum); //ensures that the initial values are recorded
 
-
-          if (immediateRender) {
-            !autoRevert && (tween._startAt = 0);
-          }
         } else if (!time) {
           return;
         }
@@ -2839,6 +2847,8 @@ _initTween = function _initTween(tween, time) {
     tween._pt = 0;
     harness = targets[0] ? _getCache(targets[0]).harness : 0;
     harnessVars = harness && vars[harness.prop]; //someone may need to specify CSS-specific values AND non-CSS values, like if the element has an "x" property plus it's a standard DOM element. We allow people to distinguish by wrapping plugin-specific stuff in a css:{} object for example.
+
+    lazy = dur && _isNotFalse(lazy) || lazy && !dur;
 
     for (i = 0; i < targets.length; i++) {
       target = targets[i];
@@ -2883,13 +2893,13 @@ _initTween = function _initTween(tween, time) {
       if (autoOverwrite) {
         _overwritingTween = tween;
 
-        _globalTimeline.killTweensOf(target, ptLookup, true); //Also make sure the overwriting doesn't overwrite THIS tween!!!
+        _globalTimeline.killTweensOf(target, ptLookup, "started"); //Also make sure the overwriting doesn't overwrite THIS tween!!!
 
 
         _overwritingTween = 0;
       }
 
-      if (tween._pt && (_isNotFalse(lazy) && dur || lazy && !dur)) {
+      if (tween._pt && lazy) {
         _lazyLookup[gsData.id] = 1;
       }
     }
@@ -2939,8 +2949,8 @@ _initTween = function _initTween(tween, time) {
     _parseFuncOrString = function _parseFuncOrString(value, tween, i, target, targets) {
   return _isFunction(value) ? value.call(tween, i, target, targets) : _isString(value) && ~value.indexOf("random(") ? _replaceRandom(value) : value;
 },
-    _staggerTweenProps = _callbackNames + ",repeat,repeatDelay,yoyo,yoyoEase",
-    _staggerPropsToSkip = (_staggerTweenProps + ",id,stagger,delay,duration").split(",");
+    _staggerTweenProps = _callbackNames + ",repeat,repeatDelay,yoyo,repeatRefresh,yoyoEase",
+    _staggerPropsToSkip = (_staggerTweenProps + ",id,stagger,delay,duration,paused").split(",");
 /*
  * --------------------------------------------------------------------------------------
  * TWEEN
@@ -2971,7 +2981,7 @@ function (_Animation2) {
         overwrite = _this4$vars.overwrite,
         keyframes = _this4$vars.keyframes,
         defaults = _this4$vars.defaults,
-        parsedTargets = toArray(targets),
+        parsedTargets = _isArray(targets) && _isNumber(targets[0]) ? [targets] : toArray(targets),
         tl,
         i,
         copy,
@@ -2980,7 +2990,7 @@ function (_Animation2) {
         curTarget,
         staggerFunc,
         staggerVarsToMerge;
-    _this4._targets = parsedTargets.length ? _harness(parsedTargets) : _warn("GSAP target " + targets + " not found. https://greensock.com", !_config.nullTargetWarn) || [{}];
+    _this4._targets = parsedTargets.length ? _harness(parsedTargets) : _warn("GSAP target " + targets + " not found. https://greensock.com", !_config.nullTargetWarn) || [];
     _this4._ptLookup = []; //PropTween lookup. An array containing an object for each target, having keys for each tweening property
 
     _this4._overwrite = overwrite;
@@ -3099,7 +3109,7 @@ function (_Animation2) {
 
     if (!dur) {
       _renderZeroDurationTween(this, totalTime, suppressEvents, force);
-    } else if (tTime !== this._tTime || force || this._startAt && this._zTime < 0 !== totalTime < 0) {
+    } else if (tTime !== this._tTime || !totalTime || force || this._startAt && this._zTime < 0 !== totalTime < 0) {
       //this senses if we're crossing over the start time, in which case we must record _zTime and force the render, but we do it in this lengthy conditional way for performance reasons (usually we can skip the calculations): this._initted && (this._zTime < 0) !== (totalTime < 0)
       time = tTime;
       timeline = this.timeline;
@@ -3133,7 +3143,7 @@ function (_Animation2) {
           prevIteration--;
         }
 
-        if (time === prevTime && !force) {
+        if (time === prevTime && !force && this._initted) {
           //could be during the repeatDelay part. No need to render and fire callbacks.
           return this;
         }
@@ -3142,7 +3152,8 @@ function (_Animation2) {
           //timeline && this._yEase && _propagateYoyoEase(timeline, isYoyo);
           //repeatRefresh functionality
           if (this.vars.repeatRefresh && !this._lock) {
-            this._lock = 1;
+            this._lock = force = 1; //force, otherwise if lazy is true, the _attemptInitTween() will return and we'll jump out and get caught bouncing on each tick.
+
             this.render(cycleDuration * iteration, true).invalidate()._lock = 0;
           }
         }
@@ -3203,7 +3214,7 @@ function (_Animation2) {
         if (!suppressEvents && !(totalTime < 0 && !prevTime)) {
           _callback(this, tTime === tDur ? "onComplete" : "onReverseComplete", true);
 
-          this._prom && tTime === tDur && this._prom();
+          this._prom && this._prom();
         }
       }
     }
@@ -3231,19 +3242,16 @@ function (_Animation2) {
       vars = "all";
     }
 
-    if (_overwritingTween === this) {
-      return _overwritingTween;
-    }
-
     if (!targets && (!vars || vars === "all")) {
+      this._lazy = 0;
+
       if (this.parent) {
-        this._lazy = 0;
         return _interrupt(this);
       }
     }
 
     if (this.timeline) {
-      this.timeline.killTweensOf(targets, vars);
+      this.timeline.killTweensOf(targets, vars, !!_overwritingTween);
       return this;
     }
 
@@ -3366,7 +3374,6 @@ function (_Animation2) {
 
 _setDefaults(Tween.prototype, {
   _targets: [],
-  _initted: 0,
   _lazy: 0,
   _startAt: 0,
   _op: 0,
@@ -3412,7 +3419,7 @@ var _setterPlain = function _setterPlain(target, property, value) {
   return _isFunction(target[property]) ? _setterFunc : _isUndefined(target[property]) && target.setAttribute ? _setterAttribute : _setterPlain;
 },
     _renderPlain = function _renderPlain(ratio, data) {
-  return data.set(data.t, data.p, ~~((data.s + data.c * ratio) * 10000) / 10000, data);
+  return data.set(data.t, data.p, Math.round((data.s + data.c * ratio) * 10000) / 10000, data);
 },
     _renderBoolean = function _renderBoolean(ratio, data) {
   return data.set(data.t, data.p, !!(data.s + data.c * ratio), data);
@@ -3429,7 +3436,7 @@ var _setterPlain = function _setterPlain(target, property, value) {
     s = data.e;
   } else {
     while (pt) {
-      s = pt.p + (pt.m ? pt.m(pt.s + pt.c * ratio) : ~~((pt.s + pt.c * ratio) * 10000) / 10000) + s; //we use the "p" property for the text inbetween (like a suffix). And in the context of a complex string, the modifier (m) is typically just Math.round(), like for RGB colors.
+      s = pt.p + (pt.m ? pt.m(pt.s + pt.c * ratio) : Math.round((pt.s + pt.c * ratio) * 10000) / 10000) + s; //we use the "p" property for the text inbetween (like a suffix). And in the context of a complex string, the modifier (m) is typically just Math.round(), like for RGB colors.
 
       pt = pt._next;
     }
@@ -3571,7 +3578,7 @@ _config.stringFilter = _colorStringFilter;
  * --------------------------------------------------------------------------------------
  */
 
-export var gsap = {
+var _gsap = {
   registerPlugin: function registerPlugin() {
     for (var _len2 = arguments.length, args = new Array(_len2), _key2 = 0; _key2 < _len2; _key2++) {
       args[_key2] = arguments[_key2];
@@ -3743,16 +3750,25 @@ export var gsap = {
 };
 
 _forEachName("to,from,fromTo,delayedCall,set,killTweensOf", function (name) {
-  return gsap[name] = Tween[name];
+  return _gsap[name] = Tween[name];
 });
 
 _ticker.add(Timeline.updateRoot);
 
-_quickTween = gsap.to({}, {
+_quickTween = _gsap.to({}, {
   duration: 0
 }); // ---- EXTRA PLUGINS --------------------------------------------------------
 
-var _addModifiers = function _addModifiers(tween, modifiers) {
+var _getPluginPropTween = function _getPluginPropTween(plugin, prop) {
+  var pt = plugin._pt;
+
+  while (pt && pt.p !== prop && pt.op !== prop && pt.fp !== prop) {
+    pt = pt._next;
+  }
+
+  return pt;
+},
+    _addModifiers = function _addModifiers(tween, modifiers) {
   var targets = tween._targets,
       p,
       i,
@@ -3764,10 +3780,13 @@ var _addModifiers = function _addModifiers(tween, modifiers) {
     while (i--) {
       pt = tween._ptLookup[i][p];
 
-      if (pt) {
-        if (pt.d.modifier) {
-          pt.d.modifier(modifiers[p], tween, targets[i], p);
+      if (pt && (pt = pt.d)) {
+        if (pt._pt) {
+          // is a plugin
+          pt = _getPluginPropTween(pt, p);
         }
+
+        pt && pt.modifier && pt.modifier(modifiers[p], tween, targets[i], p);
       }
     }
   }
@@ -3809,7 +3828,7 @@ var _addModifiers = function _addModifiers(tween, modifiers) {
 }; //register core plugins
 
 
-gsap.registerPlugin({
+export var gsap = _gsap.registerPlugin({
   name: "attr",
   init: function init(target, vars, tween, index, targets) {
     for (var p in vars) {
@@ -3824,11 +3843,12 @@ gsap.registerPlugin({
     var i = value.length;
 
     while (i--) {
-      this.add(target, i, target[i], value[i]);
+      this.add(target, i, target[i] || 0, value[i]);
     }
   }
-}, _buildModifierPlugin("roundProps", _roundModifier), _buildModifierPlugin("modifiers"), _buildModifierPlugin("snap", snap));
-Tween.version = Timeline.version = gsap.version = "3.0.1";
+}, _buildModifierPlugin("roundProps", _roundModifier), _buildModifierPlugin("modifiers"), _buildModifierPlugin("snap", snap)) || _gsap; //to prevent the core plugins from being dropped via aggressive tree shaking, we must include them in the variable declaration in this way.
+
+Tween.version = Timeline.version = gsap.version = "3.0.2";
 _coreReady = 1;
 
 if (_windowExists()) {

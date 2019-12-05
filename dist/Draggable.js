@@ -2,7 +2,7 @@
   typeof exports === 'object' && typeof module !== 'undefined' ? factory(exports) :
   typeof define === 'function' && define.amd ? define(['exports'], factory) :
   (global = global || self, factory(global.window = global.window || {}));
-}(this, function (exports) { 'use strict';
+}(this, (function (exports) { 'use strict';
 
   function _inheritsLoose(subClass, superClass) {
     subClass.prototype = Object.create(superClass.prototype);
@@ -58,6 +58,17 @@
   },
       _svgOwner = function _svgOwner(element) {
     return element.ownerSVGElement || ((element.tagName + "").toLowerCase() === "svg" ? element : null);
+  },
+      _isFixed = function _isFixed(element) {
+    if (_win.getComputedStyle(element).position === "fixed") {
+      return true;
+    }
+
+    element = element.parentNode;
+
+    if (element && element.nodeType === 1) {
+      return _isFixed(element);
+    }
   },
       _createSibling = function _createSibling(element, i) {
     if (element.parentNode && (_doc || _setDoc(element))) {
@@ -122,7 +133,7 @@
         x: 0,
         y: 0
       } : element.getBBox();
-      m = element.transform.baseVal;
+      m = element.transform ? element.transform.baseVal : [];
 
       if (m.length) {
         m = m.consolidate().matrix;
@@ -147,6 +158,7 @@
       m = _win.getComputedStyle(element);
       container.style[_transformProp] = m[_transformProp];
       container.style[_transformOriginProp] = m[_transformOriginProp];
+      container.style.position = m.position === "fixed" ? "fixed" : "absolute";
       element.parentNode.appendChild(container);
     }
 
@@ -251,7 +263,7 @@
     return Matrix2D;
   }();
   function getGlobalMatrix(element, inverse) {
-    if (!element.parentNode) {
+    if (!element || !element.parentNode) {
       return new Matrix2D();
     }
 
@@ -262,7 +274,8 @@
         b2 = temps[1].getBoundingClientRect(),
         b3 = temps[2].getBoundingClientRect(),
         parent = container.parentNode,
-        m = new Matrix2D((b2.left - b1.left) / 100, (b2.top - b1.top) / 100, (b3.left - b1.left) / 100, (b3.top - b1.top) / 100, b1.left + _getDocScrollLeft(), b1.top + _getDocScrollTop());
+        isFixed = _isFixed(element),
+        m = new Matrix2D((b2.left - b1.left) / 100, (b2.top - b1.top) / 100, (b3.left - b1.left) / 100, (b3.top - b1.top) / 100, b1.left + (isFixed ? 0 : _getDocScrollLeft()), b1.top + (isFixed ? 0 : _getDocScrollTop()));
 
     parent.removeChild(container);
     return inverse ? m.inverse() : m;
@@ -279,6 +292,7 @@
       _checkPrefix,
       _toArray,
       _supportsPassive,
+      _isTouchDevice,
       _touchEventLookup,
       _dragCount,
       _isMultiTouching,
@@ -336,6 +350,15 @@
     }
 
     return copy;
+  },
+      _extend = function _extend(obj, defaults) {
+    for (var p in defaults) {
+      if (!(p in obj)) {
+        obj[p] = defaults[p];
+      }
+    }
+
+    return obj;
   },
       _renderQueueTick = function _renderQueueTick() {
     return _renderQueue.forEach(function (func) {
@@ -429,11 +452,11 @@
 
     _addListener(event.target, "touchend", _onMultiTouchDocumentEnd);
   },
-      _getDocScrollTop$1 = function _getDocScrollTop() {
-    return _win$1.pageYOffset || _doc$1.scrollTop || _docElement$1.scrollTop || _body$1.scrollTop || 0;
+      _getDocScrollTop$1 = function _getDocScrollTop(doc) {
+    return _win$1.pageYOffset || doc.scrollTop || doc.documentElement.scrollTop || doc.body.scrollTop || 0;
   },
-      _getDocScrollLeft$1 = function _getDocScrollLeft() {
-    return _win$1.pageXOffset || _doc$1.scrollLeft || _docElement$1.scrollLeft || _body$1.scrollLeft || 0;
+      _getDocScrollLeft$1 = function _getDocScrollLeft(doc) {
+    return _win$1.pageXOffset || doc.scrollLeft || doc.documentElement.scrollLeft || doc.body.scrollLeft || 0;
   },
       _addScrollListener = function _addScrollListener(e, callback) {
     _addListener(e, "scroll", callback);
@@ -450,7 +473,7 @@
     }
   },
       _isRoot = function _isRoot(e) {
-    return !!(!e || e === _docElement$1 || e === _doc$1 || e === _doc$1.body || e === _win$1 || !e.nodeType || !e.parentNode);
+    return !!(!e || e === _docElement$1 || e.nodeType === 9 || e === _doc$1.body || e === _win$1 || !e.nodeType || !e.parentNode);
   },
       _getMaxScroll = function _getMaxScroll(element, axis) {
     var dim = axis === "x" ? "Width" : "Height",
@@ -502,11 +525,12 @@
       return _tempRect;
     }
 
-    var r = !_isUndefined(e.pageX) ? {
-      left: e.pageX - _getDocScrollLeft$1(),
-      top: e.pageY - _getDocScrollTop$1(),
-      right: e.pageX - _getDocScrollLeft$1() + 1,
-      bottom: e.pageY - _getDocScrollTop$1() + 1
+    var doc = e.ownerDocument || _doc$1,
+        r = !_isUndefined(e.pageX) ? {
+      left: e.pageX - _getDocScrollLeft$1(doc),
+      top: e.pageY - _getDocScrollTop$1(doc),
+      right: e.pageX - _getDocScrollLeft$1(doc) + 1,
+      bottom: e.pageY - _getDocScrollTop$1(doc) + 1
     } : !e.nodeType && !_isUndefined(e.left) && !_isUndefined(e.top) ? e : _toArray(e)[0].getBoundingClientRect();
 
     if (_isUndefined(r.right) && !_isUndefined(r.width)) {
@@ -577,6 +601,7 @@
       _getElementBounds = function _getElementBounds(element, context) {
     context = _toArray(context)[0];
     var isSVG = element.getBBox && element.ownerSVGElement,
+        doc = element.ownerDocument || _doc$1,
         left,
         right,
         top,
@@ -593,10 +618,10 @@
         contextParent;
 
     if (element === _win$1) {
-      top = _getDocScrollTop$1();
-      left = _getDocScrollLeft$1();
-      right = left + (_docElement$1.clientWidth || element.innerWidth || _doc$1.body.clientWidth || 0);
-      bottom = top + ((element.innerHeight || 0) - 20 < _docElement$1.clientHeight ? _docElement$1.clientHeight : element.innerHeight || _body$1.clientHeight || 0);
+      top = _getDocScrollTop$1(doc);
+      left = _getDocScrollLeft$1(doc);
+      right = left + (doc.documentElement.clientWidth || element.innerWidth || doc.body.clientWidth || 0);
+      bottom = top + ((element.innerHeight || 0) - 20 < doc.documentElement.clientHeight ? doc.documentElement.clientHeight : element.innerHeight || doc.body.clientHeight || 0);
     } else if (context === _win$1 || _isUndefined(context)) {
       return element.getBoundingClientRect();
     } else {
@@ -606,15 +631,19 @@
         bbox = element.getBBox();
         width = bbox.width;
         height = bbox.height;
-      } else if (element.viewBox && (bbox = element.viewBox.baseVal)) {
-        left = bbox.x || 0;
-        top = bbox.y || 0;
-        width = bbox.width;
-        height = bbox.height;
       } else {
-        cs = _getComputedStyle(element);
-        width = parseFloat(cs.width) || element.clientWidth || 0;
-        height = parseFloat(cs.height) || element.clientHeight || 0;
+        if (element.viewBox && (bbox = element.viewBox.baseVal)) {
+          left = bbox.x || 0;
+          top = bbox.y || 0;
+          width = bbox.width;
+          height = bbox.height;
+        }
+
+        if (!width) {
+          cs = _getComputedStyle(element);
+          width = (parseFloat(cs.width) || element.clientWidth || 0) + parseFloat(cs.borderLeftWidth) + parseFloat(cs.borderRightWidth);
+          height = (parseFloat(cs.height) || element.clientHeight || 0) + parseFloat(cs.borderTopWidth) + parseFloat(cs.borderBottomWidth);
+        }
       }
 
       right = width;
@@ -732,33 +761,298 @@
     while (i--) {
       e = elements[i];
       e.ondragstart = e.onselectstart = selectable ? null : _emptyFunc;
-
-      _setStyle(e, "userSelect", selectable ? "text" : "none");
+      gsap.set(e, {
+        lazy: true,
+        userSelect: selectable ? "text" : "none"
+      });
     }
   },
-      _isFixed = function _isFixed(element) {
+      _isFixed$1 = function _isFixed(element) {
     if (_getComputedStyle(element).position === "fixed") {
       return true;
     }
 
     element = element.parentNode;
 
-    if (element && element !== _docElement$1) {
+    if (element && element.nodeType === 1) {
       return _isFixed(element);
     }
   },
+      _supports3D,
+      _addPaddingBR,
+      ScrollProxy = function ScrollProxy(element, vars) {
+    element = gsap.utils.toArray(element)[0];
+    vars = vars || {};
+    var content = document.createElement("div"),
+        style = content.style,
+        node = element.firstChild,
+        offsetTop = 0,
+        offsetLeft = 0,
+        prevTop = element.scrollTop,
+        prevLeft = element.scrollLeft,
+        scrollWidth = element.scrollWidth,
+        scrollHeight = element.scrollHeight,
+        extraPadRight = 0,
+        maxLeft = 0,
+        maxTop = 0,
+        elementWidth,
+        elementHeight,
+        contentHeight,
+        nextNode,
+        transformStart,
+        transformEnd;
+
+    if (_supports3D && vars.force3D !== false) {
+      transformStart = "translate3d(";
+      transformEnd = "px,0px)";
+    } else if (_transformProp$1) {
+      transformStart = "translate(";
+      transformEnd = "px)";
+    }
+
+    this.scrollTop = function (value, force) {
+      if (!arguments.length) {
+        return -this.top();
+      }
+
+      this.top(-value, force);
+    };
+
+    this.scrollLeft = function (value, force) {
+      if (!arguments.length) {
+        return -this.left();
+      }
+
+      this.left(-value, force);
+    };
+
+    this.left = function (value, force) {
+      if (!arguments.length) {
+        return -(element.scrollLeft + offsetLeft);
+      }
+
+      var dif = element.scrollLeft - prevLeft,
+          oldOffset = offsetLeft;
+
+      if ((dif > 2 || dif < -2) && !force) {
+        prevLeft = element.scrollLeft;
+        gsap.killTweensOf(this, {
+          left: 1,
+          scrollLeft: 1
+        });
+        this.left(-prevLeft);
+
+        if (vars.onKill) {
+          vars.onKill();
+        }
+
+        return;
+      }
+
+      value = -value;
+
+      if (value < 0) {
+        offsetLeft = value - 0.5 | 0;
+        value = 0;
+      } else if (value > maxLeft) {
+        offsetLeft = value - maxLeft | 0;
+        value = maxLeft;
+      } else {
+        offsetLeft = 0;
+      }
+
+      if (offsetLeft || oldOffset) {
+        if (!this._skip) {
+          style[_transformProp$1] = transformStart + -offsetLeft + "px," + -offsetTop + transformEnd;
+        }
+
+        if (offsetLeft + extraPadRight >= 0) {
+          style.paddingRight = offsetLeft + extraPadRight + "px";
+        }
+      }
+
+      element.scrollLeft = value | 0;
+      prevLeft = element.scrollLeft;
+    };
+
+    this.top = function (value, force) {
+      if (!arguments.length) {
+        return -(element.scrollTop + offsetTop);
+      }
+
+      var dif = element.scrollTop - prevTop,
+          oldOffset = offsetTop;
+
+      if ((dif > 2 || dif < -2) && !force) {
+        prevTop = element.scrollTop;
+        gsap.killTweensOf(this, {
+          top: 1,
+          scrollTop: 1
+        });
+        this.top(-prevTop);
+
+        if (vars.onKill) {
+          vars.onKill();
+        }
+
+        return;
+      }
+
+      value = -value;
+
+      if (value < 0) {
+        offsetTop = value - 0.5 | 0;
+        value = 0;
+      } else if (value > maxTop) {
+        offsetTop = value - maxTop | 0;
+        value = maxTop;
+      } else {
+        offsetTop = 0;
+      }
+
+      if (offsetTop || oldOffset) {
+        if (!this._skip) {
+          style[_transformProp$1] = transformStart + -offsetLeft + "px," + -offsetTop + transformEnd;
+        }
+      }
+
+      element.scrollTop = value | 0;
+      prevTop = element.scrollTop;
+    };
+
+    this.maxScrollTop = function () {
+      return maxTop;
+    };
+
+    this.maxScrollLeft = function () {
+      return maxLeft;
+    };
+
+    this.disable = function () {
+      node = content.firstChild;
+
+      while (node) {
+        nextNode = node.nextSibling;
+        element.appendChild(node);
+        node = nextNode;
+      }
+
+      if (element === content.parentNode) {
+        element.removeChild(content);
+      }
+    };
+
+    this.enable = function () {
+      node = element.firstChild;
+
+      if (node === content) {
+        return;
+      }
+
+      while (node) {
+        nextNode = node.nextSibling;
+        content.appendChild(node);
+        node = nextNode;
+      }
+
+      element.appendChild(content);
+      this.calibrate();
+    };
+
+    this.calibrate = function (force) {
+      var widthMatches = element.clientWidth === elementWidth,
+          cs,
+          x,
+          y;
+      prevTop = element.scrollTop;
+      prevLeft = element.scrollLeft;
+
+      if (widthMatches && element.clientHeight === elementHeight && content.offsetHeight === contentHeight && scrollWidth === element.scrollWidth && scrollHeight === element.scrollHeight && !force) {
+        return;
+      }
+
+      if (offsetTop || offsetLeft) {
+        x = this.left();
+        y = this.top();
+        this.left(-element.scrollLeft);
+        this.top(-element.scrollTop);
+      }
+
+      cs = _getComputedStyle(element);
+
+      if (!widthMatches || force) {
+        style.display = "block";
+        style.width = "auto";
+        style.paddingRight = "0px";
+        extraPadRight = Math.max(0, element.scrollWidth - element.clientWidth);
+
+        if (extraPadRight) {
+          extraPadRight += parseFloat(cs.paddingLeft) + (_addPaddingBR ? parseFloat(cs.paddingRight) : 0);
+        }
+      }
+
+      style.display = "inline-block";
+      style.position = "relative";
+      style.overflow = "visible";
+      style.verticalAlign = "top";
+      style.boxSizing = "content-box";
+      style.width = "100%";
+      style.paddingRight = extraPadRight + "px";
+
+      if (_addPaddingBR) {
+        style.paddingBottom = cs.paddingBottom;
+      }
+
+      elementWidth = element.clientWidth;
+      elementHeight = element.clientHeight;
+      scrollWidth = element.scrollWidth;
+      scrollHeight = element.scrollHeight;
+      maxLeft = element.scrollWidth - elementWidth;
+      maxTop = element.scrollHeight - elementHeight;
+      contentHeight = content.offsetHeight;
+      style.display = "block";
+
+      if (x || y) {
+        this.left(x);
+        this.top(y);
+      }
+    };
+
+    this.content = content;
+    this.element = element;
+    this._skip = false;
+    this.enable();
+  },
       _initCore = function _initCore(required) {
-    if (_windowExists()) {
+    if (_windowExists() && document.body) {
       _win$1 = window;
       _doc$1 = document;
       _docElement$1 = _doc$1.documentElement;
       _body$1 = _doc$1.body;
       _tempDiv = _createElement("div");
       _supportsPointer = !!window.PointerEvent;
-      _placeholderDiv = _doc$1.createElement("div");
+      _placeholderDiv = _createElement("div");
       _placeholderDiv.style.cssText = "visibility:hidden;height:1px;top:-1px;pointer-events:none;position:relative;clear:both;cursor:grab";
       _defaultCursor = _placeholderDiv.style.cursor === "grab" ? "grab" : "move";
       _isAndroid = _win$1.navigator && _win$1.navigator.userAgent.toLowerCase().indexOf("android") !== -1;
+      _isTouchDevice = "ontouchstart" in _docElement$1 && "orientation" in _win$1;
+
+      _addPaddingBR = function () {
+        var div = _createElement("div"),
+            child = _createElement("div"),
+            childStyle = child.style,
+            parent = _body$1,
+            val;
+
+        childStyle.display = "inline-block";
+        childStyle.position = "relative";
+        div.style.cssText = child.innerHTML = "width:90px;height:40px;padding:10px;overflow:auto;visibility:hidden";
+        div.appendChild(child);
+        parent.appendChild(div);
+        val = child.offsetHeight + 18 > div.scrollHeight;
+        parent.removeChild(div);
+        return val;
+      }();
 
       _touchEventLookup = function (types) {
         var standard = types.split(","),
@@ -805,6 +1099,7 @@
       _transformProp$1 = _checkPrefix(_transformProp$1);
       _transformOriginProp$1 = _checkPrefix(_transformOriginProp$1);
       _toArray = gsap.utils.toArray;
+      _supports3D = !!_checkPrefix("perspective");
     } else if (required) {
       console.warn("Please gsap.registerPlugin(Draggable)");
     }
@@ -875,17 +1170,15 @@
       _this2.autoScroll = vars.autoScroll || 0;
       _this2.lockedAxis = null;
       _this2.allowEventDefault = !!vars.allowEventDefault;
-      gsap.set(target, {
-        x: "+=0"
-      });
+      gsap.getProperty(target, "x");
 
       var type = (vars.type || "x,y").toLowerCase(),
           xyMode = ~type.indexOf("x") || ~type.indexOf("y"),
           rotationMode = type.indexOf("rotation") !== -1,
           xProp = rotationMode ? "rotation" : xyMode ? "x" : "left",
           yProp = xyMode ? "y" : "top",
-          allowX = !!(~type.indexOf("x") || ~type.indexOf("left")),
-          allowY = !!(~type.indexOf("y") || ~type.indexOf("top")),
+          allowX = !!(~type.indexOf("x") || ~type.indexOf("left") || type === "scroll"),
+          allowY = !!(~type.indexOf("y") || ~type.indexOf("top") || type === "scroll"),
           minimumMovement = vars.minimumMovement || 2,
           self = _assertThisInitialized(_this2),
           triggers = _toArray(vars.trigger || vars.handle || target),
@@ -899,11 +1192,13 @@
           isClickable = vars.clickableTest || _isClickable,
           clickTime = 0,
           gsCache = target._gsap || gsap.core.getCache(target),
-          isFixed = _isFixed(target),
+          isFixed = _isFixed$1(target),
           getPropAsNum = function getPropAsNum(property, unit) {
         return parseFloat(gsCache.get(target, property, unit));
       },
+          ownerDoc = target.ownerDocument || _doc$1,
           enabled,
+          scrollProxy,
           startPointerX,
           startPointerY,
           startElementX,
@@ -957,8 +1252,8 @@
               changeY,
               gap;
           checkAutoScrollBounds = false;
-          _windowProxy.scrollTop = _win$1.pageYOffset != null ? _win$1.pageYOffset : _docElement$1.scrollTop != null ? _docElement$1.scrollTop : _body$1.scrollTop;
-          _windowProxy.scrollLeft = _win$1.pageXOffset != null ? _win$1.pageXOffset : _docElement$1.scrollLeft != null ? _docElement$1.scrollLeft : _body$1.scrollLeft;
+          _windowProxy.scrollTop = _win$1.pageYOffset != null ? _win$1.pageYOffset : ownerDoc.documentElement.scrollTop != null ? ownerDoc.documentElement.scrollTop : ownerDoc.body.scrollTop;
+          _windowProxy.scrollLeft = _win$1.pageXOffset != null ? _win$1.pageXOffset : ownerDoc.documentElement.scrollLeft != null ? ownerDoc.documentElement.scrollLeft : ownerDoc.body.scrollLeft;
           pointerX = self.pointerX - _windowProxy.scrollLeft;
           pointerY = self.pointerY - _windowProxy.scrollTop;
 
@@ -1029,7 +1324,17 @@
             gsCache.rotation = x + "deg";
             gsCache.renderTransform(1, gsCache);
           } else {
-            if (xyMode) {
+            if (scrollProxy) {
+              if (allowY) {
+                self.deltaY = y - scrollProxy.top();
+                scrollProxy.top(y);
+              }
+
+              if (allowX) {
+                self.deltaX = x - scrollProxy.left();
+                scrollProxy.left(x);
+              }
+            } else if (xyMode) {
               if (allowY) {
                 self.deltaY = y - parseFloat(gsCache.y);
                 gsCache.y = y + "px";
@@ -1090,6 +1395,9 @@
           self.y = parseFloat(gsCache.y);
         } else if (rotationMode) {
           self.x = self.rotation = parseFloat(gsCache.rotation);
+        } else if (scrollProxy) {
+          self.y = scrollProxy.top();
+          self.x = scrollProxy.left();
         } else {
           self.y = parseInt(target.style.top || (cs = _getComputedStyle(target)) && cs.top, 10) || 0;
           self.x = parseInt(target.style.left || (cs || {}).left, 10) || 0;
@@ -1269,7 +1577,13 @@
         var bounds, targetBounds, snap, snapIsRaw;
         hasBounds = false;
 
-        if (!!vars.bounds) {
+        if (scrollProxy) {
+          scrollProxy.calibrate();
+          self.minX = minX = -scrollProxy.maxScrollLeft();
+          self.minY = minY = -scrollProxy.maxScrollTop();
+          self.maxX = maxX = self.maxY = maxY = 0;
+          hasBounds = true;
+        } else if (!!vars.bounds) {
           bounds = _getBounds(vars.bounds, target.parentNode);
 
           if (rotationMode) {
@@ -1284,10 +1598,10 @@
             self.maxY = maxY = bounds.maxY;
           } else {
             targetBounds = _getBounds(target, target.parentNode);
-            self.minX = minX = getPropAsNum(xProp) + bounds.left - targetBounds.left;
-            self.minY = minY = getPropAsNum(yProp) + bounds.top - targetBounds.top;
-            self.maxX = maxX = minX + (bounds.width - targetBounds.width);
-            self.maxY = maxY = minY + (bounds.height - targetBounds.height);
+            self.minX = minX = Math.round(getPropAsNum(xProp, "px") + bounds.left - targetBounds.left);
+            self.minY = minY = Math.round(getPropAsNum(yProp, "px") + bounds.top - targetBounds.top);
+            self.maxX = maxX = Math.round(minX + (bounds.width - targetBounds.width));
+            self.maxY = maxY = Math.round(minY + (bounds.height - targetBounds.height));
           }
 
           if (minX > maxX) {
@@ -1319,14 +1633,14 @@
             snapY = null;
           } else {
             if (snap.points) {
-              snapXY = buildPointSnapFunc(snapIsRaw ? snap : snap.points, minX, maxX, minY, maxY, snap.radius, 1);
+              snapXY = buildPointSnapFunc(snapIsRaw ? snap : snap.points, minX, maxX, minY, maxY, snap.radius, scrollProxy ? -1 : 1);
             } else {
               if (allowX) {
-                snapX = buildSnapFunc(snapIsRaw ? snap : snap.x || snap.left || snap.scrollLeft, minX, maxX, 1);
+                snapX = buildSnapFunc(snapIsRaw ? snap : snap.x || snap.left || snap.scrollLeft, minX, maxX, scrollProxy ? -1 : 1);
               }
 
               if (allowY) {
-                snapY = buildSnapFunc(snapIsRaw ? snap : snap.y || snap.top || snap.scrollTop, minY, maxY, 1);
+                snapY = buildSnapFunc(snapIsRaw ? snap : snap.y || snap.top || snap.scrollTop, minY, maxY, scrollProxy ? -1 : 1);
               }
             }
           }
@@ -1355,11 +1669,11 @@
               inertia.rotation = _parseInertia(self, snapIsRaw ? snap : snap.rotation, maxX, minX, 1, forceZeroVelocity);
             } else {
               if (allowX) {
-                inertia[xProp] = _parseInertia(self, snapIsRaw ? snap : snap.points || snap.x || snap.left, maxX, minX, 1, forceZeroVelocity || self.lockedAxis === "x");
+                inertia[xProp] = _parseInertia(self, snapIsRaw ? snap : snap.points || snap.x || snap.left, maxX, minX, scrollProxy ? -1 : 1, forceZeroVelocity || self.lockedAxis === "x");
               }
 
               if (allowY) {
-                inertia[yProp] = _parseInertia(self, snapIsRaw ? snap : snap.points || snap.y || snap.top, maxY, minY, 1, forceZeroVelocity || self.lockedAxis === "y");
+                inertia[yProp] = _parseInertia(self, snapIsRaw ? snap : snap.points || snap.y || snap.top, maxY, minY, scrollProxy ? -1 : 1, forceZeroVelocity || self.lockedAxis === "y");
               }
 
               if (snap.points || _isArray(snap) && _isObject(snap[0])) {
@@ -1371,12 +1685,16 @@
 
           self.isThrowing = true;
           overshootTolerance = !isNaN(vars.overshootTolerance) ? vars.overshootTolerance : vars.edgeResistance === 1 ? 0 : 1 - self.edgeResistance + 0.2;
-          inertia.duration = {
-            max: Math.max(vars.minDuration || 0, vars.maxDuration || 0) || 2,
-            min: !isNaN(vars.minDuration) ? vars.minDuration : overshootTolerance === 0 || _isObject(inertia) && inertia.resistance > 1000 ? 0 : 0.5,
-            overshoot: overshootTolerance
-          };
-          self.tween = tween = gsap.to(target, {
+
+          if (!inertia.duration) {
+            inertia.duration = {
+              max: Math.max(vars.minDuration || 0, "maxDuration" in vars ? vars.maxDuration : 2),
+              min: !isNaN(vars.minDuration) ? vars.minDuration : overshootTolerance === 0 || _isObject(inertia) && inertia.resistance > 1000 ? 0 : 0.5,
+              overshoot: overshootTolerance
+            };
+          }
+
+          self.tween = tween = gsap.to(scrollProxy || target, {
             inertia: inertia,
             data: "_draggable",
             onComplete: onThrowComplete,
@@ -1386,6 +1704,10 @@
           });
 
           if (!vars.fastMode) {
+            if (scrollProxy) {
+              scrollProxy._skip = true;
+            }
+
             tween.render(tween.duration(), true, true);
             syncXY(true, true);
             self.endX = self.x;
@@ -1397,17 +1719,21 @@
 
             tween.play(0);
             syncXY(true, true);
+
+            if (scrollProxy) {
+              scrollProxy._skip = false;
+            }
           }
         } else if (hasBounds) {
           self.applyBounds();
         }
       },
           updateMatrix = function updateMatrix(shiftStart) {
-        var start = matrix || new Matrix2D(),
+        var start = matrix,
             p;
         matrix = getGlobalMatrix(target.parentNode, true);
 
-        if (shiftStart && self.isPressed && !matrix.equals(start)) {
+        if (shiftStart && self.isPressed && !matrix.equals(start || new Matrix2D())) {
           p = start.inverse().apply({
             x: startPointerX,
             y: startPointerY
@@ -1424,7 +1750,9 @@
           recordStartPositions = function recordStartPositions() {
         var edgeTolerance = 1 - self.edgeResistance,
             parsedOrigin,
-            parent;
+            parent,
+            x,
+            y;
         updateMatrix(false);
 
         if (matrix) {
@@ -1440,28 +1768,42 @@
           render(true);
         }
 
-        if (isTweening()) {
-          syncXY(true, true);
+        if (scrollProxy) {
           calculateBounds();
+          startElementY = scrollProxy.top();
+          startElementX = scrollProxy.left();
         } else {
-          self.applyBounds();
-        }
+          if (isTweening()) {
+            syncXY(true, true);
+            calculateBounds();
+          } else {
+            self.applyBounds();
+          }
 
-        if (rotationMode) {
-          parsedOrigin = target.ownerSVGElement ? [gsCache.xOrigin - target.getBBox().x, gsCache.yOrigin - target.getBBox().y] : (_getComputedStyle(target)[_transformOriginProp$1] || "0 0").split(" ");
-          rotationOrigin = self.rotationOrigin = getGlobalMatrix(target).apply({
-            x: parseFloat(parsedOrigin[0]) || 0,
-            y: parseFloat(parsedOrigin[1]) || 0
-          });
-          syncXY(true, true);
-          startElementX = self.x;
-          startElementY = self.y = Math.atan2(rotationOrigin.y - self.pointerY, self.pointerX - rotationOrigin.x) * _RAD2DEG;
-        } else {
-          parent = !isFixed && target.parentNode;
-          startScrollTop = parent ? parent.scrollTop || 0 : 0;
-          startScrollLeft = parent ? parent.scrollLeft || 0 : 0;
-          startElementY = getPropAsNum(yProp);
-          startElementX = getPropAsNum(xProp);
+          if (rotationMode) {
+            parsedOrigin = target.ownerSVGElement ? [gsCache.xOrigin - target.getBBox().x, gsCache.yOrigin - target.getBBox().y] : (_getComputedStyle(target)[_transformOriginProp$1] || "0 0").split(" ");
+            rotationOrigin = self.rotationOrigin = getGlobalMatrix(target).apply({
+              x: parseFloat(parsedOrigin[0]) || 0,
+              y: parseFloat(parsedOrigin[1]) || 0
+            });
+            syncXY(true, true);
+            x = self.pointerX - rotationOrigin.x;
+            y = rotationOrigin.y - self.pointerY;
+
+            if (isFixed) {
+              x -= _getDocScrollLeft$1(ownerDoc);
+              y += _getDocScrollTop$1(ownerDoc);
+            }
+
+            startElementX = self.x;
+            startElementY = self.y = Math.atan2(y, x) * _RAD2DEG;
+          } else {
+            parent = !isFixed && target.parentNode;
+            startScrollTop = parent ? parent.scrollTop || 0 : 0;
+            startScrollLeft = parent ? parent.scrollLeft || 0 : 0;
+            startElementY = getPropAsNum(yProp, "px");
+            startElementX = getPropAsNum(xProp, "px");
+          }
         }
 
         if (hasBounds && edgeTolerance) {
@@ -1502,7 +1844,7 @@
         self.pointerEvent = e;
 
         if (_touchEventLookup[e.type]) {
-          touchEventTarget = ~e.type.indexOf("touch") ? e.currentTarget || e.target : _doc$1;
+          touchEventTarget = ~e.type.indexOf("touch") ? e.currentTarget || e.target : ownerDoc;
 
           _addListener(touchEventTarget, "touchend", onRelease);
 
@@ -1510,17 +1852,17 @@
 
           _addListener(touchEventTarget, "touchcancel", onRelease);
 
-          _addListener(_doc$1, "touchstart", _onMultiTouchDocument);
+          _addListener(ownerDoc, "touchstart", _onMultiTouchDocument);
         } else {
           touchEventTarget = null;
 
-          _addListener(_doc$1, "mousemove", onMove);
+          _addListener(ownerDoc, "mousemove", onMove);
         }
 
         touchDragAxis = null;
 
         if (!_supportsPointer) {
-          _addListener(_doc$1, "mouseup", onRelease);
+          _addListener(ownerDoc, "mouseup", onRelease);
 
           if (e && e.target) {
             _addListener(e.target, "mouseup", onRelease);
@@ -1571,7 +1913,7 @@
           _recordMaxScrolls(target.parentNode);
         }
 
-        if (target.parentNode && self.autoScroll && !rotationMode && target.parentNode._gsMaxScrollX && !_placeholderDiv.parentNode && !target.getBBox) {
+        if (target.parentNode && self.autoScroll && !scrollProxy && !rotationMode && target.parentNode._gsMaxScrollX && !_placeholderDiv.parentNode && !target.getBBox) {
           _placeholderDiv.style.width = target.parentNode.scrollWidth + "px";
           target.parentNode.appendChild(_placeholderDiv);
         }
@@ -1583,10 +1925,17 @@
         }
 
         self.isThrowing = false;
-        gsap.killTweensOf(target, killProps, true);
+        gsap.killTweensOf(scrollProxy || target, killProps, true);
+
+        if (scrollProxy) {
+          gsap.killTweensOf(target, {
+            scrollTo: 1
+          }, true);
+        }
+
         self.tween = self.lockedAxis = null;
 
-        if (vars.zIndexBoost || !rotationMode && vars.zIndexBoost !== false) {
+        if (vars.zIndexBoost || !rotationMode && !scrollProxy && vars.zIndexBoost !== false) {
           target.style.zIndex = Draggable.zIndex++;
         }
 
@@ -1598,7 +1947,9 @@
           i = triggers.length;
 
           while (--i > -1) {
-            _setStyle(triggers[i], "cursor", vars.activeCursor || vars.cursor || (_defaultCursor === "grab" ? "grabbing" : _defaultCursor));
+            gsap.set(triggers[i], {
+              cursor: vars.activeCursor || vars.cursor || (_defaultCursor === "grab" ? "grabbing" : _defaultCursor)
+            });
           }
         }
 
@@ -1679,7 +2030,7 @@
           checkAutoScrollBounds = true;
         }
 
-        setPointerPosition(e.pageX - (isFixed ? _getDocScrollLeft$1() : 0), e.pageY - (isFixed ? _getDocScrollTop$1() : 0), hasMoveCallback);
+        setPointerPosition(e.pageX - (isFixed ? _getDocScrollLeft$1(ownerDoc) : 0), e.pageY - (isFixed ? _getDocScrollTop$1(ownerDoc) : 0), hasMoveCallback);
       },
           setPointerPosition = function setPointerPosition(pointerX, pointerY, invokeOnMove) {
         var dragTolerance = 1 - self.dragResistance,
@@ -1850,15 +2201,15 @@
 
           _removeListener(touchEventTarget, "touchcancel", onRelease);
 
-          _removeListener(_doc$1, "touchstart", _onMultiTouchDocument);
+          _removeListener(ownerDoc, "touchstart", _onMultiTouchDocument);
         } else {
-          _removeListener(_doc$1, "mousemove", onMove);
+          _removeListener(ownerDoc, "mousemove", onMove);
         }
 
         _removeListener(_win$1, "touchforcechange", _preventDefault);
 
         if (!_supportsPointer) {
-          _removeListener(_doc$1, "mouseup", onRelease);
+          _removeListener(ownerDoc, "mouseup", onRelease);
 
           if (e && e.target) {
             _removeListener(e.target, "mouseup", onRelease);
@@ -1948,8 +2299,8 @@
               if (clickTime !== clickDispatch && self.enabled() && !self.isPressed && !originalEvent.defaultPrevented) {
                 if (eventTarget.click) {
                   eventTarget.click();
-                } else if (_doc$1.createEvent) {
-                  syntheticEvent = _doc$1.createEvent("MouseEvents");
+                } else if (ownerDoc.createEvent) {
+                  syntheticEvent = ownerDoc.createEvent("MouseEvents");
                   syntheticEvent.initMouseEvent("click", true, true, _win$1, 1, self.pointerEvent.screenX, self.pointerEvent.screenY, self.pointerX, self.pointerY, false, false, false, false, 0, null);
                   eventTarget.dispatchEvent(syntheticEvent);
                 }
@@ -1981,7 +2332,7 @@
         return true;
       },
           updateScroll = function updateScroll(e) {
-        if (e && self.isDragging) {
+        if (e && self.isDragging && !scrollProxy) {
           var parent = e.target || target.parentNode,
               deltaX = parent.scrollLeft - parent._gsScrollX,
               deltaY = parent.scrollTop - parent._gsScrollY;
@@ -2125,18 +2476,18 @@
         return direction;
       };
 
-      _this2.applyBounds = function (newBounds) {
+      _this2.applyBounds = function (newBounds, sticky) {
         var x, y, forceZeroVelocity, e, parent, isRoot;
 
         if (newBounds && vars.bounds !== newBounds) {
           vars.bounds = newBounds;
-          return self.update(true);
+          return self.update(true, sticky);
         }
 
         syncXY(true);
         calculateBounds();
 
-        if (hasBounds) {
+        if (hasBounds && !isTweening()) {
           x = self.x;
           y = self.y;
 
@@ -2169,8 +2520,8 @@
               _recordMaxScrolls(target.parentNode);
 
               e = target;
-              _windowProxy.scrollTop = _win$1.pageYOffset != null ? _win$1.pageYOffset : _docElement$1.scrollTop != null ? _docElement$1.scrollTop : _body$1.scrollTop;
-              _windowProxy.scrollLeft = _win$1.pageXOffset != null ? _win$1.pageXOffset : _docElement$1.scrollLeft != null ? _docElement$1.scrollLeft : _body$1.scrollLeft;
+              _windowProxy.scrollTop = _win$1.pageYOffset != null ? _win$1.pageYOffset : ownerDoc.documentElement.scrollTop != null ? ownerDoc.documentElement.scrollTop : ownerDoc.body.scrollTop;
+              _windowProxy.scrollLeft = _win$1.pageXOffset != null ? _win$1.pageXOffset : ownerDoc.documentElement.scrollLeft != null ? ownerDoc.documentElement.scrollLeft : ownerDoc.body.scrollLeft;
 
               while (e && !isRoot) {
                 isRoot = _isRoot(e.parentNode);
@@ -2229,9 +2580,7 @@
 
           checkAutoScrollBounds = self.isDragging;
           render(true);
-        }
 
-        if (self.autoScroll) {
           _removeScrollListener(target, updateScroll);
 
           _addScrollListener(target, updateScroll);
@@ -2241,7 +2590,12 @@
       };
 
       _this2.enable = function (type) {
-        var id, i, trigger;
+        var vars = {
+          lazy: true
+        },
+            id,
+            i,
+            trigger;
 
         if (type !== "soft") {
           i = triggers.length;
@@ -2258,15 +2612,20 @@
             _addListener(trigger, "click", onClick, true);
 
             if (!rotationMode && vars.cursor !== false) {
-              _setStyle(trigger, "cursor", vars.cursor || _defaultCursor);
+              vars.cursor = vars.cursor || _defaultCursor;
             }
 
-            _setStyle(trigger, "touchCallout", "none");
+            if (gsap.utils.checkPrefix("touchCallout")) {
+              vars.touchCallout = "none";
+            }
 
-            _setStyle(trigger, "touchAction", allowX === allowY ? "none" : vars.allowNativeTouchScrolling || vars.allowEventDefault ? "manipulation" : allowX ? "pan-y" : "pan-x");
+            vars.touchAction = allowX === allowY ? "none" : vars.allowNativeTouchScrolling || vars.allowEventDefault ? "manipulation" : allowX ? "pan-y" : "pan-x";
+            gsap.set(trigger, vars);
 
             if (trigger.getBBox && trigger.ownerSVGElement) {
-              _setStyle(trigger.ownerSVGElement, "touchAction", allowX === allowY ? "none" : vars.allowNativeTouchScrolling || vars.allowEventDefault ? "manipulation" : allowX ? "pan-y" : "pan-x");
+              gsap.set(trigger.ownerSVGElement, {
+                touchAction: allowX === allowY ? "none" : vars.allowNativeTouchScrolling || vars.allowEventDefault ? "manipulation" : allowX ? "pan-y" : "pan-x"
+              });
             }
 
             if (!self.vars.allowContextMenu) {
@@ -2282,13 +2641,22 @@
         enabled = true;
 
         if (InertiaPlugin && type !== "soft") {
-          InertiaPlugin.track(target, xyMode ? "x,y" : rotationMode ? "rotation" : "top,left");
+          InertiaPlugin.track(scrollProxy || target, xyMode ? "x,y" : rotationMode ? "rotation" : "top,left");
         }
 
         target._gsDragID = id = "d" + _lookupCount++;
         _lookup[id] = self;
-        recordStartPositions();
-        self.update(true);
+
+        if (scrollProxy) {
+          scrollProxy.enable();
+          scrollProxy.element._gsDragID = id;
+        }
+
+        if (vars.bounds) {
+          recordStartPositions();
+          self.applyBounds();
+        }
+
         return self;
       };
 
@@ -2334,9 +2702,9 @@
             _removeListener(touchEventTarget, "touchmove", onMove);
           }
 
-          _removeListener(_doc$1, "mouseup", onRelease);
+          _removeListener(ownerDoc, "mouseup", onRelease);
 
-          _removeListener(_doc$1, "mousemove", onMove);
+          _removeListener(ownerDoc, "mousemove", onMove);
         }
 
         _removeScrollListener(target, updateScroll);
@@ -2344,7 +2712,11 @@
         enabled = false;
 
         if (InertiaPlugin && type !== "soft") {
-          InertiaPlugin.untrack(target, xyMode ? "x,y" : rotationMode ? "rotation" : "top,left");
+          InertiaPlugin.untrack(scrollProxy || target, xyMode ? "x,y" : rotationMode ? "rotation" : "top,left");
+        }
+
+        if (scrollProxy) {
+          scrollProxy.disable();
         }
 
         _removeFromRenderQueue(render);
@@ -2364,7 +2736,7 @@
 
       _this2.kill = function () {
         self.isThrowing = false;
-        gsap.killTweensOf(target, killProps, true);
+        gsap.killTweensOf(scrollProxy || target, killProps, true);
         self.disable();
         gsap.set(triggers, {
           clearProps: "userSelect"
@@ -2372,6 +2744,19 @@
         delete _lookup[target._gsDragID];
         return self;
       };
+
+      if (~type.indexOf("scroll")) {
+        scrollProxy = _this2.scrollProxy = new ScrollProxy(target, _extend({
+          onKill: function onKill() {
+            if (self.isPressed) {
+              onRelease(null);
+            }
+          }
+        }, vars));
+        target.style.overflowY = allowY && !_isTouchDevice ? "auto" : "hidden";
+        target.style.overflowX = allowX && !_isTouchDevice ? "auto" : "hidden";
+        target = scrollProxy.content;
+      }
 
       if (rotationMode) {
         killProps.rotation = 1;
@@ -2473,7 +2858,7 @@
   });
 
   Draggable.zIndex = 1000;
-  Draggable.version = "3.0.0";
+  Draggable.version = "3.0.2";
   _getGSAP() && gsap.registerPlugin(Draggable);
 
   exports.Draggable = Draggable;
@@ -2481,4 +2866,4 @@
 
   Object.defineProperty(exports, '__esModule', { value: true });
 
-}));
+})));

@@ -1,5 +1,5 @@
 /*!
- * GSAP 3.0.1
+ * GSAP 3.0.2
  * https://greensock.com
  *
  * @license Copyright 2008-2019, GreenSock. All rights reserved.
@@ -48,7 +48,7 @@ let _config = {
 	_installScope = {},
 	_coreReady,
 	_install = scope => (_installScope = _merge(scope, _globals)) && gsap,
-	_missingPlugin = (property, value) => console.warn("Invalid", property, "tween of", value, "Missing plugin? gsap.registerPlugin()"),
+	_missingPlugin = (property, value) => console.warn("Invalid property", property, "set to", value, "Missing plugin? gsap.registerPlugin()"),
 	_warn = (message, suppress) => !suppress && console.warn(message),
 	_addGlobal = (name, obj) => (name && (_globals[name] = obj) && (_installScope && (_installScope[name] = obj))) || _globals,
 	_emptyFunc = () => 0,
@@ -64,7 +64,7 @@ let _config = {
 		let target = targets[0],
 			harnessPlugin, i;
 		if (!_isObject(target) && !_isFunction(target)) {
-			return _isArray(targets) ? targets : [targets];
+			targets = [targets];
 		}
 		if (!(harnessPlugin = (target._gsap || {}).harness)) {
 			i = _harnessPlugins.length;
@@ -73,7 +73,7 @@ let _config = {
 		}
 		i = targets.length;
 		while (i--) {
-			targets[i]._gsap || (targets[i]._gsap = new GSCache(targets[i], harnessPlugin));
+			(targets[i] && (targets[i]._gsap || (targets[i]._gsap = new GSCache(targets[i], harnessPlugin)))) || targets.splice(i, 1);
 		}
 		return targets;
 	},
@@ -255,10 +255,7 @@ let _config = {
 		return animation;
 	},
 	_hasNoPausedAncestors = animation => !animation || (animation._ts && _hasNoPausedAncestors(animation.parent)),
-	_elapsedCycleDuration = animation => {
-		let cycleDuration;
-		return animation._repeat ? (cycleDuration = animation.duration() + animation._rDelay) * ~~(animation._tTime / cycleDuration) : 0;
-	},
+	_elapsedCycleDuration = animation => animation._repeat ? ~~(animation._tTime / (animation = animation.duration() + animation._rDelay)) * animation : 0,
 	_parentToChildTotalTime = (parentTime, child) => child._ts > 0 ? (parentTime - child._start) * child._ts : (child._dirty ? child.totalDuration() : child._tDur) + (parentTime - child._start) * child._ts,
 	/*
 	_totalTimeToTime = (clampedTotalTime, duration, repeat, repeatDelay, yoyo) => {
@@ -300,7 +297,7 @@ let _config = {
 		if (!tween._initted) {
 			return 1;
 		}
-		if (!force && tween._pt && tween.vars.lazy) {
+		if (!force && tween._pt && ((tween._dur && tween.vars.lazy !== false) || (!tween._dur && tween.vars.lazy))) {
 			_lazyTweens.push(tween);
 			tween._lazy = [totalTime, suppressEvents];
 			return 1;
@@ -324,7 +321,7 @@ let _config = {
 			}
 			if (iteration !== prevIteration) {
 				prevRatio = 1 - ratio;
-				if (tween.vars.repeatRefresh) {
+				if (tween.vars.repeatRefresh && tween._initted) {
 					tween.invalidate();
 				}
 			}
@@ -332,10 +329,8 @@ let _config = {
 		if (!tween._initted && _attemptInitTween(tween, totalTime, force, suppressEvents)) { //if we render the very beginning (time == 0) of a fromTo(), we must force the render (normal tweens wouldn't need to render at a time of 0 when the prevTime was also 0). This is also mandatory to make sure overwriting kicks in immediately.
 			return;
 		}
-		if (ratio !== prevRatio || force) {
-			if (!suppressEvents || totalTime) { //when the playhead arrives at EXACTLY time 0 (right on top) of a zero-duration tween, we need to discern if events are suppressed so that when the playhead moves again (next time), it'll trigger the callback. If events are NOT suppressed, obviously the callback would be triggered in this render. Basically, the callback should fire either when the playhead ARRIVES or LEAVES this exact spot, not both. Imagine doing a timeline.seek(0) and there's a callback that sits at 0. Since events are suppressed on that seek() by default, nothing will fire, but when the playhead moves off of that position, the callback should fire. This behavior is what people intuitively expect.
-				tween._zTime = totalTime;
-			}
+		if (ratio !== prevRatio || force || tween._zTime === _tinyNum || (!totalTime && tween._zTime)) {
+			tween._zTime = totalTime || (suppressEvents ? _tinyNum : 0); //when the playhead arrives at EXACTLY time 0 (right on top) of a zero-duration tween, we need to discern if events are suppressed so that when the playhead moves again (next time), it'll trigger the callback. If events are NOT suppressed, obviously the callback would be triggered in this render. Basically, the callback should fire either when the playhead ARRIVES or LEAVES this exact spot, not both. Imagine doing a timeline.seek(0) and there's a callback that sits at 0. Since events are suppressed on that seek() by default, nothing will fire, but when the playhead moves off of that position, the callback should fire. This behavior is what people intuitively expect.
 			tween.ratio = ratio;
 			if (tween._from) {
 				ratio = 1 - ratio;
@@ -363,7 +358,7 @@ let _config = {
 				tween.ratio && _removeFromParent(tween, 1);
 				if (!suppressEvents) {
 					_callback(tween, (tween.ratio ? "onComplete" : "onReverseComplete"), true);
-					tween._prom && tween.ratio && tween._prom();
+					tween._prom && tween._prom();
 				}
 			}
 		}
@@ -427,7 +422,7 @@ let _config = {
 	getUnit = value => (value + "").substr((parseFloat(value) + "").length),
 	clamp = (min, max, value) => _conditionalReturn(value, v => _clamp(min, max, v)),
 	_slice = [].slice,
-	_isArrayLike = value => (_isObject(value) && "length" in value && (value.length - 1) in value && _isObject(value[0]) && value !== _win),
+	_isArrayLike = value => value && (_isObject(value) && "length" in value && (value.length - 1) in value && _isObject(value[0]) && !value.nodeType && value !== _win),
 	_flatten = (ar, leaveStrings, accumulator = []) => ar.forEach(value => (_isString(value) && !leaveStrings) || _isArrayLike(value) ? accumulator.push(...toArray(value)) : accumulator.push(value)) || accumulator,
 	toArray = (value, leaveStrings) => { //takes any value and returns an array. If it's a string (and leaveStrings isn't true), it'll use document.querySelectorAll() and convert that to an array. It'll also accept iterables like jQuery objects.
 		return _isString(value) && !leaveStrings && (_coreInitted || !_wake()) ? _slice.call(_doc.querySelectorAll(value), 0) : _isArray(value) ? _flatten(value, leaveStrings) : _isArrayLike(value) ? _slice.call(value, 0) : value ? [value] : [];
@@ -626,7 +621,7 @@ let _config = {
 		if (executeLazyFirst && _lazyTweens.length) { //in case rendering caused any tweens to lazy-init, we should render them because typically when a timeline finishes, users expect things to have rendered fully. Imagine an onUpdate on a timeline that reports/checks tweened values.
 			_lazyRender();
 		}
-		return params ? callback.apply(scope, params) : callback.call(scope, animation);
+		return params ? callback.apply(scope, params) : callback.call(scope);
 	},
 	_interrupt = animation => {
 		_removeFromParent(animation);
@@ -1186,13 +1181,14 @@ export class Animation {
 			}
 		}
 		if (this._tTime !== totalTime || !this._dur) {
+			this._ts || (this._pTime = totalTime); // otherwise, if an animation is paused, then the playhead is moved back to zero, then resumed, it'd revert back to the original time at the pause
 			_lazySafeRender(this, totalTime, suppressEvents);
 		}
 		return this;
 	}
 
 	time(value, suppressEvents) {
-		return arguments.length ? this.totalTime(value + _elapsedCycleDuration(this), suppressEvents) : this._time;
+		return arguments.length ? this.totalTime(((value + _elapsedCycleDuration(this)) % this.duration()) || (value ? this._dur : 0), suppressEvents) : this._time; // note: if the modulus results in 0, the playhead could be exactly at the end or the beginning, and we always defer to the END with a non-zero value, otherwise if you set the time() to the very end (duration()), it would render at the START!
 	}
 
 	totalProgress(value, suppressEvents) {
@@ -1200,7 +1196,7 @@ export class Animation {
 	}
 
 	progress(value, suppressEvents) {
-		return arguments.length ? this.totalTime( this.duration() * value + _elapsedCycleDuration(this), suppressEvents) : (this.duration() ? this._time / this._dur : this.ratio);
+		return arguments.length ? this.totalTime( this.duration() * (this._yoyo && !(this.iteration() & 1) ? 1 - value : value) + _elapsedCycleDuration(this), suppressEvents) : (this.duration() ? this._time / this._dur : this.ratio);
 	}
 
 	iteration(value, suppressEvents) {
@@ -1347,11 +1343,11 @@ export class Animation {
 		return this;
 	}
 
-	isActive() {
+	isActive(hasStarted) {
 		let parent = this.parent || this._dp,
 			start = this._start,
 			rawTime;
-		return !parent || (this._ts && this._initted && parent.isActive() && (rawTime = parent.rawTime(true)) >= start && rawTime < this.endTime(true) - _tinyNum);
+		return !parent || (this._ts && (this._initted || !hasStarted) && parent.isActive(hasStarted) && (rawTime = parent.rawTime(true)) >= start && rawTime < this.endTime(true) - _tinyNum);
 	}
 
 	eventCallback(type, callback, params) {
@@ -1373,11 +1369,24 @@ export class Animation {
 		return vars[type];
 	}
 
-	then(onFulfilled = _emptyFunc) {
+	then(onFulfilled) {
 		return new Promise(resolve => {
-			this._prom = () => {
-				onFulfilled(this);
-				resolve();
+			let f = onFulfilled || _passThrough,
+				_resolve = () => {
+					let _then = this.then;
+					this.then = null; // temporarily null the then() method to avoid an infinite loop (see https://github.com/greensock/GSAP/issues/322)
+					f = f(this);
+					if (f && (f.then || f === this)) {
+						this._prom = f;
+						this.then = _then;
+					}
+					resolve(f);
+					this.then = _then;
+				};
+			if (this._initted && (this.totalProgress() === 1 && this._ts >= 0) || (!this._tTime && this._ts < 0)) {
+				_resolve();
+			} else {
+				this._prom = _resolve;
 			}
 		});
 	}
@@ -1388,7 +1397,7 @@ export class Animation {
 
 }
 
-_setDefaults(Animation.prototype, {_time:0, _start:0, _end:0, _tTime:0, _tDur:0, _dirty:0, _repeat:0, _yoyo:false, parent:0, _rDelay:0, _ts:1, _dp:0, ratio:0, _zTime:-_tinyNum, _prom:0});
+_setDefaults(Animation.prototype, {_time:0, _start:0, _end:0, _tTime:0, _tDur:0, _dirty:0, _repeat:0, _yoyo:false, parent:0, _initted:false, _rDelay:0, _ts:1, _dp:0, ratio:0, _zTime:-_tinyNum, _prom:0});
 
 
 
@@ -1481,7 +1490,7 @@ export class Timeline extends Animation {
 			tDur = this._dirty ? this.totalDuration() : this._tDur,
 			dur = this._dur,
 			tTime = (totalTime > tDur - _tinyNum && totalTime >= 0 && this !== _globalTimeline) ? tDur : (totalTime < _tinyNum) ? 0 : totalTime,
-			crossingStart = (this._zTime < 0) !== (totalTime < 0) && this._initted,
+			crossingStart = (this._zTime < 0) !== (totalTime < 0) && (this._initted || !dur),
 			time, child, next, iteration, cycleDuration, prevPaused, pauseTween, timeScale, prevStart, prevIteration, yoyo, isYoyo;
 		if (tTime !== this._tTime || force || crossingStart) {
 			if (crossingStart) {
@@ -1622,7 +1631,7 @@ export class Timeline extends Animation {
 				(totalTime || !dur) && _removeFromParent(this, 1);
 				if (!suppressEvents && !(totalTime < 0 && !prevTime)) {
 					_callback(this, (tTime === tDur ? "onComplete" : "onReverseComplete"), true);
-					this._prom && (tTime === tDur) && this._prom();
+					this._prom && this._prom();
 				}
 			}
 		}
@@ -1747,7 +1756,7 @@ export class Timeline extends Animation {
 		let tweens = this.getTweensOf(targets, onlyActive),
 			i = tweens.length;
 		while (i--) {
-			tweens[i].kill(targets, props);
+			(_overwritingTween !== tweens[i]) && tweens[i].kill(targets, props);
 		}
 		return this;
 	}
@@ -1759,7 +1768,7 @@ export class Timeline extends Animation {
 			children;
 		while (child) {
 			if (child instanceof Tween) {
-				if (_arrayContainsAny(child._targets, parsedTargets) && (!onlyActive || child.isActive())) {
+				if (_arrayContainsAny(child._targets, parsedTargets) && (!onlyActive || child.isActive(onlyActive === "started"))) {
 					a.push(child);
 				}
 			} else if ((children = child.getTweensOf(parsedTargets, onlyActive)).length) {
@@ -2010,7 +2019,7 @@ let _addComplexStringPropTween = function(target, prop, start, end, setter, stri
 				end = _replaceRandom(end);
 			}
 			if (end.charAt(1) === "=") {
-				end = parseFloat(parsedStart) + parseFloat(end.substr(2)) * (end.charAt(0) === "-" ? -1 : 1) + getUnit(parsedStart);
+				end = parseFloat(parsedStart) + parseFloat(end.substr(2)) * (end.charAt(0) === "-" ? -1 : 1) + (getUnit(parsedStart) || 0);
 			}
 		}
 		if (parsedStart !== end) {
@@ -2107,13 +2116,10 @@ let _addComplexStringPropTween = function(target, prop, start, end, setter, stri
 						lazy: (immediateRender && _isNotFalse(lazy)),
 						immediateRender: immediateRender, //zero-duration tweens render immediately by default, but if we're not specifically instructed to render this tween immediately, we should skip this and merely _init() to record the starting values (rendering them immediately would push them to completion which is wasteful in that case - we'd have to render(-1) immediately after)
 						stagger: 0,
-						parent: parent //ensures that nested tweens that had a stagger are handled properly, like gsap.from(".class", {y:gsap.utils.cycle([-100,100])})
+						parent: parent //ensures that nested tweens that had a stagger are handled properly, like gsap.from(".class", {y:gsap.utils.wrap([-100,100])})
 					})));
 					if (!immediateRender) {
-						_initTween(tween._startAt, time); //ensures that the initial values are recorded
-						if (immediateRender) {
-							!autoRevert && (tween._startAt = 0);
-						}
+						_initTween(tween._startAt, _tinyNum); //ensures that the initial values are recorded
 					} else if (!time) {
 						return;
 					}
@@ -2123,6 +2129,7 @@ let _addComplexStringPropTween = function(target, prop, start, end, setter, stri
 			tween._pt = 0;
 			harness = targets[0] ? _getCache(targets[0]).harness : 0;
 			harnessVars = harness && vars[harness.prop]; //someone may need to specify CSS-specific values AND non-CSS values, like if the element has an "x" property plus it's a standard DOM element. We allow people to distinguish by wrapping plugin-specific stuff in a css:{} object for example.
+			lazy = (dur && _isNotFalse(lazy)) || (lazy && !dur);
 			for (i = 0; i < targets.length; i++) {
 				target = targets[i];
 				gsData = target._gsap || _harness(targets)[i]._gsap;
@@ -2154,10 +2161,10 @@ let _addComplexStringPropTween = function(target, prop, start, end, setter, stri
 				}
 				if (autoOverwrite) {
 					_overwritingTween = tween;
-					_globalTimeline.killTweensOf(target, ptLookup, true); //Also make sure the overwriting doesn't overwrite THIS tween!!!
+					_globalTimeline.killTweensOf(target, ptLookup, "started"); //Also make sure the overwriting doesn't overwrite THIS tween!!!
 					_overwritingTween = 0;
 				}
-				if (tween._pt && ((_isNotFalse(lazy) && dur) || (lazy && !dur))) {
+				if (tween._pt && lazy) {
 					_lazyLookup[gsData.id] = 1;
 				}
 			}
@@ -2193,8 +2200,8 @@ let _addComplexStringPropTween = function(target, prop, start, end, setter, stri
 		return copy;
 	},
 	_parseFuncOrString = (value, tween, i, target, targets) => (_isFunction(value) ? value.call(tween, i, target, targets) : (_isString(value) && ~value.indexOf("random(")) ? _replaceRandom(value) : value),
-	_staggerTweenProps = _callbackNames + ",repeat,repeatDelay,yoyo,yoyoEase",
-	_staggerPropsToSkip = (_staggerTweenProps + ",id,stagger,delay,duration").split(",");
+	_staggerTweenProps = _callbackNames + ",repeat,repeatDelay,yoyo,repeatRefresh,yoyoEase",
+	_staggerPropsToSkip = (_staggerTweenProps + ",id,stagger,delay,duration,paused").split(",");
 
 
 
@@ -2234,9 +2241,9 @@ export class Tween extends Animation {
 		}
 		super(_inheritDefaults(vars), time);
 		let { duration, delay, immediateRender, stagger, overwrite, keyframes, defaults } = this.vars,
-			parsedTargets = toArray(targets),
+			parsedTargets = _isArray(targets) && _isNumber(targets[0]) ? [targets] : toArray(targets),
 			tl, i, copy, l, p, curTarget, staggerFunc, staggerVarsToMerge;
-		this._targets = parsedTargets.length ? _harness(parsedTargets) : _warn("GSAP target " + targets + " not found. https://greensock.com", !_config.nullTargetWarn) || [{}];
+		this._targets = parsedTargets.length ? _harness(parsedTargets) : _warn("GSAP target " + targets + " not found. https://greensock.com", !_config.nullTargetWarn) || [];
 		this._ptLookup = []; //PropTween lookup. An array containing an object for each target, having keys for each tweening property
 		this._overwrite = overwrite;
 		if (keyframes || stagger || _isFuncOrString(duration) || _isFuncOrString(delay)) {
@@ -2314,7 +2321,7 @@ export class Tween extends Animation {
 			time, pt, iteration, cycleDuration, prevIteration, isYoyo, ratio, timeline, yoyoEase;
 		if (!dur) {
 			_renderZeroDurationTween(this, totalTime, suppressEvents, force);
-		} else if (tTime !== this._tTime || force || (this._startAt && (this._zTime < 0) !== (totalTime < 0))) { //this senses if we're crossing over the start time, in which case we must record _zTime and force the render, but we do it in this lengthy conditional way for performance reasons (usually we can skip the calculations): this._initted && (this._zTime < 0) !== (totalTime < 0)
+		} else if (tTime !== this._tTime || !totalTime || force || (this._startAt && (this._zTime < 0) !== (totalTime < 0))) { //this senses if we're crossing over the start time, in which case we must record _zTime and force the render, but we do it in this lengthy conditional way for performance reasons (usually we can skip the calculations): this._initted && (this._zTime < 0) !== (totalTime < 0)
 			time = tTime;
 			timeline = this.timeline;
 			if (this._repeat) { //adjust the time for repeats and yoyos
@@ -2337,7 +2344,7 @@ export class Tween extends Animation {
 				if (prevIteration && prevIteration === this._tTime / cycleDuration) {
 					prevIteration--;
 				}
-				if (time === prevTime && !force) {
+				if (time === prevTime && !force && this._initted) {
 					//could be during the repeatDelay part. No need to render and fire callbacks.
 					return this;
 				}
@@ -2345,7 +2352,7 @@ export class Tween extends Animation {
 					//timeline && this._yEase && _propagateYoyoEase(timeline, isYoyo);
 					//repeatRefresh functionality
 					if (this.vars.repeatRefresh && !this._lock) {
-						this._lock = 1;
+						this._lock = force = 1; //force, otherwise if lazy is true, the _attemptInitTween() will return and we'll jump out and get caught bouncing on each tick.
 						this.render(cycleDuration * iteration, true).invalidate()._lock = 0;
 					}
 				}
@@ -2397,7 +2404,7 @@ export class Tween extends Animation {
 				(totalTime || !dur) && (tTime || this._ts < 0) && _removeFromParent(this, 1); // don't remove if we're rendering at exactly a time of 0, as there could be autoRevert values that should get set on the next tick (if the playhead goes backward beyond the startTime, negative totalTime).
 				if (!suppressEvents && !(totalTime < 0 && !prevTime)) {
 					_callback(this, (tTime === tDur ? "onComplete" : "onReverseComplete"), true);
-					this._prom && (tTime === tDur) && this._prom();
+					this._prom && this._prom();
 				}
 			}
 
@@ -2419,17 +2426,14 @@ export class Tween extends Animation {
 	}
 
 	kill(targets, vars = "all") {
-		if (_overwritingTween === this) {
-			return _overwritingTween;
-		}
 		if (!targets && (!vars || vars === "all")) {
+			this._lazy = 0;
 			if (this.parent) {
-				this._lazy = 0;
 				return _interrupt(this);
 			}
 		}
 		if (this.timeline) {
-			this.timeline.killTweensOf(targets, vars);
+			this.timeline.killTweensOf(targets, vars, !!_overwritingTween);
 			return this;
 		}
 		let parsedTargets = this._targets,
@@ -2511,7 +2515,7 @@ export class Tween extends Animation {
 	}
 }
 
-_setDefaults(Tween.prototype, {_targets:[], _initted:0, _lazy:0, _startAt:0, _op:0, _onInit:0});
+_setDefaults(Tween.prototype, {_targets:[], _lazy:0, _startAt:0, _op:0, _onInit:0});
 
 //add the pertinent timeline methods to Tween instances so that users can chain conveniently and create a timeline automatically. (removed due to concerns that it'd ultimately add to more confusion especially for beginners)
 // _forEachName("to,from,fromTo,set,call,add,addLabel,addPause", name => {
@@ -2556,7 +2560,7 @@ let _setterPlain = (target, property, value) => target[property] = value,
 	_setterFuncWithParam = (target, property, value, data) => target[property](data.fp, value),
 	_setterAttribute = (target, property, value) => target.setAttribute(property, value),
 	_getSetter = (target, property) => _isFunction(target[property]) ? _setterFunc : _isUndefined(target[property]) && target.setAttribute ? _setterAttribute : _setterPlain,
-	_renderPlain = (ratio, data) => data.set(data.t, data.p, ~~((data.s + data.c * ratio) * 10000) / 10000, data),
+	_renderPlain = (ratio, data) => data.set(data.t, data.p, Math.round((data.s + data.c * ratio) * 10000) / 10000, data),
 	_renderBoolean = (ratio, data) => data.set(data.t, data.p, !!(data.s + data.c * ratio), data),
 	_renderComplexString = function(ratio, data) {
 		let pt = data._pt,
@@ -2567,7 +2571,7 @@ let _setterPlain = (target, property, value) => target[property] = value,
 			s = data.e;
 		} else {
 			while (pt) {
-				s = pt.p + (pt.m ? pt.m(pt.s + pt.c * ratio) : (~~((pt.s + pt.c * ratio) * 10000) / 10000)) + s; //we use the "p" property for the text inbetween (like a suffix). And in the context of a complex string, the modifier (m) is typically just Math.round(), like for RGB colors.
+				s = pt.p + (pt.m ? pt.m(pt.s + pt.c * ratio) : (Math.round((pt.s + pt.c * ratio) * 10000) / 10000)) + s; //we use the "p" property for the text inbetween (like a suffix). And in the context of a complex string, the modifier (m) is typically just Math.round(), like for RGB colors.
 				pt = pt._next;
 			}
 			s += data.c; //we use the "c" of the PropTween to store the final chunk of non-numeric text.
@@ -2606,10 +2610,10 @@ let _setterPlain = (target, property, value) => target[property] = value,
 		}
 		return !hasNonDependentRemaining;
 	},
-	_setterWithModifier = function(target, property, value, data) {
+	_setterWithModifier = (target, property, value, data) => {
 		data.mSet(target, property, data.m.call(data.tween, value, data.mt), data);
 	},
-	_sortPropTweensByPriority = (parent) => {
+	_sortPropTweensByPriority = parent => {
 		let pt = parent._pt,
 			next, pt2, first, last;
 		//sorts the PropTween linked list in order of priority because some plugins need to do their work after ALL of the PropTweens were created (like RoundPropsPlugin and ModifiersPlugin)
@@ -2691,7 +2695,7 @@ _config.stringFilter = _colorStringFilter;
  * GSAP
  * --------------------------------------------------------------------------------------
  */
-export const gsap = {
+const _gsap = {
 	registerPlugin(...args) {
 		args.forEach(config => _createPlugin(config));
 	},
@@ -2794,9 +2798,9 @@ export const gsap = {
 	core: {PropTween: PropTween, globals: _addGlobal, Tween: Tween, Timeline: Timeline, Animation: Animation, getCache: _getCache}
 };
 
-_forEachName("to,from,fromTo,delayedCall,set,killTweensOf", name => gsap[name] = Tween[name]);
+_forEachName("to,from,fromTo,delayedCall,set,killTweensOf", name => _gsap[name] = Tween[name]);
 _ticker.add(Timeline.updateRoot);
-_quickTween = gsap.to({}, {duration:0});
+_quickTween = _gsap.to({}, {duration:0});
 
 
 
@@ -2804,20 +2808,28 @@ _quickTween = gsap.to({}, {duration:0});
 // ---- EXTRA PLUGINS --------------------------------------------------------
 
 
-let _addModifiers = (tween, modifiers) => {
-		let	targets = tween._targets,
-			p, i, pt;
-		for (p in modifiers) {
-			i = targets.length;
-			while (i--) {
-				pt = tween._ptLookup[i][p];
-				if (pt) {
-					if (pt.d.modifier) {
-						pt.d.modifier(modifiers[p], tween, targets[i], p);
+let _getPluginPropTween = (plugin, prop) => {
+		let pt = plugin._pt;
+		while (pt && pt.p !== prop && pt.op !== prop && pt.fp !== prop) {
+			pt = pt._next;
+		}
+		return pt;
+	},
+	_addModifiers = (tween, modifiers) => {
+			let	targets = tween._targets,
+				p, i, pt;
+			for (p in modifiers) {
+				i = targets.length;
+				while (i--) {
+					pt = tween._ptLookup[i][p];
+					if (pt && (pt = pt.d)) {
+						if (pt._pt) { // is a plugin
+							pt = _getPluginPropTween(pt, p);
+						}
+						pt && pt.modifier && pt.modifier(modifiers[p], tween, targets[i], p);
 					}
 				}
 			}
-		}
 	},
 	_buildModifierPlugin = (name, modifier) => {
 		return {
@@ -2845,7 +2857,7 @@ let _addModifiers = (tween, modifiers) => {
 	};
 
 //register core plugins
-gsap.registerPlugin({
+export const gsap = _gsap.registerPlugin({
 		name:"attr",
 		init(target, vars, tween, index, targets) {
 			for (let p in vars) {
@@ -2859,16 +2871,16 @@ gsap.registerPlugin({
 		init(target, value) {
 			let i = value.length;
 			while (i--) {
-				this.add(target, i, target[i], value[i]);
+				this.add(target, i, target[i] || 0, value[i]);
 			}
 		}
 	},
 	_buildModifierPlugin("roundProps", _roundModifier),
 	_buildModifierPlugin("modifiers"),
 	_buildModifierPlugin("snap", snap)
-);
+) || _gsap; //to prevent the core plugins from being dropped via aggressive tree shaking, we must include them in the variable declaration in this way.
 
-Tween.version = Timeline.version = gsap.version = "3.0.1";
+Tween.version = Timeline.version = gsap.version = "3.0.2";
 _coreReady = 1;
 if (_windowExists()) {
 	_wake();

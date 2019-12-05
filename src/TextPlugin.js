@@ -1,5 +1,5 @@
 /*!
- * TextPlugin 3.0.0
+ * TextPlugin 3.0.2
  * https://greensock.com
  *
  * @license Copyright 2008-2019, GreenSock. All rights reserved.
@@ -16,7 +16,7 @@ let gsap,
 
 
 export const TextPlugin = {
-	version:"3.0.0",
+	version:"3.0.2",
 	name:"text",
 	init(target, value, tween) {
 		let i = target.nodeName.toUpperCase(),

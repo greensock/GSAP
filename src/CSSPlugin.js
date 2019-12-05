@@ -1,5 +1,5 @@
 /*!
- * CSSPlugin 3.0.1
+ * CSSPlugin 3.0.2
  * https://greensock.com
  *
  * Copyright 2008-2019, GreenSock. All rights reserved.
@@ -25,9 +25,9 @@ let _win, _doc, _docElement, _pluginInitted, _tempDiv, _tempDivStyler, _recentSe
 	_horizontalExp = /(?:left|right|width|margin|padding|x)/i,
 	_complexExp = /[\s,\(]\S/,
 	_propertyAliases = {autoAlpha:"opacity,visibility", scale:"scaleX,scaleY", alpha:"opacity"},
-	_renderCSSProp = (ratio, data) => data.set(data.t, data.p, (~~((data.s + data.c * ratio) * 10000) / 10000) + data.u, data),
-	_renderPropWithEnd = (ratio, data) => data.set(data.t, data.p, ratio === 1 ? data.e : (~~((data.s + data.c * ratio) * 10000) / 10000) + data.u, data),
-	_renderCSSPropWithBeginning = (ratio, data) => data.set(data.t, data.p, ratio ? (~~((data.s + data.c * ratio) * 10000) / 10000) + data.u : data.b, data), //if units change, we need a way to render the original unit/value when the tween goes all the way back to the beginning (ratio:0)
+	_renderCSSProp = (ratio, data) => data.set(data.t, data.p, (~~((data.s + data.c * ratio) * 1000) / 1000) + data.u, data),
+	_renderPropWithEnd = (ratio, data) => data.set(data.t, data.p, ratio === 1 ? data.e : (~~((data.s + data.c * ratio) * 1000) / 1000) + data.u, data),
+	_renderCSSPropWithBeginning = (ratio, data) => data.set(data.t, data.p, ratio ? (~~((data.s + data.c * ratio) * 1000) / 1000) + data.u : data.b, data), //if units change, we need a way to render the original unit/value when the tween goes all the way back to the beginning (ratio:0)
 	_renderRoundedCSSProp = (ratio, data) => {
 		let value = data.s + data.c * ratio;
 		data.set(data.t, data.p, ~~(value + (value < 0 ? -.5 : .5)) + data.u, data);
@@ -55,21 +55,21 @@ let _win, _doc, _docElement, _pluginInitted, _tempDiv, _tempDivStyler, _recentSe
 		let e = _doc.createElementNS ? _doc.createElementNS((ns || "http://www.w3.org/1999/xhtml").replace(/^https/, "http"), type) : _doc.createElement(type); //some servers swap in https for http in the namespace which can break things, making "style" inaccessible.
 		return e.style ? e : _doc.createElement(type); //some environments won't allow access to the element's style when created with a namespace in which case we default to the standard createElement() to work around the issue. Also note that when GSAP is embedded directly inside an SVG file, createElement() won't allow access to the style object in Firefox (see https://greensock.com/forums/topic/20215-problem-using-tweenmax-in-standalone-self-containing-svg-file-err-cannot-set-property-csstext-of-undefined/).
 	},
-	_getComputedProperty = (target, property) => {
+	_getComputedProperty = (target, property, skipPrefixFallback) => {
 		let cs = getComputedStyle(target);
-		return cs[property] || cs.getPropertyValue(property.replace(_capsExp, "-$1").toLowerCase()) || cs.getPropertyValue(property); //css variables may not need caps swapped out for dashes and lowercase.
+		return cs[property] || cs.getPropertyValue(property.replace(_capsExp, "-$1").toLowerCase()) || cs.getPropertyValue(property) || (!skipPrefixFallback && _getComputedProperty(target, _checkPropPrefix(property) || property, 1)) || ""; //css variables may not need caps swapped out for dashes and lowercase.
 	},
+	_prefixes = "O,Moz,ms,Ms,Webkit".split(","),
 	_checkPropPrefix = (property, element) => {
 		let e = element || _tempDiv,
 			s = e.style,
-			i = 5,
-			a = "O,Moz,ms,Ms,Webkit".split(",");
+			i = 5;
 		if (property in s) {
 			return property;
 		}
 		property = property.charAt(0).toUpperCase() + property.substr(1);
-		while (i-- && !((a[i]+property) in s)) { }
-		return (i < 0) ? null : ((i === 3) ? "ms" : (i >= 0) ? a[i] : "") + property;
+		while (i-- && !((_prefixes[i]+property) in s)) { }
+		return (i < 0) ? null : ((i === 3) ? "ms" : (i >= 0) ? _prefixes[i] : "") + property;
 	},
 	_initCore = () => {
 		if (_windowExists()) {
@@ -128,7 +128,7 @@ let _win, _doc, _docElement, _pluginInitted, _tempDiv, _tempDivStyler, _recentSe
 			bounds = _getBBoxHack.call(target, true);
 		}
 		//some browsers (like Firefox) misreport the bounds if the element has zero width and height (it just assumes it's at x:0, y:0), thus we need to manually grab the position in that case.
-		return (bounds && !bounds.width && !bounds.x && !bounds.y) ? {x: +_getAttributeFallbacks(target, ["x","cx","x1"]), y:+_getAttributeFallbacks(target, ["y","cy","y1"]), width:0, height:0} : bounds;
+		return (bounds && !bounds.width && !bounds.x && !bounds.y) ? {x: +_getAttributeFallbacks(target, ["x","cx","x1"]) || 0, y:+_getAttributeFallbacks(target, ["y","cy","y1"]) || 0, width:0, height:0} : bounds;
 	},
 	_isSVG = e => !!(e.getCTM && (!e.parentNode || e.ownerSVGElement) && _getBBox(e)), //reports if the element is an SVG on which getBBox() actually works
 	_removeProperty = (target, property) => {
@@ -213,7 +213,7 @@ let _win, _doc, _docElement, _pluginInitted, _tempDiv, _tempDivStyler, _recentSe
 			value = (property !== "transformOrigin") ? value[property] : _firstTwoOnly(_getComputedProperty(target, _transformOriginProp)) + value.zOrigin + "px";
 		} else {
 			value = target.style[property];
-			if (!value || value === "auto" || uncache) {
+			if (!value || value === "auto" || uncache || ~value.indexOf("calc(")) {
 				value = _getComputedProperty(target, property) || _getProperty(target, property);
 			}
 		}
@@ -267,7 +267,7 @@ let _win, _doc, _docElement, _pluginInitted, _tempDiv, _tempDivStyler, _recentSe
 						}
 					}
 					if (startUnit !== endUnit) {
-						startNum = _convertToUnit(target, prop, startValue, endUnit);
+						startNum = _convertToUnit(target, prop, startValue, endUnit) || 0;
 					}
 					//these nested PropTweens are handled in a special way - we'll never actually call a render or setter method on them. We'll just loop through them in the parent complex string PropTween's render method.
 					pt._pt = {
@@ -281,7 +281,7 @@ let _win, _doc, _docElement, _pluginInitted, _tempDiv, _tempDivStyler, _recentSe
 			}
 			pt.c = (index < end.length) ? end.substring(index, end.length) : ""; //we use the "c" of the PropTween to store the final part of the string (after the last number)
 		} else {
-			pt.r = prop === "display" ? _renderNonTweeningValueOnlyAtEnd : _renderNonTweeningValue;
+			pt.r = prop === "display" && end === "none" ? _renderNonTweeningValueOnlyAtEnd : _renderNonTweeningValue;
 		}
 		if (_relExp.test(end)) {
 			pt.e = 0; //if the end string contains relative values or dynamic random(...) values, delete the end it so that on the final render we don't actually set it to the string with += or -= characters (forces it to use the calculated value).
@@ -295,9 +295,9 @@ let _win, _doc, _docElement, _pluginInitted, _tempDiv, _tempDivStyler, _recentSe
 			x = split[0],
 			y = split[1] || "50%";
 		if (x === "top" || x === "bottom" || y === "left" || y === "right") { //the user provided them in the wrong order, so flip them
-			split = x;
+			value = x;
 			x = y;
-			y = split;
+			y = value;
 		}
 		split[0] = _keywordToPercent[x] || x;
 		split[1] = _keywordToPercent[y] || y;
@@ -331,7 +331,7 @@ let _win, _doc, _docElement, _pluginInitted, _tempDiv, _tempDivStyler, _recentSe
 					if (clearTransforms.svg) {
 						target.removeAttribute("transform");
 					}
-					delete clearTransforms.x;
+					clearTransforms.uncache = 1;
 				}
 			}
 		}
@@ -339,12 +339,14 @@ let _win, _doc, _docElement, _pluginInitted, _tempDiv, _tempDivStyler, _recentSe
 	// note: specialProps should return 1 if (and only if) they have a non-zero priority. It indicates we need to sort the linked list.
 	_specialProps = {
 		clearProps(plugin, target, property, endValue, tween) {
-			let pt = plugin._pt = new PropTween(plugin._pt, target, property, 0, 0, _renderClearProps);
-			pt.u = endValue;
-			pt.pr = -10;
-			pt.tween = tween;
-			plugin._props.push(property);
-			return 1;
+			if (tween.data !== "isFromStart") {
+				let pt = plugin._pt = new PropTween(plugin._pt, target, property, 0, 0, _renderClearProps);
+				pt.u = endValue;
+				pt.pr = -10;
+				pt.tween = tween;
+				plugin._props.push(property);
+				return 1;
+			}
 		}
 		/* className feature (about 0.4kb gzipped).
 		, className(plugin, target, property, endValue, tween) {
@@ -494,8 +496,8 @@ let _win, _doc, _docElement, _pluginInitted, _tempDiv, _tempDivStyler, _recentSe
 		if (smooth || (smooth !== false && cache.smooth)) {
 			tx = xOrigin - xOriginOld;
 			ty = yOrigin - yOriginOld;
-			cache.xOffset += (tx * a + ty * c) - tx;
-			cache.yOffset += (tx * b + ty * d) - ty;
+			cache.xOffset = xOffsetOld + (tx * a + ty * c) - tx;
+			cache.yOffset = yOffsetOld + (tx * b + ty * d) - ty;
 		} else {
 			cache.xOffset = cache.yOffset = 0;
 		}
@@ -504,6 +506,7 @@ let _win, _doc, _docElement, _pluginInitted, _tempDiv, _tempDivStyler, _recentSe
 		cache.smooth = !!smooth;
 		cache.origin = origin;
 		cache.originIsAbsolute = !!originIsAbsolute;
+		target.style[_transformOriginProp] = "0px 0px"; //otherwise, if someone sets  an origin via CSS, it will likely interfere with the SVG transform attribute ones (because remember, we're baking the origin into the matrix() value).
 		if (pluginToAddPropTweensTo) {
 			_addNonTweeningPT(pluginToAddPropTweensTo, cache, "xOrigin", xOriginOld, xOrigin);
 			_addNonTweeningPT(pluginToAddPropTweensTo, cache, "yOrigin", yOriginOld, yOrigin);
@@ -513,7 +516,7 @@ let _win, _doc, _docElement, _pluginInitted, _tempDiv, _tempDivStyler, _recentSe
 	},
 	_parseTransform = (target, uncache) => {
 		let cache = target._gsap || new GSCache(target);
-		if ("x" in cache && !uncache) {
+		if ("x" in cache && !uncache && !cache.uncache) {
 			return cache;
 		}
 		let style = target.style,
@@ -654,6 +657,7 @@ let _win, _doc, _docElement, _pluginInitted, _tempDiv, _tempDivStyler, _recentSe
 		cache.xOffset = cache.yOffset = 0;
 		cache.force3D = _config.force3D;
 		cache.renderTransform = cache.svg ? _renderSVGTransforms : _supports3D ? _renderCSSTransforms : _renderNon3DTransforms;
+		cache.uncache = 0;
 		return cache;
 	},
 	_firstTwoOnly = value => (value = value.split(" "))[0] + " " + value[1], //for handling transformOrigin values, stripping out the 3rd dimension
@@ -896,13 +900,13 @@ export const CSSPlugin = {
 					if (!transformPropTween) {
 						cache = target._gsap;
 						smooth = (vars.smoothOrigin !== false && cache.smooth);
-						transformPropTween = this._pt = new PropTween(this._pt, style, _transformProp, 0, 1, cache.renderTransform, cache); //the first time through, create the rendering PropTween so that it runs LAST (in the linked list, we keep adding to the beginning)
+						transformPropTween = this._pt = new PropTween(this._pt, style, _transformProp, 0, 1, cache.renderTransform, cache, 0, -1); //the first time through, create the rendering PropTween so that it runs LAST (in the linked list, we keep adding to the beginning)
 						transformPropTween.dep = 1; //flag it as dependent so that if things get killed/overwritten and this is the only PropTween left, we can safely kill the whole tween.
 					}
 					if (p === "scale") {
-						this._pt = new PropTween(this._pt, target, "scale", startNum, relative ? relative * endNum : endNum - startNum, 0, 0, _setterScale);
-						props.push("scale");
-						continue;
+						this._pt = new PropTween(this._pt, cache, "scaleY", cache.scaleY, relative ? relative * endNum : endNum - cache.scaleY);
+						props.push("scaleY", p);
+						p += "X";
 					} else if (p === "transformOrigin") {
 						endValue = _convertKeywordsToPercentages(endValue); //in case something like "left top" or "bottom right" is passed in. Convert to percentages.
 						if (cache.svg) {
@@ -932,6 +936,8 @@ export const CSSPlugin = {
 						_addRawTransformPTs(this, endValue, target);
 						continue;
 					}
+				} else if (!(p in style)) {
+					p = _checkPropPrefix(p) || p;
 				}
 
 				if (isTransformRelated || ((endNum || endNum === 0) && (startNum || startNum === 0) && !_complexExp.test(endValue) && (p in style))) {
@@ -950,7 +956,7 @@ export const CSSPlugin = {
 					if (p in target) { //maybe it's not a style - it could be a property added directly to an element in which case we'll try to animate that.
 						this.add(target, p, target[p], endValue, index, targets);
 					} else {
-						_missingPlugin("Invalid " + p + " tween " + endValue + ". Missing plugin? gsap.registerPlugin()");
+						_missingPlugin(p, endValue);
 						continue;
 					}
 				} else {

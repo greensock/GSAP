@@ -6,7 +6,7 @@ GSAP is a JavaScript library for building high-performance animations that work 
 
 ### What is GSAP? (video)
 
-[![What is GSAP?](http://img.youtube.com/vi/RYuau0NeR1U/0.jpg)](http://www.youtube.com/watch?v=RYuau0NeR1U)
+[![What is GSAP?](http://greensock.com/_img/github/thumb-what-is-gsap-small.jpg)](http://www.youtube.com/watch?v=RYuau0NeR1U)
 
 
 GSAP is completely flexible; sprinkle it wherever you want. **Zero dependencies.**
@@ -18,7 +18,7 @@ View the <a href="https://greensock.com/docs">full documentation here</a>, inclu
 
 ### CDN
 ```html
-<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.0.1/gsap.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.0.2/gsap.min.js"></script>
 ```
 Click the green "Get GSAP Now" button at <a href="https://greensock.com/?download=GSAP-JS">greensock.com</a> for more options and installation instructions, including CDN URLs for various plugins. 
 
@@ -49,6 +49,11 @@ The NPM files are ES modules, but there's also a /dist/ directory with UMD files
 
 Download <a href="https://greensock.com/club/">Club GreenSock</a>-only plugins from your GreenSock.com account and then treat them as part of your own JS payload. Post other questions in our <a href="https://greensock.com/forums/">forums</a> and we'd be happy to help.
 
+
+### Getting Started (includes video)
+
+[![Getting Started with GSAP](http://greensock.com/_img/github/thumb-getting-started-small.gif)](http://greensock.com/get-started)
+
 ### Resources
 
 * <a href="https://greensock.com/">GSAP home page</a>
@@ -67,13 +72,11 @@ Sign up for a free GreenSock account to gain access to <a href="https://greensoc
 
 ### What is Club GreenSock? (video)
 
-[![What is Club GreenSock?](http://img.youtube.com/vi/Ome_KnloOhs/0.jpg)](http://www.youtube.com/watch?v=Ome_KnloOhs)
+[![What is Club GreenSock?](http://greensock.com/_img/github/thumb-what-is-club-greensock-small.jpg)](http://www.youtube.com/watch?v=Ome_KnloOhs)
 
 <a href="https://greensock.com/club/">Sign up</a> anytime.
 
 ### Advanced playback controls &amp; debugging
-
-<a href="https://greensock.com/gsdevtools/">![GSDevTools](https://greensock.com/_img/github/GSDevTools-github-thumb.gif)</a>
 
 <a href="https://greensock.com/gsdevtools/">GSDevTools</a> adds a visual UI for controlling your GSAP animations which can significantly boost your workflow and productivity. (<a href="https://greensock.com/club">Club GreenSock</a> membership required, not included in this repository).
 

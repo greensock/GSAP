@@ -2,10 +2,10 @@
 	typeof exports === 'object' && typeof module !== 'undefined' ? factory(exports) :
 	typeof define === 'function' && define.amd ? define(['exports'], factory) :
 	(global = global || self, factory(global.window = global.window || {}));
-}(this, function (exports) { 'use strict';
+}(this, (function (exports) { 'use strict';
 
 	/*!
-	 * EasePack 3.0.0
+	 * EasePack 3.0.2
 	 * https://greensock.com
 	 *
 	 * @license Copyright 2008-2019, GreenSock. All rights reserved.
@@ -201,7 +201,7 @@
 
 	for (var p in EasePack) {
 	  EasePack[p].register = _initCore;
-	  EasePack[p].version = "3.0.0";
+	  EasePack[p].version = "3.0.2";
 	}
 
 	_getGSAP() && gsap.registerPlugin(SlowMo);
@@ -214,4 +214,4 @@
 
 	Object.defineProperty(exports, '__esModule', { value: true });
 
-}));
+})));

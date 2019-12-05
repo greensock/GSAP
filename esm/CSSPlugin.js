@@ -1,5 +1,5 @@
 /*!
- * CSSPlugin 3.0.1
+ * CSSPlugin 3.0.2
  * https://greensock.com
  *
  * Copyright 2008-2019, GreenSock. All rights reserved.
@@ -37,13 +37,13 @@ var _win,
   alpha: "opacity"
 },
     _renderCSSProp = function _renderCSSProp(ratio, data) {
-  return data.set(data.t, data.p, ~~((data.s + data.c * ratio) * 10000) / 10000 + data.u, data);
+  return data.set(data.t, data.p, ~~((data.s + data.c * ratio) * 1000) / 1000 + data.u, data);
 },
     _renderPropWithEnd = function _renderPropWithEnd(ratio, data) {
-  return data.set(data.t, data.p, ratio === 1 ? data.e : ~~((data.s + data.c * ratio) * 10000) / 10000 + data.u, data);
+  return data.set(data.t, data.p, ratio === 1 ? data.e : ~~((data.s + data.c * ratio) * 1000) / 1000 + data.u, data);
 },
     _renderCSSPropWithBeginning = function _renderCSSPropWithBeginning(ratio, data) {
-  return data.set(data.t, data.p, ratio ? ~~((data.s + data.c * ratio) * 10000) / 10000 + data.u : data.b, data);
+  return data.set(data.t, data.p, ratio ? ~~((data.s + data.c * ratio) * 1000) / 1000 + data.u : data.b, data);
 },
     //if units change, we need a way to render the original unit/value when the tween goes all the way back to the beginning (ratio:0)
 _renderRoundedCSSProp = function _renderRoundedCSSProp(ratio, data) {
@@ -86,15 +86,15 @@ _renderRoundedCSSProp = function _renderRoundedCSSProp(ratio, data) {
 
   return e.style ? e : _doc.createElement(type); //some environments won't allow access to the element's style when created with a namespace in which case we default to the standard createElement() to work around the issue. Also note that when GSAP is embedded directly inside an SVG file, createElement() won't allow access to the style object in Firefox (see https://greensock.com/forums/topic/20215-problem-using-tweenmax-in-standalone-self-containing-svg-file-err-cannot-set-property-csstext-of-undefined/).
 },
-    _getComputedProperty = function _getComputedProperty(target, property) {
+    _getComputedProperty = function _getComputedProperty(target, property, skipPrefixFallback) {
   var cs = getComputedStyle(target);
-  return cs[property] || cs.getPropertyValue(property.replace(_capsExp, "-$1").toLowerCase()) || cs.getPropertyValue(property); //css variables may not need caps swapped out for dashes and lowercase.
+  return cs[property] || cs.getPropertyValue(property.replace(_capsExp, "-$1").toLowerCase()) || cs.getPropertyValue(property) || !skipPrefixFallback && _getComputedProperty(target, _checkPropPrefix(property) || property, 1) || ""; //css variables may not need caps swapped out for dashes and lowercase.
 },
+    _prefixes = "O,Moz,ms,Ms,Webkit".split(","),
     _checkPropPrefix = function _checkPropPrefix(property, element) {
   var e = element || _tempDiv,
       s = e.style,
-      i = 5,
-      a = "O,Moz,ms,Ms,Webkit".split(",");
+      i = 5;
 
   if (property in s) {
     return property;
@@ -102,9 +102,9 @@ _renderRoundedCSSProp = function _renderRoundedCSSProp(ratio, data) {
 
   property = property.charAt(0).toUpperCase() + property.substr(1);
 
-  while (i-- && !(a[i] + property in s)) {}
+  while (i-- && !(_prefixes[i] + property in s)) {}
 
-  return i < 0 ? null : (i === 3 ? "ms" : i >= 0 ? a[i] : "") + property;
+  return i < 0 ? null : (i === 3 ? "ms" : i >= 0 ? _prefixes[i] : "") + property;
 },
     _initCore = function _initCore() {
   if (_windowExists()) {
@@ -178,8 +178,8 @@ _renderRoundedCSSProp = function _renderRoundedCSSProp(ratio, data) {
 
 
   return bounds && !bounds.width && !bounds.x && !bounds.y ? {
-    x: +_getAttributeFallbacks(target, ["x", "cx", "x1"]),
-    y: +_getAttributeFallbacks(target, ["y", "cy", "y1"]),
+    x: +_getAttributeFallbacks(target, ["x", "cx", "x1"]) || 0,
+    y: +_getAttributeFallbacks(target, ["y", "cy", "y1"]) || 0,
     width: 0,
     height: 0
   } : bounds;
@@ -300,7 +300,7 @@ _convertToUnit = function _convertToUnit(target, property, value, unit) {
   } else {
     value = target.style[property];
 
-    if (!value || value === "auto" || uncache) {
+    if (!value || value === "auto" || uncache || ~value.indexOf("calc(")) {
       value = _getComputedProperty(target, property) || _getProperty(target, property);
     }
   }
@@ -382,7 +382,7 @@ _convertToUnit = function _convertToUnit(target, property, value, unit) {
         }
 
         if (startUnit !== endUnit) {
-          startNum = _convertToUnit(target, prop, startValue, endUnit);
+          startNum = _convertToUnit(target, prop, startValue, endUnit) || 0;
         } //these nested PropTweens are handled in a special way - we'll never actually call a render or setter method on them. We'll just loop through them in the parent complex string PropTween's render method.
 
 
@@ -399,7 +399,7 @@ _convertToUnit = function _convertToUnit(target, property, value, unit) {
 
     pt.c = index < end.length ? end.substring(index, end.length) : ""; //we use the "c" of the PropTween to store the final part of the string (after the last number)
   } else {
-    pt.r = prop === "display" ? _renderNonTweeningValueOnlyAtEnd : _renderNonTweeningValue;
+    pt.r = prop === "display" && end === "none" ? _renderNonTweeningValueOnlyAtEnd : _renderNonTweeningValue;
   }
 
   if (_relExp.test(end)) {
@@ -424,9 +424,9 @@ _convertToUnit = function _convertToUnit(target, property, value, unit) {
 
   if (x === "top" || x === "bottom" || y === "left" || y === "right") {
     //the user provided them in the wrong order, so flip them
-    split = x;
+    value = x;
     x = y;
-    y = split;
+    y = value;
   }
 
   split[0] = _keywordToPercent[x] || x;
@@ -471,7 +471,7 @@ _convertToUnit = function _convertToUnit(target, property, value, unit) {
           target.removeAttribute("transform");
         }
 
-        delete clearTransforms.x;
+        clearTransforms.uncache = 1;
       }
     }
   }
@@ -479,14 +479,16 @@ _convertToUnit = function _convertToUnit(target, property, value, unit) {
     // note: specialProps should return 1 if (and only if) they have a non-zero priority. It indicates we need to sort the linked list.
 _specialProps = {
   clearProps: function clearProps(plugin, target, property, endValue, tween) {
-    var pt = plugin._pt = new PropTween(plugin._pt, target, property, 0, 0, _renderClearProps);
-    pt.u = endValue;
-    pt.pr = -10;
-    pt.tween = tween;
+    if (tween.data !== "isFromStart") {
+      var pt = plugin._pt = new PropTween(plugin._pt, target, property, 0, 0, _renderClearProps);
+      pt.u = endValue;
+      pt.pr = -10;
+      pt.tween = tween;
 
-    plugin._props.push(property);
+      plugin._props.push(property);
 
-    return 1;
+      return 1;
+    }
   }
   /* className feature (about 0.4kb gzipped).
   , className(plugin, target, property, endValue, tween) {
@@ -656,8 +658,8 @@ _identity2DMatrix = [1, 0, 0, 1, 0, 0],
   if (smooth || smooth !== false && cache.smooth) {
     tx = xOrigin - xOriginOld;
     ty = yOrigin - yOriginOld;
-    cache.xOffset += tx * a + ty * c - tx;
-    cache.yOffset += tx * b + ty * d - ty;
+    cache.xOffset = xOffsetOld + (tx * a + ty * c) - tx;
+    cache.yOffset = yOffsetOld + (tx * b + ty * d) - ty;
   } else {
     cache.xOffset = cache.yOffset = 0;
   }
@@ -667,6 +669,7 @@ _identity2DMatrix = [1, 0, 0, 1, 0, 0],
   cache.smooth = !!smooth;
   cache.origin = origin;
   cache.originIsAbsolute = !!originIsAbsolute;
+  target.style[_transformOriginProp] = "0px 0px"; //otherwise, if someone sets  an origin via CSS, it will likely interfere with the SVG transform attribute ones (because remember, we're baking the origin into the matrix() value).
 
   if (pluginToAddPropTweensTo) {
     _addNonTweeningPT(pluginToAddPropTweensTo, cache, "xOrigin", xOriginOld, xOrigin);
@@ -681,7 +684,7 @@ _identity2DMatrix = [1, 0, 0, 1, 0, 0],
     _parseTransform = function _parseTransform(target, uncache) {
   var cache = target._gsap || new GSCache(target);
 
-  if ("x" in cache && !uncache) {
+  if ("x" in cache && !uncache && !cache.uncache) {
     return cache;
   }
 
@@ -865,6 +868,7 @@ _identity2DMatrix = [1, 0, 0, 1, 0, 0],
   cache.xOffset = cache.yOffset = 0;
   cache.force3D = _config.force3D;
   cache.renderTransform = cache.svg ? _renderSVGTransforms : _supports3D ? _renderCSSTransforms : _renderNon3DTransforms;
+  cache.uncache = 0;
   return cache;
 },
     _firstTwoOnly = function _firstTwoOnly(value) {
@@ -1220,15 +1224,15 @@ export var CSSPlugin = {
           if (!transformPropTween) {
             cache = target._gsap;
             smooth = vars.smoothOrigin !== false && cache.smooth;
-            transformPropTween = this._pt = new PropTween(this._pt, style, _transformProp, 0, 1, cache.renderTransform, cache); //the first time through, create the rendering PropTween so that it runs LAST (in the linked list, we keep adding to the beginning)
+            transformPropTween = this._pt = new PropTween(this._pt, style, _transformProp, 0, 1, cache.renderTransform, cache, 0, -1); //the first time through, create the rendering PropTween so that it runs LAST (in the linked list, we keep adding to the beginning)
 
             transformPropTween.dep = 1; //flag it as dependent so that if things get killed/overwritten and this is the only PropTween left, we can safely kill the whole tween.
           }
 
           if (p === "scale") {
-            this._pt = new PropTween(this._pt, target, "scale", startNum, relative ? relative * endNum : endNum - startNum, 0, 0, _setterScale);
-            props.push("scale");
-            continue;
+            this._pt = new PropTween(this._pt, cache, "scaleY", cache.scaleY, relative ? relative * endNum : endNum - cache.scaleY);
+            props.push("scaleY", p);
+            p += "X";
           } else if (p === "transformOrigin") {
             endValue = _convertKeywordsToPercentages(endValue); //in case something like "left top" or "bottom right" is passed in. Convert to percentages.
 
@@ -1265,6 +1269,8 @@ export var CSSPlugin = {
 
             continue;
           }
+        } else if (!(p in style)) {
+          p = _checkPropPrefix(p) || p;
         }
 
         if (isTransformRelated || (endNum || endNum === 0) && (startNum || startNum === 0) && !_complexExp.test(endValue) && p in style) {
@@ -1288,7 +1294,7 @@ export var CSSPlugin = {
             //maybe it's not a style - it could be a property added directly to an element in which case we'll try to animate that.
             this.add(target, p, target[p], endValue, index, targets);
           } else {
-            _missingPlugin("Invalid " + p + " tween " + endValue + ". Missing plugin? gsap.registerPlugin()");
+            _missingPlugin(p, endValue);
 
             continue;
           }

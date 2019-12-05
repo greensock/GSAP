@@ -2,10 +2,10 @@
 	typeof exports === 'object' && typeof module !== 'undefined' ? factory(exports) :
 	typeof define === 'function' && define.amd ? define(['exports'], factory) :
 	(global = global || self, factory(global.window = global.window || {}));
-}(this, function (exports) { 'use strict';
+}(this, (function (exports) { 'use strict';
 
 	/*!
-	 * PixiPlugin 3.0.0
+	 * PixiPlugin 3.0.2
 	 * https://greensock.com
 	 *
 	 * @license Copyright 2008-2019, GreenSock. All rights reserved.
@@ -328,7 +328,7 @@
 	}
 
 	var PixiPlugin = {
-	  version: "3.0.0",
+	  version: "3.0.2",
 	  name: "pixi",
 	  register: function register(core, Plugin, propTween) {
 	    gsap = core;
@@ -424,4 +424,4 @@
 
 	Object.defineProperty(exports, '__esModule', { value: true });
 
-}));
+})));

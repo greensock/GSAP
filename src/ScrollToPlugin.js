@@ -1,5 +1,5 @@
 /*!
- * ScrollToPlugin 3.0.0
+ * ScrollToPlugin 3.0.2
  * https://greensock.com
  *
  * @license Copyright 2008-2019, GreenSock. All rights reserved.
@@ -44,7 +44,7 @@ let gsap, _coreInitted, _window, _docEl, _body, _toArray, _config,
 	_parseVal = (value, target, axis, currentVal) => !isNaN(value) ? parseFloat(value) : (_isString(value) && value.charAt(1) === "=") ? parseFloat(value.substr(2)) * (value.charAt(0) === "-" ? -1 : 1) + currentVal : (value === "max") ? _max(target, axis) : Math.min(_max(target, axis), _getOffset(value, target)[axis]),
 	_initCore = () => {
 		gsap = _getGSAP();
-		if (_windowExists() && gsap) {
+		if (_windowExists() && gsap && document.body) {
 			_window = window;
 			_body = document.body;
 			_docEl = document.documentElement;
@@ -57,9 +57,10 @@ let gsap, _coreInitted, _window, _docEl, _body, _toArray, _config,
 
 
 export const ScrollToPlugin = {
-	version:"3.0.0",
+	version:"3.0.2",
 	name:"scrollTo",
-	register(core, Plugin, propTween) {
+	rawVars:1,
+	register(core) {
 		gsap = core;
 		_initCore();
 	},
