@@ -19,7 +19,7 @@
   }
 
   /*!
-   * GSAP 3.0.2
+   * GSAP 3.0.3
    * https://greensock.com
    *
    * @license Copyright 2008-2019, GreenSock. All rights reserved.
@@ -372,7 +372,10 @@
     return !animation || animation._ts && _hasNoPausedAncestors(animation.parent);
   },
       _elapsedCycleDuration = function _elapsedCycleDuration(animation) {
-    return animation._repeat ? ~~(animation._tTime / (animation = animation.duration() + animation._rDelay)) * animation : 0;
+    return animation._repeat ? _animationCycle(animation._tTime, animation = animation.duration() + animation._rDelay) * animation : 0;
+  },
+      _animationCycle = function _animationCycle(tTime, cycleDuration) {
+    return (tTime /= cycleDuration) && ~~tTime === tTime ? ~~tTime - 1 : ~~tTime;
   },
       _parentToChildTotalTime = function _parentToChildTotalTime(parentTime, child) {
     return child._ts > 0 ? (parentTime - child._start) * child._ts : (child._dirty ? child.totalDuration() : child._tDur) + (parentTime - child._start) * child._ts;
@@ -432,17 +435,8 @@
 
     if (repeatDelay && tween._repeat) {
       tTime = _clamp(0, tween._tDur, totalTime);
-      iteration = ~~(tTime / repeatDelay);
-
-      if (iteration && iteration === tTime / repeatDelay) {
-        iteration--;
-      }
-
-      prevIteration = ~~(tween._tTime / repeatDelay);
-
-      if (prevIteration && prevIteration === tween._tTime / repeatDelay) {
-        prevIteration--;
-      }
+      iteration = _animationCycle(tTime, repeatDelay);
+      prevIteration = _animationCycle(tween._tTime, repeatDelay);
 
       if (iteration !== prevIteration) {
         prevRatio = 1 - ratio;
@@ -739,7 +733,7 @@
     });
   },
       random = function random(min, max, roundingIncrement, returnFunction) {
-    return _conditionalReturn(_isArray(min) ? !max : !returnFunction, function () {
+    return _conditionalReturn(_isArray(min) ? !max : roundingIncrement === true ? !!(roundingIncrement = 0) : !returnFunction, function () {
       return _isArray(min) ? min[~~(Math.random() * min.length)] : (roundingIncrement = roundingIncrement || 1e-5) && (returnFunction = roundingIncrement < 1 ? Math.pow(10, (roundingIncrement + "").length - 2) : 1) && ~~(Math.round((min + Math.random() * (max - min)) / roundingIncrement) * roundingIncrement * returnFunction) / returnFunction;
     });
   },
@@ -1526,22 +1520,20 @@
     _proto.iteration = function iteration(value, suppressEvents) {
       var cycleDuration = this.duration() + this._rDelay;
 
-      return arguments.length ? this.totalTime(this._time + (value - 1) * cycleDuration, suppressEvents) : this._repeat ? ~~(this._tTime / cycleDuration) + 1 : 1;
+      return arguments.length ? this.totalTime(this._time + (value - 1) * cycleDuration, suppressEvents) : this._repeat ? _animationCycle(this._tTime, cycleDuration) + 1 : 1;
     };
 
     _proto.timeScale = function timeScale(value) {
-      var prevTS = this._ts;
-
       if (!arguments.length) {
-        return prevTS || this._pauseTS;
+        return this._ts || this._pauseTS || 0;
       }
 
-      if (!prevTS) {
+      if (this._pauseTS !== null) {
         this._pauseTS = value;
         return this;
       }
 
-      this._end = this._start + this._tDur / (this._ts = value || _tinyNum);
+      this._ts = value;
       return _recacheAncestors(this).totalTime(this._tTime, true);
     };
 
@@ -1558,7 +1550,8 @@
           this._pTime = this._tTime || Math.max(-this._delay, this.rawTime());
           this._ts = this._act = 0;
         } else {
-          this._ts = this._pauseTS;
+          this._ts = this._pauseTS || 1;
+          this._pauseTS = null;
           value = this._tTime || this._pTime;
 
           if (this.progress() === 1) {
@@ -1657,11 +1650,11 @@
     };
 
     _proto.reversed = function reversed(value) {
-      var ts = this._ts || this._pauseTS;
+      var ts = this._ts || this._pauseTS || 0;
 
       if (arguments.length) {
         if (value !== this.reversed()) {
-          this[this._ts ? "_ts" : "_pauseTS"] = Math.abs(ts) * (value ? -1 : 1);
+          this[this._pauseTS === null ? "_ts" : "_pauseTS"] = Math.abs(ts) * (value ? -1 : 1);
           this.totalTime(this._tTime, true);
         }
 
@@ -1757,7 +1750,8 @@
     _dp: 0,
     ratio: 0,
     _zTime: -_tinyNum,
-    _prom: 0
+    _prom: 0,
+    _pauseTS: null
   });
 
   var Timeline = function (_Animation) {
@@ -1888,11 +1882,7 @@
             iteration--;
           }
 
-          prevIteration = ~~(this._tTime / cycleDuration);
-
-          if (prevIteration && prevIteration === this._tTime / cycleDuration) {
-            prevIteration--;
-          }
+          prevIteration = _animationCycle(this._tTime, cycleDuration);
 
           if (yoyo && iteration & 1) {
             time = dur - time;
@@ -2371,7 +2361,7 @@
               prevStart = 0;
             }
 
-            end = child._end = child._start + child._tDur / Math.abs(child._ts || child._pauseTS);
+            end = child._end = child._start + child._tDur / Math.abs(child._ts || child._pauseTS || _tinyNum);
 
             if (end > max && child._ts) {
               max = _round(end);
@@ -2382,7 +2372,7 @@
 
           self._dur = self === _globalTimeline && self._time > max ? self._time : Math.min(_bigNum, max);
           self._tDur = isInfinite && (self._dur || repeatCycles) ? 1e20 : Math.min(_bigNum, max * (repeat + 1) + repeatCycles);
-          self._end = self._start + (self._tDur / Math.abs(self._ts || self._pauseTS) || 0);
+          self._end = self._start + (self._tDur / Math.abs(self._ts || self._pauseTS || _tinyNum) || 0);
           self._dirty = 0;
         }
 
@@ -2462,7 +2452,7 @@
       }
 
       if (endNum !== startNums[matchIndex++]) {
-        startNum = parseFloat(startNums[matchIndex - 1]);
+        startNum = parseFloat(startNums[matchIndex - 1]) || 0;
         pt._pt = {
           _next: pt._pt,
           p: chunk || matchIndex === 1 ? chunk : ",",
@@ -2703,7 +2693,7 @@
           tween.kill(target, tween._op[i]);
         }
 
-        if (autoOverwrite) {
+        if (autoOverwrite && tween._pt) {
           _overwritingTween = tween;
 
           _globalTimeline.killTweensOf(target, ptLookup, "started");
@@ -2931,11 +2921,7 @@
             time = dur - time;
           }
 
-          prevIteration = ~~(this._tTime / cycleDuration);
-
-          if (prevIteration && prevIteration === this._tTime / cycleDuration) {
-            prevIteration--;
-          }
+          prevIteration = _animationCycle(this._tTime / cycleDuration);
 
           if (time === prevTime && !force && this._initted) {
             return this;
@@ -3039,7 +3025,7 @@
       }
 
       if (this.timeline) {
-        this.timeline.killTweensOf(targets, vars, !!_overwritingTween);
+        this.timeline.killTweensOf(targets, vars, _overwritingTween && _overwritingTween.vars.overwrite !== true);
         return this;
       }
 
@@ -3096,9 +3082,9 @@
             if (pt) {
               if (!("kill" in pt.d) || pt.d.kill(p) === true) {
                 _removeLinkedListItem(this, pt, "_pt");
-
-                delete curLookup[p];
               }
+
+              delete curLookup[p];
             }
 
             if (curOverwriteProps !== "all") {
@@ -3599,7 +3585,7 @@
       }
     }
   }, _buildModifierPlugin("roundProps", _roundModifier), _buildModifierPlugin("modifiers"), _buildModifierPlugin("snap", snap)) || _gsap;
-  Tween.version = Timeline.version = gsap.version = "3.0.2";
+  Tween.version = Timeline.version = gsap.version = "3.0.3";
   _coreReady = 1;
 
   if (_windowExists()) {
@@ -3866,7 +3852,7 @@
     cache = parent._gsap;
 
     if (cache && unit === "%" && cache.width && horizontal && cache.time === _ticker.time) {
-      px = cache.width * curValue / amount;
+      return _round(curValue / cache.width * amount);
     } else {
       parent.appendChild(_tempDiv);
       px = _tempDiv[measureProperty];
@@ -3875,7 +3861,7 @@
       if (horizontal && unit === "%") {
         cache = _getCache(parent);
         cache.time = _ticker.time;
-        cache.width = px / curValue * amount;
+        cache.width = parent[measureProperty];
       }
     }
 
@@ -3888,7 +3874,7 @@
       _initCore();
     }
 
-    if (property in _propertyAliases) {
+    if (property in _propertyAliases && property !== "transform") {
       property = _propertyAliases[property];
 
       if (~property.indexOf(",")) {
@@ -3896,14 +3882,14 @@
       }
     }
 
-    if (_transformProps[property]) {
+    if (_transformProps[property] && property !== "transform") {
       value = _parseTransform(target, uncache);
       value = property !== "transformOrigin" ? value[property] : _firstTwoOnly(_getComputedProperty(target, _transformOriginProp)) + value.zOrigin + "px";
     } else {
       value = target.style[property];
 
       if (!value || value === "auto" || uncache || ~value.indexOf("calc(")) {
-        value = _getComputedProperty(target, property) || _getProperty(target, property);
+        value = _getComputedProperty(target, property) || _getProperty(target, property) || (property === "opacity" ? 1 : 0);
       }
     }
 
@@ -3943,6 +3929,17 @@
 
     start = a[0];
     end = a[1];
+    startValue = start.indexOf("rgba(");
+    endValue = end.indexOf("rgba(");
+
+    if (!!startValue !== !!endValue) {
+      if (startValue) {
+        start = start.substr(startValue) + " " + start.substr(0, startValue - 1);
+      } else {
+        end = end.substr(endValue) + " " + end.substr(0, endValue - 1);
+      }
+    }
+
     startValues = start.match(_numWithUnitExp) || [];
     endValues = end.match(_numWithUnitExp) || [];
 
@@ -4065,7 +4062,7 @@
             target.removeAttribute("transform");
           }
 
-          clearTransforms.uncache = 1;
+          _parseTransform(target, 1);
         }
       }
     }
@@ -4262,8 +4259,8 @@
       if (matrix.length === 6) {
         scaleX = Math.sqrt(a * a + b * b);
         scaleY = Math.sqrt(d * d + c * c);
-        rotation = a || b ? _atan2(b, a) * _RAD2DEG : cache.rotation || 0;
-        skewX = c || d ? _atan2(c, d) * _RAD2DEG + rotation : cache.skewX || 0;
+        rotation = a || b ? _atan2(b, a) * _RAD2DEG : 0;
+        skewX = c || d ? _atan2(c, d) * _RAD2DEG + rotation : 0;
 
         if (cache.svg) {
           x -= xOrigin - (xOrigin * a + yOrigin * c);
@@ -4704,7 +4701,7 @@
               _addNonTweeningPT(this, style, "visibility", startNum ? "inherit" : "hidden", endNum ? "inherit" : "hidden", !endNum);
             }
 
-            if (p !== "scale") {
+            if (p !== "scale" && p !== "transform") {
               p = _propertyAliases[p];
 
               if (~p.indexOf(",")) {

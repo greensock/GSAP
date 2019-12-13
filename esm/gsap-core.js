@@ -3,7 +3,7 @@ function _assertThisInitialized(self) { if (self === void 0) { throw new Referen
 function _inheritsLoose(subClass, superClass) { subClass.prototype = Object.create(superClass.prototype); subClass.prototype.constructor = subClass; subClass.__proto__ = superClass; }
 
 /*!
- * GSAP 3.0.2
+ * GSAP 3.0.3
  * https://greensock.com
  *
  * @license Copyright 2008-2019, GreenSock. All rights reserved.
@@ -369,7 +369,11 @@ _round = function _round(value) {
   return !animation || animation._ts && _hasNoPausedAncestors(animation.parent);
 },
     _elapsedCycleDuration = function _elapsedCycleDuration(animation) {
-  return animation._repeat ? ~~(animation._tTime / (animation = animation.duration() + animation._rDelay)) * animation : 0;
+  return animation._repeat ? _animationCycle(animation._tTime, animation = animation.duration() + animation._rDelay) * animation : 0;
+},
+    // feed in the totalTime and cycleDuration and it'll return the cycle (iteration minus 1) and if the playhead is exactly at the very END, it will NOT bump up to the next cycle.
+_animationCycle = function _animationCycle(tTime, cycleDuration) {
+  return (tTime /= cycleDuration) && ~~tTime === tTime ? ~~tTime - 1 : ~~tTime;
 },
     _parentToChildTotalTime = function _parentToChildTotalTime(parentTime, child) {
   return child._ts > 0 ? (parentTime - child._start) * child._ts : (child._dirty ? child.totalDuration() : child._tDur) + (parentTime - child._start) * child._ts;
@@ -445,17 +449,8 @@ _addToTimeline = function _addToTimeline(timeline, child, position) {
   if (repeatDelay && tween._repeat) {
     //in case there's a zero-duration tween that has a repeat with a repeatDelay
     tTime = _clamp(0, tween._tDur, totalTime);
-    iteration = ~~(tTime / repeatDelay);
-
-    if (iteration && iteration === tTime / repeatDelay) {
-      iteration--;
-    }
-
-    prevIteration = ~~(tween._tTime / repeatDelay);
-
-    if (prevIteration && prevIteration === tween._tTime / repeatDelay) {
-      prevIteration--;
-    }
+    iteration = _animationCycle(tTime, repeatDelay);
+    prevIteration = _animationCycle(tween._tTime, repeatDelay);
 
     if (iteration !== prevIteration) {
       prevRatio = 1 - ratio;
@@ -765,7 +760,7 @@ distribute = function distribute(v) {
   });
 },
     random = function random(min, max, roundingIncrement, returnFunction) {
-  return _conditionalReturn(_isArray(min) ? !max : !returnFunction, function () {
+  return _conditionalReturn(_isArray(min) ? !max : roundingIncrement === true ? !!(roundingIncrement = 0) : !returnFunction, function () {
     return _isArray(min) ? min[~~(Math.random() * min.length)] : (roundingIncrement = roundingIncrement || 1e-5) && (returnFunction = roundingIncrement < 1 ? Math.pow(10, (roundingIncrement + "").length - 2) : 1) && ~~(Math.round((min + Math.random() * (max - min)) / roundingIncrement) * roundingIncrement * returnFunction) / returnFunction;
   });
 },
@@ -1639,23 +1634,20 @@ function () {
   _proto.iteration = function iteration(value, suppressEvents) {
     var cycleDuration = this.duration() + this._rDelay;
 
-    return arguments.length ? this.totalTime(this._time + (value - 1) * cycleDuration, suppressEvents) : this._repeat ? ~~(this._tTime / cycleDuration) + 1 : 1;
+    return arguments.length ? this.totalTime(this._time + (value - 1) * cycleDuration, suppressEvents) : this._repeat ? _animationCycle(this._tTime, cycleDuration) + 1 : 1;
   };
 
   _proto.timeScale = function timeScale(value) {
-    var prevTS = this._ts;
-
     if (!arguments.length) {
-      return prevTS || this._pauseTS;
+      return this._ts || this._pauseTS || 0;
     }
 
-    if (!prevTS) {
+    if (this._pauseTS !== null) {
       this._pauseTS = value;
       return this;
-    } //don't allow a zero _ts, otherwise we can't resume() properly. For example, gsap.fromTo(tween, {timeScale:0}, {timeScale:1}) wouldn't work because the timeScale:0 would of course pause, and we'd record _pauseTS as 0...and then when resuming we'd copy that back to _ts...which would still keep it paused.
+    }
 
-
-    this._end = this._start + this._tDur / (this._ts = value || _tinyNum);
+    this._ts = value;
     return _recacheAncestors(this).totalTime(this._tTime, true);
   };
 
@@ -1673,7 +1665,8 @@ function () {
 
         this._ts = this._act = 0; //we use a timeScale of 0 to indicate a paused state, but we record the old "real" timeScale as _pauseTS so we can revert when unpaused.
       } else {
-        this._ts = this._pauseTS;
+        this._ts = this._pauseTS || 1;
+        this._pauseTS = null;
         value = this._tTime || this._pTime; //only defer to _pTime (pauseTime) if tTime is zero. Remember, someone could pause() an animation, then scrub the playhead and resume().
 
         if (this.progress() === 1) {
@@ -1783,11 +1776,11 @@ function () {
   };
 
   _proto.reversed = function reversed(value) {
-    var ts = this._ts || this._pauseTS;
+    var ts = this._ts || this._pauseTS || 0;
 
     if (arguments.length) {
       if (value !== this.reversed()) {
-        this[this._ts ? "_ts" : "_pauseTS"] = Math.abs(ts) * (value ? -1 : 1);
+        this[this._pauseTS === null ? "_ts" : "_pauseTS"] = Math.abs(ts) * (value ? -1 : 1);
         this.totalTime(this._tTime, true);
       }
 
@@ -1884,7 +1877,8 @@ _setDefaults(Animation.prototype, {
   _dp: 0,
   ratio: 0,
   _zTime: -_tinyNum,
-  _prom: 0
+  _prom: 0,
+  _pauseTS: null
 });
 /*
  * -------------------------------------------------
@@ -2028,11 +2022,7 @@ function (_Animation) {
           iteration--;
         }
 
-        prevIteration = ~~(this._tTime / cycleDuration);
-
-        if (prevIteration && prevIteration === this._tTime / cycleDuration) {
-          prevIteration--;
-        }
+        prevIteration = _animationCycle(this._tTime, cycleDuration);
 
         if (yoyo && iteration & 1) {
           time = dur - time;
@@ -2537,7 +2527,7 @@ function (_Animation) {
             prevStart = 0;
           }
 
-          end = child._end = child._start + child._tDur / Math.abs(child._ts || child._pauseTS);
+          end = child._end = child._start + child._tDur / Math.abs(child._ts || child._pauseTS || _tinyNum);
 
           if (end > max && child._ts) {
             max = _round(end);
@@ -2548,7 +2538,7 @@ function (_Animation) {
 
         self._dur = self === _globalTimeline && self._time > max ? self._time : Math.min(_bigNum, max);
         self._tDur = isInfinite && (self._dur || repeatCycles) ? 1e20 : Math.min(_bigNum, max * (repeat + 1) + repeatCycles);
-        self._end = self._start + (self._tDur / Math.abs(self._ts || self._pauseTS) || 0);
+        self._end = self._start + (self._tDur / Math.abs(self._ts || self._pauseTS || _tinyNum) || 0);
         self._dirty = 0;
       }
 
@@ -2631,7 +2621,7 @@ var _addComplexStringPropTween = function _addComplexStringPropTween(target, pro
     }
 
     if (endNum !== startNums[matchIndex++]) {
-      startNum = parseFloat(startNums[matchIndex - 1]); //these nested PropTweens are handled in a special way - we'll never actually call a render or setter method on them. We'll just loop through them in the parent complex string PropTween's render method.
+      startNum = parseFloat(startNums[matchIndex - 1]) || 0; //these nested PropTweens are handled in a special way - we'll never actually call a render or setter method on them. We'll just loop through them in the parent complex string PropTween's render method.
 
       pt._pt = {
         _next: pt._pt,
@@ -2890,7 +2880,7 @@ _initTween = function _initTween(tween, time) {
         tween.kill(target, tween._op[i]);
       }
 
-      if (autoOverwrite) {
+      if (autoOverwrite && tween._pt) {
         _overwritingTween = tween;
 
         _globalTimeline.killTweensOf(target, ptLookup, "started"); //Also make sure the overwriting doesn't overwrite THIS tween!!!
@@ -3137,11 +3127,7 @@ function (_Animation2) {
           time = dur - time;
         }
 
-        prevIteration = ~~(this._tTime / cycleDuration);
-
-        if (prevIteration && prevIteration === this._tTime / cycleDuration) {
-          prevIteration--;
-        }
+        prevIteration = _animationCycle(this._tTime / cycleDuration);
 
         if (time === prevTime && !force && this._initted) {
           //could be during the repeatDelay part. No need to render and fire callbacks.
@@ -3251,7 +3237,7 @@ function (_Animation2) {
     }
 
     if (this.timeline) {
-      this.timeline.killTweensOf(targets, vars, !!_overwritingTween);
+      this.timeline.killTweensOf(targets, vars, _overwritingTween && _overwritingTween.vars.overwrite !== true);
       return this;
     }
 
@@ -3309,9 +3295,9 @@ function (_Animation2) {
           if (pt) {
             if (!("kill" in pt.d) || pt.d.kill(p) === true) {
               _removeLinkedListItem(this, pt, "_pt");
-
-              delete curLookup[p];
             }
+
+            delete curLookup[p];
           }
 
           if (curOverwriteProps !== "all") {
@@ -3848,7 +3834,7 @@ export var gsap = _gsap.registerPlugin({
   }
 }, _buildModifierPlugin("roundProps", _roundModifier), _buildModifierPlugin("modifiers"), _buildModifierPlugin("snap", snap)) || _gsap; //to prevent the core plugins from being dropped via aggressive tree shaking, we must include them in the variable declaration in this way.
 
-Tween.version = Timeline.version = gsap.version = "3.0.2";
+Tween.version = Timeline.version = gsap.version = "3.0.3";
 _coreReady = 1;
 
 if (_windowExists()) {

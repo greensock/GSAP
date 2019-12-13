@@ -16,15 +16,17 @@ declare namespace gsap {
     velocity?: number | "auto";
     min?: number;
     max?: number;
-    end?: number | number[] | InertiaEndFunction<number> | InertiaEndFunction<InertiaLinkedProps>;
+    end?: number | number[] | InertiaEndFunction<any>;
+    // end?: number | number[] | InertiaEndFunction<number> | InertiaEndFunction<InertiaLinkedProps>; 
   }
 
-  interface InertiaVars {
-    [key: string]: TweenValue | InertiaObject | InertiaDuration;
-    duration?: number | InertiaDuration;
-    linkedProps?: string;
-    resistance?: number;
-  }
+  type InertiaVars = {
+    duration?: number | InertiaDuration,
+    linkedProps?: string,
+    resistance?: number
+  } & {
+    [key: string]: TweenValue | InertiaObject
+  };
 
   interface TweenVars {
     inertia?: InertiaVars;

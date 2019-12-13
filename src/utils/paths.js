@@ -1,5 +1,5 @@
 /*!
- * paths 3.0.2
+ * paths 3.0.3
  * https://greensock.com
  *
  * Copyright 2008-2019, GreenSock. All rights reserved.
@@ -675,7 +675,7 @@ export function stringToRawPath(d) {
 		elements = a.length,
 		points = 0,
 		errorMessage = "ERROR: malformed path: " + d,
-		i, j, x, y, command, isRelative, segment, startX, startY, difX, difY, beziers, prevCommand,
+		i, j, x, y, command, isRelative, segment, startX, startY, difX, difY, beziers, prevCommand, flag1, flag2,
 		line = function(sx, sy, ex, ey) {
 			difX = (ex - sx) / 3;
 			difY = (ey - sy) / 3;
@@ -794,7 +794,26 @@ export function stringToRawPath(d) {
 
 		// "A" (arc)
 		} else if (command === "A") {
-			beziers = arcToSegment(relativeX, relativeY, +a[i+1], +a[i+2], +a[i+3], +a[i+4], +a[i+5], (isRelative ? relativeX : 0) + a[i+6]*1, (isRelative ? relativeY : 0) + a[i+7]*1);
+			flag1 = a[i+4];
+			flag2 = a[i+5];
+			difX = a[i+6];
+			difY = a[i+7];
+			j = 7;
+			if (flag1.length > 1) { // for cases when the flags are merged, like "a8 8 0 018 8" (the 0 and 1 flags are WITH the x value of 8, but it could also be "a8 8 0 01-8 8" so it may include x or not)
+				if (flag1.length < 3) {
+					difY = difX;
+					difX = flag2;
+					j--;
+				} else {
+					difY = flag2;
+					difX = flag1.substr(2);
+					j-=2;
+				}
+				flag2 = flag1.charAt(1);
+				flag1 = flag1.charAt(0);
+			}
+			beziers = arcToSegment(relativeX, relativeY, +a[i+1], +a[i+2], +a[i+3], +flag1, +flag2, (isRelative ? relativeX : 0) + difX*1, (isRelative ? relativeY : 0) + difY*1);
+			i += j;
 			if (beziers) {
 				for (j = 0; j < beziers.length; j++) {
 					segment.push(beziers[j]);
@@ -802,7 +821,6 @@ export function stringToRawPath(d) {
 			}
 			relativeX = segment[segment.length-2];
 			relativeY = segment[segment.length-1];
-			i += 7;
 
 		} else {
 			console.log(errorMessage);

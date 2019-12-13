@@ -5,7 +5,7 @@
 }(this, (function (exports) { 'use strict';
 
 	/*!
-	 * CSSRulePlugin 3.0.2
+	 * CSSRulePlugin 3.0.3
 	 * https://greensock.com
 	 *
 	 * @license Copyright 2008-2019, GreenSock. All rights reserved.
@@ -51,7 +51,7 @@
 	};
 
 	var CSSRulePlugin = {
-	  version: "3.0.2",
+	  version: "3.0.3",
 	  name: "cssRule",
 	  init: function init(target, value, tween, index, targets) {
 	    if (!_checkRegister() || typeof target.cssText === "undefined") {
@@ -69,12 +69,14 @@
 	    var pt = data._pt,
 	        style = data.style,
 	        ss = data.ss,
-	        i = style.length;
+	        i;
 
 	    while (pt) {
 	      pt.r(ratio, pt.d);
 	      pt = pt._next;
 	    }
+
+	    i = style.length;
 
 	    while (--i > -1) {
 	      ss[style[i]] = style[style[i]];

@@ -19,6 +19,8 @@ declare namespace gsap {
     skew: TweenValue;
     skewX: TweenValue;
     skewY: TweenValue;
+    smoothOrigin: BooleanValue;
+    svgOrigin: TweenValue;
     translateX: TweenValue;
     translateY: TweenValue;
     translateZ: TweenValue;

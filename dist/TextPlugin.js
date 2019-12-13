@@ -24,13 +24,31 @@
 
 	  return result;
 	}
+	function splitInnerHTML(element, delimiter, trim) {
+	  var node = element.firstChild,
+	      result = [];
+
+	  while (node) {
+	    if (node.nodeType === 3) {
+	      result.push.apply(result, emojiSafeSplit((node.nodeValue + "").replace(/^\n+/g, "").replace(/\s+/g, " "), delimiter, trim));
+	    } else if ((node.nodeName + "").toLowerCase() === "br") {
+	      result[result.length - 1] += "<br>";
+	    } else {
+	      result.push(node.outerHTML);
+	    }
+
+	    node = node.nextSibling;
+	  }
+
+	  return result;
+	}
 	function emojiSafeSplit(text, delimiter, trim) {
 	  if (trim) {
 	    text = text.replace(_trimExp, "");
 	  }
 
 	  if (delimiter && delimiter !== "") {
-	    return text.split(delimiter);
+	    return text.replace(/>/g, "&gt;").replace(/</g, "&lt;").split(delimiter);
 	  }
 
 	  var result = [],
@@ -49,14 +67,14 @@
 	      i += j - 1;
 	    }
 
-	    result.push(character);
+	    result.push(character === ">" ? "&gt;" : character === "<" ? "&lt;" : character);
 	  }
 
 	  return result;
 	}
 
 	/*!
-	 * TextPlugin 3.0.2
+	 * TextPlugin 3.0.3
 	 * https://greensock.com
 	 *
 	 * @license Copyright 2008-2019, GreenSock. All rights reserved.
@@ -66,17 +84,25 @@
 	*/
 
 	var gsap,
+	    _tempDiv,
 	    _getGSAP = function _getGSAP() {
 	  return gsap || typeof window !== "undefined" && (gsap = window.gsap) && gsap.registerPlugin && gsap;
 	};
 
 	var TextPlugin = {
-	  version: "3.0.2",
+	  version: "3.0.3",
 	  name: "text",
 	  init: function init(target, value, tween) {
 	    var i = target.nodeName.toUpperCase(),
 	        data = this,
-	        _short;
+	        _short,
+	        text,
+	        original,
+	        j,
+	        condensedText,
+	        condensedOriginal,
+	        aggregate,
+	        s;
 
 	    data.svg = target.getBBox && (i === "TEXT" || i === "TSPAN");
 
@@ -98,21 +124,27 @@
 	    }
 
 	    data.delimiter = value.delimiter || "";
-	    data.original = emojiSafeSplit(getText(target).replace(/\s+/g, " "), data.delimiter);
-	    data.text = emojiSafeSplit(value.value.replace(/\s+/g, " "), data.delimiter);
+	    original = splitInnerHTML(target, data.delimiter);
+
+	    if (!_tempDiv) {
+	      _tempDiv = document.createElement("div");
+	    }
+
+	    _tempDiv.innerHTML = value.value;
+	    text = splitInnerHTML(_tempDiv, data.delimiter);
 	    data.from = tween._from;
 
 	    if (data.from) {
-	      i = data.original;
-	      data.original = data.text;
-	      data.text = i;
+	      i = original;
+	      original = text;
+	      text = i;
 	    }
 
 	    data.hasClass = !!(value.newClass || value.oldClass);
 	    data.newClass = value.newClass;
 	    data.oldClass = value.oldClass;
-	    i = data.original.length - data.text.length;
-	    _short = i < 0 ? data.original : data.text;
+	    i = original.length - text.length;
+	    _short = i < 0 ? original : text;
 	    data.fillChar = value.fillChar || (value.padSpace ? "&nbsp;" : "");
 
 	    if (i < 0) {
@@ -122,6 +154,40 @@
 	    while (--i > -1) {
 	      _short.push(data.fillChar);
 	    }
+
+	    if (value.type === "diff") {
+	      j = 0;
+	      condensedText = [];
+	      condensedOriginal = [];
+	      aggregate = "";
+
+	      for (i = 0; i < text.length; i++) {
+	        s = text[i];
+
+	        if (s === original[i]) {
+	          aggregate += s;
+	        } else {
+	          condensedText[j] = aggregate + s;
+	          condensedOriginal[j++] = aggregate + original[i];
+	          aggregate = "";
+	        }
+	      }
+
+	      text = condensedText;
+	      original = condensedOriginal;
+
+	      if (aggregate) {
+	        text.push(aggregate);
+	        original.push(aggregate);
+	      }
+	    }
+
+	    if (value.speed) {
+	      tween.duration(Math.min(0.05 / value.speed * _short.length, value.maxDuration || 9999));
+	    }
+
+	    this.original = original;
+	    this.text = text;
 
 	    this._props.push("text");
 	  },
@@ -165,6 +231,7 @@
 	    }
 	  }
 	};
+	TextPlugin.splitInnerHTML = splitInnerHTML;
 	TextPlugin.emojiSafeSplit = emojiSafeSplit;
 	TextPlugin.getText = getText;
 	_getGSAP() && gsap.registerPlugin(TextPlugin);

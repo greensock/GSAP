@@ -1,5 +1,8 @@
 declare namespace gsap.core {
 
+  // Added to TypeScript 3.5
+  type Omit<T, K extends keyof any> = Pick<T, Exclude<keyof T, K>>;
+
   class Animation {
 
     static readonly version: string;

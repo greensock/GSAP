@@ -808,6 +808,8 @@
 	      difY,
 	      beziers,
 	      prevCommand,
+	      flag1,
+	      flag2,
 	      line = function line(sx, sy, ex, ey) {
 	    difX = (ex - sx) / 3;
 	    difY = (ey - sy) / 3;
@@ -924,7 +926,29 @@
 	      relativeX = x;
 	      relativeY = y;
 	    } else if (command === "A") {
-	      beziers = arcToSegment(relativeX, relativeY, +a[i + 1], +a[i + 2], +a[i + 3], +a[i + 4], +a[i + 5], (isRelative ? relativeX : 0) + a[i + 6] * 1, (isRelative ? relativeY : 0) + a[i + 7] * 1);
+	      flag1 = a[i + 4];
+	      flag2 = a[i + 5];
+	      difX = a[i + 6];
+	      difY = a[i + 7];
+	      j = 7;
+
+	      if (flag1.length > 1) {
+	        if (flag1.length < 3) {
+	          difY = difX;
+	          difX = flag2;
+	          j--;
+	        } else {
+	          difY = flag2;
+	          difX = flag1.substr(2);
+	          j -= 2;
+	        }
+
+	        flag2 = flag1.charAt(1);
+	        flag1 = flag1.charAt(0);
+	      }
+
+	      beziers = arcToSegment(relativeX, relativeY, +a[i + 1], +a[i + 2], +a[i + 3], +flag1, +flag2, (isRelative ? relativeX : 0) + difX * 1, (isRelative ? relativeY : 0) + difY * 1);
+	      i += j;
 
 	      if (beziers) {
 	        for (j = 0; j < beziers.length; j++) {
@@ -934,7 +958,6 @@
 
 	      relativeX = segment[segment.length - 2];
 	      relativeY = segment[segment.length - 1];
-	      i += 7;
 	    } else {
 	      console.log(errorMessage);
 	    }
@@ -1123,7 +1146,7 @@
 	        type = svg ? i ? "rect" : "g" : "div",
 	        x = i !== 2 ? 0 : 100,
 	        y = i === 3 ? 100 : 0,
-	        css = "position:absolute;display:block;",
+	        css = "position:absolute;display:block;pointer-events:none;",
 	        e = _doc.createElementNS ? _doc.createElementNS(ns.replace(/^https/, "http"), type) : _doc.createElement(type);
 
 	    if (i) {
@@ -1328,7 +1351,7 @@
 	}
 
 	/*!
-	 * MotionPathPlugin 3.0.2
+	 * MotionPathPlugin 3.0.3
 	 * https://greensock.com
 	 *
 	 * @license Copyright 2008-2019, GreenSock. All rights reserved.
@@ -1474,7 +1497,7 @@
 	};
 
 	var MotionPathPlugin = {
-	  version: "3.0.2",
+	  version: "3.0.3",
 	  name: "motionPath",
 	  register: function register(core, Plugin, propTween) {
 	    gsap = core;

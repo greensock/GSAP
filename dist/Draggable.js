@@ -77,7 +77,7 @@
           type = svg ? i ? "rect" : "g" : "div",
           x = i !== 2 ? 0 : 100,
           y = i === 3 ? 100 : 0,
-          css = "position:absolute;display:block;",
+          css = "position:absolute;display:block;pointer-events:none;",
           e = _doc.createElementNS ? _doc.createElementNS(ns.replace(/^https/, "http"), type) : _doc.createElement(type);
 
       if (i) {
@@ -316,7 +316,7 @@
     return typeof value === "undefined";
   },
       _emptyFunc = function _emptyFunc() {
-    return 0;
+    return false;
   },
       _transformProp$1 = "transform",
       _transformOriginProp$1 = "transformOrigin",
@@ -2770,6 +2770,8 @@
         }
       }
 
+      gsCache.force3D = "force3D" in vars ? vars.force3D : true;
+
       _this2.enable();
 
       return _this2;
@@ -2858,7 +2860,7 @@
   });
 
   Draggable.zIndex = 1000;
-  Draggable.version = "3.0.2";
+  Draggable.version = "3.0.3";
   _getGSAP() && gsap.registerPlugin(Draggable);
 
   exports.Draggable = Draggable;

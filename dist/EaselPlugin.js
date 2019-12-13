@@ -5,7 +5,7 @@
 }(this, (function (exports) { 'use strict';
 
 	/*!
-	 * EaselPlugin 3.0.2
+	 * EaselPlugin 3.0.3
 	 * https://greensock.com
 	 *
 	 * @license Copyright 2008-2019, GreenSock. All rights reserved.
@@ -263,7 +263,7 @@
 	};
 
 	var EaselPlugin = {
-	  version: "3.0.2",
+	  version: "3.0.3",
 	  name: "easel",
 	  init: function init(target, value, tween, index, targets) {
 	    if (!_coreInitted) {

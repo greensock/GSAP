@@ -3,7 +3,7 @@ function _assertThisInitialized(self) { if (self === void 0) { throw new Referen
 function _inheritsLoose(subClass, superClass) { subClass.prototype = Object.create(superClass.prototype); subClass.prototype.constructor = subClass; subClass.__proto__ = superClass; }
 
 /*!
- * Draggable 3.0.2
+ * Draggable 3.0.3
  * https://greensock.com
  *
  * @license Copyright 2008-2019, GreenSock. All rights reserved.
@@ -50,7 +50,7 @@ var gsap,
   return typeof value === "undefined";
 },
     _emptyFunc = function _emptyFunc() {
-  return 0;
+  return false;
 },
     _transformProp = "transform",
     _transformOriginProp = "transformOrigin",
@@ -2593,6 +2593,8 @@ function (_EventDispatcher) {
       }
     }
 
+    gsCache.force3D = "force3D" in vars ? vars.force3D : true; //otherwise, normal dragging would be in 2D and then as soon as it's released and there's an inertia tween, it'd jump to 3D which can create an initial jump due to the work the browser must to do layerize it.
+
     _this2.enable();
 
     return _this2;
@@ -2681,6 +2683,6 @@ _setDefaults(Draggable.prototype, {
 });
 
 Draggable.zIndex = 1000;
-Draggable.version = "3.0.2";
+Draggable.version = "3.0.3";
 _getGSAP() && gsap.registerPlugin(Draggable);
 export { Draggable as default };

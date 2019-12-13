@@ -1,5 +1,5 @@
 /*!
- * Draggable 3.0.2
+ * Draggable 3.0.3
  * https://greensock.com
  *
  * @license Copyright 2008-2019, GreenSock. All rights reserved.
@@ -17,7 +17,7 @@ let gsap, _win, _doc, _docElement, _body, _tempDiv, _placeholderDiv, _coreInitte
 	_isFunction = value => typeof(value) === "function",
 	_isObject = value => typeof(value) === "object",
 	_isUndefined = value => typeof(value) === "undefined",
-	_emptyFunc = () => 0,
+	_emptyFunc = () => false,
 	_transformProp = "transform",
 	_transformOriginProp = "transformOrigin",
 	_round = value => Math.round(value * 10000) / 10000,
@@ -1869,6 +1869,8 @@ export class Draggable extends EventDispatcher {
 			}
 		}
 
+		gsCache.force3D = ("force3D" in vars) ? vars.force3D : true; //otherwise, normal dragging would be in 2D and then as soon as it's released and there's an inertia tween, it'd jump to 3D which can create an initial jump due to the work the browser must to do layerize it.
+
 		this.enable();
 	}
 
@@ -1928,7 +1930,7 @@ export class Draggable extends EventDispatcher {
 _setDefaults(Draggable.prototype, {pointerX:0, pointerY: 0, startX: 0, startY: 0, deltaX: 0, deltaY: 0, isDragging: false, isPressed: false});
 
 Draggable.zIndex = 1000;
-Draggable.version = "3.0.2";
+Draggable.version = "3.0.3";
 
 _getGSAP() && gsap.registerPlugin(Draggable);
 

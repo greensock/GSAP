@@ -1,5 +1,5 @@
 /*!
- * CSSPlugin 3.0.2
+ * CSSPlugin 3.0.3
  * https://greensock.com
  *
  * Copyright 2008-2019, GreenSock. All rights reserved.
@@ -264,7 +264,7 @@ _convertToUnit = function _convertToUnit(target, property, value, unit) {
   cache = parent._gsap;
 
   if (cache && unit === "%" && cache.width && horizontal && cache.time === _ticker.time) {
-    px = cache.width * curValue / amount;
+    return _round(curValue / cache.width * amount);
   } else {
     parent.appendChild(_tempDiv);
     px = _tempDiv[measureProperty];
@@ -273,7 +273,7 @@ _convertToUnit = function _convertToUnit(target, property, value, unit) {
     if (horizontal && unit === "%") {
       cache = _getCache(parent);
       cache.time = _ticker.time;
-      cache.width = px / curValue * amount;
+      cache.width = parent[measureProperty];
     }
   }
 
@@ -286,7 +286,7 @@ _convertToUnit = function _convertToUnit(target, property, value, unit) {
     _initCore();
   }
 
-  if (property in _propertyAliases) {
+  if (property in _propertyAliases && property !== "transform") {
     property = _propertyAliases[property];
 
     if (~property.indexOf(",")) {
@@ -294,14 +294,14 @@ _convertToUnit = function _convertToUnit(target, property, value, unit) {
     }
   }
 
-  if (_transformProps[property]) {
+  if (_transformProps[property] && property !== "transform") {
     value = _parseTransform(target, uncache);
     value = property !== "transformOrigin" ? value[property] : _firstTwoOnly(_getComputedProperty(target, _transformOriginProp)) + value.zOrigin + "px";
   } else {
     value = target.style[property];
 
     if (!value || value === "auto" || uncache || ~value.indexOf("calc(")) {
-      value = _getComputedProperty(target, property) || _getProperty(target, property);
+      value = _getComputedProperty(target, property) || _getProperty(target, property) || (property === "opacity" ? 1 : 0);
     }
   }
 
@@ -344,6 +344,18 @@ _convertToUnit = function _convertToUnit(target, property, value, unit) {
 
   start = a[0];
   end = a[1];
+  startValue = start.indexOf("rgba(");
+  endValue = end.indexOf("rgba(");
+
+  if (!!startValue !== !!endValue) {
+    // for things like boxShadow, sometimes the browser provides the computed values with the color FIRST, but the user provides it with the color LAST, so flip them if necessary.
+    if (startValue) {
+      start = start.substr(startValue) + " " + start.substr(0, startValue - 1);
+    } else {
+      end = end.substr(endValue) + " " + end.substr(0, endValue - 1);
+    }
+  }
+
   startValues = start.match(_numWithUnitExp) || [];
   endValues = end.match(_numWithUnitExp) || [];
 
@@ -471,7 +483,8 @@ _convertToUnit = function _convertToUnit(target, property, value, unit) {
           target.removeAttribute("transform");
         }
 
-        clearTransforms.uncache = 1;
+        _parseTransform(target, 1); // force all the cached values back to "normal"/identity, otherwise if there's another tween that's already set to render transforms on this element, it could display the wrong values.
+
       }
     }
   }
@@ -749,9 +762,9 @@ _identity2DMatrix = [1, 0, 0, 1, 0, 0],
     if (matrix.length === 6) {
       scaleX = Math.sqrt(a * a + b * b);
       scaleY = Math.sqrt(d * d + c * c);
-      rotation = a || b ? _atan2(b, a) * _RAD2DEG : cache.rotation || 0; //note: if scaleX is 0, we cannot accurately measure rotation. Same for skewX with a scaleY of 0. Therefore, we default to the previously recorded value (or zero if that doesn't exist).
+      rotation = a || b ? _atan2(b, a) * _RAD2DEG : 0; //note: if scaleX is 0, we cannot accurately measure rotation. Same for skewX with a scaleY of 0. Therefore, we default to the previously recorded value (or zero if that doesn't exist).
 
-      skewX = c || d ? _atan2(c, d) * _RAD2DEG + rotation : cache.skewX || 0;
+      skewX = c || d ? _atan2(c, d) * _RAD2DEG + rotation : 0;
 
       if (cache.svg) {
         x -= xOrigin - (xOrigin * a + yOrigin * c);
@@ -1209,7 +1222,7 @@ export var CSSPlugin = {
             _addNonTweeningPT(this, style, "visibility", startNum ? "inherit" : "hidden", endNum ? "inherit" : "hidden", !endNum);
           }
 
-          if (p !== "scale") {
+          if (p !== "scale" && p !== "transform") {
             p = _propertyAliases[p];
 
             if (~p.indexOf(",")) {

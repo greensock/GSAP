@@ -1,5 +1,5 @@
 /*!
- * CSSRulePlugin 3.0.2
+ * CSSRulePlugin 3.0.3
  * https://greensock.com
  *
  * @license Copyright 2008-2019, GreenSock. All rights reserved.
@@ -37,7 +37,7 @@ let gsap, _coreInitted, _win, _doc, CSSPlugin,
 
 
 export const CSSRulePlugin = {
-	version: "3.0.2",
+	version: "3.0.3",
 	name: "cssRule",
 	init(target, value, tween, index, targets) {
 		if (!_checkRegister() || typeof(target.cssText) === "undefined") {
@@ -53,11 +53,12 @@ export const CSSRulePlugin = {
 		let pt = data._pt,
 			style = data.style,
 			ss = data.ss,
-			i = style.length;
+			i;
 		while (pt) {
 			pt.r(ratio, pt.d);
 			pt = pt._next;
 		}
+		i = style.length;
 		while (--i > -1) {
 			ss[style[i]] = style[style[i]];
 		}

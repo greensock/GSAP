@@ -1,5 +1,5 @@
 /*!
- * strings: 3.0.2
+ * strings: 3.0.3
  * https://greensock.com
  *
  * Copyright 2008-2019, GreenSock. All rights reserved.
@@ -30,6 +30,22 @@ export function getText(e) {
 	return result;
 }
 
+export function splitInnerHTML(element, delimiter, trim) {
+	let node = element.firstChild,
+		result = [];
+	while (node) {
+		if (node.nodeType === 3) {
+			result.push(...emojiSafeSplit((node.nodeValue + "").replace(/^\n+/g, "").replace(/\s+/g, " "), delimiter, trim));
+		} else if ((node.nodeName + "").toLowerCase() === "br") {
+			result[result.length-1] += "<br>";
+		} else {
+			result.push(node.outerHTML);
+		}
+		node = node.nextSibling;
+	}
+	return result;
+}
+
 /*
 //smaller kb version that only handles the simpler emoji's, which is often perfectly adequate.
 
@@ -48,7 +64,7 @@ export function emojiSafeSplit(text, delimiter, trim) {
 		text = text.replace(_trimExp, "");
 	}
 	if (delimiter && delimiter !== "") {
-		return text.split(delimiter);
+		return text.replace(/>/g, "&gt;").replace(/</g, "&lt;").split(delimiter);
 	}
 	let result = [],
 		l = text.length,
@@ -62,7 +78,7 @@ export function emojiSafeSplit(text, delimiter, trim) {
 			result.emoji = 1;
 			i += j - 1;
 		}
-		result.push(character);
+		result.push(character === ">" ? "&gt;" : (character === "<") ? "&lt;" : character);
 	}
 	return result;
 }

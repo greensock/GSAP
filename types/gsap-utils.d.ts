@@ -109,7 +109,8 @@ declare namespace gsap.utils {
 
   function splitColor(color: string, hsl?: boolean): [number, number, number] | [number, number, number, number];
 
-  function toArray<T>(value: string | object, leaveStrings?: boolean): T[];
+  // function toArray<T>(value: string | object, leaveStrings?: boolean): T[];
+  function toArray<T>(value: string | object | Element | null, leaveStrings?: boolean): T[];
 
   function unitize<T extends Array<unknown>>(fn: (...args: T) => unknown, unit?: string): (...args: T) => string;
 

@@ -1,5 +1,5 @@
 /*!
- * matrix 3.0.2
+ * matrix 3.0.3
  * https://greensock.com
  *
  * Copyright 2008-2019, GreenSock. All rights reserved.
@@ -49,7 +49,7 @@ let _doc, _win, _docElement, _body,	_divContainer, _svgContainer, _identityMatri
 				type = svg ? (i ? "rect" : "g") : "div",
 				x = i !== 2 ? 0 : 100,
 				y = i === 3 ? 100 : 0,
-				css = "position:absolute;display:block;",
+				css = "position:absolute;display:block;pointer-events:none;",
 				e = _doc.createElementNS ? _doc.createElementNS(ns.replace(/^https/, "http"), type) : _doc.createElement(type);
 			if (i) {
 				if (!svg) {

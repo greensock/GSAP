@@ -59,7 +59,8 @@ declare namespace gsap {
   }
 
   interface ModifiersVars {
-    [key: string]: (value: any, target: object) => any;
+    // [key: string]: (value: any, target: object) => any;
+    [key: string]: (value: any, target: any) => any;
   }  
 
   interface SnapVars {

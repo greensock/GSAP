@@ -24,7 +24,7 @@ declare namespace gsap {
   type Point2D = { x: number, y: number };
   type Position = number | string;
   
-  type FunctionBasedValue<T> = (index: number, target: object, targets: object[]) => T;
+  type FunctionBasedValue<T> = (index: number, target: any, targets: any[]) => T;
   type ArrayValue = any[] | FunctionBasedValue<any[]>;
   type BooleanValue = boolean | FunctionBasedValue<boolean>;
   type NumberValue = number | FunctionBasedValue<number>;
@@ -66,34 +66,38 @@ declare namespace gsap {
   }
 
   interface GSAPConfig {
+    autoKillThreshold?: number;
     autoSleep?: number;
     force3D?: "auto" | boolean;
     nullTargetWarn?: boolean;
+    resistance?: number;
     stringFilter?: Callback; // TODO: Find out signature
+    unitFactors?: { time?: number, totalTime?: number };
     units?: GSAPUnits
   }
 
-  interface GSAPUnits {
-    [key: string]: string;
-    bottom?: string;
-    fontSize?: string;
-    height?: string;
-    left?: string;
-    lineHeight?: string;
-    margin?: string;
-    padding?: string;
-    perspective?: string;
-    right?: string;
-    rotation?: string;
-    rotationX?: string;
-    rotationY?: string;
-    skewX?: string;
-    skewY?: string;
-    top?: string;
-    width?: string;
-    x?: string;
-    y?: string;
-    z?: string;
+  type GSAPUnits = {
+    bottom?: string
+    fontSize?: string
+    height?: string
+    left?: string
+    lineHeight?: string
+    margin?: string
+    padding?: string
+    perspective?: string
+    right?: string
+    rotation?: string
+    rotationX?: string
+    rotationY?: string
+    skewX?: string
+    skewY?: string
+    top?: string
+    width?: string
+    x?: string
+    y?: string
+    z?: string
+  } & {
+    [key: string]: string
   }
   
   interface StaggerVars extends CallbackVars, utils.DistributeConfig {
@@ -148,8 +152,10 @@ declare namespace gsap {
   const version: string;
 
   function config(config: GSAPConfig): GSAPConfig;
+  function config(): GSAPConfig;
 
   function defaults(defauts: TweenVars): TweenVars;
+  function defaults(): TweenVars;
 
   function delayedCall(delay: number, callback: Callback, params?: any[], scope?: object): core.Tween; 
 
