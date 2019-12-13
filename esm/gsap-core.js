@@ -3,7 +3,7 @@ function _assertThisInitialized(self) { if (self === void 0) { throw new Referen
 function _inheritsLoose(subClass, superClass) { subClass.prototype = Object.create(superClass.prototype); subClass.prototype.constructor = subClass; subClass.__proto__ = superClass; }
 
 /*!
- * GSAP 3.0.3
+ * GSAP 3.0.4
  * https://greensock.com
  *
  * @license Copyright 2008-2019, GreenSock. All rights reserved.
@@ -3127,7 +3127,7 @@ function (_Animation2) {
           time = dur - time;
         }
 
-        prevIteration = _animationCycle(this._tTime / cycleDuration);
+        prevIteration = _animationCycle(this._tTime, cycleDuration);
 
         if (time === prevTime && !force && this._initted) {
           //could be during the repeatDelay part. No need to render and fire callbacks.
@@ -3834,7 +3834,7 @@ export var gsap = _gsap.registerPlugin({
   }
 }, _buildModifierPlugin("roundProps", _roundModifier), _buildModifierPlugin("modifiers"), _buildModifierPlugin("snap", snap)) || _gsap; //to prevent the core plugins from being dropped via aggressive tree shaking, we must include them in the variable declaration in this way.
 
-Tween.version = Timeline.version = gsap.version = "3.0.3";
+Tween.version = Timeline.version = gsap.version = "3.0.4";
 _coreReady = 1;
 
 if (_windowExists()) {

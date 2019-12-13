@@ -19,7 +19,7 @@
   }
 
   /*!
-   * GSAP 3.0.3
+   * GSAP 3.0.4
    * https://greensock.com
    *
    * @license Copyright 2008-2019, GreenSock. All rights reserved.
@@ -2921,7 +2921,7 @@
             time = dur - time;
           }
 
-          prevIteration = _animationCycle(this._tTime / cycleDuration);
+          prevIteration = _animationCycle(this._tTime, cycleDuration);
 
           if (time === prevTime && !force && this._initted) {
             return this;
@@ -3585,7 +3585,7 @@
       }
     }
   }, _buildModifierPlugin("roundProps", _roundModifier), _buildModifierPlugin("modifiers"), _buildModifierPlugin("snap", snap)) || _gsap;
-  Tween.version = Timeline.version = gsap.version = "3.0.3";
+  Tween.version = Timeline.version = gsap.version = "3.0.4";
   _coreReady = 1;
 
   if (_windowExists()) {

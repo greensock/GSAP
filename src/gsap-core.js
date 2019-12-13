@@ -1,5 +1,5 @@
 /*!
- * GSAP 3.0.3
+ * GSAP 3.0.4
  * https://greensock.com
  *
  * @license Copyright 2008-2019, GreenSock. All rights reserved.
@@ -2332,7 +2332,7 @@ export class Tween extends Animation {
 					yoyoEase = this._yEase;
 					time = dur - time;
 				}
-				prevIteration = _animationCycle(this._tTime / cycleDuration);
+				prevIteration = _animationCycle(this._tTime, cycleDuration);
 				if (time === prevTime && !force && this._initted) {
 					//could be during the repeatDelay part. No need to render and fire callbacks.
 					return this;
@@ -2869,7 +2869,7 @@ export const gsap = _gsap.registerPlugin({
 	_buildModifierPlugin("snap", snap)
 ) || _gsap; //to prevent the core plugins from being dropped via aggressive tree shaking, we must include them in the variable declaration in this way.
 
-Tween.version = Timeline.version = gsap.version = "3.0.3";
+Tween.version = Timeline.version = gsap.version = "3.0.4";
 _coreReady = 1;
 if (_windowExists()) {
 	_wake();

@@ -1,5 +1,5 @@
 /*!
- * paths 3.0.3
+ * paths 3.0.4
  * https://greensock.com
  *
  * Copyright 2008-2019, GreenSock. All rights reserved.
