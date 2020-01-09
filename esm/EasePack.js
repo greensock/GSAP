@@ -1,8 +1,8 @@
 /*!
- * EasePack 3.0.4
+ * EasePack 3.0.5
  * https://greensock.com
  *
- * @license Copyright 2008-2019, GreenSock. All rights reserved.
+ * @license Copyright 2008-2020, GreenSock. All rights reserved.
  * Subject to the terms at https://greensock.com/standard-license or for
  * Club GreenSock members, the agreement issued with that membership.
  * @author: Jack Doyle, jack@greensock.com
@@ -205,7 +205,7 @@ export var EasePack = {
 
 for (var p in EasePack) {
   EasePack[p].register = _initCore;
-  EasePack[p].version = "3.0.4";
+  EasePack[p].version = "3.0.5";
 }
 
 _getGSAP() && gsap.registerPlugin(SlowMo);

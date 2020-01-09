@@ -2590,12 +2590,22 @@
       };
 
       _this2.enable = function (type) {
-        var vars = {
+        var setVars = {
           lazy: true
         },
             id,
             i,
             trigger;
+
+        if (!rotationMode && vars.cursor !== false) {
+          setVars.cursor = vars.cursor || _defaultCursor;
+        }
+
+        if (gsap.utils.checkPrefix("touchCallout")) {
+          setVars.touchCallout = "none";
+        }
+
+        setVars.touchAction = allowX === allowY ? "none" : vars.allowNativeTouchScrolling || vars.allowEventDefault ? "manipulation" : allowX ? "pan-y" : "pan-x";
 
         if (type !== "soft") {
           i = triggers.length;
@@ -2611,16 +2621,7 @@
 
             _addListener(trigger, "click", onClick, true);
 
-            if (!rotationMode && vars.cursor !== false) {
-              vars.cursor = vars.cursor || _defaultCursor;
-            }
-
-            if (gsap.utils.checkPrefix("touchCallout")) {
-              vars.touchCallout = "none";
-            }
-
-            vars.touchAction = allowX === allowY ? "none" : vars.allowNativeTouchScrolling || vars.allowEventDefault ? "manipulation" : allowX ? "pan-y" : "pan-x";
-            gsap.set(trigger, vars);
+            gsap.set(trigger, setVars);
 
             if (trigger.getBBox && trigger.ownerSVGElement) {
               gsap.set(trigger.ownerSVGElement, {
@@ -2628,7 +2629,7 @@
               });
             }
 
-            if (!self.vars.allowContextMenu) {
+            if (!vars.allowContextMenu) {
               _addListener(trigger, "contextmenu", onContextMenu);
             }
           }
@@ -2860,12 +2861,12 @@
   });
 
   Draggable.zIndex = 1000;
-  Draggable.version = "3.0.4";
+  Draggable.version = "3.0.5";
   _getGSAP() && gsap.registerPlugin(Draggable);
 
   exports.Draggable = Draggable;
   exports.default = Draggable;
 
-  Object.defineProperty(exports, '__esModule', { value: true });
+  if (typeof(window) === 'undefined' || window !== exports) {Object.defineProperty(exports, '__esModule', { value: true });} else {delete window.default;}
 
 })));

@@ -1,8 +1,8 @@
 /*!
- * CSSPlugin 3.0.4
+ * CSSPlugin 3.0.5
  * https://greensock.com
  *
- * Copyright 2008-2019, GreenSock. All rights reserved.
+ * Copyright 2008-2020, GreenSock. All rights reserved.
  * Subject to the terms at https://greensock.com/standard-license or for
  * Club GreenSock members, the agreement issued with that membership.
  * @author: Jack Doyle, jack@greensock.com
@@ -158,8 +158,8 @@ let _win, _doc, _docElement, _pluginInitted, _tempDiv, _tempDivStyler, _recentSe
 	_nonConvertibleUnits = {deg:1, rad:1, turn:1},
 	//takes a single value like 20px and converts it to the unit specified, like "%", returning only the numeric amount.
 	_convertToUnit = (target, property, value, unit) => {
-		let curValue = parseFloat(value),
-			curUnit = (value + "").substr((curValue + "").length) || "px",
+		let curValue = parseFloat(value) || 0,
+			curUnit = (value + "").trim().substr((curValue + "").length) || "px", // some browsers leave extra whitespace at the beginning of CSS variables, hence the need to trim()
 			style = _tempDiv.style,
 			horizontal = _horizontalExp.test(property),
 			isRootSVG = target.tagName.toLowerCase() === "svg",
@@ -167,7 +167,7 @@ let _win, _doc, _docElement, _pluginInitted, _tempDiv, _tempDivStyler, _recentSe
 			amount = 100,
 			toPixels = unit === "px",
 			px, parent, cache, isSVG;
-		if (unit === curUnit || _nonConvertibleUnits[unit] || _nonConvertibleUnits[curUnit]) {
+		if (unit === curUnit || !curValue || _nonConvertibleUnits[unit] || _nonConvertibleUnits[curUnit]) {
 			return curValue;
 		}
 		isSVG = target.getCTM && _isSVG(target);
@@ -213,7 +213,7 @@ let _win, _doc, _docElement, _pluginInitted, _tempDiv, _tempDivStyler, _recentSe
 			value = (property !== "transformOrigin") ? value[property] : _firstTwoOnly(_getComputedProperty(target, _transformOriginProp)) + value.zOrigin + "px";
 		} else {
 			value = target.style[property];
-			if (!value || value === "auto" || uncache || ~value.indexOf("calc(")) {
+			if (!value || value === "auto" || uncache || ~(value + "").indexOf("calc(")) {
 				value = _getComputedProperty(target, property) || _getProperty(target, property) || (property === "opacity" ? 1 : 0);
 			}
 		}

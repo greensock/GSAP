@@ -19,10 +19,10 @@
   }
 
   /*!
-   * GSAP 3.0.4
+   * GSAP 3.0.5
    * https://greensock.com
    *
-   * @license Copyright 2008-2019, GreenSock. All rights reserved.
+   * @license Copyright 2008-2020, GreenSock. All rights reserved.
    * Subject to the terms at https://greensock.com/standard-license or for
    * Club GreenSock members, the agreement issued with that membership.
    * @author: Jack Doyle, jack@greensock.com
@@ -104,6 +104,7 @@
       _reservedProps = {},
       _lazyTweens = [],
       _lazyLookup = {},
+      _lastRenderedFrame,
       _plugins = {},
       _effects = {},
       _nextGCFrame = 30,
@@ -378,7 +379,7 @@
     return (tTime /= cycleDuration) && ~~tTime === tTime ? ~~tTime - 1 : ~~tTime;
   },
       _parentToChildTotalTime = function _parentToChildTotalTime(parentTime, child) {
-    return child._ts > 0 ? (parentTime - child._start) * child._ts : (child._dirty ? child.totalDuration() : child._tDur) + (parentTime - child._start) * child._ts;
+    return (parentTime - child._start) * child._ts + (child._ts > 0 ? 0 : child._dirty ? child.totalDuration() : child._tDur);
   },
       _addToTimeline = function _addToTimeline(timeline, child, position) {
     child.parent && _removeFromParent(child);
@@ -417,7 +418,7 @@
       return 1;
     }
 
-    if (!force && tween._pt && (tween._dur && tween.vars.lazy !== false || !tween._dur && tween.vars.lazy)) {
+    if (!force && tween._pt && (tween._dur && tween.vars.lazy !== false || !tween._dur && tween.vars.lazy) && _lastRenderedFrame !== _ticker.frame) {
       _lazyTweens.push(tween);
 
       tween._lazy = [totalTime, suppressEvents];
@@ -527,7 +528,7 @@
     }
 
     var repeat = animation._repeat;
-    animation._tDur = !repeat ? animation._dur : repeat < 0 ? 1e20 : _round(animation._dur * (repeat + 1) + animation._rDelay * repeat);
+    animation._tDur = !repeat ? animation._dur : repeat < 0 ? 1e12 : _round(animation._dur * (repeat + 1) + animation._rDelay * repeat);
 
     _uncache(animation.parent);
 
@@ -583,7 +584,7 @@
   },
       _slice = [].slice,
       _isArrayLike = function _isArrayLike(value) {
-    return value && _isObject(value) && "length" in value && value.length - 1 in value && _isObject(value[0]) && !value.nodeType && value !== _win;
+    return value && _isObject(value) && "length" in value && (!value.length || value.length - 1 in value && _isObject(value[0])) && !value.nodeType && value !== _win;
   },
       _flatten = function _flatten(ar, leaveStrings, accumulator) {
     if (accumulator === void 0) {
@@ -697,14 +698,22 @@
 
     if (!isArray && _isObject(snapTo)) {
       radius = isArray = snapTo.radius || _bigNum;
-      snapTo = toArray(snapTo.values);
 
-      if (is2D = !_isNumber(snapTo[0])) {
-        radius *= radius;
+      if (snapTo.values) {
+        snapTo = toArray(snapTo.values);
+
+        if (is2D = !_isNumber(snapTo[0])) {
+          radius *= radius;
+        }
+      } else {
+        snapTo = _roundModifier(snapTo.increment);
       }
     }
 
-    return _conditionalReturn(value, !isArray ? _roundModifier(snapTo) : function (raw) {
+    return _conditionalReturn(value, !isArray ? _roundModifier(snapTo) : _isFunction(snapTo) ? function (raw) {
+      is2D = snapTo(raw);
+      return Math.abs(is2D - raw) <= radius ? is2D : raw;
+    } : function (raw) {
       var x = parseFloat(is2D ? raw.x : raw),
           y = parseFloat(is2D ? raw.y : 0),
           min = _bigNum,
@@ -1455,7 +1464,7 @@
 
       var repeat = this._repeat,
           isInfinite = (value || this._rDelay) && repeat < 0;
-      this._tDur = isInfinite ? 1e20 : value;
+      this._tDur = isInfinite ? 1e12 : value;
       this._dur = isInfinite ? value : (value - repeat * this._rDelay) / (repeat + 1);
       this._dirty = 0;
 
@@ -1496,7 +1505,7 @@
         }
       }
 
-      if (this._tTime !== _totalTime || !this._dur) {
+      if (this._tTime !== _totalTime || !this._dur && !suppressEvents) {
         this._ts || (this._pTime = _totalTime);
 
         _lazySafeRender(this, _totalTime, suppressEvents);
@@ -1506,7 +1515,7 @@
     };
 
     _proto.time = function time(value, suppressEvents) {
-      return arguments.length ? this.totalTime((value + _elapsedCycleDuration(this)) % this.duration() || (value ? this._dur : 0), suppressEvents) : this._time;
+      return arguments.length ? this.totalTime(Math.min(this.totalDuration(), value + _elapsedCycleDuration(this)) % this._dur || (value ? this._dur : 0), suppressEvents) : this._time;
     };
 
     _proto.totalProgress = function totalProgress(value, suppressEvents) {
@@ -1534,7 +1543,7 @@
       }
 
       this._ts = value;
-      return _recacheAncestors(this).totalTime(this._tTime, true);
+      return _recacheAncestors(this.totalTime(this.parent ? _parentToChildTotalTime(this.parent._time, this) : this._tTime, true));
     };
 
     _proto.paused = function paused(value) {
@@ -1673,7 +1682,7 @@
       var parent = this.parent || this._dp,
           start = this._start,
           rawTime;
-      return !parent || this._ts && (this._initted || !hasStarted) && parent.isActive(hasStarted) && (rawTime = parent.rawTime(true)) >= start && rawTime < this.endTime(true) - _tinyNum;
+      return !!(!parent || this._ts && (this._initted || !hasStarted) && parent.isActive(hasStarted) && (rawTime = parent.rawTime(true)) >= start && rawTime < this.endTime(true) - _tinyNum);
     };
 
     _proto.eventCallback = function eventCallback(type, callback, params) {
@@ -2003,7 +2012,7 @@
         }
 
         if (tTime === tDur || !tTime && this._ts < 0) if (prevStart === this._start || Math.abs(timeScale) !== Math.abs(this._ts)) if (!time || tDur >= this.totalDuration()) {
-          (totalTime || !dur) && _removeFromParent(this, 1);
+          (totalTime || !dur) && (tTime && this._ts > 0 || !tTime && this._ts < 0) && _removeFromParent(this, 1);
 
           if (!suppressEvents && !(totalTime < 0 && !prevTime)) {
             _callback(this, tTime === tDur ? "onComplete" : "onReverseComplete", true);
@@ -2357,7 +2366,7 @@
                 self._tTime -= child._start;
               }
 
-              self.shiftChildren(-child._start, false, -_bigNum);
+              self.shiftChildren(-child._start, false, -1e20);
               prevStart = 0;
             }
 
@@ -2371,7 +2380,7 @@
           }
 
           self._dur = self === _globalTimeline && self._time > max ? self._time : Math.min(_bigNum, max);
-          self._tDur = isInfinite && (self._dur || repeatCycles) ? 1e20 : Math.min(_bigNum, max * (repeat + 1) + repeatCycles);
+          self._tDur = isInfinite && (self._dur || repeatCycles) ? 1e12 : Math.min(_bigNum, max * (repeat + 1) + repeatCycles);
           self._end = self._start + (self._tDur / Math.abs(self._ts || self._pauseTS || _tinyNum) || 0);
           self._dirty = 0;
         }
@@ -2385,6 +2394,8 @@
     Timeline.updateRoot = function updateRoot(time) {
       if (_globalTimeline._ts) {
         _lazySafeRender(_globalTimeline, _parentToChildTotalTime(time, _globalTimeline));
+
+        _lastRenderedFrame = _ticker.frame;
       }
 
       if (_ticker.frame >= _nextGCFrame) {
@@ -2936,6 +2947,7 @@
         }
 
         if (!this._initted && _attemptInitTween(this, time, force, suppressEvents)) {
+          this._tTime = 0;
           return this;
         }
 
@@ -2983,7 +2995,7 @@
             this._startAt.render(totalTime, true, force);
           }
 
-          (totalTime || !dur) && (tTime || this._ts < 0) && _removeFromParent(this, 1);
+          (totalTime || !dur) && (tTime && this._ts > 0 || !tTime && this._ts < 0) && _removeFromParent(this, 1);
 
           if (!suppressEvents && !(totalTime < 0 && !prevTime)) {
             _callback(this, tTime === tDur ? "onComplete" : "onReverseComplete", true);
@@ -3585,7 +3597,7 @@
       }
     }
   }, _buildModifierPlugin("roundProps", _roundModifier), _buildModifierPlugin("modifiers"), _buildModifierPlugin("snap", snap)) || _gsap;
-  Tween.version = Timeline.version = gsap.version = "3.0.4";
+  Tween.version = Timeline.version = gsap.version = "3.0.5";
   _coreReady = 1;
 
   if (_windowExists()) {
@@ -3815,8 +3827,8 @@
     turn: 1
   },
       _convertToUnit = function _convertToUnit(target, property, value, unit) {
-    var curValue = parseFloat(value),
-        curUnit = (value + "").substr((curValue + "").length) || "px",
+    var curValue = parseFloat(value) || 0,
+        curUnit = (value + "").trim().substr((curValue + "").length) || "px",
         style = _tempDiv.style,
         horizontal = _horizontalExp.test(property),
         isRootSVG = target.tagName.toLowerCase() === "svg",
@@ -3828,7 +3840,7 @@
         cache,
         isSVG;
 
-    if (unit === curUnit || _nonConvertibleUnits[unit] || _nonConvertibleUnits[curUnit]) {
+    if (unit === curUnit || !curValue || _nonConvertibleUnits[unit] || _nonConvertibleUnits[curUnit]) {
       return curValue;
     }
 
@@ -3888,7 +3900,7 @@
     } else {
       value = target.style[property];
 
-      if (!value || value === "auto" || uncache || ~value.indexOf("calc(")) {
+      if (!value || value === "auto" || uncache || ~(value + "").indexOf("calc(")) {
         value = _getComputedProperty(target, property) || _getProperty(target, property) || (property === "opacity" ? 1 : 0);
       }
     }
@@ -4859,6 +4871,6 @@
   exports.default = gsapWithCSS;
   exports.gsap = gsapWithCSS;
 
-  Object.defineProperty(exports, '__esModule', { value: true });
+  if (typeof(window) === 'undefined' || window !== exports) {Object.defineProperty(exports, '__esModule', { value: true });} else {delete window.default;}
 
 })));

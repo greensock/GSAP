@@ -1,8 +1,8 @@
 /*!
- * Draggable 3.0.4
+ * Draggable 3.0.5
  * https://greensock.com
  *
- * @license Copyright 2008-2019, GreenSock. All rights reserved.
+ * @license Copyright 2008-2020, GreenSock. All rights reserved.
  * Subject to the terms at https://greensock.com/standard-license or for
  * Club GreenSock members, the agreement issued with that membership.
  * @author: Jack Doyle, jack@greensock.com
@@ -1743,8 +1743,15 @@ export class Draggable extends EventDispatcher {
 		};
 
 		this.enable = type => {
-			let vars = {lazy: true},
+			let setVars = {lazy: true},
 				id, i, trigger;
+			if (!rotationMode && vars.cursor !== false) {
+				setVars.cursor = vars.cursor || _defaultCursor;
+			}
+			if (gsap.utils.checkPrefix("touchCallout")) {
+				setVars.touchCallout = "none";
+			}
+			setVars.touchAction = (allowX === allowY) ? "none" : vars.allowNativeTouchScrolling || vars.allowEventDefault ? "manipulation" : allowX ? "pan-y" : "pan-x";
 			if (type !== "soft") {
 				i = triggers.length;
 				while (--i > -1) {
@@ -1754,18 +1761,11 @@ export class Draggable extends EventDispatcher {
 					}
 					_addListener(trigger, "touchstart", onPress);
 					_addListener(trigger, "click", onClick, true); //note: used to pass true for capture but it prevented click-to-play-video functionality in Firefox.
-					if (!rotationMode && vars.cursor !== false) {
-						vars.cursor = vars.cursor || _defaultCursor;
-					}
-					if (gsap.utils.checkPrefix("touchCallout")) {
-						vars.touchCallout = "none";
-					}
-					vars.touchAction = (allowX === allowY) ? "none" : vars.allowNativeTouchScrolling || vars.allowEventDefault ? "manipulation" : allowX ? "pan-y" : "pan-x";
-					gsap.set(trigger, vars);
+					gsap.set(trigger, setVars);
 					if (trigger.getBBox && trigger.ownerSVGElement) { // a bug in chrome doesn't respect touch-action on SVG elements - it only works if we set it on the parent SVG.
 						gsap.set(trigger.ownerSVGElement, {touchAction: (allowX === allowY) ? "none" : vars.allowNativeTouchScrolling || vars.allowEventDefault ? "manipulation" : allowX ? "pan-y" : "pan-x"});
 					}
-					if (!self.vars.allowContextMenu) {
+					if (!vars.allowContextMenu) {
 						_addListener(trigger, "contextmenu", onContextMenu);
 					}
 				}
@@ -1930,7 +1930,7 @@ export class Draggable extends EventDispatcher {
 _setDefaults(Draggable.prototype, {pointerX:0, pointerY: 0, startX: 0, startY: 0, deltaX: 0, deltaY: 0, isDragging: false, isPressed: false});
 
 Draggable.zIndex = 1000;
-Draggable.version = "3.0.4";
+Draggable.version = "3.0.5";
 
 _getGSAP() && gsap.registerPlugin(Draggable);
 

@@ -1,8 +1,8 @@
 /*!
- * CSSPlugin 3.0.4
+ * CSSPlugin 3.0.5
  * https://greensock.com
  *
- * Copyright 2008-2019, GreenSock. All rights reserved.
+ * Copyright 2008-2020, GreenSock. All rights reserved.
  * Subject to the terms at https://greensock.com/standard-license or for
  * Club GreenSock members, the agreement issued with that membership.
  * @author: Jack Doyle, jack@greensock.com
@@ -226,9 +226,10 @@ _removeProperty = function _removeProperty(target, property) {
 },
     //takes a single value like 20px and converts it to the unit specified, like "%", returning only the numeric amount.
 _convertToUnit = function _convertToUnit(target, property, value, unit) {
-  var curValue = parseFloat(value),
-      curUnit = (value + "").substr((curValue + "").length) || "px",
-      style = _tempDiv.style,
+  var curValue = parseFloat(value) || 0,
+      curUnit = (value + "").trim().substr((curValue + "").length) || "px",
+      // some browsers leave extra whitespace at the beginning of CSS variables, hence the need to trim()
+  style = _tempDiv.style,
       horizontal = _horizontalExp.test(property),
       isRootSVG = target.tagName.toLowerCase() === "svg",
       measureProperty = (isRootSVG ? "client" : "offset") + (horizontal ? "Width" : "Height"),
@@ -239,7 +240,7 @@ _convertToUnit = function _convertToUnit(target, property, value, unit) {
       cache,
       isSVG;
 
-  if (unit === curUnit || _nonConvertibleUnits[unit] || _nonConvertibleUnits[curUnit]) {
+  if (unit === curUnit || !curValue || _nonConvertibleUnits[unit] || _nonConvertibleUnits[curUnit]) {
     return curValue;
   }
 
@@ -300,7 +301,7 @@ _convertToUnit = function _convertToUnit(target, property, value, unit) {
   } else {
     value = target.style[property];
 
-    if (!value || value === "auto" || uncache || ~value.indexOf("calc(")) {
+    if (!value || value === "auto" || uncache || ~(value + "").indexOf("calc(")) {
       value = _getComputedProperty(target, property) || _getProperty(target, property) || (property === "opacity" ? 1 : 0);
     }
   }
