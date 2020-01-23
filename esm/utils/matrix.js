@@ -1,5 +1,5 @@
 /*!
- * matrix 3.0.5
+ * matrix 3.1.0
  * https://greensock.com
  *
  * Copyright 2008-2020, GreenSock. All rights reserved.
@@ -135,13 +135,12 @@ _divTemps = [],
       y = m.b * b.x + m.d * b.y;
     } else {
       m = _identityMatrix;
+      x = b.x;
+      y = b.y;
+    }
 
-      if (element.tagName.toLowerCase() === "g") {
-        x = y = 0;
-      } else {
-        x = b.x;
-        y = b.y;
-      }
+    if (element.tagName.toLowerCase() === "g") {
+      x = y = 0;
     }
 
     container.setAttribute("transform", "matrix(" + m.a + "," + m.b + "," + m.c + "," + m.d + "," + (m.e + x) + "," + (m.f + y) + ")");

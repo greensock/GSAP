@@ -1,9 +1,11 @@
 import gsap from "./gsap-core.js";
 import CSSPlugin from "./CSSPlugin.js";
-const gsapWithCSS = gsap.registerPlugin(CSSPlugin) || gsap; // to protect from tree shaking
+const gsapWithCSS = gsap.registerPlugin(CSSPlugin) || gsap, // to protect from tree shaking
+	  TweenMaxWithCSS = gsapWithCSS.core.Tween;
+	  
 export { gsapWithCSS as gsap, gsapWithCSS as default, CSSPlugin };
 
-export { TweenMax, TweenLite, TimelineMax, TimelineLite, Power0, Power1, Power2, Power3, Power4, Linear, Quad, Cubic, Quart, Quint, Strong, Elastic, Back, SteppedEase, Bounce, Sine, Expo, Circ, wrap, wrapYoyo, distribute, random, snap, normalize, getUnit, clamp, splitColor, toArray, mapRange, pipe, unitize, interpolate } from "./gsap-core.js";
+export { TweenMaxWithCSS as TweenMax, TweenLite, TimelineMax, TimelineLite, Power0, Power1, Power2, Power3, Power4, Linear, Quad, Cubic, Quart, Quint, Strong, Elastic, Back, SteppedEase, Bounce, Sine, Expo, Circ, wrap, wrapYoyo, distribute, random, snap, normalize, getUnit, clamp, splitColor, toArray, mapRange, pipe, unitize, interpolate, shuffle } from "./gsap-core.js";
 export * from "./Draggable.js";
 export * from "./CSSRulePlugin.js";
 export * from "./EaselPlugin.js";

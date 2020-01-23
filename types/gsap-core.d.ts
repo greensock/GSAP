@@ -39,6 +39,7 @@ declare namespace gsap {
     paused?: boolean;
     repeat?: number;
     repeatDelay?: number;
+    repeatRefresh?: boolean;
     reversed?: boolean;
     yoyo?: boolean;
   }  
@@ -136,7 +137,6 @@ declare namespace gsap {
     onInterrupt?: Callback;
     onInterruptParams?: any[];
     overwrite?: "auto" | boolean;
-    repeatRefresh?: boolean;
     runBackwards?: boolean;
     stagger?: NumberValue | StaggerVars;
     startAt?: TweenVars;

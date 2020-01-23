@@ -1,5 +1,5 @@
 /*!
- * MotionPathPlugin 3.0.5
+ * MotionPathPlugin 3.1.0
  * https://greensock.com
  *
  * @license Copyright 2008-2020, GreenSock. All rights reserved.
@@ -57,7 +57,7 @@ let _xProps = ["x","translateX","left","marginLeft"],
 	},
 	_emptyFunc = v => v,
 	_align = (rawPath, target, {align, matrix, offsetX, offsetY}) => {
-		let x, y, tween, targetMatrix, alignTarget, alignPath, alignMatrix, invertedMatrix, tx, ty;
+		let x, y, tween, targetMatrix, alignTarget, alignPath, alignMatrix, invertedMatrix, tx, ty, m;
 		if (!rawPath || !rawPath.length) {
 			return getRawPath("M0,0L0,0");
 		}
@@ -67,14 +67,16 @@ let _xProps = ["x","translateX","left","marginLeft"],
 				y = _getPropNum(target, "y") - rawPath[0][1];
 				transformRawPath(rawPath, 1, 0, 0, 1, x, y);
 			} else {
-				tween = gsap.to(target, {xPercent:0, yPercent:0, x:0, y:0}).progress(1); //get rid of transforms, otherwise they'll throw off the measurements.
+				tween = gsap.to(target, {xPercent:0, yPercent:0, x:0, y:0, scale:1, rotation:0, skewX:0, skewY:0}).progress(1); //get rid of transforms, otherwise they'll throw off the measurements.
 				targetMatrix = getGlobalMatrix(target); //we cannot use something like getScreenCTM() because of a major bug in Firefox that has existed for years and prevents values from being reported correctly when an ancestor element has transforms applied. Our proprietary getGlobalMatrix() works across all browsers.
 				tween.render(-1).kill();
 				if (alignTarget.getTotalLength && alignTarget.tagName.toLowerCase() === "path") { //path
 					alignPath = getRawPath(alignTarget);
 					alignMatrix = getGlobalMatrix(alignTarget.parentNode);
-					x = alignPath[0][0];
-					y = alignPath[0][1];
+					m = alignTarget.transform;
+					m = (m && m.baseVal.length && m.baseVal.consolidate().matrix) || {e:0, f:0};
+					x = alignPath[0][0] + m.e;
+					y = alignPath[0][1] + m.f;
 				} else {
 					alignMatrix = getGlobalMatrix(alignTarget);
 					x = 0;
@@ -102,17 +104,19 @@ let _xProps = ["x","translateX","left","marginLeft"],
 	},
 	_addDimensionalPropTween = (plugin, target, property, rawPath, pathProperty, forceUnit) => {
 		let cache = target._gsap,
-			pt = plugin._pt = new PropTween(plugin._pt, target, property, 0, 0, _emptyFunc, 0, cache.set(target, property, plugin));
-		pt.u = _getUnit(cache.get(target, property, forceUnit)) || 0;
+			harness = cache.harness,
+			prop = (harness && harness.aliases && harness.aliases[property]) || property,
+			pt = plugin._pt = new PropTween(plugin._pt, target, prop, 0, 0, _emptyFunc, 0, cache.set(target, prop, plugin));
+		pt.u = _getUnit(cache.get(target, prop, forceUnit)) || 0;
 		pt.path = rawPath;
 		pt.pp = pathProperty;
-		plugin._props.push(property);
+		plugin._props.push(prop);
 	},
 	_sliceModifier = (start, end) => rawPath => (start || end !== 1) ? sliceRawPath(rawPath, start, end) : rawPath;
 
 
 export const MotionPathPlugin = {
-	version:"3.0.5",
+	version:"3.1.0",
 	name:"motionPath",
 	register(core, Plugin, propTween) {
 		gsap = core;

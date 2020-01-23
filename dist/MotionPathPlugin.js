@@ -1210,13 +1210,12 @@
 	      y = m.b * b.x + m.d * b.y;
 	    } else {
 	      m = _identityMatrix;
+	      x = b.x;
+	      y = b.y;
+	    }
 
-	      if (element.tagName.toLowerCase() === "g") {
-	        x = y = 0;
-	      } else {
-	        x = b.x;
-	        y = b.y;
-	      }
+	    if (element.tagName.toLowerCase() === "g") {
+	      x = y = 0;
 	    }
 
 	    container.setAttribute("transform", "matrix(" + m.a + "," + m.b + "," + m.c + "," + m.d + "," + (m.e + x) + "," + (m.f + y) + ")");
@@ -1351,7 +1350,7 @@
 	}
 
 	/*!
-	 * MotionPathPlugin 3.0.5
+	 * MotionPathPlugin 3.1.0
 	 * https://greensock.com
 	 *
 	 * @license Copyright 2008-2020, GreenSock. All rights reserved.
@@ -1427,7 +1426,7 @@
 	      matrix = _ref.matrix,
 	      offsetX = _ref.offsetX,
 	      offsetY = _ref.offsetY;
-	  var x, y, tween, targetMatrix, alignTarget, alignPath, alignMatrix, invertedMatrix, tx, ty;
+	  var x, y, tween, targetMatrix, alignTarget, alignPath, alignMatrix, invertedMatrix, tx, ty, m;
 
 	  if (!rawPath || !rawPath.length) {
 	    return getRawPath("M0,0L0,0");
@@ -1443,7 +1442,11 @@
 	        xPercent: 0,
 	        yPercent: 0,
 	        x: 0,
-	        y: 0
+	        y: 0,
+	        scale: 1,
+	        rotation: 0,
+	        skewX: 0,
+	        skewY: 0
 	      }).progress(1);
 	      targetMatrix = getGlobalMatrix(target);
 	      tween.render(-1).kill();
@@ -1451,8 +1454,13 @@
 	      if (alignTarget.getTotalLength && alignTarget.tagName.toLowerCase() === "path") {
 	        alignPath = getRawPath(alignTarget);
 	        alignMatrix = getGlobalMatrix(alignTarget.parentNode);
-	        x = alignPath[0][0];
-	        y = alignPath[0][1];
+	        m = alignTarget.transform;
+	        m = m && m.baseVal.length && m.baseVal.consolidate().matrix || {
+	          e: 0,
+	          f: 0
+	        };
+	        x = alignPath[0][0] + m.e;
+	        y = alignPath[0][1] + m.f;
 	      } else {
 	        alignMatrix = getGlobalMatrix(alignTarget);
 	        x = 0;
@@ -1483,12 +1491,14 @@
 	},
 	    _addDimensionalPropTween = function _addDimensionalPropTween(plugin, target, property, rawPath, pathProperty, forceUnit) {
 	  var cache = target._gsap,
-	      pt = plugin._pt = new PropTween(plugin._pt, target, property, 0, 0, _emptyFunc, 0, cache.set(target, property, plugin));
-	  pt.u = _getUnit(cache.get(target, property, forceUnit)) || 0;
+	      harness = cache.harness,
+	      prop = harness && harness.aliases && harness.aliases[property] || property,
+	      pt = plugin._pt = new PropTween(plugin._pt, target, prop, 0, 0, _emptyFunc, 0, cache.set(target, prop, plugin));
+	  pt.u = _getUnit(cache.get(target, prop, forceUnit)) || 0;
 	  pt.path = rawPath;
 	  pt.pp = pathProperty;
 
-	  plugin._props.push(property);
+	  plugin._props.push(prop);
 	},
 	    _sliceModifier = function _sliceModifier(start, end) {
 	  return function (rawPath) {
@@ -1497,7 +1507,7 @@
 	};
 
 	var MotionPathPlugin = {
-	  version: "3.0.5",
+	  version: "3.1.0",
 	  name: "motionPath",
 	  register: function register(core, Plugin, propTween) {
 	    gsap = core;

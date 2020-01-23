@@ -1,5 +1,5 @@
 /*!
- * matrix 3.0.5
+ * matrix 3.1.0
  * https://greensock.com
  *
  * Copyright 2008-2020, GreenSock. All rights reserved.
@@ -95,12 +95,11 @@ let _doc, _win, _docElement, _body,	_divContainer, _svgContainer, _identityMatri
 				y = m.b * b.x + m.d * b.y;
 			} else {
 				m = _identityMatrix;
-				if (element.tagName.toLowerCase() === "g") {
-					x = y = 0;
-				} else {
-					x = b.x;
-					y = b.y;
-				}
+				x = b.x;
+				y = b.y;
+			}
+			if (element.tagName.toLowerCase() === "g") {
+				x = y = 0;
 			}
 			container.setAttribute("transform", "matrix(" + m.a + "," + m.b + "," + m.c + "," + m.d + "," + (m.e + x) + "," + (m.f + y) + ")");
 			(isRootSVG ? svg : element.parentNode).appendChild(container);

@@ -6,7 +6,7 @@ declare namespace gsap.utils {
     base?: number;
     each?: number;
     ease?: string | EaseFunction;
-    from?: "start" | "center" | "end" | "edges" | number | [number, number];
+    from?: "start" | "center" | "end" | "edges" | "random" | number | [number, number];
     grid?: "auto" | [number, number];
   }
 
@@ -100,6 +100,8 @@ declare namespace gsap.utils {
   function random<T extends boolean>(minValue: number, maxValue: number, returnFunction?: T): T extends true ? () => number : number;
   function random<T extends boolean>(minValue: number, maxValue: number, snapIncrement: number, returnFunction?: T): T extends true ? () => number : number;
 
+  function shuffle<T>(array: T[]): T[];
+
   function snap(snapIncrement: number | number[], valueToSnap: number): number;
   function snap(snapIncrement: number | number[]): (valueToSnap: number) => number;
   function snap(snapValues: { values: number[], radius?: number }, valueToSnap: number): number;
@@ -134,6 +136,7 @@ declare module "gsap/gsap-core" {
   export const normalize: typeof gsap.utils.normalize;
   export const pipe: typeof gsap.utils.pipe;
   export const random: typeof gsap.utils.random;
+  export const shuffle: typeof gsap.utils.shuffle;
   export const snap: typeof gsap.utils.snap;
   export const splitColor: typeof gsap.utils.splitColor;
   export const toArray: typeof gsap.utils.toArray;

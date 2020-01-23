@@ -1,5 +1,5 @@
 /*!
- * CSSPlugin 3.0.5
+ * CSSPlugin 3.1.0
  * https://greensock.com
  *
  * Copyright 2008-2020, GreenSock. All rights reserved.
@@ -246,13 +246,13 @@ _convertToUnit = function _convertToUnit(target, property, value, unit) {
 
   isSVG = target.getCTM && _isSVG(target);
 
-  if (unit === "%" && _transformProps[property]) {
-    //transforms are relative to the size of the element itself!
+  if (unit === "%" && (_transformProps[property] || ~property.indexOf("adius"))) {
+    //transforms and borderRadius are relative to the size of the element itself!
     return _round(curValue / (isSVG ? target.getBBox()[horizontal ? "width" : "height"] : target[measureProperty]) * amount);
   }
 
   style[horizontal ? "width" : "height"] = amount + (toPixels ? curUnit : unit);
-  parent = unit === "em" && target.appendChild && !isRootSVG ? target : target.parentNode;
+  parent = ~property.indexOf("adius") || unit === "em" && target.appendChild && !isRootSVG ? target : target.parentNode;
 
   if (isSVG) {
     parent = (target.ownerSVGElement || {}).parentNode;
@@ -267,9 +267,12 @@ _convertToUnit = function _convertToUnit(target, property, value, unit) {
   if (cache && unit === "%" && cache.width && horizontal && cache.time === _ticker.time) {
     return _round(curValue / cache.width * amount);
   } else {
+    parent === target && (style.position = "static"); // like for borderRadius, if it's a % we must have it relative to the target itself but that may not have position: relative or position: absolute in which case it'd go up the chain until it finds its offsetParent (bad). position: static protects against that.
+
     parent.appendChild(_tempDiv);
     px = _tempDiv[measureProperty];
     parent.removeChild(_tempDiv);
+    style.position = "absolute";
 
     if (horizontal && unit === "%") {
       cache = _getCache(parent);
@@ -302,11 +305,11 @@ _convertToUnit = function _convertToUnit(target, property, value, unit) {
     value = target.style[property];
 
     if (!value || value === "auto" || uncache || ~(value + "").indexOf("calc(")) {
-      value = _getComputedProperty(target, property) || _getProperty(target, property) || (property === "opacity" ? 1 : 0);
+      value = _specialProps[property] && _specialProps[property](target, property, unit) || _getComputedProperty(target, property) || _getProperty(target, property) || (property === "opacity" ? 1 : 0); // note: some browsers, like Firefox, don't report borderRadius correctly! Instead, it only reports every corner like  borderTopLeftRadius
     }
   }
 
-  return unit ? _convertToUnit(target, property, value, unit) + unit : value;
+  return unit && !~(value + "").indexOf(" ") ? _convertToUnit(target, property, value, unit) + unit : value;
 },
     _tweenComplexCSSString = function _tweenComplexCSSString(target, prop, start, end) {
   //note: we call _tweenComplexCSSString.call(pluginInstance...) to ensure that it's scoped properly. We may call it from within a plugin too, thus "this" would refer to the plugin.
@@ -367,7 +370,7 @@ _convertToUnit = function _convertToUnit(target, property, value, unit) {
 
       if (color) {
         color = (color + 1) % 5;
-      } else if (chunk.substr(-5) === "rgba(") {
+      } else if (chunk.substr(-5) === "rgba(" || chunk.substr(-5) === "hsla(") {
         color = 1;
       }
 
@@ -1105,6 +1108,7 @@ _addPxTranslate = function _addPxTranslate(target, start, value) {
   //for handling cases where someone passes in a whole transform string, like transform: "scale(2, 3) rotate(20deg) translateY(30em)"
   var style = _tempDivStyler.style,
       startCache = target._gsap,
+      exclude = "perspective,force3D,transformOrigin,svgOrigin",
       endCache,
       p,
       startValue,
@@ -1125,21 +1129,52 @@ _addPxTranslate = function _addPxTranslate(target, start, value) {
     startValue = startCache[p];
     endValue = endCache[p];
 
-    if (startValue !== endValue && p !== "perspective") {
+    if (startValue !== endValue && exclude.indexOf(p) < 0) {
       //tweening to no perspective gives very unintuitive results - just keep the same perspective in that case.
       startUnit = getUnit(startValue);
       endUnit = getUnit(endValue);
       startNum = startUnit !== endUnit ? _convertToUnit(target, p, startValue, endUnit) : parseFloat(startValue);
       endNum = parseFloat(endValue);
       plugin._pt = new PropTween(plugin._pt, startCache, p, startNum, endNum - startNum, _renderCSSProp);
-      plugin._pt.u = endUnit;
+      plugin._pt.u = endUnit || 0;
 
       plugin._props.push(p);
     }
   }
 
   _doc.body.removeChild(_tempDivStyler);
-};
+}; // handle splitting apart padding, margin, borderWidth, and borderRadius into their 4 components. Firefox, for example, won't report borderRadius correctly - it will only do borderTopLeftRadius and the other corners. We also want to handle paddingTop, marginLeft, borderRightWidth, etc.
+
+
+_forEachName("padding,margin,Width,Radius", function (name, index) {
+  var t = "Top",
+      r = "Right",
+      b = "Bottom",
+      l = "Left",
+      props = (index < 3 ? [t, r, b, l] : [t + l, t + r, b + r, b + l]).map(function (side) {
+    return index < 2 ? name + side : "border" + side + name;
+  });
+
+  _specialProps[index > 1 ? "border" + name : name] = function (plugin, target, property, endValue, tween) {
+    var a, vars;
+
+    if (arguments.length < 4) {
+      // getter, passed target, property, and unit (from _get())
+      a = props.map(function (prop) {
+        return _get(plugin, prop, property);
+      });
+      vars = a.join(" ");
+      return vars.split(a[0]).length === 5 ? a[0] : vars;
+    }
+
+    a = (endValue + "").split(" ");
+    vars = {};
+    props.forEach(function (prop, i) {
+      return vars[prop] = a[i] = a[i] || a[(i - 1) / 2 | 0];
+    });
+    plugin.init(target, vars, tween);
+  };
+});
 
 export var CSSPlugin = {
   name: "css",
@@ -1237,6 +1272,8 @@ export var CSSPlugin = {
         if (isTransformRelated) {
           if (!transformPropTween) {
             cache = target._gsap;
+            cache.renderTransform || _parseTransform(target); // if, for example, gsap.set(... {transform:"translateX(50vw)"}), the _get() call doesn't parse the transform, thus cache.renderTransform won't be set yet so force the parsing of the transform here.
+
             smooth = vars.smoothOrigin !== false && cache.smooth;
             transformPropTween = this._pt = new PropTween(this._pt, style, _transformProp, 0, 1, cache.renderTransform, cache, 0, -1); //the first time through, create the rendering PropTween so that it runs LAST (in the linked list, we keep adding to the beginning)
 
@@ -1328,6 +1365,7 @@ export var CSSPlugin = {
   aliases: _propertyAliases,
   getSetter: function getSetter(target, property, plugin) {
     //returns a setter function that accepts target, property, value and applies it accordingly. Remember, properties like "x" aren't as simple as target.style.property = value because they've got to be applied to a proxy object and then merged into a transform string in a renderer.
+    property = _propertyAliases[property] || property;
     return property in _transformProps && property !== _transformOriginProp && (target._gsap.x || _get(target, "x")) ? plugin && _recentSetterPlugin === plugin ? property === "scale" ? _setterScale : _setterTransform : (_recentSetterPlugin = plugin || {}) && (property === "scale" ? _setterScaleWithRender : _setterTransformWithRender) : target.style && !_isUndefined(target.style[property]) ? _setterCSSStyle : ~property.indexOf("-") ? _setterCSSProp : _getSetter(target, property);
   }
 };
@@ -1349,7 +1387,7 @@ gsap.utils.checkPrefix = _checkPropPrefix;
     var split = name.split(":");
     _propertyAliases[split[1]] = all[split[0]];
   });
-})("x,y,z,scale,scaleX,scaleY,xPercent,yPercent", "rotation,rotationX,rotationY,skewX,skewY", "transform,transformOrigin,svgOrigin,force3D,smoothOrigin,transformPerspective", "0:translateX,1:translateY,2:translateZ,8:rotate,8:rotationZ,9:rotateX,10:rotateY");
+})("x,y,z,scale,scaleX,scaleY,xPercent,yPercent", "rotation,rotationX,rotationY,skewX,skewY", "transform,transformOrigin,svgOrigin,force3D,smoothOrigin,transformPerspective", "0:translateX,1:translateY,2:translateZ,8:rotate,8:rotationZ,8:rotateZ,9:rotateX,10:rotateY");
 
 _forEachName("x,y,z,top,right,bottom,left,width,height,fontSize,padding,margin,perspective", function (name) {
   _config.units[name] = "px";

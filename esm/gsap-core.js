@@ -3,7 +3,7 @@ function _assertThisInitialized(self) { if (self === void 0) { throw new Referen
 function _inheritsLoose(subClass, superClass) { subClass.prototype = Object.create(superClass.prototype); subClass.prototype.constructor = subClass; subClass.__proto__ = superClass; }
 
 /*!
- * GSAP 3.0.5
+ * GSAP 3.1.0
  * https://greensock.com
  *
  * @license Copyright 2008-2020, GreenSock. All rights reserved.
@@ -61,7 +61,7 @@ var _config = {
     _isArray = Array.isArray,
     _strictNumExp = /(?:-?\.?\d|\.)+/gi,
     //only numbers (including negatives and decimals) but NOT relative values.
-_numExp = /[-+=\.]*\d+[\.e\-\+]*\d*[e\-\+]*\d*/gi,
+_numExp = /[-+=\.]*\d+[\.e\-\+]*\d*[e\-\+]*\d*/g,
     //finds any numbers, including ones that start with += or -=, negative numbers, and ones in scientific notation like 1e-8.
 _complexStringNumExp = /[-+=\.]*\d+(?:\.|e-|e)*\d*/gi,
     //duplicate so that while we're looping through matches from exec(), it doesn't contaminate the lastIndex of _numExp which we use to search for colors too.
@@ -153,23 +153,32 @@ _round = function _round(value) {
   var isLegacy = _isNumber(params[1]),
       varsIndex = (isLegacy ? 2 : 1) + (type < 2 ? 0 : 1),
       vars = params[varsIndex],
-      i;
+      irVars;
 
   if (isLegacy) {
     vars.duration = params[1];
   }
 
-  if (type === 1) {
-    vars.runBackwards = 1;
-    vars.immediateRender = _isNotFalse(vars.immediateRender);
-  } else if (type === 2) {
-    i = params[varsIndex - 1]; //"from" vars
+  vars.parent = parent;
 
-    vars.startAt = i;
-    vars.immediateRender = _isNotFalse(vars.immediateRender);
+  if (type) {
+    irVars = vars;
+
+    while (parent && !("immediateRender" in irVars)) {
+      // inheritance hasn't happened yet, but someone may have set a default in an ancestor timeline. We could do vars.immediateRender = _isNotFalse(_inheritDefaults(vars).immediateRender) but that'd exact a slight performance penalty because _inheritDefaults() also runs in the Tween constructor. We're paying a small kb price here to gain speed.
+      irVars = parent.vars.defaults || {};
+      parent = _isNotFalse(parent.vars.inherit) && parent.parent;
+    }
+
+    vars.immediateRender = _isNotFalse(irVars.immediateRender);
+
+    if (type < 2) {
+      vars.runBackwards = 1;
+    } else {
+      vars.startAt = params[varsIndex - 1]; // "from" vars
+    }
   }
 
-  vars.parent = parent;
   return vars;
 },
     _lazyRender = function _lazyRender() {
@@ -203,7 +212,7 @@ _round = function _round(value) {
 },
     _numericIfPossible = function _numericIfPossible(value) {
   var n = parseFloat(value);
-  return n || n === 0 ? n : value;
+  return (n || n === 0) && (value + "").match(_delimitedValueExp).length < 2 ? n : value;
 },
     _passThrough = function _passThrough(p) {
   return p;
@@ -377,7 +386,7 @@ _animationCycle = function _animationCycle(tTime, cycleDuration) {
   return (tTime /= cycleDuration) && ~~tTime === tTime ? ~~tTime - 1 : ~~tTime;
 },
     _parentToChildTotalTime = function _parentToChildTotalTime(parentTime, child) {
-  return (parentTime - child._start) * child._ts + (child._ts > 0 ? 0 : child._dirty ? child.totalDuration() : child._tDur);
+  return (parentTime - child._start) * child._ts + (child._ts >= 0 ? 0 : child._dirty ? child.totalDuration() : child._tDur);
 },
 
 /*
@@ -393,7 +402,7 @@ _totalTimeToTime = (clampedTotalTime, duration, repeat, repeatDelay, yoyo) => {
 _addToTimeline = function _addToTimeline(timeline, child, position) {
   child.parent && _removeFromParent(child);
   child._start = position + child._delay;
-  child._end = child._start + (child.totalDuration() / child._ts || 0);
+  child._end = child._start + (child.totalDuration() / Math.abs(child.timeScale()) || 0);
 
   _addLinkedListItem(timeline, child, "_first", "_last", timeline._sort ? "_start" : 0);
 
@@ -604,8 +613,8 @@ _addToTimeline = function _addToTimeline(timeline, child, position) {
   });
 },
     _slice = [].slice,
-    _isArrayLike = function _isArrayLike(value) {
-  return value && _isObject(value) && "length" in value && (!value.length || value.length - 1 in value && _isObject(value[0])) && !value.nodeType && value !== _win;
+    _isArrayLike = function _isArrayLike(value, nonEmpty) {
+  return value && _isObject(value) && "length" in value && (!nonEmpty && !value.length || value.length - 1 in value && _isObject(value[0])) && !value.nodeType && value !== _win;
 },
     _flatten = function _flatten(ar, leaveStrings, accumulator) {
   if (accumulator === void 0) {
@@ -615,12 +624,17 @@ _addToTimeline = function _addToTimeline(timeline, child, position) {
   return ar.forEach(function (value) {
     var _accumulator;
 
-    return _isString(value) && !leaveStrings || _isArrayLike(value) ? (_accumulator = accumulator).push.apply(_accumulator, toArray(value)) : accumulator.push(value);
+    return _isString(value) && !leaveStrings || _isArrayLike(value, 1) ? (_accumulator = accumulator).push.apply(_accumulator, toArray(value)) : accumulator.push(value);
   }) || accumulator;
 },
-    toArray = function toArray(value, leaveStrings) {
-  //takes any value and returns an array. If it's a string (and leaveStrings isn't true), it'll use document.querySelectorAll() and convert that to an array. It'll also accept iterables like jQuery objects.
+    //takes any value and returns an array. If it's a string (and leaveStrings isn't true), it'll use document.querySelectorAll() and convert that to an array. It'll also accept iterables like jQuery objects.
+toArray = function toArray(value, leaveStrings) {
   return _isString(value) && !leaveStrings && (_coreInitted || !_wake()) ? _slice.call(_doc.querySelectorAll(value), 0) : _isArray(value) ? _flatten(value, leaveStrings) : _isArrayLike(value) ? _slice.call(value, 0) : value ? [value] : [];
+},
+    shuffle = function shuffle(a) {
+  return a.sort(function () {
+    return .5 - Math.random();
+  });
 },
     //for distributing values across an array. Can accept a number, a function or (most commonly) a function which can contain the following properties: {base, amount, from, ease, grid, axis, length, each}. Returns a function that expects the following parameters: index, target, array. Recognizes the following
 distribute = function distribute(v) {
@@ -697,6 +711,7 @@ distribute = function distribute(v) {
         }
       }
 
+      from === "random" && shuffle(distances);
       distances.max = max - min;
       distances.min = min;
       distances.v = l = (parseFloat(vars.amount) || parseFloat(vars.each) * (wrapAt > l ? l - 1 : !axis ? Math.max(wrapAt, l / wrapAt) : axis === "y" ? l / wrapAt : wrapAt) || 0) * (from === "edges" ? -1 : 1);
@@ -1613,9 +1628,9 @@ function () {
         parent = parent.parent;
       }
 
-      if (!this.parent) {
-        //if the animation doesn't have a parent, put it back into its last parent (recorded as _dp for exactly cases like this).
-        _addToTimeline(this._dp, this, this._start - this._delay);
+      if (!this.parent && parent.autoRemoveChildren) {
+        //if the animation doesn't have a parent, put it back into its last parent (recorded as _dp for exactly cases like this). Limit to parents with autoRemoveChildren (like globalTimeline) so that if the user manually removes an animation from a timeline and then alters its playhead, it doesn't get added back in.
+        _addToTimeline(parent, this, this._start - this._delay);
       }
     }
 
@@ -1656,9 +1671,11 @@ function () {
       return this;
     }
 
+    var tTime = this.parent && this._ts ? _parentToChildTotalTime(this.parent._time, this) : this._tTime; // make sure to do the parentToChildTotalTime() BEFORE setting the new _ts because the old one must be used in that calculation.
+
     this._ts = value; // prioritize rendering where the parent's playhead lines up instead of this._tTime because there could be a tween that's animating another tween's timeScale in the same rendering loop (same parent), thus if the timeScale tween renders first, it would alter _start BEFORE _tTime was set on that tick (in the rendering loop), effectively freezing it until the timeScale tween finishes.
 
-    return _recacheAncestors(this.totalTime(this.parent ? _parentToChildTotalTime(this.parent._time, this) : this._tTime, true));
+    return _recacheAncestors(this.totalTime(tTime, true));
   };
 
   _proto.paused = function paused(value) {
@@ -1837,29 +1854,28 @@ function () {
   };
 
   _proto.then = function then(onFulfilled) {
-    var _this = this;
-
+    var self = this;
     return new Promise(function (resolve) {
-      var f = onFulfilled || _passThrough,
+      var f = _isFunction(onFulfilled) ? onFulfilled : _passThrough,
           _resolve = function _resolve() {
-        var _then = _this.then;
-        _this.then = null; // temporarily null the then() method to avoid an infinite loop (see https://github.com/greensock/GSAP/issues/322)
+        var _then = self.then;
+        self.then = null; // temporarily null the then() method to avoid an infinite loop (see https://github.com/greensock/GSAP/issues/322)
 
-        f = f(_this);
+        f = f(self);
 
-        if (f && (f.then || f === _this)) {
-          _this._prom = f;
-          _this.then = _then;
+        if (f && (f.then || f === self)) {
+          self._prom = f;
+          self.then = _then;
         }
 
         resolve(f);
-        _this.then = _then;
+        self.then = _then;
       };
 
-      if (_this._initted && _this.totalProgress() === 1 && _this._ts >= 0 || !_this._tTime && _this._ts < 0) {
+      if (self._initted && self.totalProgress() === 1 && self._ts >= 0 || !self._tTime && self._ts < 0) {
         _resolve();
       } else {
-        _this._prom = _resolve;
+        self._prom = _resolve;
       }
     });
   };
@@ -1903,18 +1919,18 @@ function (_Animation) {
   _inheritsLoose(Timeline, _Animation);
 
   function Timeline(vars, time) {
-    var _this2;
+    var _this;
 
     if (vars === void 0) {
       vars = {};
     }
 
-    _this2 = _Animation.call(this, vars, time) || this;
-    _this2.labels = {};
-    _this2.smoothChildTiming = _isNotFalse(vars.smoothChildTiming);
-    _this2.autoRemoveChildren = !!vars.autoRemoveChildren;
-    _this2._sort = _isNotFalse(vars.sortChildren);
-    return _this2;
+    _this = _Animation.call(this, vars, time) || this;
+    _this.labels = {};
+    _this.smoothChildTiming = _isNotFalse(vars.smoothChildTiming);
+    _this.autoRemoveChildren = !!vars.autoRemoveChildren;
+    _this._sort = _isNotFalse(vars.sortChildren);
+    return _this;
   }
 
   var _proto2 = Timeline.prototype;
@@ -2064,6 +2080,10 @@ function (_Animation) {
             _callback(this, "onRepeat");
           }
 
+          this.vars.repeatRefresh && !isYoyo && this.getChildren().forEach(function (child) {
+            return child.invalidate();
+          });
+
           if (prevTime !== this._time || prevPaused !== !this._ts) {
             return this;
           }
@@ -2171,7 +2191,7 @@ function (_Animation) {
       }
 
       if (tTime === tDur || !tTime && this._ts < 0) if (prevStart === this._start || Math.abs(timeScale) !== Math.abs(this._ts)) if (!time || tDur >= this.totalDuration()) {
-        (totalTime || !dur) && (tTime && this._ts > 0 || !tTime && this._ts < 0) && _removeFromParent(this, 1); // don't remove if the timeline is reversed and the playhead isn't at 0, otherwise tl.progress(1).reverse() won't work. Only remove if the playhead is at the end and timeScale is positive, or if the playhead is at 0 and the timeScale is negative.
+        (totalTime || !dur) && (totalTime && this._ts > 0 || !tTime && this._ts < 0) && _removeFromParent(this, 1); // don't remove if the timeline is reversed and the playhead isn't at 0, otherwise tl.progress(1).reverse() won't work. Only remove if the playhead is at the end and timeScale is positive, or if the playhead is at 0 and the timeScale is negative.
 
         if (!suppressEvents && !(totalTime < 0 && !prevTime)) {
           _callback(this, tTime === tDur ? "onComplete" : "onReverseComplete", true);
@@ -2185,7 +2205,7 @@ function (_Animation) {
   };
 
   _proto2.add = function add(child, position) {
-    var _this3 = this;
+    var _this2 = this;
 
     if (!_isNumber(position)) {
       position = _parsePosition(this, position);
@@ -2194,7 +2214,7 @@ function (_Animation) {
     if (!(child instanceof Animation)) {
       if (_isArray(child)) {
         child.forEach(function (obj) {
-          return _this3.add(obj, position);
+          return _this2.add(obj, position);
         });
         return _uncache(this);
       }
@@ -2966,7 +2986,7 @@ function (_Animation2) {
   _inheritsLoose(Tween, _Animation2);
 
   function Tween(targets, vars, time) {
-    var _this4;
+    var _this3;
 
     if (typeof vars === "number") {
       time.duration = vars;
@@ -2974,15 +2994,15 @@ function (_Animation2) {
       time = null;
     }
 
-    _this4 = _Animation2.call(this, _inheritDefaults(vars), time) || this;
-    var _this4$vars = _this4.vars,
-        duration = _this4$vars.duration,
-        delay = _this4$vars.delay,
-        immediateRender = _this4$vars.immediateRender,
-        stagger = _this4$vars.stagger,
-        overwrite = _this4$vars.overwrite,
-        keyframes = _this4$vars.keyframes,
-        defaults = _this4$vars.defaults,
+    _this3 = _Animation2.call(this, _inheritDefaults(vars), time) || this;
+    var _this3$vars = _this3.vars,
+        duration = _this3$vars.duration,
+        delay = _this3$vars.delay,
+        immediateRender = _this3$vars.immediateRender,
+        stagger = _this3$vars.stagger,
+        overwrite = _this3$vars.overwrite,
+        keyframes = _this3$vars.keyframes,
+        defaults = _this3$vars.defaults,
         parsedTargets = _isArray(targets) && _isNumber(targets[0]) ? [targets] : toArray(targets),
         tl,
         i,
@@ -2992,19 +3012,19 @@ function (_Animation2) {
         curTarget,
         staggerFunc,
         staggerVarsToMerge;
-    _this4._targets = parsedTargets.length ? _harness(parsedTargets) : _warn("GSAP target " + targets + " not found. https://greensock.com", !_config.nullTargetWarn) || [];
-    _this4._ptLookup = []; //PropTween lookup. An array containing an object for each target, having keys for each tweening property
+    _this3._targets = parsedTargets.length ? _harness(parsedTargets) : _warn("GSAP target " + targets + " not found. https://greensock.com", !_config.nullTargetWarn) || [];
+    _this3._ptLookup = []; //PropTween lookup. An array containing an object for each target, having keys for each tweening property
 
-    _this4._overwrite = overwrite;
+    _this3._overwrite = overwrite;
 
     if (keyframes || stagger || _isFuncOrString(duration) || _isFuncOrString(delay)) {
-      vars = _this4.vars;
-      tl = _this4.timeline = new Timeline({
+      vars = _this3.vars;
+      tl = _this3.timeline = new Timeline({
         data: "nested",
         defaults: defaults || {}
       });
       tl.kill();
-      tl.parent = _assertThisInitialized(_this4);
+      tl.parent = _assertThisInitialized(_this3);
 
       if (keyframes) {
         _setDefaults(tl.vars.defaults, {
@@ -3053,13 +3073,13 @@ function (_Animation2) {
 
           curTarget = parsedTargets[i]; //don't just copy duration or delay because if they're a string or function, we'd end up in an infinite loop because _isFuncOrString() would evaluate as true in the child tweens, entering this loop, etc. So we parse the value straight from vars and default to 0.
 
-          copy.duration = +_parseFuncOrString(duration, _assertThisInitialized(_this4), i, curTarget, parsedTargets);
-          copy.delay = (+_parseFuncOrString(delay, _assertThisInitialized(_this4), i, curTarget, parsedTargets) || 0) - _this4._delay;
+          copy.duration = +_parseFuncOrString(duration, _assertThisInitialized(_this3), i, curTarget, parsedTargets);
+          copy.delay = (+_parseFuncOrString(delay, _assertThisInitialized(_this3), i, curTarget, parsedTargets) || 0) - _this3._delay;
 
           if (!stagger && l === 1 && copy.delay) {
             // if someone does delay:"random(1, 5)", repeat:-1, for example, the delay shouldn't be inside the repeat.
-            _this4._delay = delay = copy.delay;
-            _this4._start += delay;
+            _this3._delay = delay = copy.delay;
+            _this3._start += delay;
             copy.delay = 0;
           }
 
@@ -3069,27 +3089,27 @@ function (_Animation2) {
         duration = delay = 0;
       }
 
-      duration || _this4.duration(duration = tl.duration());
+      duration || _this3.duration(duration = tl.duration());
     } else {
-      _this4.timeline = 0; //speed optimization, faster lookups (no going up the prototype chain)
+      _this3.timeline = 0; //speed optimization, faster lookups (no going up the prototype chain)
     }
 
     if (overwrite === true) {
-      _overwritingTween = _assertThisInitialized(_this4);
+      _overwritingTween = _assertThisInitialized(_this3);
 
       _globalTimeline.killTweensOf(parsedTargets);
 
       _overwritingTween = 0;
     }
 
-    if (immediateRender || !duration && !keyframes && _this4._start === _this4.parent._time && _isNotFalse(immediateRender) && _hasNoPausedAncestors(_assertThisInitialized(_this4)) && _this4.parent.data !== "nested") {
-      _this4._tTime = -_tinyNum; //forces a render without having to set the render() "force" parameter to true because we want to allow lazying by default (using the "force" parameter always forces an immediate full render)
+    if (immediateRender || !duration && !keyframes && _this3._start === _this3.parent._time && _isNotFalse(immediateRender) && _hasNoPausedAncestors(_assertThisInitialized(_this3)) && _this3.parent.data !== "nested") {
+      _this3._tTime = -_tinyNum; //forces a render without having to set the render() "force" parameter to true because we want to allow lazying by default (using the "force" parameter always forces an immediate full render)
 
-      _this4.render(Math.max(0, -delay)); //in case delay is negative
+      _this3.render(Math.max(0, -delay)); //in case delay is negative
 
     }
 
-    return _this4;
+    return _this3;
   }
 
   var _proto3 = Tween.prototype;
@@ -3149,7 +3169,7 @@ function (_Animation2) {
         if (iteration !== prevIteration) {
           //timeline && this._yEase && _propagateYoyoEase(timeline, isYoyo);
           //repeatRefresh functionality
-          if (this.vars.repeatRefresh && !this._lock) {
+          if (this.vars.repeatRefresh && !isYoyo && !this._lock) {
             this._lock = force = 1; //force, otherwise if lazy is true, the _attemptInitTween() will return and we'll jump out and get caught bouncing on each tick.
 
             this.render(cycleDuration * iteration, true).invalidate()._lock = 0;
@@ -3209,7 +3229,7 @@ function (_Animation2) {
           this._startAt.render(totalTime, true, force);
         }
 
-        (totalTime || !dur) && (tTime && this._ts > 0 || !tTime && this._ts < 0) && _removeFromParent(this, 1); // don't remove if we're rendering at exactly a time of 0, as there could be autoRevert values that should get set on the next tick (if the playhead goes backward beyond the startTime, negative totalTime). Don't remove if the timeline is reversed and the playhead isn't at 0, otherwise tl.progress(1).reverse() won't work. Only remove if the playhead is at the end and timeScale is positive, or if the playhead is at 0 and the timeScale is negative.
+        (totalTime || !dur) && (totalTime && this._ts > 0 || !tTime && this._ts < 0) && _removeFromParent(this, 1); // don't remove if we're rendering at exactly a time of 0, as there could be autoRevert values that should get set on the next tick (if the playhead goes backward beyond the startTime, negative totalTime). Don't remove if the timeline is reversed and the playhead isn't at 0, otherwise tl.progress(1).reverse() won't work. Only remove if the playhead is at the end and timeScale is positive, or if the playhead is at 0 and the timeScale is negative.
 
         if (!suppressEvents && !(totalTime < 0 && !prevTime)) {
           _callback(this, tTime === tDur ? "onComplete" : "onReverseComplete", true);
@@ -3391,7 +3411,8 @@ _setDefaults(Tween.prototype, {
 _forEachName("staggerTo,staggerFrom,staggerFromTo", function (name) {
   Tween[name] = function () {
     var tl = new Timeline(),
-        params = toArray(arguments);
+        params = _slice.call(arguments, 0);
+
     params.splice(name === "staggerFromTo" ? 5 : 4, 0, 0);
     return tl[name].apply(tl, params);
   };
@@ -3731,7 +3752,8 @@ var _gsap = {
     mapRange: mapRange,
     pipe: pipe,
     unitize: unitize,
-    interpolate: interpolate
+    interpolate: interpolate,
+    shuffle: shuffle
   },
   install: _install,
   effects: _effects,
@@ -3848,7 +3870,7 @@ export var gsap = _gsap.registerPlugin({
   }
 }, _buildModifierPlugin("roundProps", _roundModifier), _buildModifierPlugin("modifiers"), _buildModifierPlugin("snap", snap)) || _gsap; //to prevent the core plugins from being dropped via aggressive tree shaking, we must include them in the variable declaration in this way.
 
-Tween.version = Timeline.version = gsap.version = "3.0.5";
+Tween.version = Timeline.version = gsap.version = "3.1.0";
 _coreReady = 1;
 
 if (_windowExists()) {
@@ -3874,6 +3896,6 @@ var Power0 = _easeMap.Power0,
     Expo = _easeMap.Expo,
     Circ = _easeMap.Circ;
 export { Power0, Power1, Power2, Power3, Power4, Linear, Quad, Cubic, Quart, Quint, Strong, Elastic, Back, SteppedEase, Bounce, Sine, Expo, Circ };
-export { Tween as TweenMax, Tween as TweenLite, Timeline as TimelineMax, Timeline as TimelineLite, gsap as default, wrap, wrapYoyo, distribute, random, snap, normalize, getUnit, clamp, splitColor, toArray, mapRange, pipe, unitize, interpolate }; //export some internal methods/orojects for use in CSSPlugin so that we can externalize that file and allow custom builds that exclude it.
+export { Tween as TweenMax, Tween as TweenLite, Timeline as TimelineMax, Timeline as TimelineLite, gsap as default, wrap, wrapYoyo, distribute, random, snap, normalize, getUnit, clamp, splitColor, toArray, mapRange, pipe, unitize, interpolate, shuffle }; //export some internal methods/orojects for use in CSSPlugin so that we can externalize that file and allow custom builds that exclude it.
 
 export { _getProperty, _numExp, _isString, _isUndefined, _renderComplexString, _relExp, _setDefaults, _removeLinkedListItem, _forEachName, _sortPropTweensByPriority, _colorStringFilter, _replaceRandom, _checkPlugin, _plugins, _ticker, _config, _roundModifier, _round, _missingPlugin, _getSetter, _getCache };

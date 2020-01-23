@@ -141,13 +141,12 @@
         y = m.b * b.x + m.d * b.y;
       } else {
         m = _identityMatrix;
+        x = b.x;
+        y = b.y;
+      }
 
-        if (element.tagName.toLowerCase() === "g") {
-          x = y = 0;
-        } else {
-          x = b.x;
-          y = b.y;
-        }
+      if (element.tagName.toLowerCase() === "g") {
+        x = y = 0;
       }
 
       container.setAttribute("transform", "matrix(" + m.a + "," + m.b + "," + m.c + "," + m.d + "," + (m.e + x) + "," + (m.f + y) + ")");
@@ -2737,7 +2736,11 @@
 
       _this2.kill = function () {
         self.isThrowing = false;
-        gsap.killTweensOf(scrollProxy || target, killProps, true);
+
+        if (self.tween) {
+          self.tween.kill();
+        }
+
         self.disable();
         gsap.set(triggers, {
           clearProps: "userSelect"
@@ -2861,7 +2864,7 @@
   });
 
   Draggable.zIndex = 1000;
-  Draggable.version = "3.0.5";
+  Draggable.version = "3.1.0";
   _getGSAP() && gsap.registerPlugin(Draggable);
 
   exports.Draggable = Draggable;

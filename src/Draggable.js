@@ -1,5 +1,5 @@
 /*!
- * Draggable 3.0.5
+ * Draggable 3.1.0
  * https://greensock.com
  *
  * @license Copyright 2008-2020, GreenSock. All rights reserved.
@@ -1840,7 +1840,9 @@ export class Draggable extends EventDispatcher {
 
 		this.kill = function() {
 			self.isThrowing = false;
-			gsap.killTweensOf(scrollProxy || target, killProps, true);
+			if (self.tween) {
+				self.tween.kill();
+			}
 			self.disable();
 			gsap.set(triggers, {clearProps:"userSelect"});
 			delete _lookup[target._gsDragID];
@@ -1930,7 +1932,7 @@ export class Draggable extends EventDispatcher {
 _setDefaults(Draggable.prototype, {pointerX:0, pointerY: 0, startX: 0, startY: 0, deltaX: 0, deltaY: 0, isDragging: false, isPressed: false});
 
 Draggable.zIndex = 1000;
-Draggable.version = "3.0.5";
+Draggable.version = "3.1.0";
 
 _getGSAP() && gsap.registerPlugin(Draggable);
 

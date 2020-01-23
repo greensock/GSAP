@@ -3,7 +3,7 @@ function _assertThisInitialized(self) { if (self === void 0) { throw new Referen
 function _inheritsLoose(subClass, superClass) { subClass.prototype = Object.create(superClass.prototype); subClass.prototype.constructor = subClass; subClass.__proto__ = superClass; }
 
 /*!
- * Draggable 3.0.5
+ * Draggable 3.1.0
  * https://greensock.com
  *
  * @license Copyright 2008-2020, GreenSock. All rights reserved.
@@ -2558,7 +2558,11 @@ function (_EventDispatcher) {
 
     _this2.kill = function () {
       self.isThrowing = false;
-      gsap.killTweensOf(scrollProxy || target, killProps, true);
+
+      if (self.tween) {
+        self.tween.kill();
+      }
+
       self.disable();
       gsap.set(triggers, {
         clearProps: "userSelect"
@@ -2684,6 +2688,6 @@ _setDefaults(Draggable.prototype, {
 });
 
 Draggable.zIndex = 1000;
-Draggable.version = "3.0.5";
+Draggable.version = "3.1.0";
 _getGSAP() && gsap.registerPlugin(Draggable);
 export { Draggable as default };
