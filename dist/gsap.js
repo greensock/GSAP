@@ -19,7 +19,7 @@
   }
 
   /*!
-   * GSAP 3.1.0
+   * GSAP 3.1.1
    * https://greensock.com
    *
    * @license Copyright 2008-2020, GreenSock. All rights reserved.
@@ -1734,9 +1734,12 @@
           self.then = null;
           f = f(self);
 
-          if (f && (f.then || f === self)) {
-            self._prom = f;
-            self.then = _then;
+          if (f) {
+            if (f.then || f === self) {
+              self.then = _then;
+            } else if (!_isFunction(f)) {
+              f = _passThrough;
+            }
           }
 
           resolve(f);
@@ -2032,7 +2035,7 @@
           _callback(this, "onUpdate", true);
         }
 
-        if (tTime === tDur || !tTime && this._ts < 0) if (prevStart === this._start || Math.abs(timeScale) !== Math.abs(this._ts)) if (!time || tDur >= this.totalDuration()) {
+        if (tTime === tDur && tDur >= this.totalDuration() || !tTime && this._ts < 0) if (prevStart === this._start || Math.abs(timeScale) !== Math.abs(this._ts)) {
           (totalTime || !dur) && (totalTime && this._ts > 0 || !tTime && this._ts < 0) && _removeFromParent(this, 1);
 
           if (!suppressEvents && !(totalTime < 0 && !prevTime)) {
@@ -3011,7 +3014,7 @@
           _callback(this, "onRepeat");
         }
 
-        if ((tTime === tDur || !tTime) && this._tTime === tTime) {
+        if ((tTime === this._tDur || !tTime) && this._tTime === tTime) {
           if (totalTime < 0 && this._startAt && !this._onUpdate) {
             this._startAt.render(totalTime, true, force);
           }
@@ -3620,7 +3623,7 @@
       }
     }
   }, _buildModifierPlugin("roundProps", _roundModifier), _buildModifierPlugin("modifiers"), _buildModifierPlugin("snap", snap)) || _gsap;
-  Tween.version = Timeline.version = gsap.version = "3.1.0";
+  Tween.version = Timeline.version = gsap.version = "3.1.1";
   _coreReady = 1;
 
   if (_windowExists()) {
@@ -4463,16 +4466,16 @@
       z = _addPxTranslate(target, z, a33 * cos * -zOrigin + zOrigin);
     }
 
+    if (transformPerspective !== _zeroPx) {
+      transforms += "perspective(" + transformPerspective + _endParenthesis;
+    }
+
     if (xPercent || yPercent) {
-      transforms = "translate(" + xPercent + "%, " + yPercent + "%) ";
+      transforms += "translate(" + xPercent + "%, " + yPercent + "%) ";
     }
 
     if (use3D || x !== _zeroPx || y !== _zeroPx || z !== _zeroPx) {
       transforms += z !== _zeroPx || use3D ? "translate3d(" + x + ", " + y + ", " + z + ") " : "translate(" + x + ", " + y + _endParenthesis;
-    }
-
-    if (transformPerspective !== _zeroPx) {
-      transforms += "perspective(" + transformPerspective + _endParenthesis;
     }
 
     if (rotation !== _zeroDeg) {

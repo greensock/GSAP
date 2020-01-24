@@ -1,5 +1,5 @@
 /*!
- * GSAP 3.1.0
+ * GSAP 3.1.1
  * https://greensock.com
  *
  * @license Copyright 2008-2020, GreenSock. All rights reserved.
@@ -1385,9 +1385,12 @@ export class Animation {
 					let _then = self.then;
 					self.then = null; // temporarily null the then() method to avoid an infinite loop (see https://github.com/greensock/GSAP/issues/322)
 					f = f(self);
-					if (f && (f.then || f === self)) {
-						self._prom = f;
-						self.then = _then;
+					if (f) {
+						if (f.then || f === self) {
+							self.then = _then;
+						} else if (!_isFunction(f)) {
+							f = _passThrough;
+						}
 					}
 					resolve(f);
 					self.then = _then;
@@ -1634,7 +1637,7 @@ export class Timeline extends Animation {
 			if (this._onUpdate && !suppressEvents) {
 				_callback(this, "onUpdate", true);
 			}
-			if (tTime === tDur || (!tTime && this._ts < 0)) if (prevStart === this._start || Math.abs(timeScale) !== Math.abs(this._ts)) if (!time || tDur >= this.totalDuration()) {
+			if ((tTime === tDur && tDur >= this.totalDuration()) || (!tTime && this._ts < 0)) if (prevStart === this._start || Math.abs(timeScale) !== Math.abs(this._ts)) {
 				(totalTime || !dur) && ((totalTime && this._ts > 0) || (!tTime && this._ts < 0)) && _removeFromParent(this, 1); // don't remove if the timeline is reversed and the playhead isn't at 0, otherwise tl.progress(1).reverse() won't work. Only remove if the playhead is at the end and timeScale is positive, or if the playhead is at 0 and the timeScale is negative.
 				if (!suppressEvents && !(totalTime < 0 && !prevTime)) {
 					_callback(this, (tTime === tDur ? "onComplete" : "onReverseComplete"), true);
@@ -2403,7 +2406,7 @@ export class Tween extends Animation {
 			if (this._repeat) if (iteration !== prevIteration && this.vars.onRepeat && !suppressEvents && this.parent) {
 				_callback(this, "onRepeat");
 			}
-			if ((tTime === tDur || !tTime) && this._tTime === tTime) {
+			if ((tTime === this._tDur || !tTime) && this._tTime === tTime) {
 				if (totalTime < 0 && this._startAt && !this._onUpdate) {
 					this._startAt.render(totalTime, true, force);
 				}
@@ -2886,7 +2889,7 @@ export const gsap = _gsap.registerPlugin({
 	_buildModifierPlugin("snap", snap)
 ) || _gsap; //to prevent the core plugins from being dropped via aggressive tree shaking, we must include them in the variable declaration in this way.
 
-Tween.version = Timeline.version = gsap.version = "3.1.0";
+Tween.version = Timeline.version = gsap.version = "3.1.1";
 _coreReady = 1;
 if (_windowExists()) {
 	_wake();

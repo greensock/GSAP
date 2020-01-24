@@ -1,5 +1,5 @@
 /*!
- * CSSPlugin 3.1.0
+ * CSSPlugin 3.1.1
  * https://greensock.com
  *
  * Copyright 2008-2020, GreenSock. All rights reserved.
@@ -941,16 +941,16 @@ _addPxTranslate = function _addPxTranslate(target, start, value) {
     z = _addPxTranslate(target, z, a33 * cos * -zOrigin + zOrigin);
   }
 
+  if (transformPerspective !== _zeroPx) {
+    transforms += "perspective(" + transformPerspective + _endParenthesis;
+  }
+
   if (xPercent || yPercent) {
-    transforms = "translate(" + xPercent + "%, " + yPercent + "%) ";
+    transforms += "translate(" + xPercent + "%, " + yPercent + "%) ";
   }
 
   if (use3D || x !== _zeroPx || y !== _zeroPx || z !== _zeroPx) {
     transforms += z !== _zeroPx || use3D ? "translate3d(" + x + ", " + y + ", " + z + ") " : "translate(" + x + ", " + y + _endParenthesis;
-  }
-
-  if (transformPerspective !== _zeroPx) {
-    transforms += "perspective(" + transformPerspective + _endParenthesis;
   }
 
   if (rotation !== _zeroDeg) {
