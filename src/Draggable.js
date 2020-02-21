@@ -1,5 +1,5 @@
 /*!
- * Draggable 3.1.1
+ * Draggable 3.2.0
  * https://greensock.com
  *
  * @license Copyright 2008-2020, GreenSock. All rights reserved.
@@ -1193,7 +1193,7 @@ export class Draggable extends EventDispatcher {
 					_addListener(ownerDoc, "mousemove", onMove); //attach these to the document instead of the box itself so that if the user's mouse moves too quickly (and off of the box), things still work.
 				}
 				touchDragAxis = null;
-				if (!_supportsPointer) {
+				if (!_supportsPointer  || !touchEventTarget) {
 					_addListener(ownerDoc, "mouseup", onRelease);
 					if (e && e.target) {
 						_addListener(e.target, "mouseup", onRelease); //we also have to listen directly on the element because some browsers don't bubble up the event to the _doc on elements with contentEditable="true"
@@ -1462,7 +1462,7 @@ export class Draggable extends EventDispatcher {
 					_removeListener(ownerDoc, "mousemove", onMove);
 				}
 				_removeListener(_win, "touchforcechange", _preventDefault);
-				if (!_supportsPointer) {
+				if (!_supportsPointer || !touchEventTarget) {
 					_removeListener(ownerDoc, "mouseup", onRelease);
 					if (e && e.target) {
 						_removeListener(e.target, "mouseup", onRelease);
@@ -1932,7 +1932,7 @@ export class Draggable extends EventDispatcher {
 _setDefaults(Draggable.prototype, {pointerX:0, pointerY: 0, startX: 0, startY: 0, deltaX: 0, deltaY: 0, isDragging: false, isPressed: false});
 
 Draggable.zIndex = 1000;
-Draggable.version = "3.1.1";
+Draggable.version = "3.2.0";
 
 _getGSAP() && gsap.registerPlugin(Draggable);
 

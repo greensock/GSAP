@@ -1096,6 +1096,7 @@
 	    _identityMatrix,
 	    _transformProp = "transform",
 	    _transformOriginProp = _transformProp + "Origin",
+	    _hasOffsetBug,
 	    _setDoc = function _setDoc(element) {
 	  var doc = element.ownerDocument || element;
 
@@ -1113,6 +1114,17 @@
 	    _doc = doc;
 	    _docElement = doc.documentElement;
 	    _body = doc.body;
+	    var d1 = doc.createElement("div"),
+	        d2 = doc.createElement("div");
+
+	    _body.appendChild(d1);
+
+	    d1.appendChild(d2);
+	    d1.style.position = "static";
+	    d1.style[_transformProp] = "translate3d(0,0,1px)";
+	    _hasOffsetBug = d2.offsetParent !== d1;
+
+	    _body.removeChild(d1);
 	  }
 
 	  return doc;
@@ -1177,7 +1189,7 @@
 
 	  throw "Need document and parent.";
 	},
-	    _placeSiblings = function _placeSiblings(element) {
+	    _placeSiblings = function _placeSiblings(element, adjustGOffset) {
 	  var svg = _svgOwner(element),
 	      isRootSVG = element === svg,
 	      siblings = svg ? _svgTemps : _divTemps,
@@ -1202,9 +1214,9 @@
 	      x: 0,
 	      y: 0
 	    } : element.getBBox();
-	    m = element.transform ? element.transform.baseVal : [];
+	    m = element.transform ? element.transform.baseVal : {};
 
-	    if (m.length) {
+	    if (m.numberOfItems) {
 	      m = m.consolidate().matrix;
 	      x = m.a * b.x + m.c * b.y;
 	      y = m.b * b.x + m.d * b.y;
@@ -1214,19 +1226,35 @@
 	      y = b.y;
 	    }
 
-	    if (element.tagName.toLowerCase() === "g") {
+	    if (adjustGOffset && element.tagName.toLowerCase() === "g") {
 	      x = y = 0;
 	    }
 
 	    container.setAttribute("transform", "matrix(" + m.a + "," + m.b + "," + m.c + "," + m.d + "," + (m.e + x) + "," + (m.f + y) + ")");
 	    (isRootSVG ? svg : element.parentNode).appendChild(container);
 	  } else {
-	    container.style.top = element.offsetTop + "px";
-	    container.style.left = element.offsetLeft + "px";
+	    x = y = 0;
+
+	    if (_hasOffsetBug) {
+	      m = element.offsetParent;
+	      b = element;
+
+	      while (b && (b = b.parentNode) !== m) {
+	        if ((_win.getComputedStyle(b)[_transformProp] + "").length > 4) {
+	          x = b.offsetLeft;
+	          y = b.offsetTop;
+	          b = 0;
+	        }
+	      }
+	    }
+
+	    b = container.style;
+	    b.top = element.offsetTop - y + "px";
+	    b.left = element.offsetLeft - x + "px";
 	    m = _win.getComputedStyle(element);
-	    container.style[_transformProp] = m[_transformProp];
-	    container.style[_transformOriginProp] = m[_transformOriginProp];
-	    container.style.position = m.position === "fixed" ? "fixed" : "absolute";
+	    b[_transformProp] = m[_transformProp];
+	    b[_transformOriginProp] = m[_transformOriginProp];
+	    b.position = m.position === "fixed" ? "fixed" : "absolute";
 	    element.parentNode.appendChild(container);
 	  }
 
@@ -1300,6 +1328,10 @@
 	    return _setMatrix(this, a2 * a + c2 * c, a2 * b + c2 * d, b2 * a + d2 * c, b2 * b + d2 * d, e + e2 * a + f2 * c, f + e2 * b + f2 * d);
 	  };
 
+	  _proto.clone = function clone() {
+	    return new Matrix2D(this.a, this.b, this.c, this.d, this.e, this.f);
+	  };
+
 	  _proto.equals = function equals(matrix) {
 	    var a = this.a,
 	        b = this.b,
@@ -1323,21 +1355,21 @@
 	        d = this.d,
 	        e = this.e,
 	        f = this.f;
-	    decoratee.x = x * a + y * c + e;
-	    decoratee.y = x * b + y * d + f;
+	    decoratee.x = x * a + y * c + e || 0;
+	    decoratee.y = x * b + y * d + f || 0;
 	    return decoratee;
 	  };
 
 	  return Matrix2D;
 	}();
-	function getGlobalMatrix(element, inverse) {
+	function getGlobalMatrix(element, inverse, adjustGOffset) {
 	  if (!element || !element.parentNode) {
 	    return new Matrix2D();
 	  }
 
 	  var svg = _svgOwner(element),
 	      temps = svg ? _svgTemps : _divTemps,
-	      container = _placeSiblings(element),
+	      container = _placeSiblings(element, adjustGOffset),
 	      b1 = temps[0].getBoundingClientRect(),
 	      b2 = temps[1].getBoundingClientRect(),
 	      b3 = temps[2].getBoundingClientRect(),
@@ -1350,7 +1382,7 @@
 	}
 
 	/*!
-	 * MotionPathPlugin 3.1.1
+	 * MotionPathPlugin 3.2.0
 	 * https://greensock.com
 	 *
 	 * @license Copyright 2008-2020, GreenSock. All rights reserved.
@@ -1421,12 +1453,61 @@
 	    _emptyFunc = function _emptyFunc(v) {
 	  return v;
 	},
+	    _numExp = /[-+\.]*\d+[\.e\-\+]*\d*[e\-\+]*\d*/g,
+	    _originToPoint = function _originToPoint(element, origin, parentMatrix) {
+	  var m = getGlobalMatrix(element),
+	      svg = origin && element.ownerSVGElement && element.getBBox();
+	  return parentMatrix.apply(origin && origin !== "auto" ? m.apply({
+	    x: origin[0] * (svg ? svg.width : element.offsetWidth || 0),
+	    y: origin[1] * (svg ? svg.height : element.offsetHeight || 0)
+	  }) : {
+	    x: m.e,
+	    y: m.f
+	  });
+	},
+	    _getAlignMatrix = function _getAlignMatrix(fromElement, toElement, fromOrigin, toOrigin) {
+	  var parentMatrix = getGlobalMatrix(fromElement.parentNode, true, true),
+	      m = parentMatrix.clone().multiply(getGlobalMatrix(toElement)),
+	      fromPoint = _originToPoint(fromElement, fromOrigin, parentMatrix),
+	      _originToPoint2 = _originToPoint(toElement, toOrigin, parentMatrix),
+	      x = _originToPoint2.x,
+	      y = _originToPoint2.y,
+	      p;
+
+	  m.e = m.f = 0;
+
+	  if (toOrigin === "auto" && toElement.getTotalLength && toElement.tagName.toLowerCase() === "path") {
+	    p = toElement.getAttribute("d").match(_numExp) || [];
+	    p = m.apply({
+	      x: +p[0],
+	      y: +p[1]
+	    });
+	    x += p.x;
+	    y += p.y;
+	  }
+
+	  if (p || toElement.getBBox && fromElement.getBBox) {
+	    p = m.apply(toElement.getBBox());
+	    x -= p.x;
+	    y -= p.y;
+	  }
+
+	  m.e = x - fromPoint.x;
+	  m.f = y - fromPoint.y;
+	  return m;
+	},
 	    _align = function _align(rawPath, target, _ref) {
 	  var align = _ref.align,
 	      matrix = _ref.matrix,
 	      offsetX = _ref.offsetX,
-	      offsetY = _ref.offsetY;
-	  var x, y, tween, targetMatrix, alignTarget, alignPath, alignMatrix, invertedMatrix, tx, ty, m;
+	      offsetY = _ref.offsetY,
+	      alignOrigin = _ref.alignOrigin;
+	  var x = rawPath[0][0],
+	      y = rawPath[0][1],
+	      tween,
+	      alignTarget,
+	      m,
+	      p;
 
 	  if (!rawPath || !rawPath.length) {
 	    return getRawPath("M0,0L0,0");
@@ -1434,10 +1515,11 @@
 
 	  if (align) {
 	    if (align === "self" || (alignTarget = _toArray(align)[0] || target) === target) {
-	      x = _getPropNum(target, "x") - rawPath[0][0];
-	      y = _getPropNum(target, "y") - rawPath[0][1];
-	      transformRawPath(rawPath, 1, 0, 0, 1, x, y);
+	      transformRawPath(rawPath, 1, 0, 0, 1, _getPropNum(target, "x") - x, _getPropNum(target, "y") - y);
 	    } else {
+	      alignOrigin && alignOrigin[2] !== false && gsap.set(target, {
+	        transformOrigin: alignOrigin[0] * 100 + "% " + alignOrigin[1] * 100 + "%"
+	      });
 	      tween = gsap.to(target, {
 	        xPercent: 0,
 	        yPercent: 0,
@@ -1448,36 +1530,13 @@
 	        skewX: 0,
 	        skewY: 0
 	      }).progress(1);
-	      targetMatrix = getGlobalMatrix(target);
+	      m = _getAlignMatrix(target, alignTarget, alignOrigin, "auto");
 	      tween.render(-1).kill();
-
-	      if (alignTarget.getTotalLength && alignTarget.tagName.toLowerCase() === "path") {
-	        alignPath = getRawPath(alignTarget);
-	        alignMatrix = getGlobalMatrix(alignTarget.parentNode);
-	        m = alignTarget.transform;
-	        m = m && m.baseVal.length && m.baseVal.consolidate().matrix || {
-	          e: 0,
-	          f: 0
-	        };
-	        x = alignPath[0][0] + m.e;
-	        y = alignPath[0][1] + m.f;
-	      } else {
-	        alignMatrix = getGlobalMatrix(alignTarget);
-	        x = 0;
-	        y = 0;
-	      }
-
-	      tx = alignMatrix.a * x + alignMatrix.c * y + alignMatrix.e - targetMatrix.e;
-	      ty = alignMatrix.b * x + alignMatrix.d * y + alignMatrix.f - targetMatrix.f;
-	      invertedMatrix = getGlobalMatrix(target.parentNode, true);
-	      x = invertedMatrix.a * tx + invertedMatrix.c * ty;
-	      y = invertedMatrix.b * tx + invertedMatrix.d * ty;
-	      tx = rawPath[0][0];
-	      ty = rawPath[0][1];
-	      alignMatrix.multiply(invertedMatrix);
-	      x -= alignMatrix.a * tx + alignMatrix.c * ty;
-	      y -= alignMatrix.b * tx + alignMatrix.d * ty;
-	      transformRawPath(rawPath, alignMatrix.a, alignMatrix.b, alignMatrix.c, alignMatrix.d, x, y);
+	      p = m.apply({
+	        x: x,
+	        y: y
+	      });
+	      transformRawPath(rawPath, m.a, m.b, m.c, m.d, m.e - (p.x - m.e), m.f - (p.y - m.f));
 	    }
 	  }
 
@@ -1492,7 +1551,8 @@
 	    _addDimensionalPropTween = function _addDimensionalPropTween(plugin, target, property, rawPath, pathProperty, forceUnit) {
 	  var cache = target._gsap,
 	      harness = cache.harness,
-	      prop = harness && harness.aliases && harness.aliases[property] || property,
+	      alias = harness && harness.aliases && harness.aliases[property],
+	      prop = alias && alias.indexOf(",") < 0 ? alias : property,
 	      pt = plugin._pt = new PropTween(plugin._pt, target, prop, 0, 0, _emptyFunc, 0, cache.set(target, prop, plugin));
 	  pt.u = _getUnit(cache.get(target, prop, forceUnit)) || 0;
 	  pt.path = rawPath;
@@ -1507,7 +1567,7 @@
 	};
 
 	var MotionPathPlugin = {
-	  version: "3.1.1",
+	  version: "3.2.0",
 	  name: "motionPath",
 	  register: function register(core, Plugin, propTween) {
 	    gsap = core;
@@ -1619,6 +1679,15 @@
 	  getGlobalMatrix: getGlobalMatrix,
 	  getPositionOnPath: getPositionOnPath,
 	  cacheRawPathMeasurements: cacheRawPathMeasurements,
+	  getAlignMatrix: _getAlignMatrix,
+	  getRelativePosition: function getRelativePosition(fromElement, toElement, fromOrigin, toOrigin) {
+	    var m = _getAlignMatrix(fromElement, toElement, fromOrigin, toOrigin);
+
+	    return {
+	      x: m.e,
+	      y: m.f
+	    };
+	  },
 	  arrayToRawPath: function arrayToRawPath(value, vars) {
 	    vars = vars || {};
 

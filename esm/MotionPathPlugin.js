@@ -1,5 +1,5 @@
 /*!
- * MotionPathPlugin 3.1.1
+ * MotionPathPlugin 3.2.0
  * https://greensock.com
  *
  * @license Copyright 2008-2020, GreenSock. All rights reserved.
@@ -75,12 +75,62 @@ var _xProps = ["x", "translateX", "left", "marginLeft"],
     _emptyFunc = function _emptyFunc(v) {
   return v;
 },
+    _numExp = /[-+\.]*\d+[\.e\-\+]*\d*[e\-\+]*\d*/g,
+    _originToPoint = function _originToPoint(element, origin, parentMatrix) {
+  // origin is an array of normalized values (0-1) in relation to the width/height, so [0.5, 0.5] would be the center. It can also be "auto" in which case it will be the top left unless it's a <path>, when it will start at the beginning of the path itself.
+  var m = getGlobalMatrix(element),
+      svg = origin && element.ownerSVGElement && element.getBBox();
+  return parentMatrix.apply(origin && origin !== "auto" ? m.apply({
+    x: origin[0] * (svg ? svg.width : element.offsetWidth || 0),
+    y: origin[1] * (svg ? svg.height : element.offsetHeight || 0)
+  }) : {
+    x: m.e,
+    y: m.f
+  });
+},
+    _getAlignMatrix = function _getAlignMatrix(fromElement, toElement, fromOrigin, toOrigin) {
+  var parentMatrix = getGlobalMatrix(fromElement.parentNode, true, true),
+      m = parentMatrix.clone().multiply(getGlobalMatrix(toElement)),
+      fromPoint = _originToPoint(fromElement, fromOrigin, parentMatrix),
+      _originToPoint2 = _originToPoint(toElement, toOrigin, parentMatrix),
+      x = _originToPoint2.x,
+      y = _originToPoint2.y,
+      p;
+
+  m.e = m.f = 0;
+
+  if (toOrigin === "auto" && toElement.getTotalLength && toElement.tagName.toLowerCase() === "path") {
+    p = toElement.getAttribute("d").match(_numExp) || [];
+    p = m.apply({
+      x: +p[0],
+      y: +p[1]
+    });
+    x += p.x;
+    y += p.y;
+  }
+
+  if (p || toElement.getBBox && fromElement.getBBox) {
+    p = m.apply(toElement.getBBox());
+    x -= p.x;
+    y -= p.y;
+  }
+
+  m.e = x - fromPoint.x;
+  m.f = y - fromPoint.y;
+  return m;
+},
     _align = function _align(rawPath, target, _ref) {
   var align = _ref.align,
       matrix = _ref.matrix,
       offsetX = _ref.offsetX,
-      offsetY = _ref.offsetY;
-  var x, y, tween, targetMatrix, alignTarget, alignPath, alignMatrix, invertedMatrix, tx, ty, m;
+      offsetY = _ref.offsetY,
+      alignOrigin = _ref.alignOrigin;
+  var x = rawPath[0][0],
+      y = rawPath[0][1],
+      tween,
+      alignTarget,
+      m,
+      p;
 
   if (!rawPath || !rawPath.length) {
     return getRawPath("M0,0L0,0");
@@ -88,10 +138,11 @@ var _xProps = ["x", "translateX", "left", "marginLeft"],
 
   if (align) {
     if (align === "self" || (alignTarget = _toArray(align)[0] || target) === target) {
-      x = _getPropNum(target, "x") - rawPath[0][0];
-      y = _getPropNum(target, "y") - rawPath[0][1];
-      transformRawPath(rawPath, 1, 0, 0, 1, x, y);
+      transformRawPath(rawPath, 1, 0, 0, 1, _getPropNum(target, "x") - x, _getPropNum(target, "y") - y);
     } else {
+      alignOrigin && alignOrigin[2] !== false && gsap.set(target, {
+        transformOrigin: alignOrigin[0] * 100 + "% " + alignOrigin[1] * 100 + "%"
+      });
       tween = gsap.to(target, {
         xPercent: 0,
         yPercent: 0,
@@ -103,38 +154,13 @@ var _xProps = ["x", "translateX", "left", "marginLeft"],
         skewY: 0
       }).progress(1); //get rid of transforms, otherwise they'll throw off the measurements.
 
-      targetMatrix = getGlobalMatrix(target); //we cannot use something like getScreenCTM() because of a major bug in Firefox that has existed for years and prevents values from being reported correctly when an ancestor element has transforms applied. Our proprietary getGlobalMatrix() works across all browsers.
-
+      m = _getAlignMatrix(target, alignTarget, alignOrigin, "auto");
       tween.render(-1).kill();
-
-      if (alignTarget.getTotalLength && alignTarget.tagName.toLowerCase() === "path") {
-        //path
-        alignPath = getRawPath(alignTarget);
-        alignMatrix = getGlobalMatrix(alignTarget.parentNode);
-        m = alignTarget.transform;
-        m = m && m.baseVal.length && m.baseVal.consolidate().matrix || {
-          e: 0,
-          f: 0
-        };
-        x = alignPath[0][0] + m.e;
-        y = alignPath[0][1] + m.f;
-      } else {
-        alignMatrix = getGlobalMatrix(alignTarget);
-        x = 0;
-        y = 0;
-      }
-
-      tx = alignMatrix.a * x + alignMatrix.c * y + alignMatrix.e - targetMatrix.e;
-      ty = alignMatrix.b * x + alignMatrix.d * y + alignMatrix.f - targetMatrix.f;
-      invertedMatrix = getGlobalMatrix(target.parentNode, true);
-      x = invertedMatrix.a * tx + invertedMatrix.c * ty;
-      y = invertedMatrix.b * tx + invertedMatrix.d * ty;
-      tx = rawPath[0][0];
-      ty = rawPath[0][1];
-      alignMatrix.multiply(invertedMatrix);
-      x -= alignMatrix.a * tx + alignMatrix.c * ty;
-      y -= alignMatrix.b * tx + alignMatrix.d * ty;
-      transformRawPath(rawPath, alignMatrix.a, alignMatrix.b, alignMatrix.c, alignMatrix.d, x, y);
+      p = m.apply({
+        x: x,
+        y: y
+      });
+      transformRawPath(rawPath, m.a, m.b, m.c, m.d, m.e - (p.x - m.e), m.f - (p.y - m.f));
     }
   }
 
@@ -149,7 +175,8 @@ var _xProps = ["x", "translateX", "left", "marginLeft"],
     _addDimensionalPropTween = function _addDimensionalPropTween(plugin, target, property, rawPath, pathProperty, forceUnit) {
   var cache = target._gsap,
       harness = cache.harness,
-      prop = harness && harness.aliases && harness.aliases[property] || property,
+      alias = harness && harness.aliases && harness.aliases[property],
+      prop = alias && alias.indexOf(",") < 0 ? alias : property,
       pt = plugin._pt = new PropTween(plugin._pt, target, prop, 0, 0, _emptyFunc, 0, cache.set(target, prop, plugin));
   pt.u = _getUnit(cache.get(target, prop, forceUnit)) || 0;
   pt.path = rawPath;
@@ -164,7 +191,7 @@ var _xProps = ["x", "translateX", "left", "marginLeft"],
 };
 
 export var MotionPathPlugin = {
-  version: "3.1.1",
+  version: "3.2.0",
   name: "motionPath",
   register: function register(core, Plugin, propTween) {
     gsap = core;
@@ -280,6 +307,15 @@ export var MotionPathPlugin = {
   getGlobalMatrix: getGlobalMatrix,
   getPositionOnPath: getPositionOnPath,
   cacheRawPathMeasurements: cacheRawPathMeasurements,
+  getAlignMatrix: _getAlignMatrix,
+  getRelativePosition: function getRelativePosition(fromElement, toElement, fromOrigin, toOrigin) {
+    var m = _getAlignMatrix(fromElement, toElement, fromOrigin, toOrigin);
+
+    return {
+      x: m.e,
+      y: m.f
+    };
+  },
   arrayToRawPath: function arrayToRawPath(value, vars) {
     vars = vars || {};
 

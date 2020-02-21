@@ -3,7 +3,7 @@ function _assertThisInitialized(self) { if (self === void 0) { throw new Referen
 function _inheritsLoose(subClass, superClass) { subClass.prototype = Object.create(superClass.prototype); subClass.prototype.constructor = subClass; subClass.__proto__ = superClass; }
 
 /*!
- * Draggable 3.1.1
+ * Draggable 3.2.0
  * https://greensock.com
  *
  * @license Copyright 2008-2020, GreenSock. All rights reserved.
@@ -1648,7 +1648,7 @@ function (_EventDispatcher) {
 
       touchDragAxis = null;
 
-      if (!_supportsPointer) {
+      if (!_supportsPointer || !touchEventTarget) {
         _addListener(ownerDoc, "mouseup", onRelease);
 
         if (e && e.target) {
@@ -2013,7 +2013,7 @@ function (_EventDispatcher) {
 
       _removeListener(_win, "touchforcechange", _preventDefault);
 
-      if (!_supportsPointer) {
+      if (!_supportsPointer || !touchEventTarget) {
         _removeListener(ownerDoc, "mouseup", onRelease);
 
         if (e && e.target) {
@@ -2688,6 +2688,6 @@ _setDefaults(Draggable.prototype, {
 });
 
 Draggable.zIndex = 1000;
-Draggable.version = "3.1.1";
+Draggable.version = "3.2.0";
 _getGSAP() && gsap.registerPlugin(Draggable);
 export { Draggable as default };

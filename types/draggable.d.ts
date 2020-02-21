@@ -9,6 +9,7 @@ declare class Draggable {
   readonly endRotation: number;
   readonly endX: number;
   readonly endY: number;
+  readonly isDragging: boolean;
   readonly isThrowing: boolean;
   readonly lockAxis: boolean;
   readonly maxRotation: number;
@@ -34,6 +35,7 @@ declare class Draggable {
   static timeSinceDrag(): number;
 
   addEventListener(type: Draggable.CallbackType, callback: gsap.Callback): void;
+  applyBounds(bound: gsap.DOMTarget | Draggable.BoundsMinMax | Draggable.BoundsRectangle | Draggable.BoundsRotation): void;
   disable(): this;
   dispatchEvent(type: Draggable.CallbackType): boolean;
   enable(): this;

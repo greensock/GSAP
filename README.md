@@ -11,18 +11,18 @@ GSAP is a JavaScript library for building high-performance animations that work 
 
 GSAP is completely flexible; sprinkle it wherever you want. **Zero dependencies.**
 
-There are many optional <a href="https://greensock.com/gsap-plugins/">plugins</a> and <a href="https://greensock.com/ease-visualizer/">easing</a> functions for achieving advanced effects easily like morphing, scrolling, or animating along a motion path. 
+There are many optional <a href="https://greensock.com/gsap-plugins/">plugins</a> and <a href="https://greensock.com/ease-visualizer/">easing</a> functions for achieving advanced effects easily like <a href="https://greensock.com/morphsvg">morphing</a>, <a href="https://greensock.com/docs/v3/Plugins/ScrollToPlugin">scrolling</a>, or animating along a <a href="https://greensock.com/docs/v3/Plugins/MotionPathPlugin">motion path</a>. 
 
-## Docs
-View the <a href="https://greensock.com/docs">full documentation here</a>, including an <a href="https://greensock.com/docs/v3/Installation">installation guide</a>.
+## Docs &amp; Installation
+View the <a href="https://greensock.com/docs">full documentation here</a>, including an <a href="https://greensock.com/install">installation guide</a> with videos.
 
 ### CDN
 ```html
-<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.1.1/gsap.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.2.0/gsap.min.js"></script>
 ```
 Click the green "Get GSAP Now" button at <a href="https://greensock.com/?download=GSAP-JS">greensock.com</a> for more options and installation instructions, including CDN URLs for various plugins. 
 
-**Every major ad network excludes GSAP from file size calculations** and most have it on their own CDNs as well, so contact them for the appropriate URL(s). 
+**Every major ad network excludes GSAP from file size calculations** and most have it on their own CDNs, so contact them for the appropriate URL(s). 
 
 ### NPM
 See the <a href="https://greensock.com/docs/v3/Installation#npm">guide to using GSAP via NPM here</a>.
@@ -30,7 +30,7 @@ See the <a href="https://greensock.com/docs/v3/Installation#npm">guide to using 
 ```javascript
 npm install gsap
 ```
-The default (main) file is gsap.js which includes most of the eases as well as the core plugins like CSSPlugin, AttrPlugin, SnapPlugin, ModifiersPlugin, and all of the utility methods like interpolate(), mapRange(), etc. 
+The default (main) file is **gsap.js** which includes most of the eases as well as the core plugins like CSSPlugin, AttrPlugin, SnapPlugin, ModifiersPlugin, and all of the <a href="https://greensock.com/docs/v3/GSAP/UtilityMethods">utility methods</a> like interpolate(), mapRange(), etc. 
 ```javascript
 // typical import
 import gsap from "gsap";
@@ -45,9 +45,9 @@ import { gsap, ScrollToPlugin, Draggable, MotionPathPlugin } from "gsap/all";
 // don't forget to register plugins
 gsap.registerPlugin(ScrollToPlugin, Draggable, MotionPathPlugin); 
 ```
-The NPM files are ES modules, but there's also a /dist/ directory with UMD files for extra compatibility.
+The NPM files are ES modules, but there's also a /dist/ directory with <a href="https://www.davidbcalhoun.com/2014/what-is-amd-commonjs-and-umd/">UMD</a> files for extra compatibility.
 
-Download <a href="https://greensock.com/club/">Club GreenSock</a>-only plugins from your GreenSock.com account and then treat them as part of your own JS payload. Post other questions in our <a href="https://greensock.com/forums/">forums</a> and we'd be happy to help.
+Download <a href="https://greensock.com/club/">Club GreenSock</a> members-only plugins from your GreenSock.com account and then include them in your own JS payload. There's even a <a href="https://www.youtube.com/watch?v=znVi89_gazE">tarball file you can install with NPM/Yarn</a>. Post questions in our <a href="https://greensock.com/forums/">forums</a> and we'd be happy to help.
 
 
 ### Getting Started (includes video)
@@ -58,17 +58,16 @@ Download <a href="https://greensock.com/club/">Club GreenSock</a>-only plugins f
 
 * <a href="https://greensock.com/">GSAP home page</a>
 * <a href="https://greensock.com/get-started/">Getting started guide</a>
-* <a href="https://greensock.com/docs/">Full documentation</a>
+* <a href="https://greensock.com/docs/">Docs</a>
 * <a href="https://greensock.com/forums/">Forums</a>
 * <a href="https://greensock.com/showcase">Showcase</a>
-* <a href="https://greensock.com/why-gsap/">Why GSAP?</a> (a practical guide for developers)
-* <a href="https://codepen.io/GreenSock/full/vYBRPbO">Advanced staggers</a>
+* <a href="https://greensock.com/why-gsap/">Why GSAP?</a> (convince your boss)
+* <a href="https://greensock.com/stagger">Staggering animations in GSAP 3</a>
 * <a href="https://greensock.com/draggable/">Draggable</a>
-* <a href="https://greensock.com/svg-tips/">Animating SVG with GSAP</a>
 * <a href="https://greensock.com/club/">Club GreenSock</a> (get access to bonus plugins not in this repository)
 
 ### Get CustomEase for free
-Sign up for a free GreenSock account to gain access to <a href="https://greensock.com/customease/">CustomEase</a> which lets you create literally any ease imaginable (unlimited control points). It's in the download zip at <a href="https://greensock.com/?download=GSAP-JS">GreenSock.com</a> (when you're logged in). 
+Sign up for a free GreenSock account to gain access to <a href="https://greensock.com/customease/">CustomEase</a> which lets you create literally any ease imaginable (unlimited control points). It's in the <a href="https://greensock.com/install">download zip at GreenSock.com</a> (when you're logged in). 
 
 ### What is Club GreenSock? (video)
 
@@ -84,7 +83,7 @@ Sign up for a free GreenSock account to gain access to <a href="https://greensoc
 <a href="https://codepen.io/GreenSock/full/OPqpRJ">https://codepen.io/GreenSock/full/OPqpRJ</a>
 
 ### Need help?
-<a href="https://greensock.com/forums/">GreenSock forums</a> are an excellent resource for learning and getting your questions answered. Report any bugs there too please (it's also okay to file an issue on Github if you prefer).
+<a href="https://greensock.com/forums/">GreenSock forums</a> are an excellent resource for learning and getting your questions answered. Report any bugs there too please (it's also okay to <a href="https://github.com/greensock/GSAP/issues">file an issue on Github</a> if you prefer).
 
 ### License
 GreenSock's standard "no charge" license can be viewed at <a href="https://greensock.com/standard-license">http://greensock.com/standard-license</a>. <a href="https://greensock.com/club/">Club GreenSock</a> members are granted additional rights. See <a href="https://greensock.com/licensing/">http://greensock.com/licensing/</a> for details. Why doesn't GreenSock use an MIT (or similar) open source license, and why is that a **good** thing? This article explains it all: <a href="https://greensock.com/why-license/" target="_blank">http://greensock.com/why-license/</a>

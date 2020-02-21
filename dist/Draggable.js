@@ -27,6 +27,7 @@
       _identityMatrix,
       _transformProp = "transform",
       _transformOriginProp = _transformProp + "Origin",
+      _hasOffsetBug,
       _setDoc = function _setDoc(element) {
     var doc = element.ownerDocument || element;
 
@@ -44,6 +45,17 @@
       _doc = doc;
       _docElement = doc.documentElement;
       _body = doc.body;
+      var d1 = doc.createElement("div"),
+          d2 = doc.createElement("div");
+
+      _body.appendChild(d1);
+
+      d1.appendChild(d2);
+      d1.style.position = "static";
+      d1.style[_transformProp] = "translate3d(0,0,1px)";
+      _hasOffsetBug = d2.offsetParent !== d1;
+
+      _body.removeChild(d1);
     }
 
     return doc;
@@ -108,7 +120,7 @@
 
     throw "Need document and parent.";
   },
-      _placeSiblings = function _placeSiblings(element) {
+      _placeSiblings = function _placeSiblings(element, adjustGOffset) {
     var svg = _svgOwner(element),
         isRootSVG = element === svg,
         siblings = svg ? _svgTemps : _divTemps,
@@ -133,9 +145,9 @@
         x: 0,
         y: 0
       } : element.getBBox();
-      m = element.transform ? element.transform.baseVal : [];
+      m = element.transform ? element.transform.baseVal : {};
 
-      if (m.length) {
+      if (m.numberOfItems) {
         m = m.consolidate().matrix;
         x = m.a * b.x + m.c * b.y;
         y = m.b * b.x + m.d * b.y;
@@ -145,19 +157,35 @@
         y = b.y;
       }
 
-      if (element.tagName.toLowerCase() === "g") {
+      if (adjustGOffset && element.tagName.toLowerCase() === "g") {
         x = y = 0;
       }
 
       container.setAttribute("transform", "matrix(" + m.a + "," + m.b + "," + m.c + "," + m.d + "," + (m.e + x) + "," + (m.f + y) + ")");
       (isRootSVG ? svg : element.parentNode).appendChild(container);
     } else {
-      container.style.top = element.offsetTop + "px";
-      container.style.left = element.offsetLeft + "px";
+      x = y = 0;
+
+      if (_hasOffsetBug) {
+        m = element.offsetParent;
+        b = element;
+
+        while (b && (b = b.parentNode) !== m) {
+          if ((_win.getComputedStyle(b)[_transformProp] + "").length > 4) {
+            x = b.offsetLeft;
+            y = b.offsetTop;
+            b = 0;
+          }
+        }
+      }
+
+      b = container.style;
+      b.top = element.offsetTop - y + "px";
+      b.left = element.offsetLeft - x + "px";
       m = _win.getComputedStyle(element);
-      container.style[_transformProp] = m[_transformProp];
-      container.style[_transformOriginProp] = m[_transformOriginProp];
-      container.style.position = m.position === "fixed" ? "fixed" : "absolute";
+      b[_transformProp] = m[_transformProp];
+      b[_transformOriginProp] = m[_transformOriginProp];
+      b.position = m.position === "fixed" ? "fixed" : "absolute";
       element.parentNode.appendChild(container);
     }
 
@@ -231,6 +259,10 @@
       return _setMatrix(this, a2 * a + c2 * c, a2 * b + c2 * d, b2 * a + d2 * c, b2 * b + d2 * d, e + e2 * a + f2 * c, f + e2 * b + f2 * d);
     };
 
+    _proto.clone = function clone() {
+      return new Matrix2D(this.a, this.b, this.c, this.d, this.e, this.f);
+    };
+
     _proto.equals = function equals(matrix) {
       var a = this.a,
           b = this.b,
@@ -254,21 +286,21 @@
           d = this.d,
           e = this.e,
           f = this.f;
-      decoratee.x = x * a + y * c + e;
-      decoratee.y = x * b + y * d + f;
+      decoratee.x = x * a + y * c + e || 0;
+      decoratee.y = x * b + y * d + f || 0;
       return decoratee;
     };
 
     return Matrix2D;
   }();
-  function getGlobalMatrix(element, inverse) {
+  function getGlobalMatrix(element, inverse, adjustGOffset) {
     if (!element || !element.parentNode) {
       return new Matrix2D();
     }
 
     var svg = _svgOwner(element),
         temps = svg ? _svgTemps : _divTemps,
-        container = _placeSiblings(element),
+        container = _placeSiblings(element, adjustGOffset),
         b1 = temps[0].getBoundingClientRect(),
         b2 = temps[1].getBoundingClientRect(),
         b3 = temps[2].getBoundingClientRect(),
@@ -1860,7 +1892,7 @@
 
         touchDragAxis = null;
 
-        if (!_supportsPointer) {
+        if (!_supportsPointer || !touchEventTarget) {
           _addListener(ownerDoc, "mouseup", onRelease);
 
           if (e && e.target) {
@@ -2207,7 +2239,7 @@
 
         _removeListener(_win$1, "touchforcechange", _preventDefault);
 
-        if (!_supportsPointer) {
+        if (!_supportsPointer || !touchEventTarget) {
           _removeListener(ownerDoc, "mouseup", onRelease);
 
           if (e && e.target) {
@@ -2864,7 +2896,7 @@
   });
 
   Draggable.zIndex = 1000;
-  Draggable.version = "3.1.1";
+  Draggable.version = "3.2.0";
   _getGSAP() && gsap.registerPlugin(Draggable);
 
   exports.Draggable = Draggable;

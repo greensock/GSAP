@@ -8,6 +8,7 @@ declare namespace gsap.core {
     static readonly version: string;
 
     data: any;
+    readonly parent: Timeline | null;
 
     constructor(vars?: object, time?: number);
 
@@ -26,7 +27,7 @@ declare namespace gsap.core {
     pause(atTime?: number, supressEvents?: boolean): this;
     paused(value: boolean): this;
     paused(): boolean;
-    play(from?: number, supressEvents?: boolean): this;
+    play(from?: number | null, supressEvents?: boolean): this;
     progress(value: number, supressEvents?: boolean): this;
     progress(): number;
     rawTime(wrapRepeats?: boolean): number;
@@ -35,8 +36,8 @@ declare namespace gsap.core {
     repeatDelay(value: number): this;
     repeatDelay(): number;
     restart(includeDelay?: boolean, supressEvents?: boolean): this;
-    resume(from?: number, supressEvents?: boolean): this;
-    reverse(from?: number, supressEvents?: boolean): this;
+    resume(from?: number | null, supressEvents?: boolean): this;
+    reverse(from?: number | null, supressEvents?: boolean): this;
     reversed(value: boolean): this;
     reversed(): boolean;
     startTime(value: number): this;

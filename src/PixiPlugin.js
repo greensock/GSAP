@@ -1,5 +1,5 @@
 /*!
- * PixiPlugin 3.1.1
+ * PixiPlugin 3.2.0
  * https://greensock.com
  *
  * @license Copyright 2008-2020, GreenSock. All rights reserved.
@@ -213,7 +213,35 @@ let gsap, _win, _splitColor, _coreInitted, _PIXI, PropTween, _getSetter,
 	_contexts = {x:"position", y:"position", tileX:"tilePosition", tileY:"tilePosition"},
 	_colorMatrixFilterProps = {colorMatrixFilter:1, saturation:1, contrast:1, hue:1, colorize:1, colorizeAmount:1, brightness:1, combineCMF:1},
 	_DEG2RAD = Math.PI / 180,
-	_degreesToRadians = value => (typeof(value) === "string" && value.charAt(1) === "=") ? value.substr(0, 2) + (parseFloat(value.substr(2)) * _DEG2RAD) : value * _DEG2RAD,
+	_isString = value => typeof(value) === "string",
+	_degreesToRadians = value => (_isString(value) && value.charAt(1) === "=") ? value.substr(0, 2) + (parseFloat(value.substr(2)) * _DEG2RAD) : value * _DEG2RAD,
+	_renderPropWithEnd = (ratio, data) => data.set(data.t, data.p, ratio === 1 ? data.e : (Math.round((data.s + data.c * ratio) * 100000) / 100000), data),
+	_addRotationalPropTween = (plugin, target, property, startNum, endValue, radians) => {
+		let cap = 360 * (radians ? _DEG2RAD : 1),
+			isString = _isString(endValue),
+			relative = (isString && endValue.charAt(1) === "=") ? +(endValue.charAt(0) + "1") : 0,
+			endNum = parseFloat(relative ? endValue.substr(2) : endValue) * (radians ? _DEG2RAD : 1),
+			change = relative ? endNum * relative : endNum - startNum,
+			finalValue = startNum + change,
+			direction, pt;
+		if (isString) {
+			direction = endValue.split("_")[1];
+			if (direction === "short") {
+				change %= cap;
+				if (change !== change % (cap / 2)) {
+					change += (change < 0) ? cap : -cap;
+				}
+			}
+			if (direction === "cw" && change < 0) {
+				change = ((change + cap * 1e10) % cap) - ~~(change / cap) * cap;
+			} else if (direction === "ccw" && change > 0) {
+				change = ((change - cap * 1e10) % cap) - ~~(change / cap) * cap;
+			}
+		}
+		plugin._pt = pt = new PropTween(plugin._pt, target, property, startNum, change, _renderPropWithEnd);
+		pt.e = finalValue;
+		return pt;
+	},
 	_initCore = () => {
 		if (_windowExists()) {
 			_win = window;
@@ -232,7 +260,7 @@ for (i = 0; i < _xyContexts.length; i++) {
 
 
 export const PixiPlugin = {
-	version:"3.1.1",
+	version:"3.2.0",
 	name:"pixi",
 	register(core, Plugin, propTween) {
 		gsap = core;
@@ -261,8 +289,8 @@ export const PixiPlugin = {
 			} else if (p === "scale" || p === "anchor" || p === "pivot" || p === "tileScale") {
 				this.add(target[p], "x", target[p].x, value);
 				this.add(target[p], "y", target[p].y, value);
-			} else if (p === "rotation") { //PIXI expects rotation in radians, but as a convenience we let folks define it in degrees and we do the conversion.
-				this.add(target, p, target.rotation, _degreesToRadians(value));
+			} else if (p === "rotation" || p === "angle") { //PIXI expects rotation in radians, but as a convenience we let folks define it in degrees and we do the conversion.
+				_addRotationalPropTween(this, target, p, target[p], value, p === "rotation");
 			} else if (_colorMatrixFilterProps[p]) {
 				if (!colorMatrix) {
 					_parseColorMatrixFilter(target, values.colorMatrixFilter || values, this);

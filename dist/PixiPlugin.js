@@ -5,7 +5,7 @@
 }(this, (function (exports) { 'use strict';
 
 	/*!
-	 * PixiPlugin 3.1.1
+	 * PixiPlugin 3.2.0
 	 * https://greensock.com
 	 *
 	 * @license Copyright 2008-2020, GreenSock. All rights reserved.
@@ -307,8 +307,46 @@
 	  combineCMF: 1
 	},
 	    _DEG2RAD = Math.PI / 180,
+	    _isString = function _isString(value) {
+	  return typeof value === "string";
+	},
 	    _degreesToRadians = function _degreesToRadians(value) {
-	  return typeof value === "string" && value.charAt(1) === "=" ? value.substr(0, 2) + parseFloat(value.substr(2)) * _DEG2RAD : value * _DEG2RAD;
+	  return _isString(value) && value.charAt(1) === "=" ? value.substr(0, 2) + parseFloat(value.substr(2)) * _DEG2RAD : value * _DEG2RAD;
+	},
+	    _renderPropWithEnd = function _renderPropWithEnd(ratio, data) {
+	  return data.set(data.t, data.p, ratio === 1 ? data.e : Math.round((data.s + data.c * ratio) * 100000) / 100000, data);
+	},
+	    _addRotationalPropTween = function _addRotationalPropTween(plugin, target, property, startNum, endValue, radians) {
+	  var cap = 360 * (radians ? _DEG2RAD : 1),
+	      isString = _isString(endValue),
+	      relative = isString && endValue.charAt(1) === "=" ? +(endValue.charAt(0) + "1") : 0,
+	      endNum = parseFloat(relative ? endValue.substr(2) : endValue) * (radians ? _DEG2RAD : 1),
+	      change = relative ? endNum * relative : endNum - startNum,
+	      finalValue = startNum + change,
+	      direction,
+	      pt;
+
+	  if (isString) {
+	    direction = endValue.split("_")[1];
+
+	    if (direction === "short") {
+	      change %= cap;
+
+	      if (change !== change % (cap / 2)) {
+	        change += change < 0 ? cap : -cap;
+	      }
+	    }
+
+	    if (direction === "cw" && change < 0) {
+	      change = (change + cap * 1e10) % cap - ~~(change / cap) * cap;
+	    } else if (direction === "ccw" && change > 0) {
+	      change = (change - cap * 1e10) % cap - ~~(change / cap) * cap;
+	    }
+	  }
+
+	  plugin._pt = pt = new PropTween(plugin._pt, target, property, startNum, change, _renderPropWithEnd);
+	  pt.e = finalValue;
+	  return pt;
 	},
 	    _initCore = function _initCore() {
 	  if (_windowExists()) {
@@ -328,7 +366,7 @@
 	}
 
 	var PixiPlugin = {
-	  version: "3.1.1",
+	  version: "3.2.0",
 	  name: "pixi",
 	  register: function register(core, Plugin, propTween) {
 	    gsap = core;
@@ -370,8 +408,8 @@
 	      } else if (p === "scale" || p === "anchor" || p === "pivot" || p === "tileScale") {
 	        this.add(target[p], "x", target[p].x, value);
 	        this.add(target[p], "y", target[p].y, value);
-	      } else if (p === "rotation") {
-	        this.add(target, p, target.rotation, _degreesToRadians(value));
+	      } else if (p === "rotation" || p === "angle") {
+	        _addRotationalPropTween(this, target, p, target[p], value, p === "rotation");
 	      } else if (_colorMatrixFilterProps[p]) {
 	        if (!colorMatrix) {
 	          _parseColorMatrixFilter(target, values.colorMatrixFilter || values, this);

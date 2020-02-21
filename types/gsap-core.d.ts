@@ -18,7 +18,7 @@ declare namespace gsap {
   type TweenTarget = string | object | null; 
 
   type Callback = (...args: any[]) => void;
-  type CallbackType = "onComplete" | "onRepeat" | "onReverseComplete" | "onStart" | "onUpdate";
+  type CallbackType = "onComplete" | "onInterrupt" | "onRepeat" | "onReverseComplete" | "onStart" | "onUpdate";
   type TickerCallback = (time: number, deltaTime: number, frame: number, elapsed: number) => void;
 
   type Point2D = { x: number, y: number };
@@ -182,6 +182,8 @@ declare namespace gsap {
 
   function parseEase(ease: string | EaseFunction): EaseFunction;
   function parseEase(): EaseMap;
+  
+  function quickSetter(target: TweenTarget, property: string, unit?: string): (value: any) => void;
 
   function registerEase(config: { name: string, ease: EaseFunction }): void;
 

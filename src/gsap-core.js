@@ -1,5 +1,5 @@
 /*!
- * GSAP 3.1.1
+ * GSAP 3.2.0
  * https://greensock.com
  *
  * @license Copyright 2008-2020, GreenSock. All rights reserved.
@@ -38,11 +38,12 @@ let _config = {
 	_isFuncOrString = value => _isFunction(value) || _isString(value),
 	_isArray = Array.isArray,
 	_strictNumExp = /(?:-?\.?\d|\.)+/gi, //only numbers (including negatives and decimals) but NOT relative values.
-	_numExp = /[-+=\.]*\d+[\.e\-\+]*\d*[e\-\+]*\d*/g, //finds any numbers, including ones that start with += or -=, negative numbers, and ones in scientific notation like 1e-8.
-	_complexStringNumExp = /[-+=\.]*\d+(?:\.|e-|e)*\d*/gi, //duplicate so that while we're looping through matches from exec(), it doesn't contaminate the lastIndex of _numExp which we use to search for colors too.
+	_numExp = /[-+=.]*\d+[.e\-+]*\d*[e\-\+]*\d*/g, //finds any numbers, including ones that start with += or -=, negative numbers, and ones in scientific notation like 1e-8.
+	_numWithUnitExp = /[-+=.]*\d+[.e-]*\d*[a-z%]*/g,
+	_complexStringNumExp = /[-+=.]*\d+(?:\.|e-|e)*\d*/gi, //duplicate so that while we're looping through matches from exec(), it doesn't contaminate the lastIndex of _numExp which we use to search for colors too.
 	_parenthesesExp = /\(([^()]+)\)/i, //finds the string between parentheses.
-	_relExp = /[\+-]=-?[\.\d]+/,
-	_delimitedValueExp = /[#\-+\.]*\b[a-z\d-=+%.]+/gi,
+	_relExp = /[+-]=-?[\.\d]+/,
+	_delimitedValueExp = /[#\-+.]*\b[a-z\d-=+%.]+/gi,
 	_globalTimeline, _win, _coreInitted, _doc,
 	_globals = {},
 	_installScope = {},
@@ -84,7 +85,7 @@ let _config = {
 		return _isFunction(currentValue) ? target[property]() : (_isUndefined(currentValue) && target.getAttribute(property)) || currentValue;
 	},
 	_forEachName = (names, func) => ((names = names.split(",")).forEach(func)) || names, //split a comma-delimited list of names into an array, then run a forEach() function and return the split array (this is just a way to consolidate/shorten some code).
-	_round = value => Math.round(value * 10000) / 10000,
+	_round = value => Math.round(value * 100000) / 100000 || 0,
 	_arrayContainsAny = (toSearch, toFind) => { //searches one array to find matches for any of the items in the toFind array. As soon as one is found, it returns true. It does NOT return all the matches; it's simply a boolean search.
 		let l = toFind.length,
 			i = 0;
@@ -265,6 +266,7 @@ let _config = {
 	// feed in the totalTime and cycleDuration and it'll return the cycle (iteration minus 1) and if the playhead is exactly at the very END, it will NOT bump up to the next cycle.
 	_animationCycle = (tTime, cycleDuration) => (tTime /= cycleDuration) && (~~tTime === tTime) ? ~~tTime - 1 : ~~tTime,
 	_parentToChildTotalTime = (parentTime, child) => (parentTime - child._start) * child._ts + (child._ts >= 0 ? 0 : (child._dirty ? child.totalDuration() : child._tDur)),
+	_setEnd = animation => (animation._end = _round(animation._start + ((animation._tDur / Math.abs(animation._ts || animation._pauseTS || _tinyNum)) || 0))),
 	/*
 	_totalTimeToTime = (clampedTotalTime, duration, repeat, repeatDelay, yoyo) => {
 		let cycleDuration = duration + repeatDelay,
@@ -277,8 +279,8 @@ let _config = {
 	*/
 	_addToTimeline = (timeline, child, position) => {
 		child.parent && _removeFromParent(child);
-		child._start = position + child._delay;
-		child._end = child._start + ((child.totalDuration() / Math.abs(child.timeScale())) || 0);
+		child._start = _round(position + child._delay);
+		child._end = _round(child._start + ((child.totalDuration() / Math.abs(child.timeScale())) || 0));
 		_addLinkedListItem(timeline, child, "_first", "_last", timeline._sort ? "_start" : 0);
 		timeline._recent = child;
 
@@ -288,15 +290,17 @@ let _config = {
 				child.render(curTime, true);
 			}
 		}
-		_uncache(timeline);
 		//if the timeline has already ended but the inserted tween/timeline extends the duration, we should enable this timeline again so that it renders properly. We should also align the playhead with the parent timeline's when appropriate.
-		if (timeline._dp && timeline._time >= timeline._dur && timeline._ts && timeline._dur < timeline.duration()) {
+		if (_uncache(timeline)._dp && timeline._initted && timeline._time >= timeline._dur && timeline._ts) {
 			//in case any of the ancestors had completed but should now be enabled...
-			let tl = timeline;
-			while (tl._dp) {
-				tl.totalTime(tl._tTime, true); //moves the timeline (shifts its startTime) if necessary, and also enables it.
-				tl = tl._dp;
+			if (timeline._dur < timeline.duration()) {
+				let tl = timeline;
+				while (tl._dp) {
+					(tl.rawTime() >= 0) && tl.totalTime(tl._tTime, true); //moves the timeline (shifts its startTime) if necessary, and also enables it. If it's currently zero, though, it may not be scheduled to render until later so there's no need to force it to align with the current playhead position. Only move to catch up with the playhead.
+					tl = tl._dp;
+				}
 			}
+			timeline._zTime = -_tinyNum; // helps ensure that the next render() will be forced (crossingStart = true in render()), even if the duration hasn't changed (we're adding a child which would need to get rendered). Definitely an edge case. Note: we MUST do this AFTER the loop above where the totalTime() might trigger a render() because this _addToTimeline() method gets called from the Animation constructor, BEFORE tweens even record their targets, etc. so we wouldn't want things to get triggered in the wrong order.
 		}
 		return timeline;
 	},
@@ -385,21 +389,21 @@ let _config = {
 			}
 		}
 	},
-	_onUpdateTotalDuration = animation => {
-		if (animation instanceof Timeline) {
-			return _uncache(animation);
-		}
-		let repeat = animation._repeat;
-		animation._tDur = !repeat ? animation._dur : repeat < 0 ? 1e12 : _round(animation._dur * (repeat + 1) + (animation._rDelay * repeat));
-		_uncache(animation.parent); //if the tween's duration changed, the parent timeline's duration may have changed, so flag it as "dirty"
+	_setDuration = (animation, duration, skipUncache) => {
+		let repeat = animation._repeat,
+			dur = _round(duration);
+		animation._dur = dur;
+		animation._tDur = !repeat ? dur : repeat < 0 ? 1e12 : _round(dur * (repeat + 1) + (animation._rDelay * repeat));
+		!skipUncache && _uncache(animation.parent);
+		animation.parent && _setEnd(animation);
 		return animation;
 	},
+	_onUpdateTotalDuration = animation => (animation instanceof Timeline) ? _uncache(animation) : _setDuration(animation, animation._dur),
 	_zeroPosition = {_start:0, endTime:_emptyFunc},
-	_parsePosition = (animation, position, useBuildFrom) => {
+	_parsePosition = (animation, position) => {
 		let labels = animation.labels,
 			recent = animation._recent || _zeroPosition,
 			clippedDuration = animation.duration() >= _bigNum ? recent.endTime(false) : animation._dur, //in case there's a child that infinitely repeats, users almost never intend for the insertion point of a new child to be based on a SUPER long value like that so we clip it and assume the most recently-added child's endTime should be used instead.
-			//buildFrom = useBuildFrom ? animation._build : "auto",
 			i, offset;
 		if (_isString(position) && (isNaN(position) || (position in labels))) { //if the string is a number like "1", check to see if there's a label with that name, otherwise interpret it as a number (absolute value).
 			i = position.charAt(0);
@@ -417,7 +421,6 @@ let _config = {
 			return (i > 1) ? _parsePosition(animation, position.substr(0, i-1)) + offset : clippedDuration + offset;
 		}
 		return (position == null) ? clippedDuration : +position;
-		//return (position == null) ? (isNaN(buildFrom) ? clippedDuration : buildFrom) : (buildFrom === ">>" ? clippedDuration : +buildFrom || 0) + (+position);
 	},
 	_conditionalReturn = (value, func) => value || value === 0 ? func(value) : func,
 	_clamp = (min, max, value) => value < min ? min : value > max ? max : value,
@@ -428,7 +431,7 @@ let _config = {
 	_flatten = (ar, leaveStrings, accumulator = []) => ar.forEach(value => (_isString(value) && !leaveStrings) || _isArrayLike(value, 1) ? accumulator.push(...toArray(value)) : accumulator.push(value)) || accumulator,
 	//takes any value and returns an array. If it's a string (and leaveStrings isn't true), it'll use document.querySelectorAll() and convert that to an array. It'll also accept iterables like jQuery objects.
 	toArray = (value, leaveStrings) => _isString(value) && !leaveStrings && (_coreInitted || !_wake()) ? _slice.call(_doc.querySelectorAll(value), 0) : _isArray(value) ? _flatten(value, leaveStrings) : _isArrayLike(value) ? _slice.call(value, 0) : value ? [value] : [],
-	shuffle = a => a.sort(() => .5 - Math.random()),
+	shuffle = a => a.sort(() => .5 - Math.random()), // alternative that's a bit faster and more reliably diverse but bigger:   for (let j, v, i = a.length; i; j = ~~(Math.random() * i), v = a[--i], a[i] = a[j], a[j] = v); return a;
 	//for distributing values across an array. Can accept a number, a function or (most commonly) a function which can contain the following properties: {base, amount, from, ease, grid, axis, length, each}. Returns a function that expects the following parameters: index, target, array. Recognizes the following
 	distribute = v => {
 		if (_isFunction(v)) {
@@ -712,7 +715,7 @@ let _config = {
 		h = (h < 0) ? h + 1 : (h > 1) ? h - 1 : h;
 		return ((((h * 6 < 1) ? m1 + (m2 - m1) * h * 6 : (h < .5) ? m2 : (h * 3 < 2) ? m1 + (m2 - m1) * (2 / 3 - h) * 6 : m1) * _255) + .5) | 0;
 	},
-	splitColor = (v, toHSL) => {
+	splitColor = (v, toHSL, forceAlpha) => {
 		let a = !v ? _colorLookup.black : _isNumber(v) ? [v >> 16, (v >> 8) & _255, v & _255] : 0,
 			r, g, b, h, s, l, max, min, d, wasHSL;
 		if (!a) {
@@ -745,7 +748,9 @@ let _config = {
 					a[1] = _hue(h, r, g);
 					a[2] = _hue(h - 1 / 3, r, g);
 				} else if (~v.indexOf("=")) { //if relative values are found, just return the raw strings with the relative prefixes in place.
-					return v.match(_numExp);
+					a = v.match(_numExp);
+					forceAlpha && a.length < 4 && (a[3] = 1);
+					return a;
 				}
 			} else {
 				a = v.match(_strictNumExp) || _colorLookup.transparent;
@@ -767,31 +772,54 @@ let _config = {
 				h = (max === r) ? (g - b) / d + (g < b ? 6 : 0) : (max === g) ? (b - r) / d + 2 : (r - g) / d + 4;
 				h *= 60;
 			}
-			a[0] = (h + .5) | 0;
-			a[1] = (s * 100 + .5) | 0;
-			a[2] = (l * 100 + .5) | 0;
+			a[0] = ~~(h + .5);
+			a[1] = ~~(s * 100 + .5);
+			a[2] = ~~(l * 100 + .5);
 		}
+		forceAlpha && a.length < 4 && (a[3] = 1);
 		return a;
 	},
-	_formatColors = (s, toHSL) => {
-		let colors = (s + "").match(_colorExp),
-			charIndex = 0,
-			parsed = "",
-			i, color, temp;
+	_colorOrderData = v => { // strips out the colors from the string, finds all the numeric slots (with units) and returns an array of those. The Array also has a "c" property which is an Array of the index values where the colors belong. This is to help work around issues where there's a mis-matched order of color/numeric data like drop-shadow(#f00 0px 1px 2px) and drop-shadow(0x 1px 2px #f00). This is basically a helper function used in _formatColors()
+		let values = [],
+			c = [],
+			i = -1;
+		v.split(_colorExp).forEach(v => {
+			let a = v.match(_numWithUnitExp) || [];
+			values.push(...a);
+			c.push(i += a.length + 1);
+		});
+		values.c = c;
+		return values;
+	},
+	_formatColors = (s, toHSL, orderMatchData) => {
+		let result = "",
+			colors = (s + result).match(_colorExp),
+			type = toHSL ? "hsla(" : "rgba(",
+			i = 0,
+			c, shell, d, l;
 		if (!colors) {
 			return s;
 		}
-		for (i = 0; i < colors.length; i++) {
-			color = colors[i];
-			temp = s.substr(charIndex, s.indexOf(color, charIndex)-charIndex);
-			charIndex += temp.length + color.length;
-			color = splitColor(color, toHSL);
-			if (color.length === 3) {
-				color.push(1);
+		colors = colors.map(color => (color = splitColor(color, toHSL, 1)) && type + (toHSL ? color[0] + "," + color[1] + "%," + color[2] + "%," + color[3] : color.join(",")) + ")");
+		if (orderMatchData) {
+			d = _colorOrderData(s);
+			c = orderMatchData.c;
+			if (c.join(result) !== d.c.join(result)) {
+				shell = s.replace(_colorExp, "1").split(_numWithUnitExp);
+				l = shell.length - 1;
+				for (; i < l; i++) {
+					result += shell[i] + (~c.indexOf(i) ? colors.shift() || type + "0,0,0,0)" : (d.length ? d : colors.length ? colors : orderMatchData).shift());
+				}
 			}
-			parsed += temp + (toHSL ? "hsla(" + color[0] + "," + color[1] + "%," + color[2] + "%," + color[3] : "rgba(" + color.join(",")) + ")";
 		}
-		return parsed + s.substr(charIndex);
+		if (!shell) {
+			shell = s.split(_colorExp);
+			l = shell.length - 1;
+			for (; i < l; i++) {
+				result += shell[i] + colors[i];
+			}
+		}
+		return result + shell[l];
 	},
 	_colorExp = (function() {
 		let s = "(?:\\b(?:(?:rgb|rgba|hsl|hsla)\\(.+?\\))|\\B#(?:[0-9a-f]{3}){1,2}\\b", //we'll dynamically build this Regular Expression to conserve file size. After building it, it will be able to find rgb(), rgba(), # (hexadecimal), and named color values like red, blue, purple, etc.,
@@ -808,8 +836,9 @@ let _config = {
 		_colorExp.lastIndex = 0;
 		if (_colorExp.test(combined)) {
 			toHSL = _hslExp.test(combined);
-			a[0] = _formatColors(a[0], toHSL);
 			a[1] = _formatColors(a[1], toHSL);
+			a[0] = _formatColors(a[0], toHSL, _colorOrderData(a[1])); // make sure the order of numbers/colors match with the END value.
+			return true;
 		}
 	},
 
@@ -840,7 +869,7 @@ let _config = {
 			_adjustedLag = 33,
 			_startTime = _getTime(),
 			_lastUpdate = _startTime,
-			_gap = 1 / 60,
+			_gap = 1 / 240,
 			_nextTime = _gap,
 			_listeners = [],
 			_id, _req, _raf, _self,
@@ -898,7 +927,7 @@ let _config = {
 				_adjustedLag = Math.min(adjustedLag, _lagThreshold, 0);
 			},
 			fps(fps) {
-				_gap = 1 / (fps || 60);
+				_gap = 1 / (fps || 240);
 				_nextTime = _self.time + _gap;
 			},
 			add(callback) {
@@ -1002,7 +1031,7 @@ let _config = {
 		return ease;
 	},
 	_configBack = (type, overshoot = 1.70158) => {
-		let easeOut = p => ((--p) * p * ((overshoot + 1) * p + overshoot) + 1),
+		let easeOut = p => p ? ((--p) * p * ((overshoot + 1) * p + overshoot) + 1) : 0,
 			ease = (type === "out") ? easeOut : (type === "in") ? p => 1 - easeOut(1 - p) : _easeInOutFromOut(easeOut);
 		ease.config = overshoot => _configBack(type, overshoot);
 		return ease;
@@ -1107,28 +1136,18 @@ export class Animation {
 	constructor(vars, time) {
 		let parent = vars.parent || _globalTimeline;
 		this.vars = vars;
-		this._dur = this._tDur = +vars.duration || 0;
 		this._delay = +vars.delay || 0;
 		if ((this._repeat = vars.repeat || 0)) {
 			this._rDelay = vars.repeatDelay || 0;
 			this._yoyo = !!vars.yoyo || !!vars.yoyoEase;
-			_onUpdateTotalDuration(this);
 		}
 		this._ts = 1;
+		_setDuration(this, +vars.duration, 1);
 		this.data = vars.data;
-
-		if (!_tickerActive) {
-			_ticker.wake();
-		}
-		if (parent) {
-			_addToTimeline(parent, this, (time || time === 0) ? time : parent._time);
-		}
-		if (vars.reversed) {
-			this.reversed(true);
-		}
-		if (vars.paused) {
-			this.paused(true);
-		}
+		_tickerActive || _ticker.wake();
+		parent && _addToTimeline(parent, this, (time || time === 0) ? time : parent._time);
+		vars.reversed && this.reversed(true);
+		vars.paused && this.paused(true);
 	}
 
 	delay(value) {
@@ -1140,23 +1159,15 @@ export class Animation {
 	}
 
 	duration(value) {
-		let isSetter = arguments.length,
-			repeat = this._repeat,
-			repeatCycles = repeat > 0 ? repeat * ((isSetter ? value : this._dur) + this._rDelay) : 0;
-		return isSetter ? this.totalDuration( (repeat < 0) ? value : value + repeatCycles ) : this.totalDuration() && this._dur;
+		return arguments.length ? _setDuration(this, value) : this.totalDuration() && this._dur;
 	}
 
 	totalDuration(value) {
 		if (!arguments.length) {
 			return this._tDur;
 		}
-		let repeat = this._repeat,
-			isInfinite = (value || this._rDelay) && repeat < 0;
-		this._tDur = isInfinite ? 1e12 : value;
-		this._dur = isInfinite ? value : (value - (repeat * this._rDelay)) / (repeat + 1);
 		this._dirty = 0;
-		_uncache(this.parent);
-		return this;
+		return _setDuration(this, this._repeat < 0 ? value : (value - (this._repeat * this._rDelay)) / (this._repeat + 1));
 	}
 
 	totalTime(totalTime, suppressEvents) {
@@ -1164,30 +1175,28 @@ export class Animation {
 		if (!arguments.length) {
 			return this._tTime;
 		}
-		let parent = this.parent || this._dp,
-			start;
+		let parent = this.parent || this._dp;
 		if (parent && parent.smoothChildTiming && this._ts) {
-			start = this._start;
 			// if (!parent._dp && parent._time === parent._dur) { // if a root timeline completes...and then a while later one of its children resumes, we must shoot the playhead forward to where it should be raw-wise, otherwise the child will jump to the end. Down side: this assumes it's using the _ticker.time as a reference.
 			// 	parent._time = _ticker.time - parent._start;
 			// }
-			this._start = parent._time - (this._ts > 0 ? totalTime / this._ts : ((this._dirty ? this.totalDuration() : this._tDur) - totalTime) / -this._ts);
-			this._end += this._start - start;
+			this._start = _round(parent._time - (this._ts > 0 ? totalTime / this._ts : ((this._dirty ? this.totalDuration() : this._tDur) - totalTime) / -this._ts));
+			_setEnd(this);
 			if (!parent._dirty) { //for performance improvement. If the parent's cache is already dirty, it already took care of marking the ancestors as dirty too, so skip the function call here.
 				_uncache(parent);
 			}
 			//in case any of the ancestor timelines had completed but should now be enabled, we should reset their totalTime() which will also ensure that they're lined up properly and enabled. Skip for animations that are on the root (wasteful). Example: a TimelineLite.exportRoot() is performed when there's a paused tween on the root, the export will not complete until that tween is unpaused, but imagine a child gets restarted later, after all [unpaused] tweens have completed. The start of that child would get pushed out, but one of the ancestors may have completed.
 			while (parent.parent) {
-				if (parent.parent._time !== parent._start + (parent._ts > 0 ? parent._tTime / parent._ts : (parent.totalDuration() - parent._tTime) / -parent._ts)) {
+				if (parent.parent._time !== parent._start + (parent._ts >= 0 ? parent._tTime / parent._ts : (parent.totalDuration() - parent._tTime) / -parent._ts)) {
 					parent.totalTime(parent._tTime, true);
 				}
 				parent = parent.parent;
 			}
-			if (!this.parent && parent.autoRemoveChildren) { //if the animation doesn't have a parent, put it back into its last parent (recorded as _dp for exactly cases like this). Limit to parents with autoRemoveChildren (like globalTimeline) so that if the user manually removes an animation from a timeline and then alters its playhead, it doesn't get added back in.
-				_addToTimeline(parent, this, this._start - this._delay);
+			if (!this.parent && this._dp.autoRemoveChildren) { //if the animation doesn't have a parent, put it back into its last parent (recorded as _dp for exactly cases like this). Limit to parents with autoRemoveChildren (like globalTimeline) so that if the user manually removes an animation from a timeline and then alters its playhead, it doesn't get added back in.
+				_addToTimeline(this._dp, this, this._start - this._delay);
 			}
 		}
-		if (this._tTime !== totalTime || (!this._dur && !suppressEvents)) {
+		if (this._tTime !== totalTime || (!this._dur && !suppressEvents) || Math.abs(this._zTime) === _tinyNum) {
 			this._ts || (this._pTime = totalTime); // otherwise, if an animation is paused, then the playhead is moved back to zero, then resumed, it'd revert back to the original time at the pause
 			_lazySafeRender(this, totalTime, suppressEvents);
 		}
@@ -1199,11 +1208,11 @@ export class Animation {
 	}
 
 	totalProgress(value, suppressEvents) {
-		return arguments.length ? this.totalTime( this.totalDuration() * value, suppressEvents) : this._tTime / this.totalDuration();
+		return arguments.length ? this.totalTime( this.totalDuration() * value, suppressEvents) : this.totalDuration() ? Math.min(1, this._tTime / this._tDur) : this.ratio;
 	}
 
 	progress(value, suppressEvents) {
-		return arguments.length ? this.totalTime( this.duration() * (this._yoyo && !(this.iteration() & 1) ? 1 - value : value) + _elapsedCycleDuration(this), suppressEvents) : (this.duration() ? this._time / this._dur : this.ratio);
+		return arguments.length ? this.totalTime( this.duration() * (this._yoyo && !(this.iteration() & 1) ? 1 - value : value) + _elapsedCycleDuration(this), suppressEvents) : (this.duration() ? Math.min(1, this._time / this._dur) : this.ratio);
 	}
 
 	iteration(value, suppressEvents) {
@@ -1233,16 +1242,14 @@ export class Animation {
 		if (isPaused !== value) {
 			if (value) {
 				this._pauseTS = this._ts;
-				this._pTime = this._tTime ||  Math.max(-this._delay, this.rawTime()); // if the pause occurs during the delay phase, make sure that's factored in when resuming.
+				this._pTime = this._tTime || Math.max(-this._delay, this.rawTime()); // if the pause occurs during the delay phase, make sure that's factored in when resuming.
 				this._ts = this._act = 0; //we use a timeScale of 0 to indicate a paused state, but we record the old "real" timeScale as _pauseTS so we can revert when unpaused.
 			} else {
+				_wake();
 				this._ts = this._pauseTS || 1;
 				this._pauseTS = null;
-				value = this._tTime || this._pTime; //only defer to _pTime (pauseTime) if tTime is zero. Remember, someone could pause() an animation, then scrub the playhead and resume().
-				if (this.progress() === 1) { // edge case: animation.progress(1).pause().play() wouldn't render again because the playhead is already at the end, but the call to totalTime() below will add it back to its parent...and not remove it again (since removing only happens upon rendering at a new time). Offsetting the _tTime slightly is done simply to cause the final render in totalTime() that'll pop it off its timeline (if autoRemoveChildren is true, of course).
-					this._tTime -= _tinyNum;
-				}
-				this.totalTime(value, true);
+				//only defer to _pTime (pauseTime) if tTime is zero. Remember, someone could pause() an animation, then scrub the playhead and resume(). If the parent doesn't have smoothChildTiming, we render at the rawTime() because the startTime won't get updated.
+				this.totalTime(this.parent && !this.parent.smoothChildTiming ? this.rawTime() : this._tTime || this._pTime, (this.progress() === 1) && (this._tTime -= _tinyNum) && Math.abs(this._zTime) !== _tinyNum); // edge case: animation.progress(1).pause().play() wouldn't render again because the playhead is already at the end, but the call to totalTime() below will add it back to its parent...and not remove it again (since removing only happens upon rendering at a new time). Offsetting the _tTime slightly is done simply to cause the final render in totalTime() that'll pop it off its timeline (if autoRemoveChildren is true, of course). Check to make sure _zTime isn't -_tinyNum to avoid an edge case where the playhead is pushed to the end but INSIDE a tween/callback, the timeline itself is paused thus halting rendering and leaving a few unrendered. When resuming, it wouldn't render those otherwise.
 			}
 		}
 		return this;
@@ -1348,6 +1355,7 @@ export class Animation {
 
 	invalidate() {
 		this._initted = 0;
+		this._zTime = -_tinyNum;
 		return this;
 	}
 
@@ -1384,14 +1392,7 @@ export class Animation {
 				_resolve = () => {
 					let _then = self.then;
 					self.then = null; // temporarily null the then() method to avoid an infinite loop (see https://github.com/greensock/GSAP/issues/322)
-					f = f(self);
-					if (f) {
-						if (f.then || f === self) {
-							self.then = _then;
-						} else if (!_isFunction(f)) {
-							f = _passThrough;
-						}
-					}
+					_isFunction(f) && (f = f(self)) && (f.then || f === self) && (self.then = _then);
 					resolve(f);
 					self.then = _then;
 				};
@@ -1409,7 +1410,7 @@ export class Animation {
 
 }
 
-_setDefaults(Animation.prototype, {_time:0, _start:0, _end:0, _tTime:0, _tDur:0, _dirty:0, _repeat:0, _yoyo:false, parent:0, _initted:false, _rDelay:0, _ts:1, _dp:0, ratio:0, _zTime:-_tinyNum, _prom:0, _pauseTS:null});
+_setDefaults(Animation.prototype, {_time:0, _start:0, _end:0, _tTime:0, _tDur:0, _dirty:0, _repeat:0, _yoyo:false, parent:null, _initted:false, _rDelay:0, _ts:1, _dp:0, ratio:0, _zTime:-_tinyNum, _prom:0, _pauseTS:null});
 
 
 
@@ -1439,7 +1440,7 @@ export class Timeline extends Animation {
 	constructor(vars = {}, time) {
 		super(vars, time);
 		this.labels = {};
-		this.smoothChildTiming = _isNotFalse(vars.smoothChildTiming);
+		this.smoothChildTiming = !!vars.smoothChildTiming;
 		this.autoRemoveChildren = !!vars.autoRemoveChildren;
 		this._sort = _isNotFalse(vars.sortChildren);
 	}
@@ -1501,10 +1502,18 @@ export class Timeline extends Animation {
 		let prevTime = this._time,
 			tDur = this._dirty ? this.totalDuration() : this._tDur,
 			dur = this._dur,
-			tTime = (totalTime > tDur - _tinyNum && totalTime >= 0 && this !== _globalTimeline) ? tDur : (totalTime < _tinyNum) ? 0 : totalTime,
+			tTime = (this !== _globalTimeline && totalTime > tDur - _tinyNum && totalTime >= 0) ? tDur : (totalTime < _tinyNum) ? 0 : totalTime,
 			crossingStart = (this._zTime < 0) !== (totalTime < 0) && (this._initted || !dur),
 			time, child, next, iteration, cycleDuration, prevPaused, pauseTween, timeScale, prevStart, prevIteration, yoyo, isYoyo;
 		if (tTime !== this._tTime || force || crossingStart) {
+			if (prevTime !== this._time && dur) { //if totalDuration() finds a child with a negative startTime and smoothChildTiming is true, things get shifted around internally so we need to adjust the time accordingly. For example, if a tween starts at -30 we must shift EVERYTHING forward 30 seconds and move this timeline's startTime backward by 30 seconds so that things align with the playhead (no jump).
+				tTime += this._time - prevTime;
+				totalTime += this._time - prevTime;
+			}
+			time = tTime;
+			prevStart = this._start;
+			timeScale = this._ts;
+			prevPaused = !timeScale;
 			if (crossingStart) {
 				if (!dur) {
 					prevTime = this._zTime;
@@ -1512,13 +1521,6 @@ export class Timeline extends Animation {
 				if (totalTime || !suppressEvents) { //when the playhead arrives at EXACTLY time 0 (right on top) of a zero-duration timeline, we need to discern if events are suppressed so that when the playhead moves again (next time), it'll trigger the callback. If events are NOT suppressed, obviously the callback would be triggered in this render. Basically, the callback should fire either when the playhead ARRIVES or LEAVES this exact spot, not both. Imagine doing a timeline.seek(0) and there's a callback that sits at 0. Since events are suppressed on that seek() by default, nothing will fire, but when the playhead moves off of that position, the callback should fire. This behavior is what people intuitively expect.
 					this._zTime = totalTime;
 				}
-			}
-			time = tTime;
-			prevStart = this._start;
-			timeScale = this._ts;
-			prevPaused = (timeScale === 0);
-			if (prevTime !== this._time && dur) { //if totalDuration() finds a child with a negative startTime and smoothChildTiming is true, things get shifted around internally so we need to adjust the time accordingly. For example, if a tween starts at -30 we must shift EVERYTHING forward 30 seconds and move this timeline's startTime backward by 30 seconds so that things align with the playhead (no jump).
-				time += this._time - prevTime;
 			}
 			if (this._repeat) { //adjust the time for repeats and yoyos
 				yoyo = this._yoyo;
@@ -1557,7 +1559,7 @@ export class Timeline extends Animation {
 					if (!suppressEvents && this.parent) {
 						_callback(this, "onRepeat");
 					}
-					this.vars.repeatRefresh && !isYoyo && this.getChildren().forEach(child => child.invalidate());
+					this.vars.repeatRefresh && !isYoyo && (this.invalidate()._lock = 1);
 					if (prevTime !== this._time || prevPaused !== !this._ts) {
 						return this;
 					}
@@ -1565,6 +1567,7 @@ export class Timeline extends Animation {
 						this._lock = 2;
 						prevTime = rewinding ? dur + 0.0001 : -0.0001;
 						this.render(prevTime, true);
+						this.vars.repeatRefresh && !isYoyo && this.invalidate();
 					}
 					this._lock = 0;
 					if (!this._ts && !prevPaused) {
@@ -1588,6 +1591,7 @@ export class Timeline extends Animation {
 			if (!this._initted) {
 				this._onUpdate = this.vars.onUpdate;
 				this._initted = 1;
+				this._zTime = totalTime;
 			}
 			if (!prevTime && time && !suppressEvents) {
 				_callback(this, "onStart");
@@ -1603,6 +1607,7 @@ export class Timeline extends Animation {
 						child.render(child._ts > 0 ? (time - child._start) * child._ts : (child._dirty ? child.totalDuration() : child._tDur) + (time - child._start) * child._ts, suppressEvents, force);
 						if (time !== this._time || (!this._ts && !prevPaused)) { //in case a tween pauses or seeks the timeline when rendering, like inside of an onUpdate/onComplete
 							pauseTween = 0;
+							next && (tTime += (this._zTime = -_tinyNum));  // it didn't finish rendering, so flag zTime as negative so that so that the next time render() is called it'll be forced (to render any remaining children)
 							break;
 						}
 					}
@@ -1620,6 +1625,7 @@ export class Timeline extends Animation {
 						child.render(child._ts > 0 ? (adjustedTime - child._start) * child._ts : (child._dirty ? child.totalDuration() : child._tDur) + (adjustedTime - child._start) * child._ts, suppressEvents, force);
 						if (time !== this._time || (!this._ts && !prevPaused)) { //in case a tween pauses or seeks the timeline when rendering, like inside of an onUpdate/onComplete
 							pauseTween = 0;
+							next && (tTime += (this._zTime = adjustedTime ? -_tinyNum : _tinyNum)); // it didn't finish rendering, so adjust zTime so that so that the next time render() is called it'll be forced (to render any remaining children)
 							break;
 						}
 					}
@@ -1631,6 +1637,7 @@ export class Timeline extends Animation {
 				pauseTween.render(time >= prevTime ? 0 : -_tinyNum)._zTime = time >= prevTime ? 1 : -1;
 				if (this._ts) { //the callback resumed playback! So since we may have held back the playhead due to where the pause is positioned, go ahead and jump to where it's SUPPOSED to be (if no pause happened).
 					this._start = prevStart; //if the pause was at an earlier time and the user resumed in the callback, it could reposition the timeline (changing its startTime), throwing things off slightly, so we make sure the _start doesn't shift.
+					_setEnd(this);
 					return this.render(totalTime, suppressEvents, force);
 				}
 			}
@@ -1668,11 +1675,6 @@ export class Timeline extends Animation {
 		}
 		return this !== child ? _addToTimeline(this, child, position) : this; //don't allow a timeline to be added to itself as a child!
 	}
-
-	// buildFrom(position, absolute) {
-	// 	this._build = (position === ">>" || position === "auto") ? position : (position === "<<") ? 0 : _parsePosition(this, position, !absolute);
-	// 	return this;
-	// }
 
 	getChildren(nested = true, tweens = true, timelines = true, ignoreBeforeTime = -_bigNum) {
 		let a = [],
@@ -1727,7 +1729,7 @@ export class Timeline extends Animation {
 		}
 		this._forcing = 1;
 		if (!this.parent && !this._dp && this._ts) { //special case for the global timeline (or any other that has no parent or detached parent).
-			this._start = _ticker.time - (this._ts > 0 ? totalTime / this._ts : (this.totalDuration() - totalTime) / -this._ts);
+			this._start = _round(_ticker.time - (this._ts > 0 ? totalTime / this._ts : (this.totalDuration() - totalTime) / -this._ts));
 		}
 		super.totalTime(totalTime, suppressEvents);
 		this._forcing = 0;
@@ -1790,26 +1792,26 @@ export class Timeline extends Animation {
 	}
 
 	tweenTo(position, vars) {
+		vars = vars || {};
 		let tl = this,
 			endTime = _parsePosition(tl, position),
-			startAt = (vars && vars.startAt),
-			tween = Tween.to(tl, _setDefaults({
+			startAt = vars.startAt,
+			tween = Tween.to(tl, _setDefaults(vars, {
 				ease: "none",
 				lazy: false,
 				time: endTime,
-				duration: (Math.abs(endTime - ((startAt && "time" in startAt) ? startAt.time : tl._time)) / tl.timeScale()) || _tinyNum,
+				duration: vars.duration || (Math.abs(endTime - ((startAt && "time" in startAt) ? startAt.time : tl._time)) / tl.timeScale()) || _tinyNum,
 				onStart: () => {
 					tl.pause();
-					let duration = Math.abs(endTime - tl._time) / tl.timeScale();
+					let duration = vars.duration || Math.abs(endTime - tl._time) / tl.timeScale();
 					if (tween._dur !== duration) {
-						tween._dur = duration;
-						tween.render(tween._time, true, true);
+						_setDuration(tween, duration).render(tween._time, true, true);
 					}
-					if (vars && vars.onStart) { //in case the user had an onStart in the vars - we don't want to overwrite it.
+					if (vars.onStart) { //in case the user had an onStart in the vars - we don't want to overwrite it.
 						vars.onStart.apply(tween, vars.onStartParams || []);
 					}
 				}
-			}, vars));
+			}));
 		return tween;
 	}
 
@@ -1883,48 +1885,44 @@ export class Timeline extends Animation {
 			self = this,
 			child = self._last,
 			prevStart = _bigNum,
-			repeat = self._repeat,
-			repeatCycles = repeat * self._rDelay || 0,
-			isInfinite = (repeat < 0),
-			prev, end;
-		if (!arguments.length) {
-			if (self._dirty) {
-				while (child) {
-					prev = child._prev; //record it here in case the tween changes position in the sequence...
-					if (child._dirty) {
-						child.totalDuration(); //could change the tween._startTime, so make sure the animation's cache is clean before analyzing it.
-					}
-					if (child._start > prevStart && self._sort && child._ts && !self._lock) { //in case one of the tweens shifted out of order, it needs to be re-inserted into the correct position in the sequence
-						self._lock = 1; //prevent endless recursive calls - there are methods that get triggered that check duration/totalDuration when we add().
-						_addToTimeline(self, child, child._start - child._delay);
-						self._lock = 0;
-					} else {
-						prevStart = child._start;
-					}
-					if (child._start < 0 && child._ts) { //children aren't allowed to have negative startTimes unless smoothChildTiming is true, so adjust here if one is found.
-						max -= child._start;
-						if ((!self.parent && !self._dp) || (self.parent && self.parent.smoothChildTiming)) {
-							self._start += child._start / self._ts;
-							self._time -= child._start;
-							self._tTime -= child._start;
-						}
-						self.shiftChildren(-child._start, false, -1e20);
-						prevStart = 0;
-					}
-					end = child._end = child._start + child._tDur / Math.abs(child._ts || child._pauseTS || _tinyNum);
-					if (end > max && child._ts) {
-						max = _round(end);
-					}
-					child = prev;
-				}
-				self._dur = (self === _globalTimeline && self._time > max) ? self._time : Math.min(_bigNum, max);
-				self._tDur = isInfinite && (self._dur || repeatCycles) ? 1e12 : Math.min(_bigNum, max * (repeat + 1) + repeatCycles);
-				self._end = self._start + ((self._tDur / Math.abs(self._ts || self._pauseTS || _tinyNum)) || 0);
-				self._dirty = 0;
-			}
-			return self._tDur;
+			prev, end, start, parent;
+		if (arguments.length) {
+			return self._repeat < 0 ? self : self.timeScale(self.totalDuration() / value);
 		}
-		return isInfinite ? self : self.timeScale(self.totalDuration() / value);
+		if (self._dirty) {
+			parent = self.parent;
+			while (child) {
+				prev = child._prev; //record it here in case the tween changes position in the sequence...
+				if (child._dirty) {
+					child.totalDuration(); //could change the tween._startTime, so make sure the animation's cache is clean before analyzing it.
+				}
+				start = child._start;
+				if (start > prevStart && self._sort && child._ts && !self._lock) { //in case one of the tweens shifted out of order, it needs to be re-inserted into the correct position in the sequence
+					self._lock = 1; //prevent endless recursive calls - there are methods that get triggered that check duration/totalDuration when we add().
+					_addToTimeline(self, child, start - child._delay)._lock = 0;
+				} else {
+					prevStart = start;
+				}
+				if (start < 0 && child._ts) { //children aren't allowed to have negative startTimes unless smoothChildTiming is true, so adjust here if one is found.
+					max -= start;
+					if ((!parent && !self._dp) || (parent && parent.smoothChildTiming)) {
+						self._start += start / self._ts;
+						self._time -= start;
+						self._tTime -= start;
+					}
+					self.shiftChildren(-start, false, -1e20);
+					prevStart = 0;
+				}
+				end = _setEnd(child);
+				if (end > max && child._ts) {
+					max = end;
+				}
+				child = prev;
+			}
+			_setDuration(self, (self === _globalTimeline && self._time > max) ? self._time : Math.min(_bigNum, max), 1);
+			self._dirty = 0;
+		}
+		return self._tDur;
 	}
 
 	static updateRoot(time) {
@@ -2252,7 +2250,7 @@ export class Tween extends Animation {
 		}
 		super(_inheritDefaults(vars), time);
 		let { duration, delay, immediateRender, stagger, overwrite, keyframes, defaults } = this.vars,
-			parsedTargets = _isArray(targets) && _isNumber(targets[0]) ? [targets] : toArray(targets),
+			parsedTargets = (_isArray(targets) ? _isNumber(targets[0]) : ("length" in vars)) ? [targets] : toArray(targets), // edge case: someone might try animating the "length" of an object with a "length" property that's initially set to 0 so don't interpret that as an empty Array-like object.
 			tl, i, copy, l, p, curTarget, staggerFunc, staggerVarsToMerge;
 		this._targets = parsedTargets.length ? _harness(parsedTargets) : _warn("GSAP target " + targets + " not found. https://greensock.com", !_config.nullTargetWarn) || [];
 		this._ptLookup = []; //PropTween lookup. An array containing an object for each target, having keys for each tweening property
@@ -2317,7 +2315,6 @@ export class Tween extends Animation {
 			_globalTimeline.killTweensOf(parsedTargets);
 			_overwritingTween = 0;
 		}
-
 		if (immediateRender || (!duration && !keyframes && this._start === this.parent._time  && _isNotFalse(immediateRender) && _hasNoPausedAncestors(this) && this.parent.data !== "nested")) {
 			this._tTime = -_tinyNum; //forces a render without having to set the render() "force" parameter to true because we want to allow lazying by default (using the "force" parameter always forces an immediate full render)
 			this.render(Math.max(0, -delay)); //in case delay is negative
@@ -2338,7 +2335,7 @@ export class Tween extends Animation {
 			if (this._repeat) { //adjust the time for repeats and yoyos
 				cycleDuration = dur + this._rDelay;
 				time = _round(tTime % cycleDuration); //round to avoid floating point errors. (4 % 0.8 should be 0 but some browsers report it as 0.79999999!)
-				if (time > dur) {
+				if (time > dur || tDur === tTime) { // the tDur === tTime is for edge cases where there's a lengthy decimal on the duration and it may reach the very end but the time is rendered as not-quite-there (remember, tDur is rounded to 4 decimals whereas dur isn't)
 					time = dur;
 				}
 				iteration = ~~(tTime / cycleDuration);
@@ -2680,7 +2677,7 @@ export class PropTween {
 _forEachName(_callbackNames + ",parent,duration,ease,delay,overwrite,runBackwards,startAt,yoyo,immediateRender,repeat,repeatDelay,data,paused,reversed,lazy,callbackScope,stringFilter,id,yoyoEase,stagger,inherit,repeatRefresh,keyframes,autoRevert", name => {_reservedProps[name] = 1; if (name.substr(0,2) === "on") _reservedProps[name + "Params"] = 1});
 _globals.TweenMax = _globals.TweenLite = Tween;
 _globals.TimelineLite = _globals.TimelineMax = Timeline;
-_globalTimeline = new Timeline({sortChildren: false, defaults: _defaults, autoRemoveChildren: true, id:"root"});
+_globalTimeline = new Timeline({sortChildren: false, defaults: _defaults, autoRemoveChildren: true, id:"root", smoothChildTiming: true});
 _config.stringFilter = _colorStringFilter;
 
 
@@ -2889,7 +2886,7 @@ export const gsap = _gsap.registerPlugin({
 	_buildModifierPlugin("snap", snap)
 ) || _gsap; //to prevent the core plugins from being dropped via aggressive tree shaking, we must include them in the variable declaration in this way.
 
-Tween.version = Timeline.version = gsap.version = "3.1.1";
+Tween.version = Timeline.version = gsap.version = "3.2.0";
 _coreReady = 1;
 if (_windowExists()) {
 	_wake();
@@ -2898,4 +2895,4 @@ if (_windowExists()) {
 export const { Power0, Power1, Power2, Power3, Power4, Linear, Quad, Cubic, Quart, Quint, Strong, Elastic, Back, SteppedEase, Bounce, Sine, Expo, Circ } = _easeMap;
 export { Tween as TweenMax, Tween as TweenLite, Timeline as TimelineMax, Timeline as TimelineLite, gsap as default, wrap, wrapYoyo, distribute, random, snap, normalize, getUnit, clamp, splitColor, toArray, mapRange, pipe, unitize, interpolate, shuffle };
 //export some internal methods/orojects for use in CSSPlugin so that we can externalize that file and allow custom builds that exclude it.
-export { _getProperty, _numExp, _isString, _isUndefined, _renderComplexString, _relExp, _setDefaults, _removeLinkedListItem, _forEachName, _sortPropTweensByPriority, _colorStringFilter, _replaceRandom, _checkPlugin, _plugins, _ticker, _config, _roundModifier, _round, _missingPlugin, _getSetter, _getCache }
+export { _getProperty, _numExp, _numWithUnitExp, _isString, _isUndefined, _renderComplexString, _relExp, _setDefaults, _removeLinkedListItem, _forEachName, _sortPropTweensByPriority, _colorStringFilter, _replaceRandom, _checkPlugin, _plugins, _ticker, _config, _roundModifier, _round, _missingPlugin, _getSetter, _getCache }

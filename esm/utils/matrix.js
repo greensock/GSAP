@@ -1,5 +1,5 @@
 /*!
- * matrix 3.1.1
+ * matrix 3.2.0
  * https://greensock.com
  *
  * Copyright 2008-2020, GreenSock. All rights reserved.
@@ -18,6 +18,7 @@ var _doc,
     _identityMatrix,
     _transformProp = "transform",
     _transformOriginProp = _transformProp + "Origin",
+    _hasOffsetBug,
     _setDoc = function _setDoc(element) {
   var doc = element.ownerDocument || element;
 
@@ -35,7 +36,19 @@ var _doc,
   if (doc) {
     _doc = doc;
     _docElement = doc.documentElement;
-    _body = doc.body;
+    _body = doc.body; // now test for the offset reporting bug. Use feature detection instead of browser sniffing to make things more bulletproof and future-proof. Hopefully Safari will fix their bug soon but it's 2020 and it's still not fixed.
+
+    var d1 = doc.createElement("div"),
+        d2 = doc.createElement("div");
+
+    _body.appendChild(d1);
+
+    d1.appendChild(d2);
+    d1.style.position = "static";
+    d1.style[_transformProp] = "translate3d(0,0,1px)";
+    _hasOffsetBug = d2.offsetParent !== d1;
+
+    _body.removeChild(d1);
   }
 
   return doc;
@@ -102,7 +115,7 @@ _divTemps = [],
 
   throw "Need document and parent.";
 },
-    _placeSiblings = function _placeSiblings(element) {
+    _placeSiblings = function _placeSiblings(element, adjustGOffset) {
   var svg = _svgOwner(element),
       isRootSVG = element === svg,
       siblings = svg ? _svgTemps : _divTemps,
@@ -127,9 +140,9 @@ _divTemps = [],
       x: 0,
       y: 0
     } : element.getBBox();
-    m = element.transform ? element.transform.baseVal : []; // IE11 doesn't follow the spec.
+    m = element.transform ? element.transform.baseVal : {}; // IE11 doesn't follow the spec.
 
-    if (m.length) {
+    if (m.numberOfItems) {
       m = m.consolidate().matrix;
       x = m.a * b.x + m.c * b.y;
       y = m.b * b.x + m.d * b.y;
@@ -139,19 +152,36 @@ _divTemps = [],
       y = b.y;
     }
 
-    if (element.tagName.toLowerCase() === "g") {
+    if (adjustGOffset && element.tagName.toLowerCase() === "g") {
       x = y = 0;
     }
 
     container.setAttribute("transform", "matrix(" + m.a + "," + m.b + "," + m.c + "," + m.d + "," + (m.e + x) + "," + (m.f + y) + ")");
     (isRootSVG ? svg : element.parentNode).appendChild(container);
   } else {
-    container.style.top = element.offsetTop + "px";
-    container.style.left = element.offsetLeft + "px";
+    x = y = 0;
+
+    if (_hasOffsetBug) {
+      // some browsers (like Safari) have a bug that causes them to misreport offset values. When an ancestor element has a transform applied, it's supposed to treat it as if it's position: relative (new context). Safari botches this, so we need to find the closest ancestor (between the element and its offsetParent) that has a transform applied and if one is found, grab its offsetTop/Left and subtract them to compensate.
+      m = element.offsetParent;
+      b = element;
+
+      while (b && (b = b.parentNode) !== m) {
+        if ((_win.getComputedStyle(b)[_transformProp] + "").length > 4) {
+          x = b.offsetLeft;
+          y = b.offsetTop;
+          b = 0;
+        }
+      }
+    }
+
+    b = container.style;
+    b.top = element.offsetTop - y + "px";
+    b.left = element.offsetLeft - x + "px";
     m = _win.getComputedStyle(element);
-    container.style[_transformProp] = m[_transformProp];
-    container.style[_transformOriginProp] = m[_transformOriginProp];
-    container.style.position = m.position === "fixed" ? "fixed" : "absolute";
+    b[_transformProp] = m[_transformProp];
+    b[_transformOriginProp] = m[_transformOriginProp];
+    b.position = m.position === "fixed" ? "fixed" : "absolute";
     element.parentNode.appendChild(container);
   }
 
@@ -227,6 +257,10 @@ function () {
     return _setMatrix(this, a2 * a + c2 * c, a2 * b + c2 * d, b2 * a + d2 * c, b2 * b + d2 * d, e + e2 * a + f2 * c, f + e2 * b + f2 * d);
   };
 
+  _proto.clone = function clone() {
+    return new Matrix2D(this.a, this.b, this.c, this.d, this.e, this.f);
+  };
+
   _proto.equals = function equals(matrix) {
     var a = this.a,
         b = this.b,
@@ -250,8 +284,8 @@ function () {
         d = this.d,
         e = this.e,
         f = this.f;
-    decoratee.x = x * a + y * c + e;
-    decoratee.y = x * b + y * d + f;
+    decoratee.x = x * a + y * c + e || 0;
+    decoratee.y = x * b + y * d + f || 0;
     return decoratee;
   };
 
@@ -260,18 +294,19 @@ function () {
 // Inverting lets you translate a global point into a local coordinate space. No inverting lets you go the other way.
 // We needed this to work around various browser bugs, like Firefox doesn't accurately report getScreenCTM() when there
 // are transforms applied to ancestor elements.
-// The matrix math to convert any x/y coordinate is:
+// The matrix math to convert any x/y coordinate is as follows, which is wrapped in a convenient apply() method of Matrix2D above:
 //     tx = m.a * x + m.c * y + m.e
 //     ty = m.b * x + m.d * y + m.f
 
-export function getGlobalMatrix(element, inverse) {
+export function getGlobalMatrix(element, inverse, adjustGOffset) {
+  // adjustGOffset is typically used only when grabbing an element's PARENT's global matrix, and it ignores the x/y offset of any SVG <g> elements because they behave in a special way.
   if (!element || !element.parentNode) {
     return new Matrix2D();
   }
 
   var svg = _svgOwner(element),
       temps = svg ? _svgTemps : _divTemps,
-      container = _placeSiblings(element),
+      container = _placeSiblings(element, adjustGOffset),
       b1 = temps[0].getBoundingClientRect(),
       b2 = temps[1].getBoundingClientRect(),
       b3 = temps[2].getBoundingClientRect(),
