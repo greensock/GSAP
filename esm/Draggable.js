@@ -3,7 +3,7 @@ function _assertThisInitialized(self) { if (self === void 0) { throw new Referen
 function _inheritsLoose(subClass, superClass) { subClass.prototype = Object.create(superClass.prototype); subClass.prototype.constructor = subClass; subClass.__proto__ = superClass; }
 
 /*!
- * Draggable 3.2.0
+ * Draggable 3.2.1
  * https://greensock.com
  *
  * @license Copyright 2008-2020, GreenSock. All rights reserved.
@@ -990,8 +990,6 @@ function (_EventDispatcher) {
         touchEventTarget,
         matrix,
         interrupted,
-        startScrollTop,
-        startScrollLeft,
         allowNativeTouchScrolling,
         touchDragAxis,
         isDispatching,
@@ -1528,7 +1526,6 @@ function (_EventDispatcher) {
         recordStartPositions = function recordStartPositions() {
       var edgeTolerance = 1 - self.edgeResistance,
           parsedOrigin,
-          parent,
           x,
           y;
       updateMatrix(false);
@@ -1579,9 +1576,9 @@ function (_EventDispatcher) {
 
           startElementY = self.y = Math.atan2(y, x) * _RAD2DEG;
         } else {
-          parent = !isFixed && target.parentNode;
-          startScrollTop = parent ? parent.scrollTop || 0 : 0;
-          startScrollLeft = parent ? parent.scrollLeft || 0 : 0;
+          //parent = !isFixed && target.parentNode;
+          //startScrollTop = parent ? parent.scrollTop || 0 : 0;
+          //startScrollLeft = parent ? parent.scrollLeft || 0 : 0;
           startElementY = getPropAsNum(yProp, "px"); //record the starting top and left values so that we can just add the mouse's movement to them later.
 
           startElementX = getPropAsNum(xProp, "px");
@@ -1832,7 +1829,7 @@ function (_EventDispatcher) {
         checkAutoScrollBounds = true;
       }
 
-      setPointerPosition(e.pageX - (isFixed ? _getDocScrollLeft(ownerDoc) : 0), e.pageY - (isFixed ? _getDocScrollTop(ownerDoc) : 0), hasMoveCallback);
+      setPointerPosition(e.pageX - (isFixed && rotationMode ? _getDocScrollLeft(ownerDoc) : 0), e.pageY - (isFixed && rotationMode ? _getDocScrollTop(ownerDoc) : 0), hasMoveCallback);
     },
         setPointerPosition = function setPointerPosition(pointerX, pointerY, invokeOnMove) {
       var dragTolerance = 1 - self.dragResistance,
@@ -2688,6 +2685,6 @@ _setDefaults(Draggable.prototype, {
 });
 
 Draggable.zIndex = 1000;
-Draggable.version = "3.2.0";
+Draggable.version = "3.2.1";
 _getGSAP() && gsap.registerPlugin(Draggable);
 export { Draggable as default };

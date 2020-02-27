@@ -1,5 +1,5 @@
 /*!
- * paths 3.2.0
+ * paths 3.2.1
  * https://greensock.com
  *
  * Copyright 2008-2020, GreenSock. All rights reserved.
@@ -28,7 +28,7 @@ let _svgPathExp = /[achlmqstvz]|(-?\d*\.?\d*(?:e[\-+]?\d+)?)[0-9]/ig,
 	_temp2 = {},
 	_roundingNum = 1e5,
 	_wrapProgress = progress => (Math.round((progress + _largeNum) % 1 * _roundingNum) / _roundingNum) || ((progress < 0) ? 0 : 1), //if progress lands on 1, the % will make it 0 which is why we || 1, but not if it's negative because it makes more sense for motion to end at 0 in that case.
-	_round = value =>  ~~(value * _roundingNum + (value < 0 ? -.5 : .5)) / _roundingNum,
+	_round = value => (Math.round(value * _roundingNum) / _roundingNum) || 0,
 	_splitSegment = (rawPath, segIndex, i, t) => {
 		let segment = rawPath[segIndex],
 			shift = t === 1 ? 6 : subdivideSegment(segment, i, t);
@@ -263,7 +263,7 @@ export function sliceRawPath(rawPath, start, end) {
 	}
 	let path = copyRawPath(rawPath.totalLength ? rawPath : cacheRawPathMeasurements(rawPath)),
 		wrap = (end > 1),
-		s = getProgressData(path, start, _temp),
+		s = getProgressData(path, start, _temp, true),
 		e = getProgressData(path, end, _temp2),
 		eSeg = e.segment,
 		sSeg = s.segment,
@@ -333,7 +333,7 @@ export function sliceRawPath(rawPath, start, end) {
 				eShift += sShift;
 			}
 			eSeg.splice(ei + eShift + 2);
-			if (sShift) {
+			if (sShift || si) {
 				sSeg.splice(0, si + sShift);
 			}
 			i = path.length;
@@ -484,7 +484,7 @@ export function subdivideSegment(segment, i, t) {
 }
 
 // returns an object {path, segment, segIndex, i, t}
-function getProgressData(rawPath, progress, decoratee) {
+function getProgressData(rawPath, progress, decoratee, pushToNextIfAtEnd) {
 	decoratee = decoratee || {};
 	if (!rawPath.totalLength) {
 		cacheRawPathMeasurements(rawPath);
@@ -494,7 +494,7 @@ function getProgressData(rawPath, progress, decoratee) {
 	}
 	let segIndex = 0,
 		segment = rawPath[0],
-		samples, resolution, length, min, max, i;
+		samples, resolution, length, min, max, i, t;
 	if (rawPath.length > 1) { //speed optimization: most of the time, there's only one segment so skip the recursion.
 		length = rawPath.totalLength * progress;
 		max = i = 0;
@@ -515,11 +515,22 @@ function getProgressData(rawPath, progress, decoratee) {
 		min = max;
 		max = samples[++i];
 	}
+	t = (1 / resolution) * (((length - min) / (max - min)) + ((i % resolution)));
+	i = ~~(i / resolution) * 6;
+	if (pushToNextIfAtEnd && t === 1) {
+		if (i + 6 < segment.length) {
+			i += 6;
+			t = 0;
+		} else if (segIndex + 1 < rawPath.length) {
+			i = t = 0;
+			segIndex++;
+		}
+	}
+	decoratee.t = t;
+	decoratee.i = i;
 	decoratee.path = rawPath;
 	decoratee.segment = segment;
 	decoratee.segIndex = segIndex;
-	decoratee.i = ~~(i / resolution) * 6;
-	decoratee.t = (1 / resolution) * (((length - min) / (max - min)) + ((i % resolution)));
 	return decoratee;
 }
 

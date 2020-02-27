@@ -3,7 +3,7 @@ function _assertThisInitialized(self) { if (self === void 0) { throw new Referen
 function _inheritsLoose(subClass, superClass) { subClass.prototype = Object.create(superClass.prototype); subClass.prototype.constructor = subClass; subClass.__proto__ = superClass; }
 
 /*!
- * GSAP 3.2.0
+ * GSAP 3.2.1
  * https://greensock.com
  *
  * @license Copyright 2008-2020, GreenSock. All rights reserved.
@@ -100,7 +100,7 @@ _relExp = /[+-]=-?[\.\d]+/,
     _effects = {},
     _nextGCFrame = 30,
     _harnessPlugins = [],
-    _callbackNames = "onComplete,onUpdate,onStart,onRepeat,onReverseComplete,onInterrupt",
+    _callbackNames = "",
     _harness = function _harness(targets) {
   var target = targets[0],
       harnessPlugin,
@@ -428,7 +428,7 @@ _addToTimeline = function _addToTimeline(timeline, child, position) {
       var tl = timeline;
 
       while (tl._dp) {
-        tl.rawTime() >= 0 && tl.totalTime(tl._tTime, true); //moves the timeline (shifts its startTime) if necessary, and also enables it. If it's currently zero, though, it may not be scheduled to render until later so there's no need to force it to align with the current playhead position. Only move to catch up with the playhead.
+        tl.rawTime() >= 0 && tl.totalTime(tl._tTime); //moves the timeline (shifts its startTime) if necessary, and also enables it. If it's currently zero, though, it may not be scheduled to render until later so there's no need to force it to align with the current playhead position. Only move to catch up with the playhead.
 
         tl = tl._dp;
       }
@@ -948,11 +948,7 @@ distribute = function distribute(v) {
 
   params = v[type + "Params"];
   scope = v.callbackScope || animation;
-
-  if (executeLazyFirst && _lazyTweens.length) {
-    //in case rendering caused any tweens to lazy-init, we should render them because typically when a timeline finishes, users expect things to have rendered fully. Imagine an onUpdate on a timeline that reports/checks tweened values.
-    _lazyRender();
-  }
+  executeLazyFirst && _lazyTweens.length && _lazyRender(); //in case rendering caused any tweens to lazy-init, we should render them because typically when a timeline finishes, users expect things to have rendered fully. Imagine an onUpdate on a timeline that reports/checks tweened values.
 
   return params ? callback.apply(scope, params) : callback.call(scope);
 },
@@ -1546,11 +1542,16 @@ _easeMap.SteppedEase = _easeMap.steps = _globals.SteppedEase = {
   }
 };
 _defaults.ease = _easeMap["quad.out"];
+
+_forEachName("onComplete,onUpdate,onStart,onRepeat,onReverseComplete,onInterrupt", function (name) {
+  return _callbackNames += name + "," + name + "Params,";
+});
 /*
  * --------------------------------------------------------------------------------------
  * CACHE
  * --------------------------------------------------------------------------------------
  */
+
 
 export var GSCache = function GSCache(target, harness) {
   this.id = _gsID++;
@@ -2405,7 +2406,10 @@ function (_Animation) {
 
     var tl = this,
         endTime = _parsePosition(tl, position),
-        startAt = vars.startAt,
+        _vars = vars,
+        startAt = _vars.startAt,
+        _onStart = _vars.onStart,
+        onStartParams = _vars.onStartParams,
         tween = Tween.to(tl, _setDefaults(vars, {
       ease: "none",
       lazy: false,
@@ -2419,9 +2423,9 @@ function (_Animation) {
           _setDuration(tween, duration).render(tween._time, true, true);
         }
 
-        if (vars.onStart) {
+        if (_onStart) {
           //in case the user had an onStart in the vars - we don't want to overwrite it.
-          vars.onStart.apply(tween, vars.onStartParams || []);
+          _onStart.apply(tween, onStartParams || []);
         }
       }
     }));
@@ -2983,7 +2987,7 @@ _initTween = function _initTween(tween, time) {
     _parseFuncOrString = function _parseFuncOrString(value, tween, i, target, targets) {
   return _isFunction(value) ? value.call(tween, i, target, targets) : _isString(value) && ~value.indexOf("random(") ? _replaceRandom(value) : value;
 },
-    _staggerTweenProps = _callbackNames + ",repeat,repeatDelay,yoyo,repeatRefresh,yoyoEase",
+    _staggerTweenProps = _callbackNames + "repeat,repeatDelay,yoyo,repeatRefresh,yoyoEase",
     _staggerPropsToSkip = (_staggerTweenProps + ",id,stagger,delay,duration,paused").split(",");
 /*
  * --------------------------------------------------------------------------------------
@@ -3592,9 +3596,8 @@ function () {
   return PropTween;
 }(); //Initialization tasks
 
-_forEachName(_callbackNames + ",parent,duration,ease,delay,overwrite,runBackwards,startAt,yoyo,immediateRender,repeat,repeatDelay,data,paused,reversed,lazy,callbackScope,stringFilter,id,yoyoEase,stagger,inherit,repeatRefresh,keyframes,autoRevert", function (name) {
-  _reservedProps[name] = 1;
-  if (name.substr(0, 2) === "on") _reservedProps[name + "Params"] = 1;
+_forEachName(_callbackNames + "parent,duration,ease,delay,overwrite,runBackwards,startAt,yoyo,immediateRender,repeat,repeatDelay,data,paused,reversed,lazy,callbackScope,stringFilter,id,yoyoEase,stagger,inherit,repeatRefresh,keyframes,autoRevert", function (name) {
+  return _reservedProps[name] = 1;
 });
 
 _globals.TweenMax = _globals.TweenLite = Tween;
@@ -3781,7 +3784,8 @@ var _gsap = {
     Tween: Tween,
     Timeline: Timeline,
     Animation: Animation,
-    getCache: _getCache
+    getCache: _getCache,
+    _removeLinkedListItem: _removeLinkedListItem
   }
 };
 
@@ -3884,7 +3888,7 @@ export var gsap = _gsap.registerPlugin({
   }
 }, _buildModifierPlugin("roundProps", _roundModifier), _buildModifierPlugin("modifiers"), _buildModifierPlugin("snap", snap)) || _gsap; //to prevent the core plugins from being dropped via aggressive tree shaking, we must include them in the variable declaration in this way.
 
-Tween.version = Timeline.version = gsap.version = "3.2.0";
+Tween.version = Timeline.version = gsap.version = "3.2.1";
 _coreReady = 1;
 
 if (_windowExists()) {

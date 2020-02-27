@@ -107,8 +107,8 @@
             _svgContainer = _createSibling(element);
           }
 
-          e.setAttribute("width", 1);
-          e.setAttribute("height", 1);
+          e.setAttribute("width", 0.01);
+          e.setAttribute("height", 0.01);
           e.setAttribute("transform", "translate(" + x + "," + y + ")");
 
           _svgContainer.appendChild(e);
@@ -170,7 +170,7 @@
         m = element.offsetParent;
         b = element;
 
-        while (b && (b = b.parentNode) !== m) {
+        while (b && (b = b.parentNode) && b !== m && b.parentNode) {
           if ((_win.getComputedStyle(b)[_transformProp] + "").length > 4) {
             x = b.offsetLeft;
             y = b.offsetTop;
@@ -1253,8 +1253,6 @@
           touchEventTarget,
           matrix,
           interrupted,
-          startScrollTop,
-          startScrollLeft,
           allowNativeTouchScrolling,
           touchDragAxis,
           isDispatching,
@@ -1781,7 +1779,6 @@
           recordStartPositions = function recordStartPositions() {
         var edgeTolerance = 1 - self.edgeResistance,
             parsedOrigin,
-            parent,
             x,
             y;
         updateMatrix(false);
@@ -1829,9 +1826,6 @@
             startElementX = self.x;
             startElementY = self.y = Math.atan2(y, x) * _RAD2DEG;
           } else {
-            parent = !isFixed && target.parentNode;
-            startScrollTop = parent ? parent.scrollTop || 0 : 0;
-            startScrollLeft = parent ? parent.scrollLeft || 0 : 0;
             startElementY = getPropAsNum(yProp, "px");
             startElementX = getPropAsNum(xProp, "px");
           }
@@ -2061,7 +2055,7 @@
           checkAutoScrollBounds = true;
         }
 
-        setPointerPosition(e.pageX - (isFixed ? _getDocScrollLeft$1(ownerDoc) : 0), e.pageY - (isFixed ? _getDocScrollTop$1(ownerDoc) : 0), hasMoveCallback);
+        setPointerPosition(e.pageX - (isFixed && rotationMode ? _getDocScrollLeft$1(ownerDoc) : 0), e.pageY - (isFixed && rotationMode ? _getDocScrollTop$1(ownerDoc) : 0), hasMoveCallback);
       },
           setPointerPosition = function setPointerPosition(pointerX, pointerY, invokeOnMove) {
         var dragTolerance = 1 - self.dragResistance,
@@ -2896,7 +2890,7 @@
   });
 
   Draggable.zIndex = 1000;
-  Draggable.version = "3.2.0";
+  Draggable.version = "3.2.1";
   _getGSAP() && gsap.registerPlugin(Draggable);
 
   exports.Draggable = Draggable;

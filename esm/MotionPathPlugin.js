@@ -1,5 +1,5 @@
 /*!
- * MotionPathPlugin 3.2.0
+ * MotionPathPlugin 3.2.1
  * https://greensock.com
  *
  * @license Copyright 2008-2020, GreenSock. All rights reserved.
@@ -15,6 +15,10 @@ import { getGlobalMatrix } from "./utils/matrix.js";
 var _xProps = ["x", "translateX", "left", "marginLeft"],
     _yProps = ["y", "translateY", "top", "marginTop"],
     _DEG2RAD = Math.PI / 180,
+    _zeroPoint = {
+  x: 0,
+  y: 0
+},
     gsap,
     PropTween,
     _getUnit,
@@ -79,10 +83,31 @@ var _xProps = ["x", "translateX", "left", "marginLeft"],
     _originToPoint = function _originToPoint(element, origin, parentMatrix) {
   // origin is an array of normalized values (0-1) in relation to the width/height, so [0.5, 0.5] would be the center. It can also be "auto" in which case it will be the top left unless it's a <path>, when it will start at the beginning of the path itself.
   var m = getGlobalMatrix(element),
-      svg = origin && element.ownerSVGElement && element.getBBox();
-  return parentMatrix.apply(origin && origin !== "auto" ? m.apply({
-    x: origin[0] * (svg ? svg.width : element.offsetWidth || 0),
-    y: origin[1] * (svg ? svg.height : element.offsetHeight || 0)
+      svg,
+      x,
+      y;
+
+  if (element.tagName.toLowerCase() === "svg") {
+    svg = element.viewBox.baseVal;
+    x = svg.x;
+    y = svg.y;
+    svg.width || (svg = {
+      width: +element.getAttribute("width"),
+      height: +element.getAttribute("height")
+    });
+  } else {
+    svg = origin && element.getBBox && element.getBBox();
+    x = y = 0;
+  }
+
+  if (origin && origin !== "auto") {
+    x += origin[0] * (svg ? svg.width : element.offsetWidth || 0);
+    y += origin[1] * (svg ? svg.height : element.offsetHeight || 0);
+  }
+
+  return parentMatrix.apply(x || y ? m.apply({
+    x: x,
+    y: y
   }) : {
     x: m.e,
     y: m.f
@@ -125,9 +150,11 @@ var _xProps = ["x", "translateX", "left", "marginLeft"],
       offsetX = _ref.offsetX,
       offsetY = _ref.offsetY,
       alignOrigin = _ref.alignOrigin;
+
   var x = rawPath[0][0],
       y = rawPath[0][1],
-      tween,
+      curX = _getPropNum(target, "x"),
+      curY = _getPropNum(target, "y"),
       alignTarget,
       m,
       p;
@@ -138,29 +165,22 @@ var _xProps = ["x", "translateX", "left", "marginLeft"],
 
   if (align) {
     if (align === "self" || (alignTarget = _toArray(align)[0] || target) === target) {
-      transformRawPath(rawPath, 1, 0, 0, 1, _getPropNum(target, "x") - x, _getPropNum(target, "y") - y);
+      transformRawPath(rawPath, 1, 0, 0, 1, curX - x, curY - y);
     } else {
-      alignOrigin && alignOrigin[2] !== false && gsap.set(target, {
-        transformOrigin: alignOrigin[0] * 100 + "% " + alignOrigin[1] * 100 + "%"
-      });
-      tween = gsap.to(target, {
-        xPercent: 0,
-        yPercent: 0,
-        x: 0,
-        y: 0,
-        scale: 1,
-        rotation: 0,
-        skewX: 0,
-        skewY: 0
-      }).progress(1); //get rid of transforms, otherwise they'll throw off the measurements.
+      if (alignOrigin && alignOrigin[2] !== false) {
+        gsap.set(target, {
+          transformOrigin: alignOrigin[0] * 100 + "% " + alignOrigin[1] * 100 + "%"
+        });
+      } else {
+        alignOrigin = [_getPropNum(target, "xPercent") / -100, _getPropNum(target, "yPercent") / -100];
+      }
 
       m = _getAlignMatrix(target, alignTarget, alignOrigin, "auto");
-      tween.render(-1).kill();
       p = m.apply({
         x: x,
         y: y
       });
-      transformRawPath(rawPath, m.a, m.b, m.c, m.d, m.e - (p.x - m.e), m.f - (p.y - m.f));
+      transformRawPath(rawPath, m.a, m.b, m.c, m.d, curX + m.e - (p.x - m.e), curY + m.f - (p.y - m.f));
     }
   }
 
@@ -191,7 +211,7 @@ var _xProps = ["x", "translateX", "left", "marginLeft"],
 };
 
 export var MotionPathPlugin = {
-  version: "3.2.0",
+  version: "3.2.1",
   name: "motionPath",
   register: function register(core, Plugin, propTween) {
     gsap = core;
@@ -199,7 +219,7 @@ export var MotionPathPlugin = {
     _toArray = gsap.utils.toArray;
     PropTween = propTween;
   },
-  init: function init(target, vars, tween, index, targets) {
+  init: function init(target, vars) {
     if (!gsap) {
       console.warn("Please gsap.registerPlugin(MotionPathPlugin)");
       return false;
@@ -299,14 +319,17 @@ export var MotionPathPlugin = {
   stringToRawPath: stringToRawPath,
   rawPathToString: rawPathToString,
   transformRawPath: transformRawPath,
+  getGlobalMatrix: getGlobalMatrix,
+  getPositionOnPath: getPositionOnPath,
+  cacheRawPathMeasurements: cacheRawPathMeasurements,
   convertToPath: function convertToPath(targets, swap) {
     return _toArray(targets).map(function (target) {
       return _convertToPath(target, swap !== false);
     });
   },
-  getGlobalMatrix: getGlobalMatrix,
-  getPositionOnPath: getPositionOnPath,
-  cacheRawPathMeasurements: cacheRawPathMeasurements,
+  convertCoordinates: function convertCoordinates(fromElement, toElement, point) {
+    return getGlobalMatrix(toElement, true, true).multiply(getGlobalMatrix(fromElement)).apply(point || _zeroPoint);
+  },
   getAlignMatrix: _getAlignMatrix,
   getRelativePosition: function getRelativePosition(fromElement, toElement, fromOrigin, toOrigin) {
     var m = _getAlignMatrix(fromElement, toElement, fromOrigin, toOrigin);

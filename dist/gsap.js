@@ -19,7 +19,7 @@
   }
 
   /*!
-   * GSAP 3.2.0
+   * GSAP 3.2.1
    * https://greensock.com
    *
    * @license Copyright 2008-2020, GreenSock. All rights reserved.
@@ -110,7 +110,7 @@
       _effects = {},
       _nextGCFrame = 30,
       _harnessPlugins = [],
-      _callbackNames = "onComplete,onUpdate,onStart,onRepeat,onReverseComplete,onInterrupt",
+      _callbackNames = "",
       _harness = function _harness(targets) {
     var target = targets[0],
         harnessPlugin,
@@ -416,7 +416,7 @@
         var tl = timeline;
 
         while (tl._dp) {
-          tl.rawTime() >= 0 && tl.totalTime(tl._tTime, true);
+          tl.rawTime() >= 0 && tl.totalTime(tl._tTime);
           tl = tl._dp;
         }
       }
@@ -919,11 +919,7 @@
 
     params = v[type + "Params"];
     scope = v.callbackScope || animation;
-
-    if (executeLazyFirst && _lazyTweens.length) {
-      _lazyRender();
-    }
-
+    executeLazyFirst && _lazyTweens.length && _lazyRender();
     return params ? callback.apply(scope, params) : callback.call(scope);
   },
       _interrupt = function _interrupt(animation) {
@@ -1451,6 +1447,11 @@
     }
   };
   _defaults.ease = _easeMap["quad.out"];
+
+  _forEachName("onComplete,onUpdate,onStart,onRepeat,onReverseComplete,onInterrupt", function (name) {
+    return _callbackNames += name + "," + name + "Params,";
+  });
+
   var GSCache = function GSCache(target, harness) {
     this.id = _gsID++;
     target._gsap = this;
@@ -2244,7 +2245,10 @@
 
       var tl = this,
           endTime = _parsePosition(tl, position),
-          startAt = vars.startAt,
+          _vars = vars,
+          startAt = _vars.startAt,
+          _onStart = _vars.onStart,
+          onStartParams = _vars.onStartParams,
           tween = Tween.to(tl, _setDefaults(vars, {
         ease: "none",
         lazy: false,
@@ -2258,8 +2262,8 @@
             _setDuration(tween, duration).render(tween._time, true, true);
           }
 
-          if (vars.onStart) {
-            vars.onStart.apply(tween, vars.onStartParams || []);
+          if (_onStart) {
+            _onStart.apply(tween, onStartParams || []);
           }
         }
       }));
@@ -2794,7 +2798,7 @@
       _parseFuncOrString = function _parseFuncOrString(value, tween, i, target, targets) {
     return _isFunction(value) ? value.call(tween, i, target, targets) : _isString(value) && ~value.indexOf("random(") ? _replaceRandom(value) : value;
   },
-      _staggerTweenProps = _callbackNames + ",repeat,repeatDelay,yoyo,repeatRefresh,yoyoEase",
+      _staggerTweenProps = _callbackNames + "repeat,repeatDelay,yoyo,repeatRefresh,yoyoEase",
       _staggerPropsToSkip = (_staggerTweenProps + ",id,stagger,delay,duration,paused").split(",");
 
   var Tween = function (_Animation2) {
@@ -3355,9 +3359,8 @@
     return PropTween;
   }();
 
-  _forEachName(_callbackNames + ",parent,duration,ease,delay,overwrite,runBackwards,startAt,yoyo,immediateRender,repeat,repeatDelay,data,paused,reversed,lazy,callbackScope,stringFilter,id,yoyoEase,stagger,inherit,repeatRefresh,keyframes,autoRevert", function (name) {
-    _reservedProps[name] = 1;
-    if (name.substr(0, 2) === "on") _reservedProps[name + "Params"] = 1;
+  _forEachName(_callbackNames + "parent,duration,ease,delay,overwrite,runBackwards,startAt,yoyo,immediateRender,repeat,repeatDelay,data,paused,reversed,lazy,callbackScope,stringFilter,id,yoyoEase,stagger,inherit,repeatRefresh,keyframes,autoRevert", function (name) {
+    return _reservedProps[name] = 1;
   });
 
   _globals.TweenMax = _globals.TweenLite = Tween;
@@ -3536,7 +3539,8 @@
       Tween: Tween,
       Timeline: Timeline,
       Animation: Animation,
-      getCache: _getCache
+      getCache: _getCache,
+      _removeLinkedListItem: _removeLinkedListItem
     }
   };
 
@@ -3634,7 +3638,7 @@
       }
     }
   }, _buildModifierPlugin("roundProps", _roundModifier), _buildModifierPlugin("modifiers"), _buildModifierPlugin("snap", snap)) || _gsap;
-  Tween.version = Timeline.version = gsap.version = "3.2.0";
+  Tween.version = Timeline.version = gsap.version = "3.2.1";
   _coreReady = 1;
 
   if (_windowExists()) {
@@ -3789,10 +3793,12 @@
       bbox = this._gsapBBox();
     }
 
-    if (oldSibling) {
-      oldParent.insertBefore(this, oldSibling);
-    } else {
-      oldParent.appendChild(this);
+    if (oldParent) {
+      if (oldSibling) {
+        oldParent.insertBefore(this, oldSibling);
+      } else {
+        oldParent.appendChild(this);
+      }
     }
 
     _docElement.removeChild(svg);
@@ -3818,6 +3824,7 @@
       bounds = _getBBoxHack.call(target, true);
     }
 
+    bounds && bounds.width || (bounds = _getBBoxHack.call(target, true));
     return bounds && !bounds.width && !bounds.x && !bounds.y ? {
       x: +_getAttributeFallbacks(target, ["x", "cx", "x1"]) || 0,
       y: +_getAttributeFallbacks(target, ["y", "cy", "y1"]) || 0,
@@ -4141,7 +4148,7 @@
     return _isNullTransform(matrixString) ? _identity2DMatrix : matrixString.substr(7).match(_numExp).map(_round);
   },
       _getMatrix = function _getMatrix(target, force2D) {
-    var cache = target._gsap,
+    var cache = target._gsap || _getCache(target),
         style = target.style,
         matrix = _getComputedTransformMatrixAsArray(target),
         parent,
@@ -4243,6 +4250,8 @@
 
       _addNonTweeningPT(pluginToAddPropTweensTo, cache, "yOffset", yOffsetOld, cache.yOffset);
     }
+
+    target.setAttribute("data-svg-origin", xOrigin + " " + yOrigin);
   },
       _parseTransform = function _parseTransform(target, uncache) {
     var cache = target._gsap || new GSCache(target);
@@ -4253,8 +4262,6 @@
 
     var style = target.style,
         invertedScaleX = cache.scaleX < 0,
-        xOrigin = cache.xOrigin || 0,
-        yOrigin = cache.yOrigin || 0,
         px = "px",
         deg = "deg",
         origin = _getComputedProperty(target, _transformOriginProp) || "0",
@@ -4269,6 +4276,8 @@
         skewX,
         skewY,
         perspective,
+        xOrigin,
+        yOrigin,
         matrix,
         angle,
         cos,
@@ -4294,8 +4303,13 @@
     matrix = _getMatrix(target, cache.svg);
 
     if (cache.svg) {
-      _applySVGOrigin(target, origin, cache.originIsAbsolute, cache.smooth !== false, matrix);
+      t1 = !cache.uncache && target.getAttribute("data-svg-origin");
+
+      _applySVGOrigin(target, t1 || origin, !!t1 || cache.originIsAbsolute, cache.smooth !== false, matrix);
     }
+
+    xOrigin = cache.xOrigin || 0;
+    yOrigin = cache.yOrigin || 0;
 
     if (matrix !== _identity2DMatrix) {
       a = matrix[0];
@@ -4310,6 +4324,7 @@
         scaleY = Math.sqrt(d * d + c * c);
         rotation = a || b ? _atan2(b, a) * _RAD2DEG : 0;
         skewX = c || d ? _atan2(c, d) * _RAD2DEG + rotation : 0;
+        skewX && (scaleY *= Math.cos(skewX * _DEG2RAD));
 
         if (cache.svg) {
           x -= xOrigin - (xOrigin * a + yOrigin * c);
@@ -4810,7 +4825,7 @@
               if (cache.svg) {
                 _applySVGOrigin(target, endValue, 0, smooth, 0, this);
               } else {
-                endUnit = parseFloat(endValue.split(" ")[2]);
+                endUnit = parseFloat(endValue.split(" ")[2]) || 0;
 
                 if (endUnit !== cache.zOrigin) {
                   _addNonTweeningPT(this, cache, "zOrigin", cache.zOrigin, endUnit);
@@ -4846,6 +4861,7 @@
 
           if (isTransformRelated || (endNum || endNum === 0) && (startNum || startNum === 0) && !_complexExp.test(endValue) && p in style) {
             startUnit = (startValue + "").substr((startNum + "").length);
+            endNum || (endNum = 0);
             endUnit = (endValue + "").substr((endNum + "").length) || (p in _config.units ? _config.units[p] : startUnit);
 
             if (startUnit !== endUnit) {
@@ -4885,6 +4901,10 @@
       var p = _propertyAliases[property];
       p && p.indexOf(",") < 0 && (property = p);
       return property in _transformProps && property !== _transformOriginProp && (target._gsap.x || _get(target, "x")) ? plugin && _recentSetterPlugin === plugin ? property === "scale" ? _setterScale : _setterTransform : (_recentSetterPlugin = plugin || {}) && (property === "scale" ? _setterScaleWithRender : _setterTransformWithRender) : target.style && !_isUndefined(target.style[property]) ? _setterCSSStyle : ~property.indexOf("-") ? _setterCSSProp : _getSetter(target, property);
+    },
+    core: {
+      _removeProperty: _removeProperty,
+      _getMatrix: _getMatrix
     }
   };
   gsap.utils.checkPrefix = _checkPropPrefix;

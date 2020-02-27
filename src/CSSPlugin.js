@@ -1,5 +1,5 @@
 /*!
- * CSSPlugin 3.2.0
+ * CSSPlugin 3.2.1
  * https://greensock.com
  *
  * Copyright 2008-2020, GreenSock. All rights reserved.
@@ -102,10 +102,12 @@ let _win, _doc, _docElement, _pluginInitted, _tempDiv, _tempDivStyler, _recentSe
 		} else if (this._gsapBBox) {
 			bbox = this._gsapBBox();
 		}
-		if (oldSibling) {
-			oldParent.insertBefore(this, oldSibling);
-		} else {
-			oldParent.appendChild(this);
+		if (oldParent) {
+			if (oldSibling) {
+				oldParent.insertBefore(this, oldSibling);
+			} else {
+				oldParent.appendChild(this);
+			}
 		}
 		_docElement.removeChild(svg);
 		this.style.cssText = oldCSS;
@@ -126,6 +128,7 @@ let _win, _doc, _docElement, _pluginInitted, _tempDiv, _tempDivStyler, _recentSe
 		} catch (error) {
 			bounds = _getBBoxHack.call(target, true);
 		}
+		(bounds && bounds.width) || (bounds = _getBBoxHack.call(target, true));
 		//some browsers (like Firefox) misreport the bounds if the element has zero width and height (it just assumes it's at x:0, y:0), thus we need to manually grab the position in that case.
 		return (bounds && !bounds.width && !bounds.x && !bounds.y) ? {x: +_getAttributeFallbacks(target, ["x","cx","x1"]) || 0, y:+_getAttributeFallbacks(target, ["y","cy","y1"]) || 0, width:0, height:0} : bounds;
 	},
@@ -439,7 +442,7 @@ let _win, _doc, _docElement, _pluginInitted, _tempDiv, _tempDivStyler, _recentSe
 		return _isNullTransform(matrixString) ? _identity2DMatrix : matrixString.substr(7).match(_numExp).map(_round);
 	},
 	_getMatrix = (target, force2D) => {
-		let cache = target._gsap,
+		let cache = target._gsap || _getCache(target),
 			style = target.style,
 			matrix = _getComputedTransformMatrixAsArray(target),
 			parent, nextSibling, temp, addedToDOM;
@@ -522,6 +525,7 @@ let _win, _doc, _docElement, _pluginInitted, _tempDiv, _tempDivStyler, _recentSe
 			_addNonTweeningPT(pluginToAddPropTweensTo, cache, "xOffset", xOffsetOld, cache.xOffset);
 			_addNonTweeningPT(pluginToAddPropTweensTo, cache, "yOffset", yOffsetOld, cache.yOffset);
 		}
+		target.setAttribute("data-svg-origin", xOrigin + " " + yOrigin);
 	},
 	_parseTransform = (target, uncache) => {
 		let cache = target._gsap || new GSCache(target);
@@ -530,20 +534,21 @@ let _win, _doc, _docElement, _pluginInitted, _tempDiv, _tempDivStyler, _recentSe
 		}
 		let style = target.style,
 			invertedScaleX = cache.scaleX < 0,
-			xOrigin = cache.xOrigin || 0,
-			yOrigin = cache.yOrigin || 0,
 			px = "px",
 			deg = "deg",
 			origin = _getComputedProperty(target, _transformOriginProp) || "0",
-			x, y, z, scaleX, scaleY, rotation, rotationX, rotationY, skewX, skewY, perspective,
+			x, y, z, scaleX, scaleY, rotation, rotationX, rotationY, skewX, skewY, perspective, xOrigin, yOrigin,
 			matrix, angle, cos, sin, a, b, c, d, a12, a22, t1, t2, t3, a13, a23, a33, a42, a43, a32;
 		x = y = z = rotation = rotationX = rotationY = skewX = skewY = perspective = 0;
 		scaleX = scaleY = 1;
 		cache.svg = !!(target.getCTM && _isSVG(target));
 		matrix = _getMatrix(target, cache.svg);
 		if (cache.svg) {
-			_applySVGOrigin(target, origin, cache.originIsAbsolute, cache.smooth !== false, matrix);
+			t1 = !cache.uncache && target.getAttribute("data-svg-origin");
+			_applySVGOrigin(target, t1 || origin, !!t1 || cache.originIsAbsolute, cache.smooth !== false, matrix);
 		}
+		xOrigin = cache.xOrigin || 0;
+		yOrigin = cache.yOrigin || 0;
 		if (matrix !== _identity2DMatrix) {
 			a = matrix[0]; //a11
 			b = matrix[1]; //a21
@@ -558,12 +563,13 @@ let _win, _doc, _docElement, _pluginInitted, _tempDiv, _tempDivStyler, _recentSe
 				scaleY = Math.sqrt(d * d + c * c);
 				rotation = (a || b) ? _atan2(b, a) * _RAD2DEG : 0; //note: if scaleX is 0, we cannot accurately measure rotation. Same for skewX with a scaleY of 0. Therefore, we default to the previously recorded value (or zero if that doesn't exist).
 				skewX = (c || d) ? _atan2(c, d) * _RAD2DEG + rotation : 0;
+				skewX && (scaleY *= Math.cos(skewX * _DEG2RAD));
 				if (cache.svg) {
 					x -= xOrigin - (xOrigin * a + yOrigin * c);
 					y -= yOrigin - (xOrigin * b + yOrigin * d);
 				}
 
-				//3D matrix
+			//3D matrix
 			} else {
 				a32 = matrix[6];
 				a42 = matrix[7];
@@ -864,8 +870,8 @@ _forEachName("padding,margin,Width,Radius", (name, index) => {
 
 
 export const CSSPlugin = {
-	name:"css",
-	register:_initCore,
+	name: "css",
+	register: _initCore,
 	targetTest(target) {
 		return target.style && target.nodeType;
 	},
@@ -942,7 +948,7 @@ export const CSSPlugin = {
 						if (cache.svg) {
 							_applySVGOrigin(target, endValue, 0, smooth, 0, this);
 						} else {
-							endUnit = parseFloat(endValue.split(" ")[2]); //handle the zOrigin separately!
+							endUnit = parseFloat(endValue.split(" ")[2]) || 0; //handle the zOrigin separately!
 							if (endUnit !== cache.zOrigin) {
 								_addNonTweeningPT(this, cache, "zOrigin", cache.zOrigin, endUnit);
 							}
@@ -972,6 +978,7 @@ export const CSSPlugin = {
 
 				if (isTransformRelated || ((endNum || endNum === 0) && (startNum || startNum === 0) && !_complexExp.test(endValue) && (p in style))) {
 					startUnit = (startValue + "").substr((startNum + "").length);
+					endNum || (endNum = 0); // protect against NaN
 					endUnit = (endValue + "").substr((endNum + "").length) || ((p in _config.units) ? _config.units[p] : startUnit);
 					if (startUnit !== endUnit) {
 						startNum = _convertToUnit(target, p, startValue, endUnit);
@@ -1000,13 +1007,14 @@ export const CSSPlugin = {
 		}
 
 	},
-	get:_get,
-	aliases:_propertyAliases,
+	get: _get,
+	aliases: _propertyAliases,
 	getSetter(target, property, plugin) { //returns a setter function that accepts target, property, value and applies it accordingly. Remember, properties like "x" aren't as simple as target.style.property = value because they've got to be applied to a proxy object and then merged into a transform string in a renderer.
 		let p = _propertyAliases[property];
 		(p && p.indexOf(",") < 0) && (property = p);
 		return (property in _transformProps && property !== _transformOriginProp && (target._gsap.x || _get(target, "x"))) ? (plugin && _recentSetterPlugin === plugin ? (property === "scale" ? _setterScale : _setterTransform) : (_recentSetterPlugin = plugin || {}) && (property === "scale" ? _setterScaleWithRender : _setterTransformWithRender)) : target.style && !_isUndefined(target.style[property]) ? _setterCSSStyle : ~property.indexOf("-") ? _setterCSSProp : _getSetter(target, property);
-	}
+	},
+	core: { _removeProperty, _getMatrix }
 
 };
 

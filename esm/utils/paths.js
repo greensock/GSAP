@@ -1,5 +1,5 @@
 /*!
- * paths 3.2.0
+ * paths 3.2.1
  * https://greensock.com
  *
  * Copyright 2008-2020, GreenSock. All rights reserved.
@@ -38,7 +38,7 @@ var _svgPathExp = /[achlmqstvz]|(-?\d*\.?\d*(?:e[\-+]?\d+)?)[0-9]/ig,
 },
     //if progress lands on 1, the % will make it 0 which is why we || 1, but not if it's negative because it makes more sense for motion to end at 0 in that case.
 _round = function _round(value) {
-  return ~~(value * _roundingNum + (value < 0 ? -.5 : .5)) / _roundingNum;
+  return Math.round(value * _roundingNum) / _roundingNum || 0;
 },
     _splitSegment = function _splitSegment(rawPath, segIndex, i, t) {
   var segment = rawPath[segIndex],
@@ -322,7 +322,7 @@ export function sliceRawPath(rawPath, start, end) {
 
   var path = copyRawPath(rawPath.totalLength ? rawPath : cacheRawPathMeasurements(rawPath)),
       wrap = end > 1,
-      s = getProgressData(path, start, _temp),
+      s = getProgressData(path, start, _temp, true),
       e = getProgressData(path, end, _temp2),
       eSeg = e.segment,
       sSeg = s.segment,
@@ -414,7 +414,7 @@ export function sliceRawPath(rawPath, start, end) {
 
       eSeg.splice(ei + eShift + 2);
 
-      if (sShift) {
+      if (sShift || si) {
         sSeg.splice(0, si + sShift);
       }
 
@@ -596,7 +596,7 @@ export function subdivideSegment(segment, i, t) {
   return 6;
 } // returns an object {path, segment, segIndex, i, t}
 
-function getProgressData(rawPath, progress, decoratee) {
+function getProgressData(rawPath, progress, decoratee, pushToNextIfAtEnd) {
   decoratee = decoratee || {};
 
   if (!rawPath.totalLength) {
@@ -614,7 +614,8 @@ function getProgressData(rawPath, progress, decoratee) {
       length,
       min,
       max,
-      i;
+      i,
+      t;
 
   if (rawPath.length > 1) {
     //speed optimization: most of the time, there's only one segment so skip the recursion.
@@ -643,11 +644,24 @@ function getProgressData(rawPath, progress, decoratee) {
     max = samples[++i];
   }
 
+  t = 1 / resolution * ((length - min) / (max - min) + i % resolution);
+  i = ~~(i / resolution) * 6;
+
+  if (pushToNextIfAtEnd && t === 1) {
+    if (i + 6 < segment.length) {
+      i += 6;
+      t = 0;
+    } else if (segIndex + 1 < rawPath.length) {
+      i = t = 0;
+      segIndex++;
+    }
+  }
+
+  decoratee.t = t;
+  decoratee.i = i;
   decoratee.path = rawPath;
   decoratee.segment = segment;
   decoratee.segIndex = segIndex;
-  decoratee.i = ~~(i / resolution) * 6;
-  decoratee.t = 1 / resolution * ((length - min) / (max - min) + i % resolution);
   return decoratee;
 }
 

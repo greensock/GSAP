@@ -1,5 +1,5 @@
 /*!
- * matrix 3.2.0
+ * matrix 3.2.1
  * https://greensock.com
  *
  * Copyright 2008-2020, GreenSock. All rights reserved.
@@ -102,8 +102,8 @@ _divTemps = [],
           _svgContainer = _createSibling(element);
         }
 
-        e.setAttribute("width", 1);
-        e.setAttribute("height", 1);
+        e.setAttribute("width", 0.01);
+        e.setAttribute("height", 0.01);
         e.setAttribute("transform", "translate(" + x + "," + y + ")");
 
         _svgContainer.appendChild(e);
@@ -166,7 +166,7 @@ _divTemps = [],
       m = element.offsetParent;
       b = element;
 
-      while (b && (b = b.parentNode) !== m) {
+      while (b && (b = b.parentNode) && b !== m && b.parentNode) {
         if ((_win.getComputedStyle(b)[_transformProp] + "").length > 4) {
           x = b.offsetLeft;
           y = b.offsetTop;
@@ -316,4 +316,9 @@ export function getGlobalMatrix(element, inverse, adjustGOffset) {
 
   parent.removeChild(container);
   return inverse ? m.inverse() : m;
-}
+} // export function getMatrix(element) {
+// 	_doc || _setDoc(element);
+// 	let m = (_win.getComputedStyle(element)[_transformProp] + "").substr(7).match(/[-.]*\d+[.e\-+]*\d*[e\-\+]*\d*/g),
+// 		is2D = m && m.length === 6;
+// 	return !m || m.length < 6 ? new Matrix2D() : new Matrix2D(+m[0], +m[1], +m[is2D ? 2 : 4], +m[is2D ? 3 : 5], +m[is2D ? 4 : 12], +m[is2D ? 5 : 13]);
+// }

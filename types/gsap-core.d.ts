@@ -11,7 +11,8 @@ declare namespace gsap {
     | typeof core.Animation
     | typeof core.Tween
     | typeof core.Timeline
-    | typeof Draggable;
+    | typeof Draggable
+    | object;
 
   // querySelector returns type Element | null
   type DOMTarget = Element | string | null | ArrayLike<Element | string | null>;

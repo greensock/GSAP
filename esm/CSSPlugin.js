@@ -1,5 +1,5 @@
 /*!
- * CSSPlugin 3.2.0
+ * CSSPlugin 3.2.1
  * https://greensock.com
  *
  * Copyright 2008-2020, GreenSock. All rights reserved.
@@ -146,10 +146,12 @@ _renderRoundedCSSProp = function _renderRoundedCSSProp(ratio, data) {
     bbox = this._gsapBBox();
   }
 
-  if (oldSibling) {
-    oldParent.insertBefore(this, oldSibling);
-  } else {
-    oldParent.appendChild(this);
+  if (oldParent) {
+    if (oldSibling) {
+      oldParent.insertBefore(this, oldSibling);
+    } else {
+      oldParent.appendChild(this);
+    }
   }
 
   _docElement.removeChild(svg);
@@ -173,8 +175,9 @@ _renderRoundedCSSProp = function _renderRoundedCSSProp(ratio, data) {
     bounds = target.getBBox(); //Firefox throws errors if you try calling getBBox() on an SVG element that's not rendered (like in a <symbol> or <defs>). https://bugzilla.mozilla.org/show_bug.cgi?id=612118
   } catch (error) {
     bounds = _getBBoxHack.call(target, true);
-  } //some browsers (like Firefox) misreport the bounds if the element has zero width and height (it just assumes it's at x:0, y:0), thus we need to manually grab the position in that case.
+  }
 
+  bounds && bounds.width || (bounds = _getBBoxHack.call(target, true)); //some browsers (like Firefox) misreport the bounds if the element has zero width and height (it just assumes it's at x:0, y:0), thus we need to manually grab the position in that case.
 
   return bounds && !bounds.width && !bounds.x && !bounds.y ? {
     x: +_getAttributeFallbacks(target, ["x", "cx", "x1"]) || 0,
@@ -587,7 +590,7 @@ _identity2DMatrix = [1, 0, 0, 1, 0, 0],
   return _isNullTransform(matrixString) ? _identity2DMatrix : matrixString.substr(7).match(_numExp).map(_round);
 },
     _getMatrix = function _getMatrix(target, force2D) {
-  var cache = target._gsap,
+  var cache = target._gsap || _getCache(target),
       style = target.style,
       matrix = _getComputedTransformMatrixAsArray(target),
       parent,
@@ -695,6 +698,8 @@ _identity2DMatrix = [1, 0, 0, 1, 0, 0],
 
     _addNonTweeningPT(pluginToAddPropTweensTo, cache, "yOffset", yOffsetOld, cache.yOffset);
   }
+
+  target.setAttribute("data-svg-origin", xOrigin + " " + yOrigin);
 },
     _parseTransform = function _parseTransform(target, uncache) {
   var cache = target._gsap || new GSCache(target);
@@ -705,8 +710,6 @@ _identity2DMatrix = [1, 0, 0, 1, 0, 0],
 
   var style = target.style,
       invertedScaleX = cache.scaleX < 0,
-      xOrigin = cache.xOrigin || 0,
-      yOrigin = cache.yOrigin || 0,
       px = "px",
       deg = "deg",
       origin = _getComputedProperty(target, _transformOriginProp) || "0",
@@ -721,6 +724,8 @@ _identity2DMatrix = [1, 0, 0, 1, 0, 0],
       skewX,
       skewY,
       perspective,
+      xOrigin,
+      yOrigin,
       matrix,
       angle,
       cos,
@@ -746,8 +751,13 @@ _identity2DMatrix = [1, 0, 0, 1, 0, 0],
   matrix = _getMatrix(target, cache.svg);
 
   if (cache.svg) {
-    _applySVGOrigin(target, origin, cache.originIsAbsolute, cache.smooth !== false, matrix);
+    t1 = !cache.uncache && target.getAttribute("data-svg-origin");
+
+    _applySVGOrigin(target, t1 || origin, !!t1 || cache.originIsAbsolute, cache.smooth !== false, matrix);
   }
+
+  xOrigin = cache.xOrigin || 0;
+  yOrigin = cache.yOrigin || 0;
 
   if (matrix !== _identity2DMatrix) {
     a = matrix[0]; //a11
@@ -767,6 +777,7 @@ _identity2DMatrix = [1, 0, 0, 1, 0, 0],
       rotation = a || b ? _atan2(b, a) * _RAD2DEG : 0; //note: if scaleX is 0, we cannot accurately measure rotation. Same for skewX with a scaleY of 0. Therefore, we default to the previously recorded value (or zero if that doesn't exist).
 
       skewX = c || d ? _atan2(c, d) * _RAD2DEG + rotation : 0;
+      skewX && (scaleY *= Math.cos(skewX * _DEG2RAD));
 
       if (cache.svg) {
         x -= xOrigin - (xOrigin * a + yOrigin * c);
@@ -1288,7 +1299,7 @@ export var CSSPlugin = {
             if (cache.svg) {
               _applySVGOrigin(target, endValue, 0, smooth, 0, this);
             } else {
-              endUnit = parseFloat(endValue.split(" ")[2]); //handle the zOrigin separately!
+              endUnit = parseFloat(endValue.split(" ")[2]) || 0; //handle the zOrigin separately!
 
               if (endUnit !== cache.zOrigin) {
                 _addNonTweeningPT(this, cache, "zOrigin", cache.zOrigin, endUnit);
@@ -1324,6 +1335,8 @@ export var CSSPlugin = {
 
         if (isTransformRelated || (endNum || endNum === 0) && (startNum || startNum === 0) && !_complexExp.test(endValue) && p in style) {
           startUnit = (startValue + "").substr((startNum + "").length);
+          endNum || (endNum = 0); // protect against NaN
+
           endUnit = (endValue + "").substr((endNum + "").length) || (p in _config.units ? _config.units[p] : startUnit);
 
           if (startUnit !== endUnit) {
@@ -1366,6 +1379,10 @@ export var CSSPlugin = {
     var p = _propertyAliases[property];
     p && p.indexOf(",") < 0 && (property = p);
     return property in _transformProps && property !== _transformOriginProp && (target._gsap.x || _get(target, "x")) ? plugin && _recentSetterPlugin === plugin ? property === "scale" ? _setterScale : _setterTransform : (_recentSetterPlugin = plugin || {}) && (property === "scale" ? _setterScaleWithRender : _setterTransformWithRender) : target.style && !_isUndefined(target.style[property]) ? _setterCSSStyle : ~property.indexOf("-") ? _setterCSSProp : _getSetter(target, property);
+  },
+  core: {
+    _removeProperty: _removeProperty,
+    _getMatrix: _getMatrix
   }
 };
 gsap.utils.checkPrefix = _checkPropPrefix;

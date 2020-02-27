@@ -1,5 +1,5 @@
 /*!
- * Draggable 3.2.0
+ * Draggable 3.2.1
  * https://greensock.com
  *
  * @license Copyright 2008-2020, GreenSock. All rights reserved.
@@ -685,7 +685,7 @@ export class Draggable extends EventDispatcher {
 			isFixed = _isFixed(target),
 			getPropAsNum = (property, unit) => parseFloat(gsCache.get(target, property, unit)),
 			ownerDoc = target.ownerDocument || _doc,
-			enabled, scrollProxy, startPointerX, startPointerY, startElementX, startElementY, hasBounds, hasDragCallback, hasMoveCallback, maxX, minX, maxY, minY, touch, touchID, rotationOrigin, dirty, old, snapX, snapY, snapXY, isClicking, touchEventTarget, matrix, interrupted, startScrollTop, startScrollLeft, allowNativeTouchScrolling, touchDragAxis, isDispatching, clickDispatch, trustedClickDispatch,
+			enabled, scrollProxy, startPointerX, startPointerY, startElementX, startElementY, hasBounds, hasDragCallback, hasMoveCallback, maxX, minX, maxY, minY, touch, touchID, rotationOrigin, dirty, old, snapX, snapY, snapXY, isClicking, touchEventTarget, matrix, interrupted, allowNativeTouchScrolling, touchDragAxis, isDispatching, clickDispatch, trustedClickDispatch,
 
 			onContextMenu = e => { //used to prevent long-touch from triggering a context menu.
 				if (self.isPressed && e.which < 2) {
@@ -1102,7 +1102,7 @@ export class Draggable extends EventDispatcher {
 
 			recordStartPositions = () => {
 				let edgeTolerance = 1 - self.edgeResistance,
-					parsedOrigin, parent, x, y;
+					parsedOrigin, x, y;
 				updateMatrix(false);
 				if (matrix) {
 					_point1.x = self.pointerX;
@@ -1140,9 +1140,9 @@ export class Draggable extends EventDispatcher {
 						startElementX = self.x; //starting rotation (x always refers to rotation in type:"rotation", measured in degrees)
 						startElementY = self.y = Math.atan2(y, x) * _RAD2DEG;
 					} else {
-						parent = !isFixed && target.parentNode;
-						startScrollTop = parent ? parent.scrollTop || 0 : 0;
-						startScrollLeft = parent ? parent.scrollLeft || 0 : 0;
+						//parent = !isFixed && target.parentNode;
+						//startScrollTop = parent ? parent.scrollTop || 0 : 0;
+						//startScrollLeft = parent ? parent.scrollLeft || 0 : 0;
 						startElementY = getPropAsNum(yProp, "px"); //record the starting top and left values so that we can just add the mouse's movement to them later.
 						startElementX = getPropAsNum(xProp, "px");
 					}
@@ -1314,7 +1314,7 @@ export class Draggable extends EventDispatcher {
 				if (self.autoScroll) {
 					checkAutoScrollBounds = true;
 				}
-				setPointerPosition(e.pageX - (isFixed ? _getDocScrollLeft(ownerDoc) : 0), e.pageY - (isFixed ? _getDocScrollTop(ownerDoc) : 0), hasMoveCallback);
+				setPointerPosition(e.pageX - (isFixed && rotationMode ? _getDocScrollLeft(ownerDoc) : 0), e.pageY - (isFixed && rotationMode ? _getDocScrollTop(ownerDoc) : 0), hasMoveCallback);
 			},
 
 			setPointerPosition = (pointerX, pointerY, invokeOnMove) => {
@@ -1932,7 +1932,7 @@ export class Draggable extends EventDispatcher {
 _setDefaults(Draggable.prototype, {pointerX:0, pointerY: 0, startX: 0, startY: 0, deltaX: 0, deltaY: 0, isDragging: false, isPressed: false});
 
 Draggable.zIndex = 1000;
-Draggable.version = "3.2.0";
+Draggable.version = "3.2.1";
 
 _getGSAP() && gsap.registerPlugin(Draggable);
 
