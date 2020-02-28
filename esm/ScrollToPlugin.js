@@ -1,5 +1,5 @@
 /*!
- * ScrollToPlugin 3.2.1
+ * ScrollToPlugin 3.2.2
  * https://greensock.com
  *
  * @license Copyright 2008-2020, GreenSock. All rights reserved.
@@ -68,7 +68,7 @@ var gsap,
   return offsets;
 },
     _parseVal = function _parseVal(value, target, axis, currentVal) {
-  return !isNaN(value) ? parseFloat(value) : _isString(value) && value.charAt(1) === "=" ? parseFloat(value.substr(2)) * (value.charAt(0) === "-" ? -1 : 1) + currentVal : value === "max" ? _max(target, axis) : Math.min(_max(target, axis), _getOffset(value, target)[axis]);
+  return !isNaN(value) && typeof value !== "object" ? parseFloat(value) : _isString(value) && value.charAt(1) === "=" ? parseFloat(value.substr(2)) * (value.charAt(0) === "-" ? -1 : 1) + currentVal : value === "max" ? _max(target, axis) : Math.min(_max(target, axis), _getOffset(value, target)[axis]);
 },
     _initCore = function _initCore() {
   gsap = _getGSAP();
@@ -87,7 +87,7 @@ var gsap,
 };
 
 export var ScrollToPlugin = {
-  version: "3.2.1",
+  version: "3.2.2",
   name: "scrollTo",
   rawVars: 1,
   register: function register(core) {

@@ -1,5 +1,5 @@
 /*!
- * paths 3.2.1
+ * paths 3.2.2
  * https://greensock.com
  *
  * Copyright 2008-2020, GreenSock. All rights reserved.
@@ -523,7 +523,7 @@ function getProgressData(rawPath, progress, decoratee, pushToNextIfAtEnd) {
 			t = 0;
 		} else if (segIndex + 1 < rawPath.length) {
 			i = t = 0;
-			segIndex++;
+			segment = rawPath[++segIndex];
 		}
 	}
 	decoratee.t = t;

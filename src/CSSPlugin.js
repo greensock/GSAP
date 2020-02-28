@@ -1,5 +1,5 @@
 /*!
- * CSSPlugin 3.2.1
+ * CSSPlugin 3.2.2
  * https://greensock.com
  *
  * Copyright 2008-2020, GreenSock. All rights reserved.
@@ -128,7 +128,7 @@ let _win, _doc, _docElement, _pluginInitted, _tempDiv, _tempDivStyler, _recentSe
 		} catch (error) {
 			bounds = _getBBoxHack.call(target, true);
 		}
-		(bounds && bounds.width) || (bounds = _getBBoxHack.call(target, true));
+		(bounds && (bounds.width || bounds.height)) || target.getBBox === _getBBoxHack || (bounds = _getBBoxHack.call(target, true));
 		//some browsers (like Firefox) misreport the bounds if the element has zero width and height (it just assumes it's at x:0, y:0), thus we need to manually grab the position in that case.
 		return (bounds && !bounds.width && !bounds.x && !bounds.y) ? {x: +_getAttributeFallbacks(target, ["x","cx","x1"]) || 0, y:+_getAttributeFallbacks(target, ["y","cy","y1"]) || 0, width:0, height:0} : bounds;
 	},

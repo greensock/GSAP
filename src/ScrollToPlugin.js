@@ -1,5 +1,5 @@
 /*!
- * ScrollToPlugin 3.2.1
+ * ScrollToPlugin 3.2.2
  * https://greensock.com
  *
  * @license Copyright 2008-2020, GreenSock. All rights reserved.
@@ -41,7 +41,7 @@ let gsap, _coreInitted, _window, _docEl, _body, _toArray, _config,
 		}
 		return offsets;
 	},
-	_parseVal = (value, target, axis, currentVal) => !isNaN(value) ? parseFloat(value) : (_isString(value) && value.charAt(1) === "=") ? parseFloat(value.substr(2)) * (value.charAt(0) === "-" ? -1 : 1) + currentVal : (value === "max") ? _max(target, axis) : Math.min(_max(target, axis), _getOffset(value, target)[axis]),
+	_parseVal = (value, target, axis, currentVal) => !isNaN(value) && typeof(value) !== "object" ? parseFloat(value) : (_isString(value) && value.charAt(1) === "=") ? parseFloat(value.substr(2)) * (value.charAt(0) === "-" ? -1 : 1) + currentVal : (value === "max") ? _max(target, axis) : Math.min(_max(target, axis), _getOffset(value, target)[axis]),
 	_initCore = () => {
 		gsap = _getGSAP();
 		if (_windowExists() && gsap && document.body) {
@@ -57,7 +57,7 @@ let gsap, _coreInitted, _window, _docEl, _body, _toArray, _config,
 
 
 export const ScrollToPlugin = {
-	version:"3.2.1",
+	version:"3.2.2",
 	name:"scrollTo",
 	rawVars:1,
 	register(core) {

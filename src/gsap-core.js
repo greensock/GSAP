@@ -1,5 +1,5 @@
 /*!
- * GSAP 3.2.1
+ * GSAP 3.2.2
  * https://greensock.com
  *
  * @license Copyright 2008-2020, GreenSock. All rights reserved.
@@ -219,7 +219,7 @@ let _config = {
 			parent[lastProp] = child;
 		}
 		child._prev = prev;
-		child.parent = parent;
+		child.parent = child._dp = parent;
 		return child;
 	},
 	_removeLinkedListItem = (parent, child, firstProp = "_first", lastProp = "_last") => {
@@ -235,8 +235,7 @@ let _config = {
 		} else if (parent[lastProp] === child) {
 			parent[lastProp] = prev;
 		}
-		child._dp = parent; //record the parent as _dp just so we can revert if necessary. But parent should be null to indicate the item isn't in a linked list.
-		child._next = child._prev = child.parent = null;
+		child._next = child._prev = child.parent = null; // don't delete the _dp just so we can revert if necessary. But parent should be null to indicate the item isn't in a linked list.
 	},
 	_removeFromParent = (child, onlyIfParentHasAutoRemove) => {
 		if (child.parent && (!onlyIfParentHasAutoRemove || child.parent.autoRemoveChildren)) {
@@ -277,31 +276,34 @@ let _config = {
 		return (yoyo && (~~(clampedTotalTime / cycleDuration) & 1)) ? duration - time : time;
 	},
 	*/
-	_addToTimeline = (timeline, child, position) => {
-		child.parent && _removeFromParent(child);
-		child._start = _round(position + child._delay);
-		child._end = _round(child._start + ((child.totalDuration() / Math.abs(child.timeScale())) || 0));
-		_addLinkedListItem(timeline, child, "_first", "_last", timeline._sort ? "_start" : 0);
-		timeline._recent = child;
-
+	_postAddChecks = (timeline, child) => {
+		let t;
 		if (child._time || (!child._dur && child._initted)) { //in case, for example, the _start is moved on a tween that has already rendered. Imagine it's at its end state, then the startTime is moved WAY later (after the end of this timeline), it should render at its beginning.
-			let curTime = (timeline.rawTime() - child._start) * child._ts;
-			if (!child._dur || _clamp(0, child.totalDuration(), curTime) - child._tTime > _tinyNum) {
-				child.render(curTime, true);
+			t = (timeline.rawTime() - child._start) * child._ts;
+			if (!child._dur || _clamp(0, child.totalDuration(), t) - child._tTime > _tinyNum) {
+				child.render(t, true);
 			}
 		}
 		//if the timeline has already ended but the inserted tween/timeline extends the duration, we should enable this timeline again so that it renders properly. We should also align the playhead with the parent timeline's when appropriate.
 		if (_uncache(timeline)._dp && timeline._initted && timeline._time >= timeline._dur && timeline._ts) {
 			//in case any of the ancestors had completed but should now be enabled...
 			if (timeline._dur < timeline.duration()) {
-				let tl = timeline;
-				while (tl._dp) {
-					(tl.rawTime() >= 0) && tl.totalTime(tl._tTime); //moves the timeline (shifts its startTime) if necessary, and also enables it. If it's currently zero, though, it may not be scheduled to render until later so there's no need to force it to align with the current playhead position. Only move to catch up with the playhead.
-					tl = tl._dp;
+				t = timeline;
+				while (t._dp) {
+					(t.rawTime() >= 0) && t.totalTime(t._tTime); //moves the timeline (shifts its startTime) if necessary, and also enables it. If it's currently zero, though, it may not be scheduled to render until later so there's no need to force it to align with the current playhead position. Only move to catch up with the playhead.
+					t = t._dp;
 				}
 			}
 			timeline._zTime = -_tinyNum; // helps ensure that the next render() will be forced (crossingStart = true in render()), even if the duration hasn't changed (we're adding a child which would need to get rendered). Definitely an edge case. Note: we MUST do this AFTER the loop above where the totalTime() might trigger a render() because this _addToTimeline() method gets called from the Animation constructor, BEFORE tweens even record their targets, etc. so we wouldn't want things to get triggered in the wrong order.
 		}
+	},
+	_addToTimeline = (timeline, child, position, skipChecks) => {
+		child.parent && _removeFromParent(child);
+		child._start = _round(position + child._delay);
+		child._end = _round(child._start + ((child.totalDuration() / Math.abs(child.timeScale())) || 0));
+		_addLinkedListItem(timeline, child, "_first", "_last", timeline._sort ? "_start" : 0);
+		timeline._recent = child;
+		skipChecks || _postAddChecks(timeline, child);
 		return timeline;
 	},
 	_attemptInitTween = (tween, totalTime, force, suppressEvents) => {
@@ -1140,12 +1142,11 @@ export class Animation {
 			this._rDelay = vars.repeatDelay || 0;
 			this._yoyo = !!vars.yoyo || !!vars.yoyoEase;
 		}
-		this._ts = 1;
+		this._ts = vars.reversed ? -1 : 1;
 		_setDuration(this, +vars.duration, 1);
 		this.data = vars.data;
 		_tickerActive || _ticker.wake();
-		parent && _addToTimeline(parent, this, (time || time === 0) ? time : parent._time);
-		vars.reversed && this.reversed(true);
+		parent && _addToTimeline(parent, this, (time || time === 0) ? time : parent._time, 1);
 		vars.paused && this.paused(true);
 	}
 
@@ -1442,6 +1443,7 @@ export class Timeline extends Animation {
 		this.smoothChildTiming = !!vars.smoothChildTiming;
 		this.autoRemoveChildren = !!vars.autoRemoveChildren;
 		this._sort = _isNotFalse(vars.sortChildren);
+		this.parent && _postAddChecks(this.parent, this);
 	}
 
 	to(targets, vars, position) {
@@ -1898,7 +1900,7 @@ export class Timeline extends Animation {
 				start = child._start;
 				if (start > prevStart && self._sort && child._ts && !self._lock) { //in case one of the tweens shifted out of order, it needs to be re-inserted into the correct position in the sequence
 					self._lock = 1; //prevent endless recursive calls - there are methods that get triggered that check duration/totalDuration when we add().
-					_addToTimeline(self, child, start - child._delay)._lock = 0;
+					_addToTimeline(self, child, start - child._delay, 1)._lock = 0;
 				} else {
 					prevStart = start;
 				}
@@ -2249,6 +2251,7 @@ export class Tween extends Animation {
 		}
 		super(_inheritDefaults(vars), time);
 		let { duration, delay, immediateRender, stagger, overwrite, keyframes, defaults } = this.vars,
+			parent = this.parent,
 			parsedTargets = (_isArray(targets) ? _isNumber(targets[0]) : ("length" in vars)) ? [targets] : toArray(targets), // edge case: someone might try animating the "length" of an object with a "length" property that's initially set to 0 so don't interpret that as an empty Array-like object.
 			tl, i, copy, l, p, curTarget, staggerFunc, staggerVarsToMerge;
 		this._targets = parsedTargets.length ? _harness(parsedTargets) : _warn("GSAP target " + targets + " not found. https://greensock.com", !_config.nullTargetWarn) || [];
@@ -2314,10 +2317,11 @@ export class Tween extends Animation {
 			_globalTimeline.killTweensOf(parsedTargets);
 			_overwritingTween = 0;
 		}
-		if (immediateRender || (!duration && !keyframes && this._start === this.parent._time  && _isNotFalse(immediateRender) && _hasNoPausedAncestors(this) && this.parent.data !== "nested")) {
+		if (immediateRender || (!duration && !keyframes && this._start === parent._time  && _isNotFalse(immediateRender) && _hasNoPausedAncestors(this) && parent.data !== "nested")) {
 			this._tTime = -_tinyNum; //forces a render without having to set the render() "force" parameter to true because we want to allow lazying by default (using the "force" parameter always forces an immediate full render)
 			this.render(Math.max(0, -delay)); //in case delay is negative
 		}
+		parent && _postAddChecks(parent, this);
 	}
 
 	render(totalTime, suppressEvents, force) {
@@ -2885,7 +2889,7 @@ export const gsap = _gsap.registerPlugin({
 	_buildModifierPlugin("snap", snap)
 ) || _gsap; //to prevent the core plugins from being dropped via aggressive tree shaking, we must include them in the variable declaration in this way.
 
-Tween.version = Timeline.version = gsap.version = "3.2.1";
+Tween.version = Timeline.version = gsap.version = "3.2.2";
 _coreReady = 1;
 if (_windowExists()) {
 	_wake();

@@ -19,7 +19,7 @@
   }
 
   /*!
-   * GSAP 3.2.1
+   * GSAP 3.2.2
    * https://greensock.com
    *
    * @license Copyright 2008-2020, GreenSock. All rights reserved.
@@ -321,7 +321,7 @@
     }
 
     child._prev = prev;
-    child.parent = parent;
+    child.parent = child._dp = parent;
     return child;
   },
       _removeLinkedListItem = function _removeLinkedListItem(parent, child, firstProp, lastProp) {
@@ -348,7 +348,6 @@
       parent[lastProp] = prev;
     }
 
-    child._dp = parent;
     child._next = child._prev = child.parent = null;
   },
       _removeFromParent = function _removeFromParent(child, onlyIfParentHasAutoRemove) {
@@ -394,7 +393,31 @@
       _setEnd = function _setEnd(animation) {
     return animation._end = _round(animation._start + (animation._tDur / Math.abs(animation._ts || animation._pauseTS || _tinyNum) || 0));
   },
-      _addToTimeline = function _addToTimeline(timeline, child, position) {
+      _postAddChecks = function _postAddChecks(timeline, child) {
+    var t;
+
+    if (child._time || !child._dur && child._initted) {
+      t = (timeline.rawTime() - child._start) * child._ts;
+
+      if (!child._dur || _clamp(0, child.totalDuration(), t) - child._tTime > _tinyNum) {
+        child.render(t, true);
+      }
+    }
+
+    if (_uncache(timeline)._dp && timeline._initted && timeline._time >= timeline._dur && timeline._ts) {
+      if (timeline._dur < timeline.duration()) {
+        t = timeline;
+
+        while (t._dp) {
+          t.rawTime() >= 0 && t.totalTime(t._tTime);
+          t = t._dp;
+        }
+      }
+
+      timeline._zTime = -_tinyNum;
+    }
+  },
+      _addToTimeline = function _addToTimeline(timeline, child, position, skipChecks) {
     child.parent && _removeFromParent(child);
     child._start = _round(position + child._delay);
     child._end = _round(child._start + (child.totalDuration() / Math.abs(child.timeScale()) || 0));
@@ -402,28 +425,7 @@
     _addLinkedListItem(timeline, child, "_first", "_last", timeline._sort ? "_start" : 0);
 
     timeline._recent = child;
-
-    if (child._time || !child._dur && child._initted) {
-      var curTime = (timeline.rawTime() - child._start) * child._ts;
-
-      if (!child._dur || _clamp(0, child.totalDuration(), curTime) - child._tTime > _tinyNum) {
-        child.render(curTime, true);
-      }
-    }
-
-    if (_uncache(timeline)._dp && timeline._initted && timeline._time >= timeline._dur && timeline._ts) {
-      if (timeline._dur < timeline.duration()) {
-        var tl = timeline;
-
-        while (tl._dp) {
-          tl.rawTime() >= 0 && tl.totalTime(tl._tTime);
-          tl = tl._dp;
-        }
-      }
-
-      timeline._zTime = -_tinyNum;
-    }
-
+    skipChecks || _postAddChecks(timeline, child);
     return timeline;
   },
       _attemptInitTween = function _attemptInitTween(tween, totalTime, force, suppressEvents) {
@@ -1471,14 +1473,13 @@
         this._yoyo = !!vars.yoyo || !!vars.yoyoEase;
       }
 
-      this._ts = 1;
+      this._ts = vars.reversed ? -1 : 1;
 
       _setDuration(this, +vars.duration, 1);
 
       this.data = vars.data;
       _tickerActive || _ticker.wake();
-      parent && _addToTimeline(parent, this, time || time === 0 ? time : parent._time);
-      vars.reversed && this.reversed(true);
+      parent && _addToTimeline(parent, this, time || time === 0 ? time : parent._time, 1);
       vars.paused && this.paused(true);
     }
 
@@ -1801,6 +1802,7 @@
       _this.smoothChildTiming = !!vars.smoothChildTiming;
       _this.autoRemoveChildren = !!vars.autoRemoveChildren;
       _this._sort = _isNotFalse(vars.sortChildren);
+      _this.parent && _postAddChecks(_this.parent, _assertThisInitialized(_this));
       return _this;
     }
 
@@ -2394,7 +2396,7 @@
 
           if (start > prevStart && self._sort && child._ts && !self._lock) {
             self._lock = 1;
-            _addToTimeline(self, child, start - child._delay)._lock = 0;
+            _addToTimeline(self, child, start - child._delay, 1)._lock = 0;
           } else {
             prevStart = start;
           }
@@ -2822,6 +2824,7 @@
           overwrite = _this3$vars.overwrite,
           keyframes = _this3$vars.keyframes,
           defaults = _this3$vars.defaults,
+          parent = _this3.parent,
           parsedTargets = (_isArray(targets) ? _isNumber(targets[0]) : "length" in vars) ? [targets] : toArray(targets),
           tl,
           i,
@@ -2916,12 +2919,13 @@
         _overwritingTween = 0;
       }
 
-      if (immediateRender || !duration && !keyframes && _this3._start === _this3.parent._time && _isNotFalse(immediateRender) && _hasNoPausedAncestors(_assertThisInitialized(_this3)) && _this3.parent.data !== "nested") {
+      if (immediateRender || !duration && !keyframes && _this3._start === parent._time && _isNotFalse(immediateRender) && _hasNoPausedAncestors(_assertThisInitialized(_this3)) && parent.data !== "nested") {
         _this3._tTime = -_tinyNum;
 
         _this3.render(Math.max(0, -delay));
       }
 
+      parent && _postAddChecks(parent, _assertThisInitialized(_this3));
       return _this3;
     }
 
@@ -3638,7 +3642,7 @@
       }
     }
   }, _buildModifierPlugin("roundProps", _roundModifier), _buildModifierPlugin("modifiers"), _buildModifierPlugin("snap", snap)) || _gsap;
-  Tween.version = Timeline.version = gsap.version = "3.2.1";
+  Tween.version = Timeline.version = gsap.version = "3.2.2";
   _coreReady = 1;
 
   if (_windowExists()) {
@@ -3824,7 +3828,7 @@
       bounds = _getBBoxHack.call(target, true);
     }
 
-    bounds && bounds.width || (bounds = _getBBoxHack.call(target, true));
+    bounds && (bounds.width || bounds.height) || target.getBBox === _getBBoxHack || (bounds = _getBBoxHack.call(target, true));
     return bounds && !bounds.width && !bounds.x && !bounds.y ? {
       x: +_getAttributeFallbacks(target, ["x", "cx", "x1"]) || 0,
       y: +_getAttributeFallbacks(target, ["y", "cy", "y1"]) || 0,
