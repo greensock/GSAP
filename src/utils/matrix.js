@@ -1,5 +1,5 @@
 /*!
- * matrix 3.2.2
+ * matrix 3.2.3
  * https://greensock.com
  *
  * Copyright 2008-2020, GreenSock. All rights reserved.
@@ -210,7 +210,7 @@ export class Matrix2D {
 //     tx = m.a * x + m.c * y + m.e
 //     ty = m.b * x + m.d * y + m.f
 export function getGlobalMatrix(element, inverse, adjustGOffset) { // adjustGOffset is typically used only when grabbing an element's PARENT's global matrix, and it ignores the x/y offset of any SVG <g> elements because they behave in a special way.
-	if (!element || !element.parentNode) {
+	if (!element || !element.parentNode || (_doc || _setDoc(element)).documentElement === element) {
 		return new Matrix2D();
 	}
 	let svg = _svgOwner(element),

@@ -19,7 +19,7 @@
   }
 
   /*!
-   * GSAP 3.2.2
+   * GSAP 3.2.3
    * https://greensock.com
    *
    * @license Copyright 2008-2020, GreenSock. All rights reserved.
@@ -396,8 +396,8 @@
       _postAddChecks = function _postAddChecks(timeline, child) {
     var t;
 
-    if (child._time || !child._dur && child._initted) {
-      t = (timeline.rawTime() - child._start) * child._ts;
+    if (child._time || child._initted && !child._dur) {
+      t = _parentToChildTotalTime(timeline.rawTime(), child);
 
       if (!child._dur || _clamp(0, child.totalDuration(), t) - child._tTime > _tinyNum) {
         child.render(t, true);
@@ -479,11 +479,7 @@
 
       tween._time = 0;
       tween._tTime = tTime;
-
-      if (!suppressEvents) {
-        _callback(tween, "onStart");
-      }
-
+      suppressEvents || _callback(tween, "onStart");
       pt = tween._pt;
 
       while (pt) {
@@ -495,9 +491,7 @@
         tween._startAt.render(totalTime, true, force);
       }
 
-      if (tween._onUpdate && !suppressEvents) {
-        _callback(tween, "onUpdate");
-      }
+      tween._onUpdate && (suppressEvents || _callback(tween, "onUpdate"));
 
       if (tTime && tween._repeat && !suppressEvents && tween.parent) {
         _callback(tween, "onRepeat");
@@ -1826,13 +1820,9 @@
     _proto2.set = function set(targets, vars, position) {
       vars.duration = 0;
       vars.parent = this;
-
-      if (!vars.repeatDelay) {
-        vars.repeat = 0;
-      }
-
+      _inheritDefaults(vars).repeatDelay || (vars.repeat = 0);
       vars.immediateRender = !!vars.immediateRender;
-      new Tween(targets, vars, _parsePosition(this, position));
+      new Tween(targets, vars, _parsePosition(this, position), 1);
       return this;
     };
 
@@ -1852,13 +1842,13 @@
 
     _proto2.staggerFrom = function staggerFrom(targets, duration, vars, stagger, position, onCompleteAll, onCompleteAllParams) {
       vars.runBackwards = 1;
-      vars.immediateRender = _isNotFalse(vars.immediateRender);
+      _inheritDefaults(vars).immediateRender = _isNotFalse(vars.immediateRender);
       return this.staggerTo(targets, duration, vars, stagger, position, onCompleteAll, onCompleteAllParams);
     };
 
     _proto2.staggerFromTo = function staggerFromTo(targets, duration, fromVars, toVars, stagger, position, onCompleteAll, onCompleteAllParams) {
       toVars.startAt = fromVars;
-      toVars.immediateRender = _isNotFalse(toVars.immediateRender);
+      _inheritDefaults(toVars).immediateRender = _isNotFalse(toVars.immediateRender);
       return this.staggerTo(targets, duration, toVars, stagger, position, onCompleteAll, onCompleteAllParams);
     };
 
@@ -2806,7 +2796,7 @@
   var Tween = function (_Animation2) {
     _inheritsLoose(Tween, _Animation2);
 
-    function Tween(targets, vars, time) {
+    function Tween(targets, vars, time, skipInherit) {
       var _this3;
 
       if (typeof vars === "number") {
@@ -2815,7 +2805,7 @@
         time = null;
       }
 
-      _this3 = _Animation2.call(this, _inheritDefaults(vars), time) || this;
+      _this3 = _Animation2.call(this, skipInherit ? vars : _inheritDefaults(vars), time) || this;
       var _this3$vars = _this3.vars,
           duration = _this3$vars.duration,
           delay = _this3$vars.delay,
@@ -2919,13 +2909,14 @@
         _overwritingTween = 0;
       }
 
+      parent && _postAddChecks(parent, _assertThisInitialized(_this3));
+
       if (immediateRender || !duration && !keyframes && _this3._start === parent._time && _isNotFalse(immediateRender) && _hasNoPausedAncestors(_assertThisInitialized(_this3)) && parent.data !== "nested") {
         _this3._tTime = -_tinyNum;
 
         _this3.render(Math.max(0, -delay));
       }
 
-      parent && _postAddChecks(parent, _assertThisInitialized(_this3));
       return _this3;
     }
 
@@ -3183,11 +3174,7 @@
 
     Tween.set = function set(targets, vars) {
       vars.duration = 0;
-
-      if (!vars.repeatDelay) {
-        vars.repeat = 0;
-      }
-
+      vars.repeatDelay || (vars.repeat = 0);
       return new Tween(targets, vars);
     };
 
@@ -3642,7 +3629,7 @@
       }
     }
   }, _buildModifierPlugin("roundProps", _roundModifier), _buildModifierPlugin("modifiers"), _buildModifierPlugin("snap", snap)) || _gsap;
-  Tween.version = Timeline.version = gsap.version = "3.2.2";
+  Tween.version = Timeline.version = gsap.version = "3.2.3";
   _coreReady = 1;
 
   if (_windowExists()) {
@@ -4089,6 +4076,7 @@
       var target = data.t,
           style = target.style,
           props = data.u,
+          cache = target._gsap,
           prop,
           clearTransforms,
           i;
@@ -4115,14 +4103,12 @@
       if (clearTransforms) {
         _removeProperty(target, _transformProp);
 
-        clearTransforms = target._gsap;
-
-        if (clearTransforms) {
-          if (clearTransforms.svg) {
-            target.removeAttribute("transform");
-          }
+        if (cache) {
+          cache.svg && target.removeAttribute("transform");
 
           _parseTransform(target, 1);
+
+          cache.uncache = 1;
         }
       }
     }

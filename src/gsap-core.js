@@ -1,5 +1,5 @@
 /*!
- * GSAP 3.2.2
+ * GSAP 3.2.3
  * https://greensock.com
  *
  * @license Copyright 2008-2020, GreenSock. All rights reserved.
@@ -278,8 +278,8 @@ let _config = {
 	*/
 	_postAddChecks = (timeline, child) => {
 		let t;
-		if (child._time || (!child._dur && child._initted)) { //in case, for example, the _start is moved on a tween that has already rendered. Imagine it's at its end state, then the startTime is moved WAY later (after the end of this timeline), it should render at its beginning.
-			t = (timeline.rawTime() - child._start) * child._ts;
+		if (child._time || (child._initted && !child._dur)) { //in case, for example, the _start is moved on a tween that has already rendered. Imagine it's at its end state, then the startTime is moved WAY later (after the end of this timeline), it should render at its beginning.
+			t = _parentToChildTotalTime(timeline.rawTime(), child);
 			if (!child._dur || _clamp(0, child.totalDuration(), t) - child._tTime > _tinyNum) {
 				child.render(t, true);
 			}
@@ -345,9 +345,7 @@ let _config = {
 			}
 			tween._time = 0;
 			tween._tTime = tTime;
-			if (!suppressEvents) {
-				_callback(tween, "onStart");
-			}
+			suppressEvents || _callback(tween, "onStart");
 			pt = tween._pt;
 			while (pt) {
 				pt.r(ratio, pt.d);
@@ -356,9 +354,7 @@ let _config = {
 			if (!ratio && tween._startAt && !tween._onUpdate && tween._start) { //if the tween is positioned at the VERY beginning (_start 0) of its parent timeline, it's illegal for the playhead to go back further, so we should not render the recorded startAt values.
 				tween._startAt.render(totalTime, true, force);
 			}
-			if (tween._onUpdate && !suppressEvents) {
-				_callback(tween, "onUpdate");
-			}
+			tween._onUpdate && (suppressEvents || _callback(tween, "onUpdate"));
 			if (tTime && tween._repeat && !suppressEvents && tween.parent) {
 				_callback(tween, "onRepeat");
 			}
@@ -1464,11 +1460,9 @@ export class Timeline extends Animation {
 	set(targets, vars, position) {
 		vars.duration = 0;
 		vars.parent = this;
-		if (!vars.repeatDelay) {
-			vars.repeat = 0;
-		}
+		_inheritDefaults(vars).repeatDelay || (vars.repeat = 0);
 		vars.immediateRender = !!vars.immediateRender;
-		new Tween(targets, vars, _parsePosition(this, position));
+		new Tween(targets, vars, _parsePosition(this, position), 1);
 		return this;
 	}
 
@@ -1489,13 +1483,13 @@ export class Timeline extends Animation {
 
 	staggerFrom(targets, duration, vars, stagger, position, onCompleteAll, onCompleteAllParams) {
 		vars.runBackwards = 1;
-		vars.immediateRender = _isNotFalse(vars.immediateRender);
+		_inheritDefaults(vars).immediateRender = _isNotFalse(vars.immediateRender);
 		return this.staggerTo(targets, duration, vars, stagger, position, onCompleteAll, onCompleteAllParams);
 	}
 
 	staggerFromTo(targets, duration, fromVars, toVars, stagger, position, onCompleteAll, onCompleteAllParams) {
 		toVars.startAt = fromVars;
-		toVars.immediateRender = _isNotFalse(toVars.immediateRender);
+		_inheritDefaults(toVars).immediateRender = _isNotFalse(toVars.immediateRender);
 		return this.staggerTo(targets, duration, toVars, stagger, position, onCompleteAll, onCompleteAllParams);
 	}
 
@@ -2243,13 +2237,13 @@ let _addComplexStringPropTween = function(target, prop, start, end, setter, stri
 
 export class Tween extends Animation {
 
-	constructor(targets, vars, time) {
+	constructor(targets, vars, time, skipInherit) {
 		if (typeof(vars) === "number") {
 			time.duration = vars;
 			vars = time;
 			time = null;
 		}
-		super(_inheritDefaults(vars), time);
+		super(skipInherit ? vars : _inheritDefaults(vars), time);
 		let { duration, delay, immediateRender, stagger, overwrite, keyframes, defaults } = this.vars,
 			parent = this.parent,
 			parsedTargets = (_isArray(targets) ? _isNumber(targets[0]) : ("length" in vars)) ? [targets] : toArray(targets), // edge case: someone might try animating the "length" of an object with a "length" property that's initially set to 0 so don't interpret that as an empty Array-like object.
@@ -2317,11 +2311,11 @@ export class Tween extends Animation {
 			_globalTimeline.killTweensOf(parsedTargets);
 			_overwritingTween = 0;
 		}
+		parent && _postAddChecks(parent, this);
 		if (immediateRender || (!duration && !keyframes && this._start === parent._time  && _isNotFalse(immediateRender) && _hasNoPausedAncestors(this) && parent.data !== "nested")) {
 			this._tTime = -_tinyNum; //forces a render without having to set the render() "force" parameter to true because we want to allow lazying by default (using the "force" parameter always forces an immediate full render)
 			this.render(Math.max(0, -delay)); //in case delay is negative
 		}
-		parent && _postAddChecks(parent, this);
 	}
 
 	render(totalTime, suppressEvents, force) {
@@ -2513,9 +2507,7 @@ export class Tween extends Animation {
 
 	static set(targets, vars) {
 		vars.duration = 0;
-		if (!vars.repeatDelay) {
-			vars.repeat = 0;
-		}
+		vars.repeatDelay || (vars.repeat = 0);
 		return new Tween(targets, vars);
 	}
 
@@ -2889,7 +2881,7 @@ export const gsap = _gsap.registerPlugin({
 	_buildModifierPlugin("snap", snap)
 ) || _gsap; //to prevent the core plugins from being dropped via aggressive tree shaking, we must include them in the variable declaration in this way.
 
-Tween.version = Timeline.version = gsap.version = "3.2.2";
+Tween.version = Timeline.version = gsap.version = "3.2.3";
 _coreReady = 1;
 if (_windowExists()) {
 	_wake();

@@ -1377,7 +1377,7 @@
 	  return Matrix2D;
 	}();
 	function getGlobalMatrix(element, inverse, adjustGOffset) {
-	  if (!element || !element.parentNode) {
+	  if (!element || !element.parentNode || (_doc || _setDoc(element)).documentElement === element) {
 	    return new Matrix2D();
 	  }
 
@@ -1396,7 +1396,7 @@
 	}
 
 	/*!
-	 * MotionPathPlugin 3.2.2
+	 * MotionPathPlugin 3.2.3
 	 * https://greensock.com
 	 *
 	 * @license Copyright 2008-2020, GreenSock. All rights reserved.
@@ -1408,10 +1408,6 @@
 	var _xProps = ["x", "translateX", "left", "marginLeft"],
 	    _yProps = ["y", "translateY", "top", "marginTop"],
 	    _DEG2RAD$1 = Math.PI / 180,
-	    _zeroPoint = {
-	  x: 0,
-	  y: 0
-	},
 	    gsap,
 	    PropTween,
 	    _getUnit,
@@ -1478,7 +1474,7 @@
 	      x,
 	      y;
 
-	  if (element.tagName.toLowerCase() === "svg") {
+	  if ((element.tagName + "").toLowerCase() === "svg") {
 	    svg = element.viewBox.baseVal;
 	    x = svg.x;
 	    y = svg.y;
@@ -1492,8 +1488,8 @@
 	  }
 
 	  if (origin && origin !== "auto") {
-	    x += origin[0] * (svg ? svg.width : element.offsetWidth || 0);
-	    y += origin[1] * (svg ? svg.height : element.offsetHeight || 0);
+	    x += origin.push ? origin[0] * (svg ? svg.width : element.offsetWidth || 0) : origin.x;
+	    y += origin.push ? origin[1] * (svg ? svg.height : element.offsetHeight || 0) : origin.y;
 	  }
 
 	  return parentMatrix.apply(x || y ? m.apply({
@@ -1602,7 +1598,7 @@
 	};
 
 	var MotionPathPlugin = {
-	  version: "3.2.2",
+	  version: "3.2.3",
 	  name: "motionPath",
 	  register: function register(core, Plugin, propTween) {
 	    gsap = core;
@@ -1715,7 +1711,8 @@
 	    });
 	  },
 	  convertCoordinates: function convertCoordinates(fromElement, toElement, point) {
-	    return getGlobalMatrix(toElement, true, true).multiply(getGlobalMatrix(fromElement)).apply(point || _zeroPoint);
+	    var m = getGlobalMatrix(toElement, true, true).multiply(getGlobalMatrix(fromElement));
+	    return point ? m.apply(point) : m;
 	  },
 	  getAlignMatrix: _getAlignMatrix,
 	  getRelativePosition: function getRelativePosition(fromElement, toElement, fromOrigin, toOrigin) {

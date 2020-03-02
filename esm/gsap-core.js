@@ -3,7 +3,7 @@ function _assertThisInitialized(self) { if (self === void 0) { throw new Referen
 function _inheritsLoose(subClass, superClass) { subClass.prototype = Object.create(superClass.prototype); subClass.prototype.constructor = subClass; subClass.__proto__ = superClass; }
 
 /*!
- * GSAP 3.2.2
+ * GSAP 3.2.3
  * https://greensock.com
  *
  * @license Copyright 2008-2020, GreenSock. All rights reserved.
@@ -404,9 +404,9 @@ _totalTimeToTime = (clampedTotalTime, duration, repeat, repeatDelay, yoyo) => {
 _postAddChecks = function _postAddChecks(timeline, child) {
   var t;
 
-  if (child._time || !child._dur && child._initted) {
+  if (child._time || child._initted && !child._dur) {
     //in case, for example, the _start is moved on a tween that has already rendered. Imagine it's at its end state, then the startTime is moved WAY later (after the end of this timeline), it should render at its beginning.
-    t = (timeline.rawTime() - child._start) * child._ts;
+    t = _parentToChildTotalTime(timeline.rawTime(), child);
 
     if (!child._dur || _clamp(0, child.totalDuration(), t) - child._tTime > _tinyNum) {
       child.render(t, true);
@@ -494,11 +494,7 @@ _postAddChecks = function _postAddChecks(timeline, child) {
 
     tween._time = 0;
     tween._tTime = tTime;
-
-    if (!suppressEvents) {
-      _callback(tween, "onStart");
-    }
-
+    suppressEvents || _callback(tween, "onStart");
     pt = tween._pt;
 
     while (pt) {
@@ -511,9 +507,7 @@ _postAddChecks = function _postAddChecks(timeline, child) {
       tween._startAt.render(totalTime, true, force);
     }
 
-    if (tween._onUpdate && !suppressEvents) {
-      _callback(tween, "onUpdate");
-    }
+    tween._onUpdate && (suppressEvents || _callback(tween, "onUpdate"));
 
     if (tTime && tween._repeat && !suppressEvents && tween.parent) {
       _callback(tween, "onRepeat");
@@ -1963,13 +1957,9 @@ function (_Animation) {
   _proto2.set = function set(targets, vars, position) {
     vars.duration = 0;
     vars.parent = this;
-
-    if (!vars.repeatDelay) {
-      vars.repeat = 0;
-    }
-
+    _inheritDefaults(vars).repeatDelay || (vars.repeat = 0);
     vars.immediateRender = !!vars.immediateRender;
-    new Tween(targets, vars, _parsePosition(this, position));
+    new Tween(targets, vars, _parsePosition(this, position), 1);
     return this;
   };
 
@@ -1990,13 +1980,13 @@ function (_Animation) {
 
   _proto2.staggerFrom = function staggerFrom(targets, duration, vars, stagger, position, onCompleteAll, onCompleteAllParams) {
     vars.runBackwards = 1;
-    vars.immediateRender = _isNotFalse(vars.immediateRender);
+    _inheritDefaults(vars).immediateRender = _isNotFalse(vars.immediateRender);
     return this.staggerTo(targets, duration, vars, stagger, position, onCompleteAll, onCompleteAllParams);
   };
 
   _proto2.staggerFromTo = function staggerFromTo(targets, duration, fromVars, toVars, stagger, position, onCompleteAll, onCompleteAllParams) {
     toVars.startAt = fromVars;
-    toVars.immediateRender = _isNotFalse(toVars.immediateRender);
+    _inheritDefaults(toVars).immediateRender = _isNotFalse(toVars.immediateRender);
     return this.staggerTo(targets, duration, toVars, stagger, position, onCompleteAll, onCompleteAllParams);
   };
 
@@ -3002,7 +2992,7 @@ export var Tween =
 function (_Animation2) {
   _inheritsLoose(Tween, _Animation2);
 
-  function Tween(targets, vars, time) {
+  function Tween(targets, vars, time, skipInherit) {
     var _this3;
 
     if (typeof vars === "number") {
@@ -3011,7 +3001,7 @@ function (_Animation2) {
       time = null;
     }
 
-    _this3 = _Animation2.call(this, _inheritDefaults(vars), time) || this;
+    _this3 = _Animation2.call(this, skipInherit ? vars : _inheritDefaults(vars), time) || this;
     var _this3$vars = _this3.vars,
         duration = _this3$vars.duration,
         delay = _this3$vars.delay,
@@ -3120,6 +3110,8 @@ function (_Animation2) {
       _overwritingTween = 0;
     }
 
+    parent && _postAddChecks(parent, _assertThisInitialized(_this3));
+
     if (immediateRender || !duration && !keyframes && _this3._start === parent._time && _isNotFalse(immediateRender) && _hasNoPausedAncestors(_assertThisInitialized(_this3)) && parent.data !== "nested") {
       _this3._tTime = -_tinyNum; //forces a render without having to set the render() "force" parameter to true because we want to allow lazying by default (using the "force" parameter always forces an immediate full render)
 
@@ -3127,7 +3119,6 @@ function (_Animation2) {
 
     }
 
-    parent && _postAddChecks(parent, _assertThisInitialized(_this3));
     return _this3;
   }
 
@@ -3397,11 +3388,7 @@ function (_Animation2) {
 
   Tween.set = function set(targets, vars) {
     vars.duration = 0;
-
-    if (!vars.repeatDelay) {
-      vars.repeat = 0;
-    }
-
+    vars.repeatDelay || (vars.repeat = 0);
     return new Tween(targets, vars);
   };
 
@@ -3891,7 +3878,7 @@ export var gsap = _gsap.registerPlugin({
   }
 }, _buildModifierPlugin("roundProps", _roundModifier), _buildModifierPlugin("modifiers"), _buildModifierPlugin("snap", snap)) || _gsap; //to prevent the core plugins from being dropped via aggressive tree shaking, we must include them in the variable declaration in this way.
 
-Tween.version = Timeline.version = gsap.version = "3.2.2";
+Tween.version = Timeline.version = gsap.version = "3.2.3";
 _coreReady = 1;
 
 if (_windowExists()) {

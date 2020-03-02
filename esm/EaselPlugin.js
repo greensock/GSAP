@@ -1,5 +1,5 @@
 /*!
- * EaselPlugin 3.2.2
+ * EaselPlugin 3.2.3
  * https://greensock.com
  *
  * @license Copyright 2008-2020, GreenSock. All rights reserved.
@@ -259,7 +259,7 @@ var gsap,
 };
 
 export var EaselPlugin = {
-  version: "3.2.2",
+  version: "3.2.3",
   name: "easel",
   init: function init(target, value, tween, index, targets) {
     if (!_coreInitted) {

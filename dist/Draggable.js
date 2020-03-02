@@ -294,7 +294,7 @@
     return Matrix2D;
   }();
   function getGlobalMatrix(element, inverse, adjustGOffset) {
-    if (!element || !element.parentNode) {
+    if (!element || !element.parentNode || (_doc || _setDoc(element)).documentElement === element) {
       return new Matrix2D();
     }
 
@@ -2890,7 +2890,7 @@
   });
 
   Draggable.zIndex = 1000;
-  Draggable.version = "3.2.2";
+  Draggable.version = "3.2.3";
   _getGSAP() && gsap.registerPlugin(Draggable);
 
   exports.Draggable = Draggable;

@@ -1,5 +1,5 @@
 /*!
- * CSSPlugin 3.2.2
+ * CSSPlugin 3.2.3
  * https://greensock.com
  *
  * Copyright 2008-2020, GreenSock. All rights reserved.
@@ -455,6 +455,7 @@ _convertToUnit = function _convertToUnit(target, property, value, unit) {
     var target = data.t,
         style = target.style,
         props = data.u,
+        cache = target._gsap,
         prop,
         clearTransforms,
         i;
@@ -481,15 +482,13 @@ _convertToUnit = function _convertToUnit(target, property, value, unit) {
     if (clearTransforms) {
       _removeProperty(target, _transformProp);
 
-      clearTransforms = target._gsap;
-
-      if (clearTransforms) {
-        if (clearTransforms.svg) {
-          target.removeAttribute("transform");
-        }
+      if (cache) {
+        cache.svg && target.removeAttribute("transform");
 
         _parseTransform(target, 1); // force all the cached values back to "normal"/identity, otherwise if there's another tween that's already set to render transforms on this element, it could display the wrong values.
 
+
+        cache.uncache = 1;
       }
     }
   }

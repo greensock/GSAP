@@ -1,5 +1,5 @@
 /*!
- * MotionPathPlugin 3.2.2
+ * MotionPathPlugin 3.2.3
  * https://greensock.com
  *
  * @license Copyright 2008-2020, GreenSock. All rights reserved.
@@ -15,7 +15,6 @@ import { getGlobalMatrix } from "./utils/matrix.js";
 let _xProps = ["x","translateX","left","marginLeft"],
 	_yProps = ["y","translateY","top","marginTop"],
 	_DEG2RAD = Math.PI / 180,
-	_zeroPoint = {x: 0, y: 0},
 	gsap, PropTween, _getUnit, _toArray,
 	_getGSAP = () => gsap || (typeof(window) !== "undefined" && (gsap = window.gsap) && gsap.registerPlugin && gsap),
 	_populateSegmentFromArray = (segment, values, property, mode) => { //mode: 0 = x but don't fill y yet, 1 = y.
@@ -61,7 +60,7 @@ let _xProps = ["x","translateX","left","marginLeft"],
 	_originToPoint = (element, origin, parentMatrix) => { // origin is an array of normalized values (0-1) in relation to the width/height, so [0.5, 0.5] would be the center. It can also be "auto" in which case it will be the top left unless it's a <path>, when it will start at the beginning of the path itself.
 		let m = getGlobalMatrix(element),
 			svg, x, y;
-		if (element.tagName.toLowerCase() === "svg") {
+		if ((element.tagName + "").toLowerCase() === "svg") {
 			svg = element.viewBox.baseVal;
 			x = svg.x;
 			y = svg.y;
@@ -71,8 +70,8 @@ let _xProps = ["x","translateX","left","marginLeft"],
 			x = y = 0;
 		}
 		if (origin && origin !== "auto") {
-			x += origin[0] * (svg ? svg.width : element.offsetWidth || 0);
-			y += origin[1] * (svg ? svg.height : element.offsetHeight || 0);
+			x += origin.push ? origin[0] * (svg ? svg.width : element.offsetWidth || 0) : origin.x;
+			y += origin.push ? origin[1] * (svg ? svg.height : element.offsetHeight || 0) : origin.y;
 		}
 		return parentMatrix.apply( x || y ? m.apply({x: x, y: y}) : {x: m.e, y: m.f} );
 	},
@@ -143,7 +142,7 @@ let _xProps = ["x","translateX","left","marginLeft"],
 
 
 export const MotionPathPlugin = {
-	version: "3.2.2",
+	version: "3.2.3",
 	name: "motionPath",
 	register(core, Plugin, propTween) {
 		gsap = core;
@@ -234,7 +233,8 @@ export const MotionPathPlugin = {
 	cacheRawPathMeasurements,
 	convertToPath: (targets, swap) => _toArray(targets).map(target => convertToPath(target, swap !== false)),
 	convertCoordinates(fromElement, toElement, point) {
-		return getGlobalMatrix(toElement, true, true).multiply(getGlobalMatrix(fromElement)).apply(point || _zeroPoint);
+		let m = getGlobalMatrix(toElement, true, true).multiply(getGlobalMatrix(fromElement));
+		return point ? m.apply(point) : m;
 	},
 	getAlignMatrix: _getAlignMatrix,
 	getRelativePosition(fromElement, toElement, fromOrigin, toOrigin) {
