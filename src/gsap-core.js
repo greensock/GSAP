@@ -1,5 +1,5 @@
 /*!
- * GSAP 3.2.3
+ * GSAP 3.2.4
  * https://greensock.com
  *
  * @license Copyright 2008-2020, GreenSock. All rights reserved.
@@ -1192,7 +1192,7 @@ export class Animation {
 				_addToTimeline(this._dp, this, this._start - this._delay);
 			}
 		}
-		if (this._tTime !== totalTime || (!this._dur && !suppressEvents) || Math.abs(this._zTime) === _tinyNum) {
+        if (this._tTime !== totalTime || (!this._dur && !suppressEvents) || (this._initted && Math.abs(this._zTime) === _tinyNum)) {
 			this._ts || (this._pTime = totalTime); // otherwise, if an animation is paused, then the playhead is moved back to zero, then resumed, it'd revert back to the original time at the pause
 			_lazySafeRender(this, totalTime, suppressEvents);
 		}
@@ -2405,7 +2405,7 @@ export class Tween extends Animation {
 					this._startAt.render(totalTime, true, force);
 				}
 				(totalTime || !dur) && ((totalTime && this._ts > 0) || (!tTime && this._ts < 0)) && _removeFromParent(this, 1); // don't remove if we're rendering at exactly a time of 0, as there could be autoRevert values that should get set on the next tick (if the playhead goes backward beyond the startTime, negative totalTime). Don't remove if the timeline is reversed and the playhead isn't at 0, otherwise tl.progress(1).reverse() won't work. Only remove if the playhead is at the end and timeScale is positive, or if the playhead is at 0 and the timeScale is negative.
-				if (!suppressEvents && !(totalTime < 0 && !prevTime)) {
+			    if (!suppressEvents && !(totalTime < 0 && !prevTime) && !(tTime < tDur && this.timeScale() > 0)) {
 					_callback(this, (tTime === tDur ? "onComplete" : "onReverseComplete"), true);
 					this._prom && this._prom();
 				}
@@ -2422,9 +2422,7 @@ export class Tween extends Animation {
 	invalidate() {
 		this._pt = this._op = this._startAt = this._onUpdate = this._act = this._lazy = 0;
 		this._ptLookup = [];
-		if (this.timeline) {
-			this.timeline.invalidate();
-		}
+		this.timeline && this.timeline.invalidate();
 		return super.invalidate();
 	}
 
@@ -2881,7 +2879,7 @@ export const gsap = _gsap.registerPlugin({
 	_buildModifierPlugin("snap", snap)
 ) || _gsap; //to prevent the core plugins from being dropped via aggressive tree shaking, we must include them in the variable declaration in this way.
 
-Tween.version = Timeline.version = gsap.version = "3.2.3";
+Tween.version = Timeline.version = gsap.version = "3.2.4";
 _coreReady = 1;
 if (_windowExists()) {
 	_wake();

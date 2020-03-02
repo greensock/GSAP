@@ -2678,11 +2678,8 @@
           scrollProxy.element._gsDragID = id;
         }
 
-        if (vars.bounds) {
-          recordStartPositions();
-          self.applyBounds();
-        }
-
+        (vars.bounds || rotationMode) && recordStartPositions();
+        vars.bounds && self.applyBounds();
         return self;
       };
 
@@ -2890,7 +2887,7 @@
   });
 
   Draggable.zIndex = 1000;
-  Draggable.version = "3.2.3";
+  Draggable.version = "3.2.4";
   _getGSAP() && gsap.registerPlugin(Draggable);
 
   exports.Draggable = Draggable;

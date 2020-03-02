@@ -19,7 +19,7 @@
   }
 
   /*!
-   * GSAP 3.2.3
+   * GSAP 3.2.4
    * https://greensock.com
    *
    * @license Copyright 2008-2020, GreenSock. All rights reserved.
@@ -1532,7 +1532,7 @@
         }
       }
 
-      if (this._tTime !== _totalTime || !this._dur && !suppressEvents || Math.abs(this._zTime) === _tinyNum) {
+      if (this._tTime !== _totalTime || !this._dur && !suppressEvents || this._initted && Math.abs(this._zTime) === _tinyNum) {
         this._ts || (this._pTime = _totalTime);
 
         _lazySafeRender(this, _totalTime, suppressEvents);
@@ -3030,7 +3030,7 @@
 
           (totalTime || !dur) && (totalTime && this._ts > 0 || !tTime && this._ts < 0) && _removeFromParent(this, 1);
 
-          if (!suppressEvents && !(totalTime < 0 && !prevTime)) {
+          if (!suppressEvents && !(totalTime < 0 && !prevTime) && !(tTime < tDur && this.timeScale() > 0)) {
             _callback(this, tTime === tDur ? "onComplete" : "onReverseComplete", true);
 
             this._prom && this._prom();
@@ -3048,11 +3048,7 @@
     _proto3.invalidate = function invalidate() {
       this._pt = this._op = this._startAt = this._onUpdate = this._act = this._lazy = 0;
       this._ptLookup = [];
-
-      if (this.timeline) {
-        this.timeline.invalidate();
-      }
-
+      this.timeline && this.timeline.invalidate();
       return _Animation2.prototype.invalidate.call(this);
     };
 
@@ -3629,7 +3625,7 @@
       }
     }
   }, _buildModifierPlugin("roundProps", _roundModifier), _buildModifierPlugin("modifiers"), _buildModifierPlugin("snap", snap)) || _gsap;
-  Tween.version = Timeline.version = gsap.version = "3.2.3";
+  Tween.version = Timeline.version = gsap.version = "3.2.4";
   _coreReady = 1;
 
   if (_windowExists()) {
