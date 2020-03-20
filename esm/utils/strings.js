@@ -1,5 +1,5 @@
 /*!
- * strings: 3.2.4
+ * strings: 3.2.5
  * https://greensock.com
  *
  * Copyright 2008-2020, GreenSock. All rights reserved.
@@ -62,6 +62,8 @@ let _emoji = "[\uE000-\uF8FF]|\uD83C[\uDC00-\uDFFF]|\uD83D[\uDC00-\uDFFF]|[\u269
  */
 
 export function emojiSafeSplit(text, delimiter, trim) {
+  text += ""; // make sure it's cast as a string. Someone may pass in a number.
+
   if (trim) {
     text = text.replace(_trimExp, "");
   }

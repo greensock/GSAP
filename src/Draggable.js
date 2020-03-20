@@ -1,5 +1,5 @@
 /*!
- * Draggable 3.2.4
+ * Draggable 3.2.5
  * https://greensock.com
  *
  * @license Copyright 2008-2020, GreenSock. All rights reserved.
@@ -142,18 +142,20 @@ let gsap, _win, _doc, _docElement, _body, _tempDiv, _placeholderDiv, _coreInitte
 			client = "client" + dim;
 		return Math.max(0, _isRoot(element) ? Math.max(_docElement[scroll], _body[scroll]) - (_win["inner" + dim] || _docElement[client] || _body[client]) : element[scroll] - element[client]);
 	},
-	_recordMaxScrolls = e => { //records _gsMaxScrollX and _gsMaxScrollY properties for the element and all ancestors up the chain so that we can cap it, otherwise dragging beyond the edges with autoScroll on can endlessly scroll.
+	_recordMaxScrolls = (e, skipCurrent) => { //records _gsMaxScrollX and _gsMaxScrollY properties for the element and all ancestors up the chain so that we can cap it, otherwise dragging beyond the edges with autoScroll on can endlessly scroll.
 		let x = _getMaxScroll(e, "x"),
 			y = _getMaxScroll(e, "y");
 		if (_isRoot(e)) {
 			e = _windowProxy;
 		} else {
-			_recordMaxScrolls(e.parentNode);
+			_recordMaxScrolls(e.parentNode, skipCurrent);
 		}
 		e._gsMaxScrollX = x;
 		e._gsMaxScrollY = y;
-		e._gsScrollX = e.scrollLeft || 0;
-		e._gsScrollY = e.scrollTop || 0;
+		if (!skipCurrent) {
+			e._gsScrollX = e.scrollLeft || 0;
+			e._gsScrollY = e.scrollTop || 0;
+		}
 	},
 	_setStyle = (element, property, value) => {
 		let style = element.style;
@@ -530,6 +532,7 @@ let gsap, _win, _doc, _docElement, _body, _tempDiv, _placeholderDiv, _coreInitte
 	},
 	_initCore = required => {
 		if (_windowExists() && document.body) {
+			let nav = window && window.navigator;
 			_win = window;
 			_doc = document;
 			_docElement = _doc.documentElement;
@@ -539,8 +542,8 @@ let gsap, _win, _doc, _docElement, _body, _tempDiv, _placeholderDiv, _coreInitte
 			_placeholderDiv = _createElement("div");
 			_placeholderDiv.style.cssText = "visibility:hidden;height:1px;top:-1px;pointer-events:none;position:relative;clear:both;cursor:grab";
 			_defaultCursor = _placeholderDiv.style.cursor === "grab" ? "grab" : "move";
-			_isAndroid = (_win.navigator && _win.navigator.userAgent.toLowerCase().indexOf("android") !== -1); //Android handles touch events in an odd way and it's virtually impossible to "feature test" so we resort to UA sniffing
-			_isTouchDevice = ("ontouchstart" in _docElement) && ("orientation" in _win);
+			_isAndroid = (nav && nav.userAgent.toLowerCase().indexOf("android") !== -1); //Android handles touch events in an odd way and it's virtually impossible to "feature test" so we resort to UA sniffing
+			_isTouchDevice = (("ontouchstart" in _docElement) && ("orientation" in _win)) || (nav && (nav.MaxTouchPoints > 0 || nav.msMaxTouchPoints > 0));
 			_addPaddingBR = (function() { //this function is in charge of analyzing browser behavior related to padding. It sets the _addPaddingBR to true if the browser doesn't normally factor in the bottom or right padding on the element inside the scrolling area, and it sets _addPaddingLeft to true if it's a browser that requires the extra offset (offsetLeft) to be added to the paddingRight (like Opera).
 				let div = _createElement("div"),
 					child = _createElement("div"),
@@ -978,8 +981,8 @@ export class Draggable extends EventDispatcher {
 						self.maxY = maxY = bounds.maxY;
 					} else {
 						targetBounds = _getBounds(target, target.parentNode);
-						self.minX = minX = Math.round(getPropAsNum(xProp, "px") + bounds.left - targetBounds.left);
-						self.minY = minY = Math.round(getPropAsNum(yProp, "px") + bounds.top - targetBounds.top);
+						self.minX = minX = Math.round(getPropAsNum(xProp, "px") + bounds.left - targetBounds.left - 0.5);
+						self.minY = minY = Math.round(getPropAsNum(yProp, "px") + bounds.top - targetBounds.top - 0.5);
 						self.maxX = maxX = Math.round(minX + (bounds.width - targetBounds.width));
 						self.maxY = maxY = Math.round(minY + (bounds.height - targetBounds.height));
 					}
@@ -1053,7 +1056,7 @@ export class Draggable extends EventDispatcher {
 					self.isThrowing = true;
 					overshootTolerance = (!isNaN(vars.overshootTolerance)) ? vars.overshootTolerance : (vars.edgeResistance === 1) ? 0 : (1 - self.edgeResistance) + 0.2;
 					if (!inertia.duration) {
-						inertia.duration = {max:Math.max(vars.minDuration || 0, ("maxDuration" in vars) ? vars.maxDuration : 2), min:(!isNaN(vars.minDuration) ? vars.minDuration : (overshootTolerance === 0 || (_isObject(inertia) && inertia.resistance > 1000)) ? 0 : 0.5), overshoot:overshootTolerance};
+						inertia.duration = {max: Math.max(vars.minDuration || 0, ("maxDuration" in vars) ? vars.maxDuration : 2), min: (!isNaN(vars.minDuration) ? vars.minDuration : (overshootTolerance === 0 || (_isObject(inertia) && inertia.resistance > 1000)) ? 0 : 0.5), overshoot: overshootTolerance};
 					}
 					self.tween = tween = gsap.to(scrollProxy || target, {
 						inertia: inertia,
@@ -1065,9 +1068,9 @@ export class Draggable extends EventDispatcher {
 					});
 					if (!vars.fastMode) {
 						if (scrollProxy) {
-							scrollProxy._skip = true; //Microsoft browsers have a bug that causes them to briefly render the position incorrectly (it flashes to the end state when we seek() the tween even though we jump right back to the current position, and this only seems to happen when we're affecting both top and left), so we set a _suspendTransforms flag to prevent it from actually applying the values in the ScrollProxy.
+							scrollProxy._skip = true; // Microsoft browsers have a bug that causes them to briefly render the position incorrectly (it flashes to the end state when we seek() the tween even though we jump right back to the current position, and this only seems to happen when we're affecting both top and left), so we set a _suspendTransforms flag to prevent it from actually applying the values in the ScrollProxy.
 						}
-						tween.render(tween.duration(), true, true);
+						tween.render(1e9, true, true); // force to the end. Remember, the duration will likely change upon initting because that's when InertiaPlugin calculates it.
 						syncXY(true, true);
 						self.endX = self.x;
 						self.endY = self.y;
@@ -1724,15 +1727,13 @@ export class Draggable extends EventDispatcher {
 			}
 			if (sticky) {
 				setPointerPosition(self.pointerX, self.pointerY);
-				if (dirty) {
-					render(true);
-				}
+				dirty && render(true);
 			}
 			if (self.isPressed && !sticky && ((allowX && Math.abs(x - self.x) > 0.01) || (allowY && (Math.abs(y - self.y) > 0.01 && !rotationMode)))) {
 				recordStartPositions();
 			}
 			if (self.autoScroll) {
-				_recordMaxScrolls(target.parentNode);
+				_recordMaxScrolls(target.parentNode, self.isDragging);
 				checkAutoScrollBounds = self.isDragging;
 				render(true);
 				//in case reparenting occurred.
@@ -1930,7 +1931,7 @@ export class Draggable extends EventDispatcher {
 _setDefaults(Draggable.prototype, {pointerX:0, pointerY: 0, startX: 0, startY: 0, deltaX: 0, deltaY: 0, isDragging: false, isPressed: false});
 
 Draggable.zIndex = 1000;
-Draggable.version = "3.2.4";
+Draggable.version = "3.2.5";
 
 _getGSAP() && gsap.registerPlugin(Draggable);
 

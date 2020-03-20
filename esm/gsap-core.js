@@ -3,7 +3,7 @@ function _assertThisInitialized(self) { if (self === void 0) { throw new Referen
 function _inheritsLoose(subClass, superClass) { subClass.prototype = Object.create(superClass.prototype); subClass.prototype.constructor = subClass; subClass.__proto__ = superClass; }
 
 /*!
- * GSAP 3.2.4
+ * GSAP 3.2.5
  * https://greensock.com
  *
  * @license Copyright 2008-2020, GreenSock. All rights reserved.
@@ -388,7 +388,7 @@ _animationCycle = function _animationCycle(tTime, cycleDuration) {
   return (parentTime - child._start) * child._ts + (child._ts >= 0 ? 0 : child._dirty ? child.totalDuration() : child._tDur);
 },
     _setEnd = function _setEnd(animation) {
-  return animation._end = _round(animation._start + (animation._tDur / Math.abs(animation._ts || animation._pauseTS || _tinyNum) || 0));
+  return animation._end = _round(animation._start + (animation._tDur / Math.abs(animation._ts || animation._rts || _tinyNum) || 0));
 },
 
 /*
@@ -551,10 +551,15 @@ _postAddChecks = function _postAddChecks(timeline, child) {
 },
     _setDuration = function _setDuration(animation, duration, skipUncache) {
   var repeat = animation._repeat,
-      dur = _round(duration);
-
+      dur = _round(duration) || 0;
   animation._dur = dur;
   animation._tDur = !repeat ? dur : repeat < 0 ? 1e12 : _round(dur * (repeat + 1) + animation._rDelay * repeat);
+
+  if (animation._time > dur) {
+    animation._time = dur;
+    animation._tTime = Math.min(animation._tTime, animation._tDur);
+  }
+
   !skipUncache && _uncache(animation.parent);
   animation.parent && _setEnd(animation);
   return animation;
@@ -1575,13 +1580,14 @@ function () {
       this._yoyo = !!vars.yoyo || !!vars.yoyoEase;
     }
 
-    this._ts = vars.reversed ? -1 : 1;
+    this._ts = 1;
 
     _setDuration(this, +vars.duration, 1);
 
     this.data = vars.data;
     _tickerActive || _ticker.wake();
     parent && _addToTimeline(parent, this, time || time === 0 ? time : parent._time, 1);
+    vars.reversed && this.reverse();
     vars.paused && this.paused(true);
   }
 
@@ -1589,6 +1595,7 @@ function () {
 
   _proto.delay = function delay(value) {
     if (value || value === 0) {
+      this.parent && this.parent.smoothChildTiming && this.startTime(this._start + value - this._delay);
       this._delay = value;
       return this;
     }
@@ -1597,7 +1604,7 @@ function () {
   };
 
   _proto.duration = function duration(value) {
-    return arguments.length ? _setDuration(this, value) : this.totalDuration() && this._dur;
+    return arguments.length ? this.totalDuration(this._repeat > 0 ? value + (value + this._rDelay) * this._repeat : value) : this.totalDuration() && this._dur;
   };
 
   _proto.totalDuration = function totalDuration(value) {
@@ -1675,39 +1682,38 @@ function () {
 
   _proto.timeScale = function timeScale(value) {
     if (!arguments.length) {
-      return this._ts || this._pauseTS || 0;
+      return this._rts === -_tinyNum ? 0 : this._rts; // recorded timeScale. Special case: if someone calls reverse() on an animation with timeScale of 0, we assign it -_tinyNum to remember it's reversed.
     }
 
-    if (this._pauseTS !== null) {
-      this._pauseTS = value;
+    if (this._rts === value) {
       return this;
     }
 
     var tTime = this.parent && this._ts ? _parentToChildTotalTime(this.parent._time, this) : this._tTime; // make sure to do the parentToChildTotalTime() BEFORE setting the new _ts because the old one must be used in that calculation.
+    // prioritize rendering where the parent's playhead lines up instead of this._tTime because there could be a tween that's animating another tween's timeScale in the same rendering loop (same parent), thus if the timeScale tween renders first, it would alter _start BEFORE _tTime was set on that tick (in the rendering loop), effectively freezing it until the timeScale tween finishes.
 
-    this._ts = value; // prioritize rendering where the parent's playhead lines up instead of this._tTime because there could be a tween that's animating another tween's timeScale in the same rendering loop (same parent), thus if the timeScale tween renders first, it would alter _start BEFORE _tTime was set on that tick (in the rendering loop), effectively freezing it until the timeScale tween finishes.
+    this._rts = +value || 0;
+    this._ts = this._ps || value === -_tinyNum ? 0 : this._rts; // _ts is the functional timeScale which would be 0 if the animation is paused.
 
     return _recacheAncestors(this.totalTime(tTime, true));
   };
 
   _proto.paused = function paused(value) {
-    var isPaused = !this._ts;
-
     if (!arguments.length) {
-      return isPaused;
+      return this._ps;
     }
 
-    if (isPaused !== value) {
+    if (this._ps !== value) {
+      this._ps = value;
+
       if (value) {
-        this._pauseTS = this._ts;
         this._pTime = this._tTime || Math.max(-this._delay, this.rawTime()); // if the pause occurs during the delay phase, make sure that's factored in when resuming.
 
-        this._ts = this._act = 0; //we use a timeScale of 0 to indicate a paused state, but we record the old "real" timeScale as _pauseTS so we can revert when unpaused.
+        this._ts = this._act = 0; // _ts is the functional timeScale, so a paused tween would effectively have a timeScale of 0. We record the "real" timeScale as _rts (recorded time scale)
       } else {
         _wake();
 
-        this._ts = this._pauseTS || 1;
-        this._pauseTS = null; //only defer to _pTime (pauseTime) if tTime is zero. Remember, someone could pause() an animation, then scrub the playhead and resume(). If the parent doesn't have smoothChildTiming, we render at the rawTime() because the startTime won't get updated.
+        this._ts = this._rts; //only defer to _pTime (pauseTime) if tTime is zero. Remember, someone could pause() an animation, then scrub the playhead and resume(). If the parent doesn't have smoothChildTiming, we render at the rawTime() because the startTime won't get updated.
 
         this.totalTime(this.parent && !this.parent.smoothChildTiming ? this.rawTime() : this._tTime || this._pTime, this.progress() === 1 && (this._tTime -= _tinyNum) && Math.abs(this._zTime) !== _tinyNum); // edge case: animation.progress(1).pause().play() wouldn't render again because the playhead is already at the end, but the call to totalTime() below will add it back to its parent...and not remove it again (since removing only happens upon rendering at a new time). Offsetting the _tTime slightly is done simply to cause the final render in totalTime() that'll pop it off its timeline (if autoRemoveChildren is true, of course). Check to make sure _zTime isn't -_tinyNum to avoid an edge case where the playhead is pushed to the end but INSIDE a tween/callback, the timeline itself is paused thus halting rendering and leaving a few unrendered. When resuming, it wouldn't render those otherwise.
       }
@@ -1718,10 +1724,9 @@ function () {
 
   _proto.startTime = function startTime(value) {
     if (arguments.length) {
-      if (this.parent && this.parent._sort) {
-        _addToTimeline(this.parent, this, value - this._delay);
-      }
-
+      this._start = value;
+      var parent = this.parent || this._dp;
+      parent && (parent._sort || !this.parent) && _addToTimeline(parent, this, value - this._delay);
       return this;
     }
 
@@ -1811,18 +1816,15 @@ function () {
   };
 
   _proto.reversed = function reversed(value) {
-    var ts = this._ts || this._pauseTS || 0;
-
     if (arguments.length) {
-      if (value !== this.reversed()) {
-        this[this._pauseTS === null ? "_ts" : "_pauseTS"] = Math.abs(ts) * (value ? -1 : 1);
-        this.totalTime(this._tTime, true);
+      if (!!value !== this.reversed()) {
+        this.timeScale(-this._rts || (value ? -_tinyNum : 0)); // in case timeScale is zero, reversing would have no effect so we use _tinyNum.
       }
 
       return this;
     }
 
-    return ts < 0;
+    return this._rts < 0;
   };
 
   _proto.invalidate = function invalidate() {
@@ -1907,7 +1909,8 @@ _setDefaults(Animation.prototype, {
   ratio: 0,
   _zTime: -_tinyNum,
   _prom: 0,
-  _pauseTS: null
+  _ps: false,
+  _rts: 1
 });
 /*
  * -------------------------------------------------
@@ -2197,7 +2200,7 @@ function (_Animation) {
         _callback(this, "onUpdate", true);
       }
 
-      if (tTime === tDur && tDur >= this.totalDuration() || !tTime && this._ts < 0) if (prevStart === this._start || Math.abs(timeScale) !== Math.abs(this._ts)) {
+      if (tTime === tDur && tDur >= this.totalDuration() || !tTime && this._ts < 0) if (prevStart === this._start || Math.abs(timeScale) !== Math.abs(this._ts)) if (!this._lock) {
         (totalTime || !dur) && (totalTime && this._ts > 0 || !tTime && this._ts < 0) && _removeFromParent(this, 1); // don't remove if the timeline is reversed and the playhead isn't at 0, otherwise tl.progress(1).reverse() won't work. Only remove if the playhead is at the end and timeScale is positive, or if the playhead is at 0 and the timeScale is negative.
 
         if (!suppressEvents && !(totalTime < 0 && !prevTime)) {
@@ -2405,10 +2408,10 @@ function (_Animation) {
       ease: "none",
       lazy: false,
       time: endTime,
-      duration: vars.duration || Math.abs(endTime - (startAt && "time" in startAt ? startAt.time : tl._time)) / tl.timeScale() || _tinyNum,
+      duration: vars.duration || Math.abs((endTime - (startAt && "time" in startAt ? startAt.time : tl._time)) / tl.timeScale()) || _tinyNum,
       onStart: function onStart() {
         tl.pause();
-        var duration = vars.duration || Math.abs(endTime - tl._time) / tl.timeScale();
+        var duration = vars.duration || Math.abs((endTime - tl._time) / tl.timeScale());
 
         if (tween._dur !== duration) {
           _setDuration(tween, duration).render(tween._time, true, true);
@@ -2530,7 +2533,7 @@ function (_Animation) {
         parent;
 
     if (arguments.length) {
-      return self._repeat < 0 ? self : self.timeScale(self.totalDuration() / value);
+      return self.timeScale((self._repeat < 0 ? self.duration() : self.totalDuration()) / (self.reversed() ? -value : value));
     }
 
     if (self._dirty) {
@@ -3188,10 +3191,17 @@ function (_Animation2) {
         }
       }
 
-      if (!this._initted && _attemptInitTween(this, time, force, suppressEvents)) {
-        this._tTime = 0; // in constructor if immediateRender is true, we set _tTime to -_tinyNum to have the playhead cross the starting point but we can't leave _tTime as a negative number.
+      if (!this._initted) {
+        if (_attemptInitTween(this, time, force, suppressEvents)) {
+          this._tTime = 0; // in constructor if immediateRender is true, we set _tTime to -_tinyNum to have the playhead cross the starting point but we can't leave _tTime as a negative number.
 
-        return this;
+          return this;
+        }
+
+        if (dur !== this._dur) {
+          // while initting, a plugin like InertiaPlugin might alter the duration, so rerun from the start to ensure everything renders as it should.
+          return this.render(totalTime, suppressEvents, force);
+        }
       }
 
       this._tTime = tTime;
@@ -3691,13 +3701,13 @@ var _gsap = {
       return pluginName && !_plugins[pluginName] && !_globals[pluginName] && _warn(name + " effect requires " + pluginName + " plugin.");
     });
 
-    _effects[name] = function (targets, vars) {
-      return effect(toArray(targets), _setDefaults(vars || {}, defaults));
+    _effects[name] = function (targets, vars, tl) {
+      return effect(toArray(targets), _setDefaults(vars || {}, defaults), tl);
     };
 
     if (extendTimeline) {
       Timeline.prototype[name] = function (targets, vars, position) {
-        return this.add(_effects[name](targets, _isObject(vars) ? vars : (position = vars) && {}), position);
+        return this.add(_effects[name](targets, _isObject(vars) ? vars : (position = vars) && {}, this), position);
       };
     }
   },
@@ -3874,7 +3884,7 @@ export var gsap = _gsap.registerPlugin({
   }
 }, _buildModifierPlugin("roundProps", _roundModifier), _buildModifierPlugin("modifiers"), _buildModifierPlugin("snap", snap)) || _gsap; //to prevent the core plugins from being dropped via aggressive tree shaking, we must include them in the variable declaration in this way.
 
-Tween.version = Timeline.version = gsap.version = "3.2.4";
+Tween.version = Timeline.version = gsap.version = "3.2.5";
 _coreReady = 1;
 
 if (_windowExists()) {

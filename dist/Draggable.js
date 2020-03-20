@@ -99,7 +99,7 @@
             _divContainer.style.cssText = css;
           }
 
-          e.style.cssText = css + "width:1px;height:1px;top:" + y + "px;left:" + x + "px";
+          e.style.cssText = css + "width:0.1px;height:0.1px;top:" + y + "px;left:" + x + "px";
 
           _divContainer.appendChild(e);
         } else {
@@ -119,6 +119,16 @@
     }
 
     throw "Need document and parent.";
+  },
+      _consolidate = function _consolidate(m) {
+    var c = new Matrix2D(),
+        i = 0;
+
+    for (; i < m.numberOfItems; i++) {
+      c.multiply(m.getItem(i).matrix);
+    }
+
+    return c;
   },
       _placeSiblings = function _placeSiblings(element, adjustGOffset) {
     var svg = _svgOwner(element),
@@ -148,7 +158,7 @@
       m = element.transform ? element.transform.baseVal : {};
 
       if (m.numberOfItems) {
-        m = m.consolidate().matrix;
+        m = m.numberOfItems > 1 ? _consolidate(m) : m.getItem(0).matrix;
         x = m.a * b.x + m.c * b.y;
         y = m.b * b.x + m.d * b.y;
       } else {
@@ -185,6 +195,11 @@
       m = _win.getComputedStyle(element);
       b[_transformProp] = m[_transformProp];
       b[_transformOriginProp] = m[_transformOriginProp];
+      b.border = m.border;
+      b.borderLeftStyle = m.borderLeftStyle;
+      b.borderTopStyle = m.borderTopStyle;
+      b.borderLeftWidth = m.borderLeftWidth;
+      b.borderTopWidth = m.borderTopWidth;
       b.position = m.position === "fixed" ? "fixed" : "absolute";
       element.parentNode.appendChild(container);
     }
@@ -512,20 +527,23 @@
         client = "client" + dim;
     return Math.max(0, _isRoot(element) ? Math.max(_docElement$1[scroll], _body$1[scroll]) - (_win$1["inner" + dim] || _docElement$1[client] || _body$1[client]) : element[scroll] - element[client]);
   },
-      _recordMaxScrolls = function _recordMaxScrolls(e) {
+      _recordMaxScrolls = function _recordMaxScrolls(e, skipCurrent) {
     var x = _getMaxScroll(e, "x"),
         y = _getMaxScroll(e, "y");
 
     if (_isRoot(e)) {
       e = _windowProxy;
     } else {
-      _recordMaxScrolls(e.parentNode);
+      _recordMaxScrolls(e.parentNode, skipCurrent);
     }
 
     e._gsMaxScrollX = x;
     e._gsMaxScrollY = y;
-    e._gsScrollX = e.scrollLeft || 0;
-    e._gsScrollY = e.scrollTop || 0;
+
+    if (!skipCurrent) {
+      e._gsScrollX = e.scrollLeft || 0;
+      e._gsScrollY = e.scrollTop || 0;
+    }
   },
       _setStyle = function _setStyle(element, property, value) {
     var style = element.style;
@@ -1056,6 +1074,7 @@
   },
       _initCore = function _initCore(required) {
     if (_windowExists() && document.body) {
+      var nav = window && window.navigator;
       _win$1 = window;
       _doc$1 = document;
       _docElement$1 = _doc$1.documentElement;
@@ -1065,8 +1084,8 @@
       _placeholderDiv = _createElement("div");
       _placeholderDiv.style.cssText = "visibility:hidden;height:1px;top:-1px;pointer-events:none;position:relative;clear:both;cursor:grab";
       _defaultCursor = _placeholderDiv.style.cursor === "grab" ? "grab" : "move";
-      _isAndroid = _win$1.navigator && _win$1.navigator.userAgent.toLowerCase().indexOf("android") !== -1;
-      _isTouchDevice = "ontouchstart" in _docElement$1 && "orientation" in _win$1;
+      _isAndroid = nav && nav.userAgent.toLowerCase().indexOf("android") !== -1;
+      _isTouchDevice = "ontouchstart" in _docElement$1 && "orientation" in _win$1 || nav && (nav.MaxTouchPoints > 0 || nav.msMaxTouchPoints > 0);
 
       _addPaddingBR = function () {
         var div = _createElement("div"),
@@ -1627,8 +1646,8 @@
             self.maxY = maxY = bounds.maxY;
           } else {
             targetBounds = _getBounds(target, target.parentNode);
-            self.minX = minX = Math.round(getPropAsNum(xProp, "px") + bounds.left - targetBounds.left);
-            self.minY = minY = Math.round(getPropAsNum(yProp, "px") + bounds.top - targetBounds.top);
+            self.minX = minX = Math.round(getPropAsNum(xProp, "px") + bounds.left - targetBounds.left - 0.5);
+            self.minY = minY = Math.round(getPropAsNum(yProp, "px") + bounds.top - targetBounds.top - 0.5);
             self.maxX = maxX = Math.round(minX + (bounds.width - targetBounds.width));
             self.maxY = maxY = Math.round(minY + (bounds.height - targetBounds.height));
           }
@@ -1737,7 +1756,7 @@
               scrollProxy._skip = true;
             }
 
-            tween.render(tween.duration(), true, true);
+            tween.render(1e9, true, true);
             syncXY(true, true);
             self.endX = self.x;
             self.endY = self.y;
@@ -2590,10 +2609,7 @@
 
         if (sticky) {
           setPointerPosition(self.pointerX, self.pointerY);
-
-          if (dirty) {
-            render(true);
-          }
+          dirty && render(true);
         }
 
         if (self.isPressed && !sticky && (allowX && Math.abs(x - self.x) > 0.01 || allowY && Math.abs(y - self.y) > 0.01 && !rotationMode)) {
@@ -2601,7 +2617,7 @@
         }
 
         if (self.autoScroll) {
-          _recordMaxScrolls(target.parentNode);
+          _recordMaxScrolls(target.parentNode, self.isDragging);
 
           checkAutoScrollBounds = self.isDragging;
           render(true);
@@ -2887,7 +2903,7 @@
   });
 
   Draggable.zIndex = 1000;
-  Draggable.version = "3.2.4";
+  Draggable.version = "3.2.5";
   _getGSAP() && gsap.registerPlugin(Draggable);
 
   exports.Draggable = Draggable;

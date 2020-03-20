@@ -1,5 +1,5 @@
 /*!
- * matrix 3.2.4
+ * matrix 3.2.5
  * https://greensock.com
  *
  * Copyright 2008-2020, GreenSock. All rights reserved.
@@ -94,7 +94,7 @@ _divTemps = [],
           _divContainer.style.cssText = css;
         }
 
-        e.style.cssText = css + "width:1px;height:1px;top:" + y + "px;left:" + x + "px";
+        e.style.cssText = css + "width:0.1px;height:0.1px;top:" + y + "px;left:" + x + "px";
 
         _divContainer.appendChild(e);
       } else {
@@ -114,6 +114,17 @@ _divTemps = [],
   }
 
   throw "Need document and parent.";
+},
+    _consolidate = function _consolidate(m) {
+  // replaces SVGTransformList.consolidate() because a bug in Firefox causes it to break pointer events. See https://greensock.com/forums/topic/23248-touch-is-not-working-on-draggable-in-firefox-windows-v324/?tab=comments#comment-109800
+  var c = new Matrix2D(),
+      i = 0;
+
+  for (; i < m.numberOfItems; i++) {
+    c.multiply(m.getItem(i).matrix);
+  }
+
+  return c;
 },
     _placeSiblings = function _placeSiblings(element, adjustGOffset) {
   var svg = _svgOwner(element),
@@ -143,7 +154,8 @@ _divTemps = [],
     m = element.transform ? element.transform.baseVal : {}; // IE11 doesn't follow the spec.
 
     if (m.numberOfItems) {
-      m = m.consolidate().matrix;
+      m = m.numberOfItems > 1 ? _consolidate(m) : m.getItem(0).matrix; // don't call m.consolidate().matrix because a bug in Firefox makes pointer events not work when consolidate() is called on the same tick as getBoundingClientRect()! See https://greensock.com/forums/topic/23248-touch-is-not-working-on-draggable-in-firefox-windows-v324/?tab=comments#comment-109800
+
       x = m.a * b.x + m.c * b.y;
       y = m.b * b.x + m.d * b.y;
     } else {
@@ -181,6 +193,11 @@ _divTemps = [],
     m = _win.getComputedStyle(element);
     b[_transformProp] = m[_transformProp];
     b[_transformOriginProp] = m[_transformOriginProp];
+    b.border = m.border;
+    b.borderLeftStyle = m.borderLeftStyle;
+    b.borderTopStyle = m.borderTopStyle;
+    b.borderLeftWidth = m.borderLeftWidth;
+    b.borderTopWidth = m.borderTopWidth;
     b.position = m.position === "fixed" ? "fixed" : "absolute";
     element.parentNode.appendChild(container);
   }

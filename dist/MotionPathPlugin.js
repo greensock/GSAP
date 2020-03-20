@@ -1182,7 +1182,7 @@
 	          _divContainer.style.cssText = css;
 	        }
 
-	        e.style.cssText = css + "width:1px;height:1px;top:" + y + "px;left:" + x + "px";
+	        e.style.cssText = css + "width:0.1px;height:0.1px;top:" + y + "px;left:" + x + "px";
 
 	        _divContainer.appendChild(e);
 	      } else {
@@ -1202,6 +1202,16 @@
 	  }
 
 	  throw "Need document and parent.";
+	},
+	    _consolidate = function _consolidate(m) {
+	  var c = new Matrix2D(),
+	      i = 0;
+
+	  for (; i < m.numberOfItems; i++) {
+	    c.multiply(m.getItem(i).matrix);
+	  }
+
+	  return c;
 	},
 	    _placeSiblings = function _placeSiblings(element, adjustGOffset) {
 	  var svg = _svgOwner(element),
@@ -1231,7 +1241,7 @@
 	    m = element.transform ? element.transform.baseVal : {};
 
 	    if (m.numberOfItems) {
-	      m = m.consolidate().matrix;
+	      m = m.numberOfItems > 1 ? _consolidate(m) : m.getItem(0).matrix;
 	      x = m.a * b.x + m.c * b.y;
 	      y = m.b * b.x + m.d * b.y;
 	    } else {
@@ -1268,6 +1278,11 @@
 	    m = _win.getComputedStyle(element);
 	    b[_transformProp] = m[_transformProp];
 	    b[_transformOriginProp] = m[_transformOriginProp];
+	    b.border = m.border;
+	    b.borderLeftStyle = m.borderLeftStyle;
+	    b.borderTopStyle = m.borderTopStyle;
+	    b.borderLeftWidth = m.borderLeftWidth;
+	    b.borderTopWidth = m.borderTopWidth;
 	    b.position = m.position === "fixed" ? "fixed" : "absolute";
 	    element.parentNode.appendChild(container);
 	  }
@@ -1396,7 +1411,7 @@
 	}
 
 	/*!
-	 * MotionPathPlugin 3.2.4
+	 * MotionPathPlugin 3.2.5
 	 * https://greensock.com
 	 *
 	 * @license Copyright 2008-2020, GreenSock. All rights reserved.
@@ -1598,7 +1613,7 @@
 	};
 
 	var MotionPathPlugin = {
-	  version: "3.2.4",
+	  version: "3.2.5",
 	  name: "motionPath",
 	  register: function register(core, Plugin, propTween) {
 	    gsap = core;

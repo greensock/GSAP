@@ -5,7 +5,7 @@
 }(this, (function (exports) { 'use strict';
 
 	/*!
-	 * EasePack 3.2.4
+	 * EasePack 3.2.5
 	 * https://greensock.com
 	 *
 	 * @license Copyright 2008-2020, GreenSock. All rights reserved.
@@ -201,7 +201,7 @@
 
 	for (var p in EasePack) {
 	  EasePack[p].register = _initCore;
-	  EasePack[p].version = "3.2.4";
+	  EasePack[p].version = "3.2.5";
 	}
 
 	_getGSAP() && gsap.registerPlugin(SlowMo);

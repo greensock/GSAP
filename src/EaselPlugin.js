@@ -1,5 +1,5 @@
 /*!
- * EaselPlugin 3.2.4
+ * EaselPlugin 3.2.5
  * https://greensock.com
  *
  * @license Copyright 2008-2020, GreenSock. All rights reserved.
@@ -16,8 +16,12 @@ let gsap, _coreInitted, _win, _createJS, _ColorFilter, _ColorMatrixFilter,
 	_getCreateJS = () => _createJS || (_win && _win.createjs) || _win || {},
 	_warn = message => console.warn(message),
 	_cache = target => {
-		let bounds = target.getBounds && target.getBounds();
-		target.cache && target.cache(bounds.x, bounds.y, bounds.width, bounds.height);
+		let b = target.getBounds && target.getBounds();
+		if (!b) {
+			b = target.nominalBounds || {x:0, y:0, width: 100, height: 100};
+			target.setBounds && target.setBounds(b.x, b.y, b.width, b.height);
+		}
+		target.cache && target.cache(b.x, b.y, b.width, b.height);
 		_warn("EaselPlugin: for filters to display in EaselJS, you must call the object's cache() method first. GSAP attempted to use the target's getBounds() for the cache but that may not be completely accurate. " + target);
 	},
 	_parseColorFilter = (target, v, plugin) => {
@@ -211,7 +215,7 @@ let gsap, _coreInitted, _win, _createJS, _ColorFilter, _ColorMatrixFilter,
 
 
 export const EaselPlugin = {
-	version: "3.2.4",
+	version: "3.2.5",
 	name: "easel",
 	init(target, value, tween, index, targets) {
 		if (!_coreInitted) {

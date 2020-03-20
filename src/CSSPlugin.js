@@ -1,5 +1,5 @@
 /*!
- * CSSPlugin 3.2.4
+ * CSSPlugin 3.2.5
  * https://greensock.com
  *
  * Copyright 2008-2020, GreenSock. All rights reserved.
@@ -168,12 +168,14 @@ let _win, _doc, _docElement, _pluginInitted, _tempDiv, _tempDivStyler, _recentSe
 			measureProperty = (isRootSVG ? "client" : "offset") + (horizontal ? "Width" : "Height"),
 			amount = 100,
 			toPixels = unit === "px",
+			toPercent = unit === "%",
 			px, parent, cache, isSVG;
 		if (unit === curUnit || !curValue || _nonConvertibleUnits[unit] || _nonConvertibleUnits[curUnit]) {
 			return curValue;
 		}
+		(curUnit !== "px" && !toPixels) && (curValue = _convertToUnit(target, property, value, "px"));
 		isSVG = target.getCTM && _isSVG(target);
-		if (unit === "%" && (_transformProps[property] || ~property.indexOf("adius"))) { //transforms and borderRadius are relative to the size of the element itself!
+		if (toPercent && (_transformProps[property] || ~property.indexOf("adius"))) { //transforms and borderRadius are relative to the size of the element itself!
 			return _round(curValue / (isSVG ? target.getBBox()[horizontal ? "width" : "height"] : target[measureProperty]) * amount);
 		}
 		style[horizontal ? "width" : "height"] = amount + (toPixels ? curUnit : unit);
@@ -185,21 +187,22 @@ let _win, _doc, _docElement, _pluginInitted, _tempDiv, _tempDivStyler, _recentSe
 			parent = _doc.body;
 		}
 		cache = parent._gsap;
-		if (cache && unit === "%" && cache.width && horizontal && cache.time === _ticker.time) {
+		if (cache && toPercent && cache.width && horizontal && cache.time === _ticker.time) {
 			return _round(curValue / cache.width * amount);
 		} else {
+			(toPercent || curUnit === "%") && (style.position = _getComputedProperty(target, "position"));
 			(parent === target) && (style.position = "static"); // like for borderRadius, if it's a % we must have it relative to the target itself but that may not have position: relative or position: absolute in which case it'd go up the chain until it finds its offsetParent (bad). position: static protects against that.
 			parent.appendChild(_tempDiv);
 			px = _tempDiv[measureProperty];
 			parent.removeChild(_tempDiv);
 			style.position = "absolute";
-			if (horizontal && unit === "%") {
+			if (horizontal && toPercent) {
 				cache = _getCache(parent);
 				cache.time = _ticker.time;
 				cache.width = parent[measureProperty];
 			}
 		}
-		return _round(toPixels ? px * curValue / amount : amount / px * curValue);
+		return _round(toPixels ? px * curValue / amount : px && curValue ? amount / px * curValue : 0);
 	},
 	_get = (target, property, unit, uncache) => {
 		let value;
