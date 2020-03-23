@@ -1,5 +1,5 @@
 /*!
- * ScrollToPlugin 3.2.5
+ * ScrollToPlugin 3.2.6
  * https://greensock.com
  *
  * @license Copyright 2008-2020, GreenSock. All rights reserved.
@@ -87,7 +87,7 @@ var gsap,
 };
 
 export var ScrollToPlugin = {
-  version: "3.2.5",
+  version: "3.2.6",
   name: "scrollTo",
   rawVars: 1,
   register: function register(core) {

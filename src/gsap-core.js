@@ -1,5 +1,5 @@
 /*!
- * GSAP 3.2.5
+ * GSAP 3.2.6
  * https://greensock.com
  *
  * @license Copyright 2008-2020, GreenSock. All rights reserved.
@@ -1233,7 +1233,7 @@ export class Animation {
 		// prioritize rendering where the parent's playhead lines up instead of this._tTime because there could be a tween that's animating another tween's timeScale in the same rendering loop (same parent), thus if the timeScale tween renders first, it would alter _start BEFORE _tTime was set on that tick (in the rendering loop), effectively freezing it until the timeScale tween finishes.
 		this._rts = +value || 0;
 		this._ts = (this._ps || value === -_tinyNum) ? 0 : this._rts; // _ts is the functional timeScale which would be 0 if the animation is paused.
-		return _recacheAncestors(this.totalTime(tTime, true));
+		return _recacheAncestors(this.totalTime(_clamp(0, this._tDur, tTime), true));
 	}
 
 	paused(value) {
@@ -2886,7 +2886,7 @@ export const gsap = _gsap.registerPlugin({
 	_buildModifierPlugin("snap", snap)
 ) || _gsap; //to prevent the core plugins from being dropped via aggressive tree shaking, we must include them in the variable declaration in this way.
 
-Tween.version = Timeline.version = gsap.version = "3.2.5";
+Tween.version = Timeline.version = gsap.version = "3.2.6";
 _coreReady = 1;
 if (_windowExists()) {
 	_wake();
