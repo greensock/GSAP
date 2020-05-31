@@ -11,14 +11,14 @@ GSAP is a JavaScript library for building high-performance animations that work 
 
 GSAP is completely flexible; sprinkle it wherever you want. **Zero dependencies.**
 
-There are many optional <a href="https://greensock.com/gsap-plugins/">plugins</a> and <a href="https://greensock.com/ease-visualizer/">easing</a> functions for achieving advanced effects easily like <a href="https://greensock.com/morphsvg">morphing</a>, <a href="https://greensock.com/docs/v3/Plugins/ScrollToPlugin">scrolling</a>, or animating along a <a href="https://greensock.com/docs/v3/Plugins/MotionPathPlugin">motion path</a>. 
+There are many optional <a href="https://greensock.com/gsap-plugins/">plugins</a> and <a href="https://greensock.com/ease-visualizer/">easing</a> functions for achieving advanced effects easily like <a href="https://greensock.com/morphsvg">morphing</a>, <a href="https://greensock.com/docs/v3/Plugins/ScrollTrigger">scrolling</a>, or animating along a <a href="https://greensock.com/docs/v3/Plugins/MotionPathPlugin">motion path</a>. 
 
 ## Docs &amp; Installation
 View the <a href="https://greensock.com/docs">full documentation here</a>, including an <a href="https://greensock.com/install">installation guide</a> with videos.
 
 ### CDN
 ```html
-<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.2.6/gsap.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.3.0/gsap.min.js"></script>
 ```
 Click the green "Get GSAP Now" button at <a href="https://greensock.com/?download=GSAP-JS">greensock.com</a> for more options and installation instructions, including CDN URLs for various plugins. 
 
@@ -37,13 +37,13 @@ import gsap from "gsap";
 
 // or get other plugins:
 import Draggable from "gsap/Draggable";
-import ScrollToPlugin from "gsap/ScrollToPlugin";
+import ScrollTrigger from "gsap/ScrollTrigger";
 
 // or all tools are exported from the "all" file (excluding bonus plugins):
-import { gsap, ScrollToPlugin, Draggable, MotionPathPlugin } from "gsap/all";
+import { gsap, ScrollTrigger, Draggable, MotionPathPlugin } from "gsap/all";
 
 // don't forget to register plugins
-gsap.registerPlugin(ScrollToPlugin, Draggable, MotionPathPlugin); 
+gsap.registerPlugin(ScrollTrigger, Draggable, MotionPathPlugin); 
 ```
 The NPM files are ES modules, but there's also a /dist/ directory with <a href="https://www.davidbcalhoun.com/2014/what-is-amd-commonjs-and-umd/">UMD</a> files for extra compatibility.
 
@@ -54,11 +54,19 @@ Download <a href="https://greensock.com/club/">Club GreenSock</a> members-only p
 
 [![Getting Started with GSAP](http://greensock.com/_img/github/thumb-getting-started-small.gif)](http://greensock.com/get-started)
 
+### ScrollTrigger
+
+If you're looking to do scroll-driven animations, GSAP's <a href="https://greensock.com/scrolltrigger">ScrollTrigger</a> plugin is a great option. 
+
+[![ScrollTrigger](http://greensock.com/_img/github/thumb-scrolltrigger-small.gif)](http://greensock.com/scrolltrigger)
+
+
 ### Resources
 
 * <a href="https://greensock.com/">GSAP home page</a>
 * <a href="https://greensock.com/get-started/">Getting started guide</a>
 * <a href="https://greensock.com/docs/">Docs</a>
+* <a href="https://greensock.com/cheatsheet">Cheat sheet</a>
 * <a href="https://greensock.com/forums/">Forums</a>
 * <a href="https://greensock.com/showcase">Showcase</a>
 * <a href="https://greensock.com/why-gsap/">Why GSAP?</a> (convince your boss)

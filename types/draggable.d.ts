@@ -29,24 +29,233 @@ declare class Draggable {
 
   constructor(target: gsap.DOMTarget, vars?: Draggable.Vars);
 
+  /**
+   * A more flexible way to create Draggable instances than the constructor.
+   * 
+   * ```js
+   * Draggable.create(".myClass", {type: "x,y"});
+   * ```
+   *
+   * @param {gsap.DOMTarget} target
+   * @param {Draggable.Vars} [vars]
+   * @returns {Draggable[]} Array of Draggables
+   * @memberof Draggable
+   */
   static create(target: gsap.DOMTarget, vars?: Draggable.Vars): Draggable[];
-  static get(target: gsap.DOMTarget): Draggable;
-  static hitTest(testObject1: Draggable.TestObject, testObject2: Draggable.TestObject, threshold?: number | string): boolean;
-  static timeSinceDrag(): number;
 
+  /**
+   * Get the Draggable instance that's associated with a particular DOM element.
+   * 
+   * ```js
+   * var draggable = Draggable.get("#myId");
+   * ```
+   *
+   * @param {gsap.DOMTarget} target
+   * @returns {Draggable} The Draggable
+   * @memberof Draggable
+   */
+  static get(target: gsap.DOMTarget): Draggable;
+
+  /**
+   * Test whether or not the target element overlaps with a particular element or the mouse position, optionally including a threshold.
+   * 
+   * ```js
+   * Draggable.hitTest(element1, element2, 20)
+   * ```
+   *
+   * @param {Draggable.TestObject} testObject1
+   * @param {Draggable.TestObject} testObject2
+   * @param {number | string} [threshold]
+   * @returns {boolean} If the hit threshhold is met or not
+   * @memberof Draggable
+   */
+  static hitTest(testObject1: Draggable.TestObject, testObject2: Draggable.TestObject, threshold?: number | string): boolean;
+
+  /**
+   * Returns the time (in seconds) that has elapsed since the last drag ended.
+   * 
+   * ```js
+   * Draggable.timeSinceDrag();
+   * ```
+   *
+   * @returns {number} The time since the last drag ended
+   * @memberof Draggable
+   */
+  static timeSinceDrag(): number;
+  
+
+  /**
+   * Registers a function that should be called each time a particular type of event occurs.
+   * 
+   * ```js
+   * draggable.addEventListener("press", myPressFunction);
+   * ```
+   *
+   * @param {Draggable.CallbackType} type
+   * @param {gsap.Callback} callback
+   * @memberof Draggable
+   */
   addEventListener(type: Draggable.CallbackType, callback: gsap.Callback): void;
-  applyBounds(bound: gsap.DOMTarget | Draggable.BoundsMinMax | Draggable.BoundsRectangle | Draggable.BoundsRotation): void;
+
+  /**
+   * Registers a function that should be called each time a particular type of event occurs.
+   * 
+   * ```js
+   * draggable.applyBounds("#dragContainer");
+   * draggable.applyBounds({top: 100, left: 0, width: 1000, height: 800});
+   * draggable.applyBounds({minX: 10, maxX: 300, minY: 50, maxY: 500});
+   * draggable.applyBounds({minRotation: 0, maxRotation: 270});
+   * ```
+   *
+   * @param {gsap.DOMTarget | Draggable.BoundsMinMax | Draggable.BoundsRectangle | Draggable.BoundsRotation} bounds
+   * @memberof Draggable
+   */
+  applyBounds(bounds: gsap.DOMTarget | Draggable.BoundsMinMax | Draggable.BoundsRectangle | Draggable.BoundsRotation): void;
+
+  /**
+   * Disables the Draggable instance so that it cannot be dragged anymore.
+   * 
+   * ```js
+   * draggable.disable();
+   * ```
+   * 
+   * @returns {Draggable} The Draggable instance
+   * @memberof Draggable
+   */
   disable(): this;
+
   dispatchEvent(type: Draggable.CallbackType): boolean;
+
+  /**
+   * Enables the Draggable instance so that it can be dragged.
+   * 
+   * ```js
+   * draggable.enable();
+   * ```
+   * 
+   * @returns {Draggable} The Draggable instance
+   * @memberof Draggable
+   */
   enable(): this;
+
+  /**
+   * Sets the enabled state of the Draggable.
+   *
+   * ```js
+   * draggable.enabled(true);
+   * ```
+   *
+   * @param {boolean} value
+   * @returns {Draggable} The Draggable
+   * @memberof Draggable
+   */
+  enabled(value: boolean): this;
+  /**
+   * Gets the enabled state of the Draggable.
+   *
+   * ```js
+   * draggable.enabled();
+   * ```
+   *
+   * @returns {boolean} The enabled state
+   * @memberof Draggable
+   */
   enabled(): boolean;
+
+  /**
+   * Force the Draggable to immediately stop interactively dragging. 
+   * You must pass it the original mouse or touch event that initiated the stop.
+   *
+   * ```js
+   * draggable.endDrag(e);
+   * ```
+   *
+   * @param {Event} event
+   * @memberof Draggable
+   */
   endDrag(event: Event): void;
+
+  /**
+   * Returns the direction, velocity, or proximity to another object.
+   *
+   * ```js
+   * draggable.getDirection("start");
+   * draggable.getDirection("velocity");
+   * draggable.getDirection(refElem);
+   * ```
+   *
+   * @param {"start" | "velocity" | gsap.DOMTarget} from
+   * @returns {Draggable.Direction} The direction
+   * @memberof Draggable
+   */
   getDirection(from: "start" | "velocity" | gsap.DOMTarget): Draggable.Direction;
-  hitTest(testObject1: Draggable.TestObject, threshold?: number | string): boolean;
+
+  /**
+   * Test whether or not the target element overlaps with a particular element or the mouse position, optionally including a threshold.
+   * 
+   * ```js
+   * draggable.hitTest(otherElem, 20);
+   * ```
+   *
+   * @param {Draggable.TestObject} testObject
+   * @param {number | string} [threshold]
+   * @returns {boolean} If the hit threshhold is met or not
+   * @memberof Draggable
+   */
+  hitTest(testObject: Draggable.TestObject, threshold?: number | string): boolean;
+
+  /**
+   * Disables the Draggable instance and frees it for garbage collection
+   * so that it cannot be dragged anymore.
+   * 
+   * ```js
+   * draggable.kill();
+   * ```
+   * 
+   * @returns {Draggable} The Draggable instance
+   * @memberof Draggable
+   */
   kill(): this;
+
   removeEventListener(type: Draggable.CallbackType, callback: gsap.Callback): void;
+
+  /**
+   * Force the Draggable to start interactively dragging. 
+   * You must pass it the original mouse or touch event that initiated the start.
+   *
+   * ```js
+   * draggable.startDrag(e);
+   * ```
+   *
+   * @param {Event} event
+   * @memberof Draggable
+   */
   startDrag(event: Event): void;
+
+  /**
+   * Returns the time (in seconds) that has elapsed since the last drag ended.
+   * 
+   * ```js
+   * draggable.timeSinceDrag();
+   * ```
+   *
+   * @returns {number} The time since the last drag ended
+   * @memberof Draggable
+   */
   timeSinceDrag(): number;
+
+  /**
+   * Updates the Draggable's x/y properties to reflect the target element's current position.
+   * 
+   * ```js
+   * Draggable.update();
+   * ```
+   *
+   * @param {boolean} [applyBounds]
+   * @param {boolean} [sticky]
+   * @returns {Draggable} The Draggable instance
+   * @memberof Draggable
+   */
   update(applyBounds?: boolean, sticky?: boolean): this;
 }
 

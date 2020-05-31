@@ -1,15 +1,41 @@
 declare namespace gsap {
 
+  type DrawSVGTarget = string | SVGPrimitive | SVGPathElement;
+
   interface TweenVars {
-    drawSVG?: BooleanValue | TweenValue;
+    drawSVG?: BooleanValue | DrawSVGTarget;
   }
 }
 
 declare namespace gsap.plugins {
 
   interface DrawSVGPlugin extends Plugin {
-    getLength(element: DOMTarget): number;
-    getPosition(element: DOMTarget): number;
+
+    /**
+     * Get the length of an SVG element's stroke.
+     *
+     * ```js
+     * DrawSVGPlugin.getLength(element);
+     * ```
+     *
+     * @param {DrawSVGTarget} element
+     * @returns {number} The stroke length
+     * @memberof DrawSVGPlugin
+     */
+    getLength(element: DrawSVGTarget): number;
+
+    /**
+     * Get the current position of the DrawSVG in array form.
+     *
+     * ```js
+     * DrawSVGPlugin.getPosition(element);
+     * ```
+     *
+     * @param {DrawSVGTarget} element
+     * @returns {number[]} The position array
+     * @memberof DrawSVGPlugin
+     */
+    getPosition(element: DrawSVGTarget): number[];
   }
 
   interface DrawSVGPluginClass extends DrawSVGPlugin {

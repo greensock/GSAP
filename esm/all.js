@@ -12,6 +12,7 @@ export * from "./EasePack.js";
 export * from "./MotionPathPlugin.js";
 export * from "./PixiPlugin.js";
 export * from "./ScrollToPlugin.js";
+export * from "./ScrollTrigger.js";
 export * from "./TextPlugin.js"; 
 
 //BONUS EXPORTS

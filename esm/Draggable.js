@@ -3,7 +3,7 @@ function _assertThisInitialized(self) { if (self === void 0) { throw new Referen
 function _inheritsLoose(subClass, superClass) { subClass.prototype = Object.create(superClass.prototype); subClass.prototype.constructor = subClass; subClass.__proto__ = superClass; }
 
 /*!
- * Draggable 3.2.6
+ * Draggable 3.3.0
  * https://greensock.com
  *
  * @license Copyright 2008-2020, GreenSock. All rights reserved.
@@ -146,31 +146,19 @@ _copy = function _copy(obj, factor) {
       passive: false
     } : null);
     element.addEventListener(touchType || type, func, capture);
-
-    if (touchType && type !== touchType && touchType.substr(0, 7) !== "pointer") {
-      //some browsers actually support both, so must we. But pointer events cover all.
-      element.addEventListener(type, func, capture);
-    }
+    touchType && type !== touchType && element.addEventListener(type, func, capture); //some browsers actually support both, so must we. But pointer events cover all.
   }
 },
     _removeListener = function _removeListener(element, type, func) {
   if (element.removeEventListener) {
     var touchType = _touchEventLookup[type];
     element.removeEventListener(touchType || type, func);
-
-    if (touchType && type !== touchType && touchType.substr(0, 7) !== "pointer") {
-      element.removeEventListener(type, func);
-    }
+    touchType && type !== touchType && element.removeEventListener(type, func);
   }
 },
     _preventDefault = function _preventDefault(event) {
-  if (event.preventDefault) {
-    event.preventDefault();
-
-    if (event.preventManipulation) {
-      event.preventManipulation(); //for some Microsoft browsers
-    }
-  }
+  event.preventDefault && event.preventDefault();
+  event.preventManipulation && event.preventManipulation(); //for some Microsoft browsers
 },
     _hasTouchID = function _hasTouchID(list, ID) {
   var i = list.length;
@@ -391,8 +379,9 @@ _getElementBounds = function _getElementBounds(element, context) {
 
       if (!width) {
         cs = _getComputedStyle(element);
-        width = (parseFloat(cs.width) || element.clientWidth || 0) + parseFloat(cs.borderLeftWidth) + parseFloat(cs.borderRightWidth);
-        height = (parseFloat(cs.height) || element.clientHeight || 0) + parseFloat(cs.borderTopWidth) + parseFloat(cs.borderBottomWidth);
+        bbox = cs.boxSizing === "border-box";
+        width = (parseFloat(cs.width) || element.clientWidth || 0) + (bbox ? 0 : parseFloat(cs.borderLeftWidth) + parseFloat(cs.borderRightWidth));
+        height = (parseFloat(cs.height) || element.clientHeight || 0) + (bbox ? 0 : parseFloat(cs.borderTopWidth) + parseFloat(cs.borderBottomWidth));
       }
     }
 
@@ -873,9 +862,7 @@ ScrollProxy = function ScrollProxy(element, vars) {
   }
 };
 
-var EventDispatcher =
-/*#__PURE__*/
-function () {
+var EventDispatcher = /*#__PURE__*/function () {
   function EventDispatcher(target) {
     this._listeners = {};
     this.target = target || this;
@@ -913,9 +900,7 @@ function () {
   return EventDispatcher;
 }();
 
-export var Draggable =
-/*#__PURE__*/
-function (_EventDispatcher) {
+export var Draggable = /*#__PURE__*/function (_EventDispatcher) {
   _inheritsLoose(Draggable, _EventDispatcher);
 
   function Draggable(target, vars) {
@@ -999,16 +984,14 @@ function (_EventDispatcher) {
         isDispatching,
         clickDispatch,
         trustedClickDispatch,
+        isPreventingDefault,
         onContextMenu = function onContextMenu(e) {
       //used to prevent long-touch from triggering a context menu.
-      if (self.isPressed && e.which < 2) {
-        self.endDrag();
-      } else {
-        _preventDefault(e);
+      // (self.isPressed && e.which < 2) && self.endDrag() // previously ended drag when context menu was triggered, but instead we should just stop propagation and prevent the default event behavior.
+      _preventDefault(e);
 
-        e.stopPropagation();
-        return false;
-      }
+      e.stopImmediatePropagation && e.stopImmediatePropagation();
+      return false;
     },
         //this method gets called on every tick of TweenLite.ticker which allows us to synchronize the renders to the core engine (which is typically synchronized with the display refresh via requestAnimationFrame). This is an optimization - it's better than applying the values inside the "mousemove" or "touchmove" event handler which may get called many times inbetween refreshes.
     render = function render(suppressEvents) {
@@ -1624,6 +1607,8 @@ function (_EventDispatcher) {
 
       if (!enabled || self.isPressed || !e || (e.type === "mousedown" || e.type === "pointerdown") && !force && _getTime() - clickTime < 30 && _touchEventLookup[self.pointerEvent.type]) {
         //when we DON'T preventDefault() in order to accommodate touch-scrolling and the user just taps, many browsers also fire a mousedown/mouseup sequence AFTER the touchstart/touchend sequence, thus it'd result in two quick "click" events being dispatched. This line senses that condition and halts it on the subsequent mousedown.
+        isPreventingDefault && e && enabled && _preventDefault(e); // in some browsers, we must listen for multiple event types like touchstart, pointerdown, mousedown. The first time this function is called, we record whether or not we _preventDefault() so that on duplicate calls, we can do the same if necessary.
+
         return;
       }
 
@@ -1677,7 +1662,9 @@ function (_EventDispatcher) {
 
       allowNativeTouchScrolling = !touchEventTarget || allowX === allowY || self.vars.allowNativeTouchScrolling === false || self.vars.allowContextMenu && e && (e.ctrlKey || e.which > 2) ? false : allowX ? "y" : "x"; //note: in Chrome, right-clicking (for a context menu) fires onPress and it doesn't have the event.which set properly, so we must look for event.ctrlKey. If the user wants to allow context menus we should of course sense it here and not allow native touch scrolling.
 
-      if (!allowNativeTouchScrolling && !self.allowEventDefault) {
+      isPreventingDefault = !allowNativeTouchScrolling && !self.allowEventDefault;
+
+      if (isPreventingDefault) {
         _preventDefault(e);
 
         _addListener(_win, "touchforcechange", _preventDefault); //works around safari bug: https://greensock.com/forums/topic/21450-draggable-in-iframe-on-mobile-is-buggy/
@@ -1716,19 +1703,13 @@ function (_EventDispatcher) {
       }
 
       recordStartPositions();
-
-      if (self.tween) {
-        self.tween.kill();
-      }
-
+      self.tween && self.tween.kill();
       self.isThrowing = false;
       gsap.killTweensOf(scrollProxy || target, killProps, true); //in case the user tries to drag it before the last tween is done.
 
-      if (scrollProxy) {
-        gsap.killTweensOf(target, {
-          scrollTo: 1
-        }, true); //just in case the original target's scroll position is being tweened somewhere else.
-      }
+      scrollProxy && gsap.killTweensOf(target, {
+        scrollTo: 1
+      }, true); //just in case the original target's scroll position is being tweened somewhere else.
 
       self.tween = self.lockedAxis = null;
 
@@ -1764,6 +1745,8 @@ function (_EventDispatcher) {
           dy;
 
       if (!enabled || _isMultiTouching || !self.isPressed || !e) {
+        isPreventingDefault && e && enabled && _preventDefault(e); // in some browsers, we must listen for multiple event types like touchmove, pointermove, mousemove. The first time this function is called, we record whether or not we _preventDefault() so that on duplicate calls, we can do the same if necessary.
+
         return;
       }
 
@@ -1793,11 +1776,7 @@ function (_EventDispatcher) {
         //Android browsers force us to decide on the first "touchmove" event if we should allow the default (scrolling) behavior or preventDefault(). Otherwise, a "touchcancel" will be fired and then no "touchmove" or "touchend" will fire during the scrolling (no good).
         _point1.x = e.pageX;
         _point1.y = e.pageY;
-
-        if (matrix) {
-          matrix.apply(_point1, _point1);
-        }
-
+        matrix && matrix.apply(_point1, _point1);
         pointerX = _point1.x;
         pointerY = _point1.y;
         dx = Math.abs(pointerX - startPointerX);
@@ -1811,12 +1790,9 @@ function (_EventDispatcher) {
 
           }
 
-          if (self.vars.lockAxisOnTouchScroll !== false) {
+          if (self.vars.lockAxisOnTouchScroll !== false && allowX && allowY) {
             self.lockedAxis = touchDragAxis === "x" ? "y" : "x";
-
-            if (_isFunction(self.vars.onLockAxis)) {
-              self.vars.onLockAxis.call(self, originalEvent);
-            }
+            _isFunction(self.vars.onLockAxis) && self.vars.onLockAxis.call(self, originalEvent);
           }
 
           if (_isAndroid && allowNativeTouchScrolling === touchDragAxis) {
@@ -1828,6 +1804,10 @@ function (_EventDispatcher) {
 
       if (!self.allowEventDefault && (!allowNativeTouchScrolling || touchDragAxis && allowNativeTouchScrolling !== touchDragAxis) && originalEvent.cancelable !== false) {
         _preventDefault(originalEvent);
+
+        isPreventingDefault = true;
+      } else if (isPreventingDefault) {
+        isPreventingDefault = false;
       }
 
       if (self.autoScroll) {
@@ -1987,6 +1967,8 @@ function (_EventDispatcher) {
     onRelease = function onRelease(e, force) {
       if (!enabled || !self.isPressed || e && touchID != null && !force && (e.pointerId && e.pointerId !== touchID || e.changedTouches && !_hasTouchID(e.changedTouches, touchID))) {
         //for some Microsoft browsers, we must attach the listener to the doc rather than the trigger so that when the finger moves outside the bounds of the trigger, things still work. So if the event we're receiving has a pointerId that doesn't match the touchID, ignore it (for multi-touch)
+        isPreventingDefault && e && enabled && _preventDefault(e); // in some browsers, we must listen for multiple event types like touchend, pointerup, mouseup. The first time this function is called, we record whether or not we _preventDefault() so that on duplicate calls, we can do the same if necessary.
+
         return;
       }
 
@@ -2086,8 +2068,12 @@ function (_EventDispatcher) {
       if (isContextMenuRelease && originalEvent) {
         _preventDefault(originalEvent);
 
+        isPreventingDefault = true;
+
         _dispatchEvent(self, "release", "onRelease");
       } else if (originalEvent && !wasDragging) {
+        isPreventingDefault = false;
+
         if (interrupted && (vars.snap || vars.bounds)) {
           //otherwise, if the user clicks on the object while it's animating to a snapped position, and then releases without moving 3 pixels, it will just stay there (it should animate/snap)
           animate(vars.inertia || vars.throwProps);
@@ -2130,20 +2116,19 @@ function (_EventDispatcher) {
         animate(vars.inertia || vars.throwProps); //will skip if inertia/throwProps isn't defined or IntertiaPlugin isn't loaded.
 
         if (!self.allowEventDefault && originalEvent && (vars.dragClickables !== false || !isClickable.call(self, originalEvent.target)) && wasDragging && (!allowNativeTouchScrolling || touchDragAxis && allowNativeTouchScrolling === touchDragAxis) && originalEvent.cancelable !== false) {
+          isPreventingDefault = true;
+
           _preventDefault(originalEvent);
+        } else {
+          isPreventingDefault = false;
         }
 
         _dispatchEvent(self, "release", "onRelease");
       }
 
-      if (isTweening()) {
-        placeholderDelayedCall.duration(self.tween.duration()); //sync the timing so that the placeholder DIV gets
-      }
+      isTweening() && placeholderDelayedCall.duration(self.tween.duration()); //sync the timing so that the placeholder DIV gets
 
-      if (wasDragging) {
-        _dispatchEvent(self, "dragend", "onDragEnd");
-      }
-
+      wasDragging && _dispatchEvent(self, "dragend", "onDragEnd");
       return true;
     },
         updateScroll = function updateScroll(e) {
@@ -2430,10 +2415,7 @@ function (_EventDispatcher) {
 
         while (--i > -1) {
           trigger = triggers[i];
-
-          if (!_supportsPointer) {
-            _addListener(trigger, "mousedown", onPress);
-          }
+          _supportsPointer || _addListener(trigger, "mousedown", onPress);
 
           _addListener(trigger, "touchstart", onPress);
 
@@ -2449,9 +2431,7 @@ function (_EventDispatcher) {
             });
           }
 
-          if (!vars.allowContextMenu) {
-            _addListener(trigger, "contextmenu", onContextMenu);
-          }
+          vars.allowContextMenu || _addListener(trigger, "contextmenu", onContextMenu);
         }
 
         _setSelectable(triggers, false);
@@ -2684,6 +2664,6 @@ _setDefaults(Draggable.prototype, {
 });
 
 Draggable.zIndex = 1000;
-Draggable.version = "3.2.6";
+Draggable.version = "3.3.0";
 _getGSAP() && gsap.registerPlugin(Draggable);
 export { Draggable as default };

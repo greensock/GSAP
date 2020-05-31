@@ -1,19 +1,48 @@
-// TODO
-declare const Physics2PropsPlugin: any;
+declare namespace PhysicsPropsPlugin {
+  interface Vars {
+    [key: string]: Values;
+  }
+
+  interface Values {
+    acceleration?: number;
+    friction?: number;
+    velocity?: number;
+  }
+}
+
+declare namespace gsap {
+
+  interface TweenVars {
+    physicsProps?: PhysicsPropsPlugin.Vars;
+  }
+}
+
+declare namespace gsap.plugins {
+  interface PhysicsPropsPlugin extends Plugin {
+     
+  }
+
+  interface PhysicsPropsPluginClass extends PhysicsPropsPlugin {
+    new(): PluginScope & PhysicsPropsPlugin;
+    prototype: PluginScope & PhysicsPropsPlugin;
+  }
+
+  const physicsProps: PhysicsPropsPluginClass;
+}
+
+declare const PhysicsPropsPlugin: gsap.plugins.PhysicsPropsPlugin;
 
 declare module "gsap/PhysicsPropsPlugin" {
-
-  // TODO
-  export const PhysicsPropsPlugin: any;
+  export const PhysicsPropsPlugin: gsap.plugins.PhysicsPropsPlugin;
   export { PhysicsPropsPlugin as default };
 }
 
-declare module "gsap/dist/PhysicsPropsPlugin" {
+declare module "gsap/src/PhysicsPropsPlugin" {
   export * from "gsap/PhysicsPropsPlugin";
   export { PhysicsPropsPlugin as default } from "gsap/PhysicsPropsPlugin";
 }
 
-declare module "gsap/src/PhysicsPropsPlugin" {
+declare module "gsap/dist/PhysicsPropsPlugin" {
   export * from "gsap/PhysicsPropsPlugin";
   export { PhysicsPropsPlugin as default } from "gsap/PhysicsPropsPlugin";
 }

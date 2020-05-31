@@ -1,5 +1,5 @@
 /*!
- * matrix 3.2.6
+ * matrix 3.3.0
  * https://greensock.com
  *
  * Copyright 2008-2020, GreenSock. All rights reserved.
@@ -53,7 +53,43 @@ var _doc,
 
   return doc;
 },
-    _svgTemps = [],
+    _forceNonZeroScale = function _forceNonZeroScale(e) {
+  // walks up the element's ancestors and finds any that had their scale set to 0 via GSAP, and changes them to 0.0001 to ensure that measurements work
+  var a, cache;
+
+  while (e && e !== _body) {
+    cache = e._gsap;
+
+    if (cache && !cache.scaleX && !cache.scaleY) {
+      cache.scaleX = cache.scaleY = 1e-4;
+      cache.renderTransform(1, cache);
+      a ? a.push(cache) : a = [cache];
+    }
+
+    e = e.parentNode;
+  }
+
+  return a;
+},
+    // possible future addition: pass an element to _forceDisplay() and it'll walk up all its ancestors and make sure anything with display: none is set to display: block, and if there's no parentNode, it'll add it to the body. It returns an Array that you can then feed to _revertDisplay() to have it revert all the changes it made.
+// _forceDisplay = e => {
+// 	let a = [],
+// 		parent;
+// 	while (e && e !== _body) {
+// 		parent = e.parentNode;
+// 		(_win.getComputedStyle(e).display === "none" || !parent) && a.push(e, e.style.display, parent) && (e.style.display = "block");
+// 		parent || _body.appendChild(e);
+// 		e = parent;
+// 	}
+// 	return a;
+// },
+// _revertDisplay = a => {
+// 	for (let i = 0; i < a.length; i+=3) {
+// 		a[i+1] ? (a[i].style.display = a[i+1]) : a[i].style.removeProperty("display");
+// 		a[i+2] || a[i].parentNode.removeChild(a[i]);
+// 	}
+// },
+_svgTemps = [],
     //we create 3 elements for SVG, and 3 for other DOM elements and cache them for performance reasons. They get nested in _divContainer and _svgContainer so that just one element is added to the DOM on each successive attempt. Again, performance is key.
 _divTemps = [],
     _getDocScrollTop = function _getDocScrollTop() {
@@ -214,9 +250,7 @@ _divTemps = [],
   return m;
 };
 
-export var Matrix2D =
-/*#__PURE__*/
-function () {
+export var Matrix2D = /*#__PURE__*/function () {
   function Matrix2D(a, b, c, d, e, f) {
     if (a === void 0) {
       a = 1;
@@ -254,7 +288,7 @@ function () {
         d = this.d,
         e = this.e,
         f = this.f,
-        determinant = a * d - b * c;
+        determinant = a * d - b * c || 1e-10;
     return _setMatrix(this, d / determinant, -b / determinant, -c / determinant, a / determinant, (c * f - d * e) / determinant, -(a * f - b * e) / determinant);
   };
 
@@ -321,7 +355,8 @@ export function getGlobalMatrix(element, inverse, adjustGOffset) {
     return new Matrix2D();
   }
 
-  var svg = _svgOwner(element),
+  var zeroScales = _forceNonZeroScale(element.parentNode),
+      svg = _svgOwner(element),
       temps = svg ? _svgTemps : _divTemps,
       container = _placeSiblings(element, adjustGOffset),
       b1 = temps[0].getBoundingClientRect(),
@@ -332,6 +367,17 @@ export function getGlobalMatrix(element, inverse, adjustGOffset) {
       m = new Matrix2D((b2.left - b1.left) / 100, (b2.top - b1.top) / 100, (b3.left - b1.left) / 100, (b3.top - b1.top) / 100, b1.left + (isFixed ? 0 : _getDocScrollLeft()), b1.top + (isFixed ? 0 : _getDocScrollTop()));
 
   parent.removeChild(container);
+
+  if (zeroScales) {
+    b1 = zeroScales.length;
+
+    while (b1--) {
+      b2 = zeroScales[b1];
+      b2.scaleX = b2.scaleY = 0;
+      b2.renderTransform(1, b2);
+    }
+  }
+
   return inverse ? m.inverse() : m;
 } // export function getMatrix(element) {
 // 	_doc || _setDoc(element);

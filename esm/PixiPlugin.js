@@ -1,5 +1,5 @@
 /*!
- * PixiPlugin 3.2.6
+ * PixiPlugin 3.3.0
  * https://greensock.com
  *
  * @license Copyright 2008-2020, GreenSock. All rights reserved.
@@ -351,7 +351,11 @@ var gsap,
     _win = window;
     gsap = _coreInitted = _getGSAP();
     _PIXI = _PIXI || _win.PIXI;
-    _splitColor = gsap.utils.splitColor;
+
+    _splitColor = function _splitColor(color) {
+      return gsap.utils.splitColor((color + "").substr(0, 2) === "0x" ? "#" + color.substr(2) : color);
+    }; // some colors in PIXI are reported as "0xFF4421" instead of "#FF4421".
+
   }
 },
     i,
@@ -365,7 +369,7 @@ for (i = 0; i < _xyContexts.length; i++) {
 }
 
 export var PixiPlugin = {
-  version: "3.2.6",
+  version: "3.3.0",
   name: "pixi",
   register: function register(core, Plugin, propTween) {
     gsap = core;
@@ -448,7 +452,7 @@ export var PixiPlugin = {
         this.add(target, "alpha", target.alpha, value);
 
         this._props.push("alpha", "visible");
-      } else {
+      } else if (p !== "resolution") {
         this.add(target, p, "get", value);
       }
 

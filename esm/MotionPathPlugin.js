@@ -1,5 +1,5 @@
 /*!
- * MotionPathPlugin 3.2.6
+ * MotionPathPlugin 3.3.0
  * https://greensock.com
  *
  * @license Copyright 2008-2020, GreenSock. All rights reserved.
@@ -23,13 +23,14 @@ var _xProps = ["x", "translateX", "left", "marginLeft"],
   return gsap || typeof window !== "undefined" && (gsap = window.gsap) && gsap.registerPlugin && gsap;
 },
     _populateSegmentFromArray = function _populateSegmentFromArray(segment, values, property, mode) {
-  //mode: 0 = x but don't fill y yet, 1 = y.
+  //mode: 0 = x but don't fill y yet, 1 = y, 2 = x and fill y with 0.
   var l = values.length,
-      si = mode,
+      si = mode === 2 ? 0 : mode,
       i = 0;
 
   for (; i < l; i++) {
     segment[si] = parseFloat(values[i][property]);
+    mode === 2 && (segment[si + 1] = 0);
     si += 2;
   }
 
@@ -53,11 +54,7 @@ var _xProps = ["x", "translateX", "left", "marginLeft"],
     segment = [segment];
   } else {
     segment.unshift(_getPropNum(target, x, vars.unitX), y ? _getPropNum(target, y, vars.unitY) : 0);
-
-    if (vars.relative) {
-      _relativize(segment);
-    }
-
+    vars.relative && _relativize(segment);
     var pointFunc = y ? pointsToSegment : flatPointsToSegment;
     segment = [pointFunc(segment, vars.curviness)];
   }
@@ -66,10 +63,7 @@ var _xProps = ["x", "translateX", "left", "marginLeft"],
 
   _addDimensionalPropTween(plugin, target, x, segment, "x", vars.unitX);
 
-  if (y) {
-    _addDimensionalPropTween(plugin, target, y, segment, "y", vars.unitY);
-  }
-
+  y && _addDimensionalPropTween(plugin, target, y, segment, "y", vars.unitY);
   return cacheRawPathMeasurements(segment, vars.resolution || (vars.curviness === 0 ? 20 : 12)); //when curviness is 0, it creates control points right on top of the anchors which makes it more sensitive to resolution, thus we change the default accordingly.
 },
     _emptyFunc = function _emptyFunc(v) {
@@ -130,7 +124,7 @@ var _xProps = ["x", "translateX", "left", "marginLeft"],
     y += p.y;
   }
 
-  if (p || toElement.getBBox && fromElement.getBBox) {
+  if (p || toElement.getBBox && fromElement.getBBox && toElement.ownerSVGElement === fromElement.ownerSVGElement) {
     p = m.apply(toElement.getBBox());
     x -= p.x;
     y -= p.y;
@@ -207,7 +201,7 @@ var _xProps = ["x", "translateX", "left", "marginLeft"],
 };
 
 export var MotionPathPlugin = {
-  version: "3.2.6",
+  version: "3.3.0",
   name: "motionPath",
   register: function register(core, Plugin, propTween) {
     gsap = core;
@@ -269,7 +263,7 @@ export var MotionPathPlugin = {
 
       for (p in firstObj) {
         if (p !== x && p !== y) {
-          rawPaths.push(_segmentToRawPath(this, _populateSegmentFromArray([], path, p, 0), target, p, 0, slicer, vars));
+          rawPaths.push(_segmentToRawPath(this, _populateSegmentFromArray([], path, p, 2), target, p, 0, slicer, vars));
         }
       }
     } else {
@@ -302,9 +296,7 @@ export var MotionPathPlugin = {
       pt = pt._next;
     }
 
-    if (data.rotate) {
-      data.rSet(data.target, data.rProp, rawPaths[0].angle * (data.radians ? _DEG2RAD : 1) + data.rOffset + data.ru, data, ratio);
-    }
+    data.rotate && data.rSet(data.target, data.rProp, rawPaths[0].angle * (data.radians ? _DEG2RAD : 1) + data.rOffset + data.ru, data, ratio);
   },
   getLength: function getLength(path) {
     return cacheRawPathMeasurements(getRawPath(path)).totalLength;
@@ -341,10 +333,7 @@ export var MotionPathPlugin = {
 
     var segment = _populateSegmentFromArray(_populateSegmentFromArray([], value, vars.x || "x", 0), value, vars.y || "y", 1);
 
-    if (vars.relative) {
-      _relativize(segment);
-    }
-
+    vars.relative && _relativize(segment);
     return [vars.type === "cubic" ? segment : pointsToSegment(segment, vars.curviness)];
   }
 };

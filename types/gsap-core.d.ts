@@ -12,7 +12,9 @@ declare namespace gsap {
     | typeof core.Tween
     | typeof core.Timeline
     | typeof Draggable
-    | object;
+    | typeof GSDevTools
+    | typeof MotionPathHelper
+    | typeof SplitText;
 
   // querySelector returns type Element | null
   type DOMTarget = Element | string | null | ArrayLike<Element | string | null>;
@@ -30,7 +32,12 @@ declare namespace gsap {
   type BooleanValue = boolean | FunctionBasedValue<boolean>;
   type NumberValue = number | FunctionBasedValue<number>;
   type StringValue = string | FunctionBasedValue<string>;
+  type ElementValue = Element | FunctionBasedValue<Element>;
   type TweenValue = NumberValue | StringValue;
+  
+  type SVGPathValue = string | SVGPathElement;
+  type SVGPathTarget = SVGPathValue | ArrayLike<SVGPathValue>;
+  type SVGPrimitive = SVGCircleElement | SVGRectElement | SVGEllipseElement | SVGPolygonElement | SVGPolylineElement | SVGLineElement;
 
   interface AnimationVars extends CallbackVars {
     [key: string]: any;
@@ -132,6 +139,7 @@ declare namespace gsap {
     delay?: TweenValue;
     duration?: TweenValue;
     ease?: string | EaseFunction;
+    endArray?: any[];
     immediateRender?: boolean;    
     lazy?: boolean;
     keyframes?: TweenVars[];
@@ -152,86 +160,362 @@ declare namespace gsap {
 
   const version: string;
 
-  function config(config: GSAPConfig): GSAPConfig;
-  function config(): GSAPConfig;
+  /**
+   * Gets or sets GSAP's global configuration settings.
+   * 
+   * Options: autoSleep, force3D, nullTargetWarn, and units
+   * 
+   * ```js
+   * gsap.config({force3D: false});
+   * ```
+   *
+   * @param {GSAPConfig} [config]
+   * @returns {GSAPConfig} Configuration object
+   * @memberof gsap
+   */
+  function config(config?: GSAPConfig): GSAPConfig;
 
-  function defaults(defauts: TweenVars): TweenVars;
-  function defaults(): TweenVars;
+  /**
+   * Gets or sets GSAP's global defaults. These will be inherited by every tween.
+   * 
+   * ```js
+   * gsap.defaults({ease: "none", duration: 1});
+   * ```
+   *
+   * @param {TweenVars} [defaults]
+   * @returns {TweenVars} Defaults object
+   * @memberof gsap
+   */
+  function defaults(defaults?: TweenVars): TweenVars;
 
-  function delayedCall(delay: number, callback: Callback, params?: any[], scope?: object): core.Tween; 
+  /**
+   * Delays the call of a function by the specified amount.
+   *
+   * ```js
+   * let delayTween = gsap.delayedCall(1, myFunc);
+   * ```
+   *
+   * @param {number} delay
+   * @param {Function} callback
+   * @returns {Tween} Tween instance
+   * @memberof gsap
+   */
+  function delayedCall(delay: number, callback: Function): core.Tween; 
 
+  /**
+   * Transfers all tweens, timelines, and (optionally) delayed calls from the root timeline into a new timeline.
+   *
+   * ```js
+   * const exportedTL = gsap.exportRoot();
+   * ```
+   *
+   * @param {TimelineVars} [vars]
+   * @param {boolean} [includeDelayedCalls]
+   * @returns {Timeline} Timeline instance
+   * @memberof gsap
+   */
   function exportRoot(vars?: TimelineVars, includeDelayedCalls?: boolean): core.Timeline;
 
+  /**
+   * Creates a tween coming FROM the given values.
+   *
+   * ```js
+   * gsap.from(".class", {x: 100});
+   * ```
+   *
+   * @param {TweenTarget} targets
+   * @param {TweenVars} vars
+   * @returns {Tween} Tween instance
+   * @memberof gsap
+   */
   function from(targets: TweenTarget, vars: TweenVars): core.Tween;
+
+  /**
+   * **Deprecated method signature.** Use the `duration` property instead.
+   * 
+   * ```js
+   * gsap.from(".class", 1, {x: 100});
+   * ```
+   * @deprecated since version 2
+   * @param {TweenTarget} targets
+   * @param {number} duration - The duration parameter is deprecated. Use the `duration` property instead.
+   * @param {TweenVars} vars
+   * @returns {Tween} Tween instance
+   * @memberof gsap
+   */
   function from(targets: TweenTarget, duration: number, vars:TweenVars): core.Tween;
 
+   /**
+   * Creates a tween coming FROM the first set of values going TO the second set of values.
+   *
+   * ```js
+   * gsap.fromTo(".class", {x: 0}, {x: 100});
+   * ```
+   *
+   * @param {TweenTarget} targets
+   * @param {TweenVars} vars
+   * @returns {Tween} Tween instance
+   * @memberof gsap
+   */
   function fromTo(targets: TweenTarget, fromVars: TweenVars, toVars: TweenVars): core.Tween;
+
+  /**
+   * **Deprecated method signature.** Use the `duration` property instead.
+   * 
+   * ```js
+   * gsap.fromTo(".class", 1, {x: 0}, {x: 100});
+   * ```
+   * @deprecated since version 2
+   * @param {TweenTarget} targets
+   * @param {number} duration - The duration parameter is deprecated. Use the `duration` property instead.
+   * @param {TweenVars} vars
+   * @returns {Tween} Tween instance
+   */
   function fromTo(targets: TweenTarget, duration: number, fromVars: TweenVars, toVars: TweenVars): core.Tween;
 
+  /**
+   * Gets the tween or timeline with the specified ID if it exists.
+   *
+   * ```js
+   * gsap.to(obj, {id: "myTween", x: 100});
+   * 
+   * // later
+   * let tween = gsap.getById("myTween");
+   * ```
+   *
+   * @param {string | number} id
+   * @returns {Tween} Tween instance
+   * @memberof gsap
+   */
   function getById<T extends core.Animation>(id: string | number): T;
 
-  function getProperty(targets: TweenTarget, property: string, unit?: string): string | number;
-  function getProperty(targets: TweenTarget): (property: string, unit?: string) => string | number;
+  /**
+   * Gets the specified property of the target (or first of the targets) if it exists.
+   *
+   * ```js
+   * gsap.getProperty(element, "x");
+   * ```
+   *
+   * @param {TweenTarget} target
+   * @param {string} property
+   * @param {string} [unit]
+   * @returns {string | number} Value
+   * @memberof gsap
+   */
+  function getProperty(target: TweenTarget, property: string, unit?: string): string | number;
+  function getProperty(target: TweenTarget): (property: string, unit?: string) => string | number;
 
+  /**
+   * Gets all of the tweens whose targets include the specified target or group of targets.
+   *
+   * ```js
+   * gsap.getTweensOf(element);
+   * ```
+   *
+   * @param {TweenTarget} targets
+   * @param {boolean} [onlyActive]
+   * @returns {Tween} Tween instance
+   * @memberof gsap
+   */
   function getTweensOf(targets: TweenTarget, onlyActive?: boolean): core.Tween[];
 
+  /**
+   * Used to add all the GSAP globals to a particular tween object.
+   *
+   * ```js
+   * gsap.install(myTween);
+   * ```
+   * 
+   * @param {object} targets
+   * @returns {gsap} The gsap object
+   * @memberof gsap
+   */
   function install(targets: object): typeof gsap;
 
+  /**
+   * Reports whether or not a particular object is actively animating.
+   *
+   * ```js
+   * gsap.isTweening("#id");
+   * ```
+   * 
+   * @param {TweenTarget} targets
+   * @returns {boolean} Status
+   * @memberof gsap
+   */
   function isTweening(targets: TweenTarget): boolean;
 
+  /**
+   * Kills all the tweens (or specific tweening properties) of a particular object or the delayedCalls to a particular function.
+   *
+   * ```js
+   * gsap.killTweensOf(".myClass");
+   * gsap.killTweensOf(myObject, "opacity,x");
+   * ```
+   *
+   * @param {TweenTarget} targets
+   * @param {object | string} [properties]
+   * @param {boolean} [onlyActive]
+   * @returns {void} Void
+   * @memberof gsap
+   */
   function killTweensOf(targets: TweenTarget, properties?: object | string, onlyActive?: boolean): void;
 
+  /**
+   * Returns the corresponding easing function for the given easing string.
+   *
+   * ```js
+   * let ease = gsap.parseEase("power1");
+   * ```
+   *
+   * @param {string | EaseFunction} ease
+   * @returns {EaseFunction} Ease function
+   * @memberof gsap
+   */
   function parseEase(ease: string | EaseFunction): EaseFunction;
   function parseEase(): EaseMap;
-  
-  function quickSetter(target: TweenTarget, property: string, unit?: string): (value: any) => void;
 
-  function registerEase(config: { name: string, ease: EaseFunction }): void;
+  /**
+   * Returns a function that acts as a simpler alternative of gsap.set() that is more performant but less versatile.
+   *
+   * ```js
+   * const setX = gsap.quickSetter("#id", "x", "px");
+   * 
+   * // later
+   * setX(100);
+   * ```
+   *
+   * @param {TweenTarget} targets
+   * @param {string} property
+   * @param {string} [unit]
+   * @returns {Function} Setter function
+   * @memberof gsap
+   */
+  function quickSetter(targets: TweenTarget, property: string, unit?: string): Function;
+
+  /**
+   * Register custom easing functions with GSAP, giving it a name so it can be referenced in any tweens.
+   *
+   * ```js
+   * gsap.registerEase("myEaseName", function(progress) {
+   *   return progress; //linear
+   * });
+   * ```
+   *
+   * @param {string} name
+   * @param {EaseFunction} ease
+   * @memberof gsap
+   */
+  function registerEase(name: string, ease: EaseFunction): void;
 
   // TODO: Create interface for effect
+  /**
+   * Registers custom effects (named tweens) for reuse with optional arguments.
+   *
+   * ```js
+   * // register the effect with GSAP:
+   * gsap.registerEffect({
+   *   name: "fade",
+   *   effect: (targets, config) => {
+   *     return gsap.to(targets, {duration: config.duration, opacity: 0});
+   *   },
+   *   defaults: {duration: 2}, //defaults get applied to any "config" object passed to the effect
+   *   extendTimeline: true, //now you can call the effect directly on any GSAP timeline to have the result immediately inserted in the position you define (default is sequenced at the end)
+   * });
+   *
+   * // now we can use it like this:
+   * gsap.effects.fade(".box");
+   * // or
+   * tl.fade(".box", {duration: 3})
+   * ```
+   *
+   * @param {object} effect
+   * @memberof gsap
+   */
   function registerEffect(effect: object): void;
-
+  
+  /**
+   * Installs the specified GSAP plugins, provided they have been loaded already.
+   * 
+   * ```js
+   * gsap.registerPlugin(MorphSVPlugin, MotionPathPlugin);
+   * ```
+   *
+   * @param {RegisterablePlugins[]} args
+   * @memberof gsap
+   */
   function registerPlugin(...args: RegisterablePlugins[]): void;
-
+  
+  /**
+   * Immediately sets properties of the target(s) to the properties specified.
+   *
+   * ```js
+   * gsap.set(".class", {x: 100, y: 50, opacity: 0});
+   * ```
+   *
+   * @param {TweenTarget} targets
+   * @param {TweenVars} vars
+   * @returns {Tween} Tween instance
+   * @memberof gsap
+   */
   function set(targets: TweenTarget, vars: TweenVars): core.Tween;
 
   /**
+   * Creates a new timeline, used to compose sequences of tweens.
    *
-   *
-   * @param {object} [vars]
+   * @param {TimelineVars} [vars]
    * @returns {Timeline} Timeline instance
    * @memberof gsap
    */
   function timeline(vars?: TimelineVars): core.Timeline;
 
   /**
-   * Creates an animation
+   * Creates a tween going TO the given values.
    *
    * ```js
-   *  var tween = gsap.to(".class", { x: 100 });
+   * gsap.to(".class", {x: 100});
    * ```
    *
-   * @param {*} targets
-   * @param {object} vars
+   * @param {TweenTarget} targets
+   * @param {TweenVars} vars
    * @returns {Tween} Tween instance
    * @memberof gsap
    */
   function to(targets: TweenTarget, vars: TweenVars): core.Tween;
 
   /**
-  * **Deprecated method signature.** Use the `duration` property instead.
-  * ```js
-  * tl.to(".class", { duration: 1, x: 100 });
-  * ```
-  * @deprecated since version 2
-  * @param {*} targets
-  * @param {number} duration - The duration parameter is deprecated. Use the `duration`
-  * property instead.
-  * @param {TweenVars} vars
-  */
+   * **Deprecated method signature.** Use the `duration` property instead.
+   * 
+   * ```js
+   * gsap.to(".class", 1, {x: 100});
+   * ```
+   * @deprecated since version 2
+   * @param {TweenTarget} targets
+   * @param {number} duration - The duration parameter is deprecated. Use the `duration` property instead.
+   * @param {TweenVars} vars
+   * @returns {Tween} Tween instance
+   * @memberof gsap
+   */
   function to(targets: TweenTarget, duration: number, vars: TweenVars): core.Tween;
 
+  /**
+   * Manually update the root (global) timeline. Make sure to unhook GSAP's default ticker.
+   *
+   * ```js
+   * // unhooks the GSAP ticker
+   * gsap.ticker.remove(gsap.updateRoot);
+   * 
+   * // sets the root time to 20 seconds manually
+   * gsap.updateRoot(20);
+   * ```
+   *
+   * @param {number} number
+   * @returns {void} Void
+   * @memberof gsap
+   */
   function updateRoot(time: number): void;
+
+  
 }
 
 // TODO: Move to files where declared

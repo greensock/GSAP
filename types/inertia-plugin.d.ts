@@ -13,11 +13,11 @@ declare namespace gsap {
   }
 
   interface InertiaObject {
-    velocity?: number | "auto";
     min?: number;
     max?: number;
     end?: number | number[] | InertiaEndFunction<any>;
     // end?: number | number[] | InertiaEndFunction<number> | InertiaEndFunction<InertiaLinkedProps>; 
+    velocity?: number | "auto";
   }
 
   type InertiaVars = {

@@ -1,5 +1,5 @@
 /*!
- * paths 3.2.6
+ * paths 3.3.0
  * https://greensock.com
  *
  * Copyright 2008-2020, GreenSock. All rights reserved.
@@ -215,7 +215,7 @@ export function convertToPath(element, swap) {
 
   if (type === "rect") {
     r = attr.rx;
-    ry = attr.ry;
+    ry = attr.ry || r;
     x = attr.x;
     y = attr.y;
     w = attr.width - r * 2;
@@ -588,20 +588,13 @@ export function subdivideSegment(segment, i, t) {
   _round(y1 + (y2 - y1) * t), _round(x2), //third control point
   _round(y2), _round(x2a), //fourth control point
   _round(y2a));
-
-  if (segment.samples) {
-    segment.samples.splice(i / 6 * segment.resolution | 0, 0, 0, 0, 0, 0, 0, 0);
-  }
-
+  segment.samples && segment.samples.splice(i / 6 * segment.resolution | 0, 0, 0, 0, 0, 0, 0, 0);
   return 6;
 } // returns an object {path, segment, segIndex, i, t}
 
 function getProgressData(rawPath, progress, decoratee, pushToNextIfAtEnd) {
   decoratee = decoratee || {};
-
-  if (!rawPath.totalLength) {
-    cacheRawPathMeasurements(rawPath);
-  }
+  rawPath.totalLength || cacheRawPathMeasurements(rawPath);
 
   if (progress < 0 || progress > 1) {
     progress = _wrapProgress(progress);
@@ -794,10 +787,7 @@ function arcToSegment(lastX, lastY, rx, ry, angle, largeArcFlag, sweepFlag, x, y
       angleStart = (uy < 0 ? -1 : 1) * Math.acos(ux / _sqrt(temp)),
       angleExtent = (ux * vy - uy * vx < 0 ? -1 : 1) * Math.acos((ux * vx + uy * vy) / _sqrt(temp * (vx * vx + vy * vy)));
 
-  if (isNaN(angleExtent)) {
-    //rare edge case. Math.cos(-1) is NaN.
-    angleExtent = PI;
-  }
+  isNaN(angleExtent) && (angleExtent = PI); //rare edge case. Math.cos(-1) is NaN.
 
   if (!sweepFlag && angleExtent > 0) {
     angleExtent -= TWOPI;
@@ -1121,6 +1111,7 @@ export function pointsToSegment(points, curviness, cornerThreshold) {
       segment = [x, y, x, y],
       dx2 = nextX - x,
       dy2 = nextY - y,
+      closed = Math.abs(points[l] - x) < 0.001 && Math.abs(points[l + 1] - y) < 0.001,
       prevX,
       prevY,
       angle,
@@ -1138,6 +1129,17 @@ export function pointsToSegment(points, curviness, cornerThreshold) {
 
   if (isNaN(cornerThreshold)) {
     cornerThreshold = Math.PI / 10;
+  }
+
+  if (closed) {
+    // if the start and end points are basically on top of each other, close the segment by adding the 2nd point to the end, and the 2nd-to-last point to the beginning (we'll remove them at the end, but this allows the curvature to look perfect)
+    points.push(nextX, nextY);
+    nextX = x;
+    nextY = y;
+    x = points[l - 2];
+    y = points[l - 1];
+    points.unshift(x, y);
+    l += 4;
   }
 
   curviness = curviness || curviness === 0 ? +curviness : 1;
@@ -1186,6 +1188,12 @@ export function pointsToSegment(points, curviness, cornerThreshold) {
   }
 
   segment.push(_round(nextX), _round(nextY), _round(nextX), _round(nextY));
+
+  if (closed) {
+    segment.splice(0, 6);
+    segment.length = segment.length - 6;
+  }
+
   return segment;
 } //returns the squared distance between an x/y coordinate and a segment between x1/y1 and x2/y2
 

@@ -1,5 +1,5 @@
 /*!
- * CSSPlugin 3.2.6
+ * CSSPlugin 3.3.0
  * https://greensock.com
  *
  * Copyright 2008-2020, GreenSock. All rights reserved.
@@ -71,7 +71,7 @@ let _win, _doc, _docElement, _pluginInitted, _tempDiv, _tempDivStyler, _recentSe
 		return (i < 0) ? null : ((i === 3) ? "ms" : (i >= 0) ? _prefixes[i] : "") + property;
 	},
 	_initCore = () => {
-		if (_windowExists()) {
+		if (_windowExists() && window.document) {
 			_win = window;
 			_doc = _win.document;
 			_docElement = _doc.documentElement;
@@ -457,7 +457,7 @@ let _win, _doc, _docElement, _pluginInitted, _tempDiv, _tempDivStyler, _recentSe
 			temp = style.display;
 			style.display = "block";
 			parent = target.parentNode;
-			if (!parent || !target.offsetParent) {
+			if (!parent || !_doc.body.contains(target)) {
 				addedToDOM = 1; //flag
 				nextSibling = target.nextSibling;
 				_docElement.appendChild(target); //we must add it to the DOM in order to get values properly
@@ -640,9 +640,9 @@ let _win, _doc, _docElement, _pluginInitted, _tempDiv, _tempDivStyler, _recentSe
 			}
 
 			if (cache.svg) { //sense if there are CSS transforms applied on an SVG element in which case we must overwrite them when rendering. The transform attribute is more reliable cross-browser, but we can't just remove the CSS ones because they may be applied in a CSS rule somewhere (not just inline).
-				matrix = target.getAttribute("transform");
+				t1 = target.getAttribute("transform");
 				cache.forceCSS = target.setAttribute("transform", "") || (!_isNullTransform(_getComputedProperty(target, _transformProp)));
-				matrix && target.setAttribute("transform", matrix);
+				t1 && target.setAttribute("transform", t1);
 			}
 		}
 

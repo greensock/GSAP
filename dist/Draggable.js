@@ -60,6 +60,23 @@
 
     return doc;
   },
+      _forceNonZeroScale = function _forceNonZeroScale(e) {
+    var a, cache;
+
+    while (e && e !== _body) {
+      cache = e._gsap;
+
+      if (cache && !cache.scaleX && !cache.scaleY) {
+        cache.scaleX = cache.scaleY = 1e-4;
+        cache.renderTransform(1, cache);
+        a ? a.push(cache) : a = [cache];
+      }
+
+      e = e.parentNode;
+    }
+
+    return a;
+  },
       _svgTemps = [],
       _divTemps = [],
       _getDocScrollTop = function _getDocScrollTop() {
@@ -254,7 +271,7 @@
           d = this.d,
           e = this.e,
           f = this.f,
-          determinant = a * d - b * c;
+          determinant = a * d - b * c || 1e-10;
       return _setMatrix(this, d / determinant, -b / determinant, -c / determinant, a / determinant, (c * f - d * e) / determinant, -(a * f - b * e) / determinant);
     };
 
@@ -313,7 +330,8 @@
       return new Matrix2D();
     }
 
-    var svg = _svgOwner(element),
+    var zeroScales = _forceNonZeroScale(element.parentNode),
+        svg = _svgOwner(element),
         temps = svg ? _svgTemps : _divTemps,
         container = _placeSiblings(element, adjustGOffset),
         b1 = temps[0].getBoundingClientRect(),
@@ -324,6 +342,17 @@
         m = new Matrix2D((b2.left - b1.left) / 100, (b2.top - b1.top) / 100, (b3.left - b1.left) / 100, (b3.top - b1.top) / 100, b1.left + (isFixed ? 0 : _getDocScrollLeft()), b1.top + (isFixed ? 0 : _getDocScrollTop()));
 
     parent.removeChild(container);
+
+    if (zeroScales) {
+      b1 = zeroScales.length;
+
+      while (b1--) {
+        b2 = zeroScales[b1];
+        b2.scaleX = b2.scaleY = 0;
+        b2.renderTransform(1, b2);
+      }
+    }
+
     return inverse ? m.inverse() : m;
   }
 
@@ -454,30 +483,19 @@
         passive: false
       } : null);
       element.addEventListener(touchType || type, func, capture);
-
-      if (touchType && type !== touchType && touchType.substr(0, 7) !== "pointer") {
-        element.addEventListener(type, func, capture);
-      }
+      touchType && type !== touchType && element.addEventListener(type, func, capture);
     }
   },
       _removeListener = function _removeListener(element, type, func) {
     if (element.removeEventListener) {
       var touchType = _touchEventLookup[type];
       element.removeEventListener(touchType || type, func);
-
-      if (touchType && type !== touchType && touchType.substr(0, 7) !== "pointer") {
-        element.removeEventListener(type, func);
-      }
+      touchType && type !== touchType && element.removeEventListener(type, func);
     }
   },
       _preventDefault = function _preventDefault(event) {
-    if (event.preventDefault) {
-      event.preventDefault();
-
-      if (event.preventManipulation) {
-        event.preventManipulation();
-      }
-    }
+    event.preventDefault && event.preventDefault();
+    event.preventManipulation && event.preventManipulation();
   },
       _hasTouchID = function _hasTouchID(list, ID) {
     var i = list.length;
@@ -690,8 +708,9 @@
 
         if (!width) {
           cs = _getComputedStyle(element);
-          width = (parseFloat(cs.width) || element.clientWidth || 0) + parseFloat(cs.borderLeftWidth) + parseFloat(cs.borderRightWidth);
-          height = (parseFloat(cs.height) || element.clientHeight || 0) + parseFloat(cs.borderTopWidth) + parseFloat(cs.borderBottomWidth);
+          bbox = cs.boxSizing === "border-box";
+          width = (parseFloat(cs.width) || element.clientWidth || 0) + (bbox ? 0 : parseFloat(cs.borderLeftWidth) + parseFloat(cs.borderRightWidth));
+          height = (parseFloat(cs.height) || element.clientHeight || 0) + (bbox ? 0 : parseFloat(cs.borderTopWidth) + parseFloat(cs.borderBottomWidth));
         }
       }
 
@@ -1277,15 +1296,12 @@
           isDispatching,
           clickDispatch,
           trustedClickDispatch,
+          isPreventingDefault,
           onContextMenu = function onContextMenu(e) {
-        if (self.isPressed && e.which < 2) {
-          self.endDrag();
-        } else {
-          _preventDefault(e);
+        _preventDefault(e);
 
-          e.stopPropagation();
-          return false;
-        }
+        e.stopImmediatePropagation && e.stopImmediatePropagation();
+        return false;
       },
           render = function render(suppressEvents) {
         if (self.autoScroll && self.isDragging && (checkAutoScrollBounds || dirty)) {
@@ -1881,6 +1897,7 @@
         var i;
 
         if (!enabled || self.isPressed || !e || (e.type === "mousedown" || e.type === "pointerdown") && !force && _getTime() - clickTime < 30 && _touchEventLookup[self.pointerEvent.type]) {
+          isPreventingDefault && e && enabled && _preventDefault(e);
           return;
         }
 
@@ -1928,8 +1945,9 @@
         }
 
         allowNativeTouchScrolling = !touchEventTarget || allowX === allowY || self.vars.allowNativeTouchScrolling === false || self.vars.allowContextMenu && e && (e.ctrlKey || e.which > 2) ? false : allowX ? "y" : "x";
+        isPreventingDefault = !allowNativeTouchScrolling && !self.allowEventDefault;
 
-        if (!allowNativeTouchScrolling && !self.allowEventDefault) {
+        if (isPreventingDefault) {
           _preventDefault(e);
 
           _addListener(_win$1, "touchforcechange", _preventDefault);
@@ -1963,20 +1981,12 @@
         }
 
         recordStartPositions();
-
-        if (self.tween) {
-          self.tween.kill();
-        }
-
+        self.tween && self.tween.kill();
         self.isThrowing = false;
         gsap.killTweensOf(scrollProxy || target, killProps, true);
-
-        if (scrollProxy) {
-          gsap.killTweensOf(target, {
-            scrollTo: 1
-          }, true);
-        }
-
+        scrollProxy && gsap.killTweensOf(target, {
+          scrollTo: 1
+        }, true);
         self.tween = self.lockedAxis = null;
 
         if (vars.zIndexBoost || !rotationMode && !scrollProxy && vars.zIndexBoost !== false) {
@@ -2009,6 +2019,7 @@
             dy;
 
         if (!enabled || _isMultiTouching || !self.isPressed || !e) {
+          isPreventingDefault && e && enabled && _preventDefault(e);
           return;
         }
 
@@ -2034,11 +2045,7 @@
         if (touchEventTarget && allowNativeTouchScrolling && !touchDragAxis) {
           _point1.x = e.pageX;
           _point1.y = e.pageY;
-
-          if (matrix) {
-            matrix.apply(_point1, _point1);
-          }
-
+          matrix && matrix.apply(_point1, _point1);
           pointerX = _point1.x;
           pointerY = _point1.y;
           dx = Math.abs(pointerX - startPointerX);
@@ -2051,12 +2058,9 @@
               _addListener(_win$1, "touchforcechange", _preventDefault);
             }
 
-            if (self.vars.lockAxisOnTouchScroll !== false) {
+            if (self.vars.lockAxisOnTouchScroll !== false && allowX && allowY) {
               self.lockedAxis = touchDragAxis === "x" ? "y" : "x";
-
-              if (_isFunction(self.vars.onLockAxis)) {
-                self.vars.onLockAxis.call(self, originalEvent);
-              }
+              _isFunction(self.vars.onLockAxis) && self.vars.onLockAxis.call(self, originalEvent);
             }
 
             if (_isAndroid && allowNativeTouchScrolling === touchDragAxis) {
@@ -2068,6 +2072,10 @@
 
         if (!self.allowEventDefault && (!allowNativeTouchScrolling || touchDragAxis && allowNativeTouchScrolling !== touchDragAxis) && originalEvent.cancelable !== false) {
           _preventDefault(originalEvent);
+
+          isPreventingDefault = true;
+        } else if (isPreventingDefault) {
+          isPreventingDefault = false;
         }
 
         if (self.autoScroll) {
@@ -2224,6 +2232,7 @@
       },
           onRelease = function onRelease(e, force) {
         if (!enabled || !self.isPressed || e && touchID != null && !force && (e.pointerId && e.pointerId !== touchID || e.changedTouches && !_hasTouchID(e.changedTouches, touchID))) {
+          isPreventingDefault && e && enabled && _preventDefault(e);
           return;
         }
 
@@ -2321,8 +2330,12 @@
         if (isContextMenuRelease && originalEvent) {
           _preventDefault(originalEvent);
 
+          isPreventingDefault = true;
+
           _dispatchEvent(self, "release", "onRelease");
         } else if (originalEvent && !wasDragging) {
+          isPreventingDefault = false;
+
           if (interrupted && (vars.snap || vars.bounds)) {
             animate(vars.inertia || vars.throwProps);
           }
@@ -2359,20 +2372,18 @@
           animate(vars.inertia || vars.throwProps);
 
           if (!self.allowEventDefault && originalEvent && (vars.dragClickables !== false || !isClickable.call(self, originalEvent.target)) && wasDragging && (!allowNativeTouchScrolling || touchDragAxis && allowNativeTouchScrolling === touchDragAxis) && originalEvent.cancelable !== false) {
+            isPreventingDefault = true;
+
             _preventDefault(originalEvent);
+          } else {
+            isPreventingDefault = false;
           }
 
           _dispatchEvent(self, "release", "onRelease");
         }
 
-        if (isTweening()) {
-          placeholderDelayedCall.duration(self.tween.duration());
-        }
-
-        if (wasDragging) {
-          _dispatchEvent(self, "dragend", "onDragEnd");
-        }
-
+        isTweening() && placeholderDelayedCall.duration(self.tween.duration());
+        wasDragging && _dispatchEvent(self, "dragend", "onDragEnd");
         return true;
       },
           updateScroll = function updateScroll(e) {
@@ -2653,10 +2664,7 @@
 
           while (--i > -1) {
             trigger = triggers[i];
-
-            if (!_supportsPointer) {
-              _addListener(trigger, "mousedown", onPress);
-            }
+            _supportsPointer || _addListener(trigger, "mousedown", onPress);
 
             _addListener(trigger, "touchstart", onPress);
 
@@ -2670,9 +2678,7 @@
               });
             }
 
-            if (!vars.allowContextMenu) {
-              _addListener(trigger, "contextmenu", onContextMenu);
-            }
+            vars.allowContextMenu || _addListener(trigger, "contextmenu", onContextMenu);
           }
 
           _setSelectable(triggers, false);
@@ -2903,7 +2909,7 @@
   });
 
   Draggable.zIndex = 1000;
-  Draggable.version = "3.2.6";
+  Draggable.version = "3.3.0";
   _getGSAP() && gsap.registerPlugin(Draggable);
 
   exports.Draggable = Draggable;

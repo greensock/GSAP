@@ -1,5 +1,5 @@
 /*!
- * PixiPlugin 3.2.6
+ * PixiPlugin 3.3.0
  * https://greensock.com
  *
  * @license Copyright 2008-2020, GreenSock. All rights reserved.
@@ -247,7 +247,7 @@ let gsap, _win, _splitColor, _coreInitted, _PIXI, PropTween, _getSetter,
 			_win = window;
 			gsap = _coreInitted = _getGSAP();
 			_PIXI = _PIXI || _win.PIXI;
-			_splitColor = gsap.utils.splitColor;
+			_splitColor = color => gsap.utils.splitColor((color + "").substr(0,2) === "0x" ? "#" + color.substr(2) : color); // some colors in PIXI are reported as "0xFF4421" instead of "#FF4421".
 		}
 	}, i, p;
 
@@ -260,7 +260,7 @@ for (i = 0; i < _xyContexts.length; i++) {
 
 
 export const PixiPlugin = {
-	version:"3.2.6",
+	version:"3.3.0",
 	name:"pixi",
 	register(core, Plugin, propTween) {
 		gsap = core;
@@ -309,7 +309,7 @@ export const PixiPlugin = {
 			} else if (_colorProps[p]) {
 				if ((p === "lineColor" || p === "fillColor") && target instanceof _PIXI.Graphics) {
 					data = (target.geometry || target).graphicsData; //"geometry" was introduced in PIXI version 5
-					this._pt = new PropTween(this._pt, target, p, 0, 0, _renderDirtyCache, {g:target.geometry || target});
+					this._pt = new PropTween(this._pt, target, p, 0, 0, _renderDirtyCache, {g: target.geometry || target});
 					i = data.length;
 					while (--i > -1) {
 						_addColorTween(isV4 ? data[i] : data[i][p.substr(0, 4) + "Style"], isV4 ? p : "color", value, this);
@@ -321,7 +321,7 @@ export const PixiPlugin = {
 				this._pt = new PropTween(this._pt, target, "visible", 0, 0, _renderAutoAlpha);
 				this.add(target, "alpha", target.alpha, value);
 				this._props.push("alpha", "visible");
-			} else {
+			} else if (p !== "resolution") {
 				this.add(target, p, "get", value);
 			}
 			this._props.push(p);
