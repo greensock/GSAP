@@ -9,11 +9,11 @@ declare class GSDevTools {
    * GSDevTools.create(".myClass");
    * ```
    *
-   * @param {GSDevTools.Vars} [vars]
+   * @param {GSDevTools.Vars} vars
    * @returns {GSDevTools} The GSDevTools instance
    * @memberof GSDevTools
    */
-  static create(target?: GSDevTools.Vars): GSDevTools;
+  static create(vars?: GSDevTools.Vars): GSDevTools;
 }
 
 declare namespace GSDevTools {

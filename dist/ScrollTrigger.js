@@ -5,7 +5,7 @@
 }(this, (function (exports) { 'use strict';
 
 	/*!
-	 * ScrollTrigger 3.3.0
+	 * ScrollTrigger 3.3.1
 	 * https://greensock.com
 	 *
 	 * @license Copyright 2008-2020, GreenSock. All rights reserved.
@@ -266,20 +266,24 @@
 	  return !_refreshing && _getTime() - _lastScrollTime > 200 && _resizeDelay.restart(true);
 	},
 	    _listeners = {},
+	    _emptyArray = [],
 	    _dispatch = function _dispatch(type) {
-	  return _listeners[type] && _listeners[type].forEach(function (f) {
+	  return _listeners[type] && _listeners[type].map(function (f) {
 	    return f();
-	  });
+	  }) || _emptyArray;
 	},
 	    _refreshAll = function _refreshAll(force) {
-	  var l = _triggers.length,
+	  var refreshInits = _dispatch("refreshInit"),
+	      l = _triggers.length,
 	      i = 0;
-
-	  _dispatch("refreshInit");
 
 	  for (; i < l; i++) {
 	    _triggers[i].refresh(force !== true);
 	  }
+
+	  refreshInits.forEach(function (result) {
+	    return result && result.render && result.render(-1);
+	  });
 
 	  _dispatch("refresh");
 	},
@@ -508,15 +512,13 @@
 	_horizontal.op = _vertical;
 	var ScrollTrigger = function () {
 	  function ScrollTrigger(vars, animation) {
-	    _coreInitted || console.warn("Please gsap.registerPlugin(ScrollTrigger)");
+	    _coreInitted || ScrollTrigger.register(gsap) || console.warn("Please gsap.registerPlugin(ScrollTrigger)");
 	    this.init(vars, animation);
 	  }
 
 	  var _proto = ScrollTrigger.prototype;
 
 	  _proto.init = function init(vars, animation) {
-	    var _this = this;
-
 	    this.progress = 0;
 	    this.vars && this.kill(1);
 
@@ -555,10 +557,13 @@
 	        toggleActions = isToggle && (once ? "play" : vars.toggleActions).split(" "),
 	        markers = "markers" in vars ? vars.markers : _defaults.markers,
 	        borderWidth = isViewport ? 0 : parseFloat(_getComputedStyle(scroller)["border" + direction.p2 + _Width]) || 0,
-	        softRefresh = function softRefresh() {
-	      return ScrollTrigger.removeEventListener("scrollEnd", softRefresh) || _this.refresh();
-	    },
 	        self = this,
+	        softRefresh = function softRefresh() {
+	      return ScrollTrigger.removeEventListener("scrollEnd", softRefresh) || self.refresh();
+	    },
+	        onRefreshInit = vars.onRefreshInit && function () {
+	      return vars.onRefreshInit(self);
+	    },
 	        tweenTo,
 	        pinCache,
 	        snapFunc,
@@ -586,7 +591,6 @@
 	        markerStartSetter,
 	        markerEndSetter,
 	        cs,
-	        initted,
 	        snap1,
 	        snap2,
 	        scrubScrollTime,
@@ -613,7 +617,7 @@
 
 	    if (animation) {
 	      animation.vars.lazy = false;
-	      animation._initted || animation.render(0, true, true);
+	      animation._initted || animation.vars.immediateRender !== false && animation.render(0, true, true);
 	      self.animation = animation.pause();
 	      animation.scrollTrigger = self;
 	      scrubSmooth = _isNumber(scrub) && scrub;
@@ -746,7 +750,8 @@
 	        return;
 	      }
 
-	      var prevScroll = self.scroll();
+	      var prevScroll = self.scroll(),
+	          prevProgress = self.progress;
 	      _refreshing = 1;
 	      scrubTween && scrubTween.kill();
 	      invalidateOnRefresh && animation && animation.progress(0).invalidate().progress(self.progress);
@@ -834,13 +839,19 @@
 	      self.scroll() < prevScroll && self.scroll(prevScroll);
 	      self.update();
 	      _refreshing = isReverted = 0;
-	      initted = 1;
+
+	      if (prevProgress !== self.progress) {
+	        scrubTween && animation.totalProgress(prevProgress, true);
+	        self.progress = prevProgress;
+	        self.update();
+	      }
+
 	      pin && pinSpacing && (spacer._pinOffset = Math.round(self.progress * change));
 	      onRefresh && onRefresh(self);
 	    };
 
 	    self.getVelocity = function () {
-	      return (self.scroll() - scroll2) / (_getTime() - _time2) * 1000;
+	      return (self.scroll() - scroll2) / (_getTime() - _time2) * 1000 || 0;
 	    };
 
 	    self.update = function (reset, recordVelocity) {
@@ -906,7 +917,7 @@
 	            scrubTween.vars.totalProgress = clipped;
 	            scrubTween.invalidate().restart();
 	          } else if (animation) {
-	            animation.totalProgress(clipped);
+	            animation.totalProgress(clipped, !!_refreshing);
 	          }
 
 	          onUpdate && !reset && onUpdate(self);
@@ -917,10 +928,10 @@
 	          snapDelayedCall.restart(true);
 	        }
 
-	        if (stateChanged) {
-	          toggleState = clipped && !prevProgress ? 0 : clipped === 1 ? 1 : prevProgress === 1 ? 2 : 3;
+	        if (stateChanged && !_refreshing) {
+	          toggleState = clipped && !prevProgress && clipped < 1 ? 0 : clipped === 1 && prevProgress < 1 ? 1 : prevProgress === 1 && clipped > 0 ? 2 : 3;
 
-	          if (clipped === 1 && once && !reset) {
+	          if (clipped === 1 && once) {
 	            self.kill();
 	          } else if (isToggle) {
 	            action = toggleActions[toggleState];
@@ -935,21 +946,19 @@
 	              }
 	            }
 
-	            onUpdate && !_refreshing && onUpdate(self);
+	            onUpdate && onUpdate(self);
 	          }
 
-	          if (!_refreshing || !initted) {
-	            toggleClass && toggled && _toArray(toggleClass.targets).forEach(function (el) {
-	              return el.classList.toggle(toggleClass.className);
-	            });
-	            onToggle && toggled && onToggle(self);
-	            callbacks[toggleState] && callbacks[toggleState](self);
-	            once && (callbacks[toggleState] = 0);
+	          toggleClass && toggled && _toArray(toggleClass.targets).forEach(function (el) {
+	            return el.classList.toggle(toggleClass.className);
+	          });
+	          onToggle && toggled && onToggle(self);
+	          callbacks[toggleState] && callbacks[toggleState](self);
+	          once && (callbacks[toggleState] = 0);
 
-	            if (!toggled) {
-	              toggleState = clipped === 1 ? 1 : 3;
-	              callbacks[toggleState] && callbacks[toggleState](self);
-	            }
+	          if (!toggled) {
+	            toggleState = clipped === 1 ? 1 : 3;
+	            callbacks[toggleState] && callbacks[toggleState](self);
 	          }
 	        } else if (isToggle && onUpdate && !_refreshing) {
 	          onUpdate(self);
@@ -970,8 +979,8 @@
 
 	        _addListener(scroller, "scroll", _onScroll);
 
-	        animation && animation.add && gsap.delayedCall(0.01, self.refresh);
-	        self.refresh();
+	        onRefreshInit && _addListener(ScrollTrigger, "refreshInit", onRefreshInit);
+	        animation && (animation.add ? gsap.delayedCall(0.01, self.refresh) : self.refresh());
 	      }
 	    };
 
@@ -980,6 +989,7 @@
 	        enabled = self.isActive = false;
 	        reset !== enabled && self.update(1);
 	        pin && _swapPinOut(pin, spacer, pinOriginalState);
+	        onRefreshInit && _removeListener(ScrollTrigger, "refreshInit", onRefreshInit);
 
 	        if (!isViewport) {
 	          var i = _triggers.length;
@@ -1017,66 +1027,71 @@
 	      _doc = document;
 	      _docEl = _doc.documentElement;
 	      _body = _doc.body;
-
-	      _raf = _win.requestAnimationFrame || function (f) {
-	        return setTimeout(f, 16);
-	      };
-
-	      _addListener(_win, "mousewheel", _onScroll);
-
-	      _root = [_win, _doc, _docEl, _body];
-
-	      _addListener(_doc, "scroll", _onScroll);
-
-	      var bodyStyle = _body.style,
-	          border = bodyStyle.borderTop,
-	          bounds;
-	      bodyStyle.borderTop = "1px solid #000";
-	      bounds = _getBounds(_body);
-	      _vertical.m = Math.round(bounds.top + _vertical.sc()) || 0;
-	      _horizontal.m = Math.round(bounds.left + _horizontal.sc()) || 0;
-	      border ? bodyStyle.borderTop = border : bodyStyle.removeProperty("border-top");
 	    }
 
-	    if (gsap && _docEl) {
+	    if (gsap) {
 	      _toArray = gsap.utils.toArray;
 	      _clamp = gsap.utils.clamp;
-	      _syncInterval = setInterval(_sync, 100);
-	      gsap.delayedCall(0.5, function () {
-	        return _startup = 0;
-	      });
+	      gsap.core.globals("ScrollTrigger", ScrollTrigger);
 
-	      _addListener(_doc, "touchcancel", _passThrough);
+	      if (_body) {
+	        _raf = _win.requestAnimationFrame || function (f) {
+	          return setTimeout(f, 16);
+	        };
 
-	      _addListener(_body, "touchstart", _passThrough);
+	        _addListener(_win, "mousewheel", _onScroll);
 
-	      _multiListener(_addListener, _doc, "pointerdown,touchstart,mousedown", function () {
-	        return _pointerIsDown = 1;
-	      });
+	        _root = [_win, _doc, _docEl, _body];
 
-	      _multiListener(_addListener, _doc, "pointerup,touchend,mouseup", function () {
-	        return _pointerIsDown = 0;
-	      });
+	        _addListener(_doc, "scroll", _onScroll);
 
-	      _transformProp = gsap.utils.checkPrefix("transform");
+	        var bodyStyle = _body.style,
+	            border = bodyStyle.borderTop,
+	            bounds;
+	        bodyStyle.borderTop = "1px solid #000";
+	        bounds = _getBounds(_body);
+	        _vertical.m = Math.round(bounds.top + _vertical.sc()) || 0;
+	        _horizontal.m = Math.round(bounds.left + _horizontal.sc()) || 0;
+	        border ? bodyStyle.borderTop = border : bodyStyle.removeProperty("border-top");
+	        _syncInterval = setInterval(_sync, 100);
+	        gsap.delayedCall(0.5, function () {
+	          return _startup = 0;
+	        });
 
-	      _stateProps.push(_transformProp);
+	        _addListener(_doc, "touchcancel", _passThrough);
 
-	      _coreInitted = _getTime();
-	      _resizeDelay = gsap.delayedCall(0.2, _refreshAll).pause();
+	        _addListener(_body, "touchstart", _passThrough);
 
-	      _addListener(_doc, "visibilitychange", function () {
-	        return _doc.hidden || _refreshAll();
-	      });
+	        _multiListener(_addListener, _doc, "pointerdown,touchstart,mousedown", function () {
+	          return _pointerIsDown = 1;
+	        });
 
-	      _addListener(_doc, "DOMContentLoaded", _refreshAll);
+	        _multiListener(_addListener, _doc, "pointerup,touchend,mouseup", function () {
+	          return _pointerIsDown = 0;
+	        });
 
-	      _addListener(_win, "load", function () {
-	        return _lastScrollTime || _refreshAll();
-	      });
+	        _transformProp = gsap.utils.checkPrefix("transform");
 
-	      _addListener(_win, "resize", _onResize);
+	        _stateProps.push(_transformProp);
+
+	        _coreInitted = _getTime();
+	        _resizeDelay = gsap.delayedCall(0.2, _refreshAll).pause();
+
+	        _addListener(_doc, "visibilitychange", function () {
+	          return _doc.hidden || _refreshAll();
+	        });
+
+	        _addListener(_doc, "DOMContentLoaded", _refreshAll);
+
+	        _addListener(_win, "load", function () {
+	          return _lastScrollTime || _refreshAll();
+	        });
+
+	        _addListener(_win, "resize", _onResize);
+	      }
 	    }
+
+	    return _coreInitted;
 	  };
 
 	  ScrollTrigger.defaults = function defaults(config) {
@@ -1095,7 +1110,7 @@
 
 	  return ScrollTrigger;
 	}();
-	ScrollTrigger.version = "3.3.0";
+	ScrollTrigger.version = "3.3.1";
 
 	ScrollTrigger.create = function (vars, animation) {
 	  return new ScrollTrigger(vars, animation);
@@ -1140,6 +1155,53 @@
 	  var a = _listeners[type],
 	      i = a && a.indexOf(callback);
 	  i >= 0 && a.splice(i, 1);
+	};
+
+	ScrollTrigger.batch = function (targets, vars) {
+	  var result = [],
+	      varsCopy = {},
+	      interval = vars.interval || 0.02,
+	      batchMax = vars.batchMax || 1e9,
+	      proxyCallback = function proxyCallback(type, callback) {
+	    var elements = [],
+	        triggers = [],
+	        delay = gsap.delayedCall(interval, function () {
+	      callback(elements, triggers);
+	      elements = [];
+	      triggers = [];
+	    }).pause();
+	    return function (self) {
+	      elements.length || delay.restart(true);
+	      elements.push(self.trigger);
+	      triggers.push(self);
+	      batchMax <= elements.length && delay.progress(1);
+	    };
+	  },
+	      p;
+
+	  for (p in vars) {
+	    varsCopy[p] = p.substr(0, 2) === "on" && _isFunction(vars[p]) && p !== "onRefreshInit" ? proxyCallback(p, vars[p]) : vars[p];
+	  }
+
+	  if (_isFunction(batchMax)) {
+	    batchMax = batchMax();
+	    ScrollTrigger.addEventListener("refresh", function () {
+	      return batchMax = vars.batchMax();
+	    });
+	  }
+
+	  _toArray(targets).forEach(function (target) {
+	    var config = {};
+
+	    for (p in varsCopy) {
+	      config[p] = varsCopy[p];
+	    }
+
+	    config.trigger = target;
+	    result.push(ScrollTrigger.create(config));
+	  });
+
+	  return result;
 	};
 
 	_getGSAP() && gsap.registerPlugin(ScrollTrigger);

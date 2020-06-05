@@ -197,10 +197,11 @@ declare namespace gsap {
    *
    * @param {number} delay
    * @param {Function} callback
+   * @param {any[]} [params]
    * @returns {Tween} Tween instance
    * @memberof gsap
    */
-  function delayedCall(delay: number, callback: Function): core.Tween; 
+  function delayedCall(delay: number, callback: Function, params?: any[]): core.Tween;
 
   /**
    * Transfers all tweens, timelines, and (optionally) delayed calls from the root timeline into a new timeline.
@@ -253,7 +254,8 @@ declare namespace gsap {
    * ```
    *
    * @param {TweenTarget} targets
-   * @param {TweenVars} vars
+   * @param {TweenVars} fromVars
+   * @param {TweenVars} toVars
    * @returns {Tween} Tween instance
    * @memberof gsap
    */
@@ -268,7 +270,8 @@ declare namespace gsap {
    * @deprecated since version 2
    * @param {TweenTarget} targets
    * @param {number} duration - The duration parameter is deprecated. Use the `duration` property instead.
-   * @param {TweenVars} vars
+   * @param {TweenVars} fromVars
+   * @param {TweenVars} toVars
    * @returns {Tween} Tween instance
    */
   function fromTo(targets: TweenTarget, duration: number, fromVars: TweenVars, toVars: TweenVars): core.Tween;

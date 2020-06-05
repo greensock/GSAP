@@ -145,7 +145,6 @@ declare namespace gsap.core {
      * anim.iteration();  // getter
      * ```
      *
-     * @param {number} [value]
      * @returns {number} The iteration
      * @memberof Animation
      */
@@ -381,7 +380,6 @@ declare namespace gsap.core {
      * anim.startTime(); // the current start time, something like 1.0
      * ```
      *
-     * @param {number} value
      * @returns {Animation} The animation
      * @memberof Animation
      */
@@ -394,12 +392,12 @@ declare namespace gsap.core {
      * anim.seek(1); // moves the playhead to the 1 second mark
      * ```
      *
-     * @param {number| string} value
-     * @param {boolean} [supressEvents]
+     * @param {number| string} time
+     * @param {boolean} suppressEvents
      * @returns {Animation} The animation
      * @memberof Animation
      */
-    seek(time: number | string, supressEvents?: boolean): this;
+    seek(time: number | string, suppressEvents?: boolean): this;
 
     /**
      * Returns a promise for the given animation.
@@ -458,7 +456,6 @@ declare namespace gsap.core {
      * anim.timeScale(); // the
      * ```
      *
-     * @param {number} value
      * @returns {Animation} The animation
      * @memberof Animation
      */
@@ -496,10 +493,11 @@ declare namespace gsap.core {
      * ```
      *
      * @param {number} value
+     * @param {boolean} suppressEvents
      * @returns {Animation} The animation
      * @memberof Animation
      */
-    totalProgress(value: number, supressEvents?: boolean): this;
+    totalProgress(value: number, suppressEvents?: boolean): this;
     /**
      * Gets the total progress (including repeats) of the given animation.
      *
@@ -507,7 +505,6 @@ declare namespace gsap.core {
      * anim.totalProgress(); // the total progress, e.g. something like 0.5
      * ```
      *
-     * @param {number} value
      * @returns {number} The total progress
      * @memberof Animation
      */
@@ -533,7 +530,6 @@ declare namespace gsap.core {
      * anim.totalTime(); // the total time, e.g. something like 5.7
      * ```
      *
-     * @param {number} value
      * @returns {number} The total time
      * @memberof Animation
      */

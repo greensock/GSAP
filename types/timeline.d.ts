@@ -308,7 +308,7 @@ declare namespace gsap.core {
      * @returns {Timeline} The timeline
      * @memberof Timeline
      */
-    set(target: TweenTarget, vars: TweenVars, position?: Position): this;
+    set(targets: TweenTarget, vars: TweenVars, position?: Position): this;
 
     /**
      * Shifts the startTime of the timeline's children by a certain amount and optionally adjusts labels too.
@@ -334,6 +334,7 @@ declare namespace gsap.core {
      *
      * @param {TweenTarget} targets
      * @param {TweenVars} vars
+     * @param {Position} position
      * @returns {Timeline} The timeline
      * @memberof Timeline
      */
@@ -348,6 +349,7 @@ declare namespace gsap.core {
      * @param {TweenTarget} targets
      * @param {number} duration - The duration parameter is deprecated. Use the `duration` property instead.
      * @param {Timeline} vars
+     * @param {Position} position
      * @returns {Timeline} The timeline
      * @memberof Timeline
      */

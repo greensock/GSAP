@@ -234,7 +234,7 @@ declare namespace MotionPath {
     end?: number;
     offsetX?: number;
     offsetY?: number;
-    path?: SVGPathValue | TweenValue | Point2D[]| PathObject[];
+    path?: gsap.SVGPathValue | gsap.TweenValue | gsap.Point2D[]| gsap.PathObject[];
     relative?: boolean;
     resolution?: number;
     start?: number;

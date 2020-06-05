@@ -1,5 +1,5 @@
 /*!
- * matrix 3.3.0
+ * matrix 3.3.1
  * https://greensock.com
  *
  * Copyright 2008-2020, GreenSock. All rights reserved.
@@ -60,7 +60,7 @@ var _doc,
   while (e && e !== _body) {
     cache = e._gsap;
 
-    if (cache && !cache.scaleX && !cache.scaleY) {
+    if (cache && !cache.scaleX && !cache.scaleY && cache.renderTransform) {
       cache.scaleX = cache.scaleY = 1e-4;
       cache.renderTransform(1, cache);
       a ? a.push(cache) : a = [cache];

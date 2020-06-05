@@ -1,5 +1,5 @@
 /*!
- * ScrollTrigger 3.3.0
+ * ScrollTrigger 3.3.1
  * https://greensock.com
  *
  * @license Copyright 2008-2020, GreenSock. All rights reserved.
@@ -135,14 +135,16 @@ let gsap, _coreInitted, _win, _doc, _docEl, _body, _root, _resizeDelay, _raf, _r
 	},
 	_onResize = () => !_refreshing && (_getTime() - _lastScrollTime > 200) && _resizeDelay.restart(true), // ignore resizes that occur DURING a scroll as well as those triggered by refresh()
 	_listeners = {},
-	_dispatch = type => _listeners[type] && _listeners[type].forEach(f => f()),
+	_emptyArray = [],
+	_dispatch = type => (_listeners[type] && _listeners[type].map(f => f())) || _emptyArray,
 	_refreshAll = force => {
-		let l = _triggers.length,
+		let refreshInits = _dispatch("refreshInit"),
+			l = _triggers.length,
 			i = 0;
-		_dispatch("refreshInit");
 		for (; i < l; i++) {
 			_triggers[i].refresh(force !== true);
 		}
+		refreshInits.forEach(result => result && result.render && result.render(-1)); // if the onRefreshInit() returns an animation (typically a gsap.set()), revert it. This makes it easy to put things in a certain spot before refreshing for measurement purposes, and then put things back.
 		_dispatch("refresh");
 	},
 	_updateAll = () => {
@@ -336,7 +338,7 @@ _horizontal.op = _vertical;
 export class ScrollTrigger {
 
 	constructor(vars, animation) {
-		_coreInitted || console.warn("Please gsap.registerPlugin(ScrollTrigger)");
+		_coreInitted || ScrollTrigger.register(gsap) || console.warn("Please gsap.registerPlugin(ScrollTrigger)");
 		this.init(vars, animation);
 	}
 
@@ -358,9 +360,10 @@ export class ScrollTrigger {
 			toggleActions = isToggle && (once ? "play" : vars.toggleActions).split(" "),
 			markers = "markers" in vars ? vars.markers : _defaults.markers,
 			borderWidth = isViewport ? 0 : parseFloat(_getComputedStyle(scroller)["border" + direction.p2 + _Width]) || 0,
-			softRefresh = () => ScrollTrigger.removeEventListener("scrollEnd", softRefresh) || this.refresh(),
 			self = this,
-			tweenTo, pinCache, snapFunc, isReverted, scroll1, scroll2, start, end, markerStart, markerEnd, markerStartTrigger, markerEndTrigger, markerVars, change, pinOriginalState, pinActiveState, pinState, spacer, offset, pinGetter, pinSetter, pinStart, spacingStart, spacingActive, markerStartSetter, markerEndSetter, cs, initted, snap1, snap2, scrubScrollTime, scrubTween, scrubSmooth, snapDurClamp, snapDelayedCall, enabled;
+			softRefresh = () => ScrollTrigger.removeEventListener("scrollEnd", softRefresh) || self.refresh(),
+			onRefreshInit = vars.onRefreshInit && (() => vars.onRefreshInit(self)),
+			tweenTo, pinCache, snapFunc, isReverted, scroll1, scroll2, start, end, markerStart, markerEnd, markerStartTrigger, markerEndTrigger, markerVars, change, pinOriginalState, pinActiveState, pinState, spacer, offset, pinGetter, pinSetter, pinStart, spacingStart, spacingActive, markerStartSetter, markerEndSetter, cs, snap1, snap2, scrubScrollTime, scrubTween, scrubSmooth, snapDurClamp, snapDelayedCall, enabled;
 
 		anticipatePin *= 45;
 		_triggers.push(self);
@@ -376,7 +379,7 @@ export class ScrollTrigger {
 		self.tweenTo = tweenTo = scrollerCache.tweenScroll[direction.p];
 		if (animation) {
 			animation.vars.lazy = false;
-			animation._initted || animation.render(0, true, true);
+			animation._initted || (animation.vars.immediateRender !== false && animation.render(0, true, true));
 			self.animation = animation.pause();
 			animation.scrollTrigger = self;
 			scrubSmooth = _isNumber(scrub) && scrub;
@@ -467,6 +470,7 @@ export class ScrollTrigger {
 			isReverted = 1;
 		}
 
+
 		self.refresh = soft => {
 			if (_refreshing || !enabled) {
 				return;
@@ -475,7 +479,8 @@ export class ScrollTrigger {
 				_addListener(ScrollTrigger, "scrollEnd", softRefresh);
 				return;
 			}
-			let prevScroll = self.scroll(); // record the scroll so we can revert later (repositioning/pinning things can affect scroll position)
+			let prevScroll = self.scroll(), // record the scroll so we can revert later (repositioning/pinning things can affect scroll position)
+				prevProgress = self.progress;
 			_refreshing = 1;
 			scrubTween && scrubTween.kill();
 			invalidateOnRefresh && animation && animation.progress(0).invalidate().progress(self.progress);
@@ -548,12 +553,16 @@ export class ScrollTrigger {
 			self.scroll() < prevScroll && self.scroll(prevScroll);
 			self.update();
 			_refreshing = isReverted = 0;
-			initted = 1;
+			if (prevProgress !== self.progress) { // ensures that the direction is set properly (when refreshing, progress is set back to 0 initially, then back again to wherever it needs to be) and that callbacks are triggered.
+				scrubTween && animation.totalProgress(prevProgress, true); // to avoid issues where animation callbacks like onStart aren't triggered.
+				self.progress = prevProgress;
+				self.update();
+			}
 			pin && pinSpacing && (spacer._pinOffset = Math.round(self.progress * change));
 			onRefresh && onRefresh(self);
 		};
 
-		self.getVelocity = () => (self.scroll() - scroll2) / (_getTime() - _time2) * 1000;
+		self.getVelocity = () => ((self.scroll() - scroll2) / (_getTime() - _time2) * 1000) || 0;
 
 		self.update = (reset, recordVelocity) => {
 			let scroll = self.scroll(),
@@ -602,7 +611,7 @@ export class ScrollTrigger {
 						scrubTween.vars.totalProgress = clipped;
 						scrubTween.invalidate().restart();
 					} else if (animation) {
-						animation.totalProgress(clipped);
+						animation.totalProgress(clipped, !!_refreshing);
 					}
 					onUpdate && !reset && onUpdate(self);
 				}
@@ -610,9 +619,9 @@ export class ScrollTrigger {
 					scrubScrollTime = _lastScrollTime;
 					snapDelayedCall.restart(true);
 				}
-				if (stateChanged) {
-					toggleState = clipped && !prevProgress ? 0 : clipped === 1 ? 1 : prevProgress === 1 ? 2 : 3; // 0 = enter, 1 = leave, 2 = enterBack, 3 = leaveBack
-					if (clipped === 1 && once && !reset) {
+				if (stateChanged && !_refreshing) {
+					toggleState = clipped && !prevProgress && clipped < 1 ? 0 : clipped === 1 && prevProgress < 1 ? 1 : prevProgress === 1 && clipped > 0 ? 2 : 3; // 0 = enter, 1 = leave, 2 = enterBack, 3 = leaveBack
+					if (clipped === 1 && once) {
 						self.kill();
 					} else if (isToggle) {
 						action = toggleActions[toggleState];
@@ -625,17 +634,15 @@ export class ScrollTrigger {
 								animation[action]();
 							}
 						}
-						onUpdate && !_refreshing && onUpdate(self);
+						onUpdate && onUpdate(self);
 					}
-					if (!_refreshing || !initted) {
-						toggleClass && toggled && _toArray(toggleClass.targets).forEach(el => el.classList.toggle(toggleClass.className));
-						onToggle && toggled && onToggle(self);
+					toggleClass && toggled && _toArray(toggleClass.targets).forEach(el => el.classList.toggle(toggleClass.className));
+					onToggle && toggled && onToggle(self);
+					callbacks[toggleState] && callbacks[toggleState](self);
+					once && (callbacks[toggleState] = 0); // a callback shouldn't be called again if once is true.
+					if (!toggled) { // it's possible to go completely past, like from before the start to after the end (or vice-versa) in which case BOTH callbacks should be fired in that order
+						toggleState = clipped === 1 ? 1 : 3;
 						callbacks[toggleState] && callbacks[toggleState](self);
-						once && (callbacks[toggleState] = 0); // a callback shouldn't be called again if once is true.
-						if (!toggled) { // it's possible to go completely past, like from before the start to after the end (or vice-versa) in which case BOTH callbacks should be fired in that order
-							toggleState = clipped === 1 ? 1 : 3;
-							callbacks[toggleState] && callbacks[toggleState](self);
-						}
 					}
 				} else if (isToggle && onUpdate && !_refreshing) {
 					onUpdate(self);
@@ -653,8 +660,8 @@ export class ScrollTrigger {
 				enabled = true;
 				_addListener(scroller, "resize", _onResize);
 				_addListener(scroller, "scroll", _onScroll);
-				animation && animation.add && gsap.delayedCall(0.01, self.refresh); // if the animation is a timeline, it may not have been populated yet, so it wouldn't render at the proper place on the first refresh(), thus we should schedule one for the next tick.
-				self.refresh();
+				onRefreshInit && _addListener(ScrollTrigger, "refreshInit", onRefreshInit);
+				animation && (animation.add ? gsap.delayedCall(0.01, self.refresh) : self.refresh()); // if the animation is a timeline, it may not have been populated yet, so it wouldn't render at the proper place on the first refresh(), thus we should schedule one for the next tick.
 			}
 		};
 
@@ -663,6 +670,7 @@ export class ScrollTrigger {
 				enabled = self.isActive = false;
 				reset !== enabled && self.update(1);
 				pin && _swapPinOut(pin, spacer, pinOriginalState);
+				onRefreshInit && _removeListener(ScrollTrigger, "refreshInit", onRefreshInit);
 				if (!isViewport) {
 					let i = _triggers.length;
 					while (i--) {
@@ -694,37 +702,41 @@ export class ScrollTrigger {
 			_doc = document;
 			_docEl = _doc.documentElement;
 			_body = _doc.body;
-			_raf = _win.requestAnimationFrame || (f => setTimeout(f, 16));
-			_addListener(_win, "mousewheel", _onScroll);
-			_root = [_win, _doc, _docEl, _body];
-			_addListener(_doc, "scroll", _onScroll); // some browsers (like Chrome), the window stops dispatching scroll events on the window if you scroll really fast, but it's consistent on the document!
-			let bodyStyle = _body.style,
-				border = bodyStyle.borderTop,
-				bounds;
-			bodyStyle.borderTop = "1px solid #000"; // works around an issue where a margin of a child element could throw off the bounds of the _body, making it seem like there's a margin when there actually isn't. The border ensures that the bounds are accurate.
-			bounds = _getBounds(_body);
-			_vertical.m = Math.round(bounds.top + _vertical.sc()) || 0; // accommodate the offset of the <body> caused by margins and/or padding
-			_horizontal.m = Math.round(bounds.left + _horizontal.sc()) || 0;
-			border ? (bodyStyle.borderTop = border) : bodyStyle.removeProperty("border-top");
 		}
-		if (gsap && _docEl) {
+		if (gsap) {
 			_toArray = gsap.utils.toArray;
 			_clamp = gsap.utils.clamp;
-			_syncInterval = setInterval(_sync, 100);
-			gsap.delayedCall(0.5, () => _startup = 0);
-			_addListener(_doc, "touchcancel", _passThrough); // some older Android devices intermittently stop dispatching "touchmove" events if we don't listen for "touchcancel" on the document.
-			_addListener(_body, "touchstart", _passThrough); //works around Safari bug: https://greensock.com/forums/topic/21450-draggable-in-iframe-on-mobile-is-buggy/
-			_multiListener(_addListener, _doc, "pointerdown,touchstart,mousedown", () => _pointerIsDown = 1);
-			_multiListener(_addListener, _doc, "pointerup,touchend,mouseup", () => _pointerIsDown = 0);
-			_transformProp = gsap.utils.checkPrefix("transform");
-			_stateProps.push(_transformProp);
-			_coreInitted = _getTime();
-			_resizeDelay = gsap.delayedCall(0.2, _refreshAll).pause();
-			_addListener(_doc, "visibilitychange", () => _doc.hidden || _refreshAll());
-			_addListener(_doc, "DOMContentLoaded", _refreshAll);
-			_addListener(_win, "load", () => _lastScrollTime || _refreshAll());
-			_addListener(_win, "resize", _onResize);
+			gsap.core.globals("ScrollTrigger", ScrollTrigger); // must register the global manually because in Internet Explorer, functions (classes) don't have a "name" property.
+			if (_body) {
+				_raf = _win.requestAnimationFrame || (f => setTimeout(f, 16));
+				_addListener(_win, "mousewheel", _onScroll);
+				_root = [_win, _doc, _docEl, _body];
+				_addListener(_doc, "scroll", _onScroll); // some browsers (like Chrome), the window stops dispatching scroll events on the window if you scroll really fast, but it's consistent on the document!
+				let bodyStyle = _body.style,
+					border = bodyStyle.borderTop,
+					bounds;
+				bodyStyle.borderTop = "1px solid #000"; // works around an issue where a margin of a child element could throw off the bounds of the _body, making it seem like there's a margin when there actually isn't. The border ensures that the bounds are accurate.
+				bounds = _getBounds(_body);
+				_vertical.m = Math.round(bounds.top + _vertical.sc()) || 0; // accommodate the offset of the <body> caused by margins and/or padding
+				_horizontal.m = Math.round(bounds.left + _horizontal.sc()) || 0;
+				border ? (bodyStyle.borderTop = border) : bodyStyle.removeProperty("border-top");
+				_syncInterval = setInterval(_sync, 100);
+				gsap.delayedCall(0.5, () => _startup = 0);
+				_addListener(_doc, "touchcancel", _passThrough); // some older Android devices intermittently stop dispatching "touchmove" events if we don't listen for "touchcancel" on the document.
+				_addListener(_body, "touchstart", _passThrough); //works around Safari bug: https://greensock.com/forums/topic/21450-draggable-in-iframe-on-mobile-is-buggy/
+				_multiListener(_addListener, _doc, "pointerdown,touchstart,mousedown", () => _pointerIsDown = 1);
+				_multiListener(_addListener, _doc, "pointerup,touchend,mouseup", () => _pointerIsDown = 0);
+				_transformProp = gsap.utils.checkPrefix("transform");
+				_stateProps.push(_transformProp);
+				_coreInitted = _getTime();
+				_resizeDelay = gsap.delayedCall(0.2, _refreshAll).pause();
+				_addListener(_doc, "visibilitychange", () => _doc.hidden || _refreshAll());
+				_addListener(_doc, "DOMContentLoaded", _refreshAll);
+				_addListener(_win, "load", () => _lastScrollTime || _refreshAll());
+				_addListener(_win, "resize", _onResize);
+			}
 		}
+		return _coreInitted;
 	}
 
 	static defaults(config) {
@@ -740,7 +752,7 @@ export class ScrollTrigger {
 
 }
 
-ScrollTrigger.version = "3.3.0";
+ScrollTrigger.version = "3.3.1";
 ScrollTrigger.create = (vars, animation) => new ScrollTrigger(vars, animation);
 ScrollTrigger.refresh = safe => safe ? _onResize() : _refreshAll(true);
 ScrollTrigger.update = _updateAll;
@@ -758,6 +770,40 @@ ScrollTrigger.removeEventListener = (type, callback) => {
 	let a = _listeners[type],
 		i = a && a.indexOf(callback);
 	i >= 0 && a.splice(i, 1);
+};
+ScrollTrigger.batch = (targets, vars) => {
+	let result = [],
+		varsCopy = {},
+		interval = vars.interval || 0.02,
+		batchMax = vars.batchMax || 1e9,
+		proxyCallback = (type, callback) => {
+			let elements = [],
+				triggers = [],
+				delay = gsap.delayedCall(interval, () => {callback(elements, triggers); elements = []; triggers = [];}).pause();
+			return self => {
+				elements.length || delay.restart(true);
+				elements.push(self.trigger);
+				triggers.push(self);
+				batchMax <= elements.length && delay.progress(1);
+			};
+		},
+		p;
+	for (p in vars) {
+		varsCopy[p] = (p.substr(0, 2) === "on" && _isFunction(vars[p]) && p !== "onRefreshInit") ? proxyCallback(p, vars[p]) : vars[p];
+	}
+	if (_isFunction(batchMax)) {
+		batchMax = batchMax();
+		ScrollTrigger.addEventListener("refresh", () => batchMax = vars.batchMax());
+	}
+	_toArray(targets).forEach(target => {
+		let config = {};
+		for (p in varsCopy) {
+			config[p] = varsCopy[p];
+		}
+		config.trigger = target;
+		result.push(ScrollTrigger.create(config));
+	});
+	return result;
 }
 
 _getGSAP() && gsap.registerPlugin(ScrollTrigger);

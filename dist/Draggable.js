@@ -66,7 +66,7 @@
     while (e && e !== _body) {
       cache = e._gsap;
 
-      if (cache && !cache.scaleX && !cache.scaleY) {
+      if (cache && !cache.scaleX && !cache.scaleY && cache.renderTransform) {
         cache.scaleX = cache.scaleY = 1e-4;
         cache.renderTransform(1, cache);
         a ? a.push(cache) : a = [cache];
@@ -2909,7 +2909,7 @@
   });
 
   Draggable.zIndex = 1000;
-  Draggable.version = "3.3.0";
+  Draggable.version = "3.3.1";
   _getGSAP() && gsap.registerPlugin(Draggable);
 
   exports.Draggable = Draggable;

@@ -1157,7 +1157,7 @@
 	  while (e && e !== _body) {
 	    cache = e._gsap;
 
-	    if (cache && !cache.scaleX && !cache.scaleY) {
+	    if (cache && !cache.scaleX && !cache.scaleY && cache.renderTransform) {
 	      cache.scaleX = cache.scaleY = 1e-4;
 	      cache.renderTransform(1, cache);
 	      a ? a.push(cache) : a = [cache];
@@ -1448,7 +1448,7 @@
 	}
 
 	/*!
-	 * MotionPathPlugin 3.3.0
+	 * MotionPathPlugin 3.3.1
 	 * https://greensock.com
 	 *
 	 * @license Copyright 2008-2020, GreenSock. All rights reserved.
@@ -1644,7 +1644,7 @@
 	};
 
 	var MotionPathPlugin = {
-	  version: "3.3.0",
+	  version: "3.3.1",
 	  name: "motionPath",
 	  register: function register(core, Plugin, propTween) {
 	    gsap = core;

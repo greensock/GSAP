@@ -35,7 +35,7 @@ declare namespace gsap.utils {
    * @returns {string | null} The appropriately prefixed property 
    * @memberof gsap.utils
    */
-  function checkPrefix(value: string): string;
+  function checkPrefix(property: string): string;
 
   /**
    * Clamps a number between a given minimum and maximum. 
@@ -118,7 +118,7 @@ declare namespace gsap.utils {
    * ```
    *
    * @param {T[]} array
-   * @param {number} [number]
+   * @param {number} progress
    * @returns {T | Function} The interpolated value or interpolate function
    * @memberof gsap.utils
    */

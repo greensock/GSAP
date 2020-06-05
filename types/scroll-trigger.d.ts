@@ -8,7 +8,7 @@ declare namespace gsap {
 declare namespace gsap.plugins {
 
   interface ScrollTriggerInstance {
-    readonly animation: gsap.core.Animation;
+    readonly animation?: gsap.core.Animation;
     readonly direction: number;
     readonly end: number;
     readonly isActive: boolean;
@@ -16,7 +16,7 @@ declare namespace gsap.plugins {
     readonly progress: number;
     readonly scroller: Element;
     readonly start: number;
-    readonly trigger: Element;
+    readonly trigger?: Element;
     readonly vars: ScrollTriggerInstanceVars;
 
 
@@ -43,7 +43,7 @@ declare namespace gsap.plugins {
     enable(): void;
 
     /**
-     * Gets the current velocity of the element's scroll on which the ScrollTrigger is attached to.
+     * Gets the current velocity of the element's scroll on which the ScrollTrigger is attached to (in pixels per second).
      *
      * ```js
      * scrollTrigger.disable();
@@ -105,7 +105,7 @@ declare namespace gsap.plugins {
 
   interface ScrollTriggerStatic extends Plugin {
     /**
-     * Attatch a new event listener to a ScrollTrigger event.
+     * Attach a new event listener to a ScrollTrigger event.
      *
      * ```js
      * ScrollTrigger.addEventListener("scrollStart", myFunc);
@@ -116,6 +116,27 @@ declare namespace gsap.plugins {
      * @memberof ScrollTrigger
      */
     addEventListener(event: "scrollStart" | "scrollEnd" | "refreshInit" | "refresh", callback: gsap.Callback): void;
+
+    /**
+     * Creates a coordinated group of ScrollTriggers (one for each target element) that batch their callbacks within a certain interval
+     *
+     * ```js
+     * ScrollTrigger.batch(".class", {
+     *     interval: 0.1,
+     *     batchMax: 3,
+     *     onEnter: batch => gsap.to(batch, {opacity: 1, stagger: 0.15, overwrite: true}),
+     *     onLeave: batch => gsap.set(batch, {opacity: 0, overwrite: true}),
+     *     onEnterBack: batch => gsap.to(batch, {opacity: 1, stagger: 0.15, overwrite: true}),
+     *     onLeaveBack: batch => gsap.set(batch, {opacity: 0, overwrite: true})
+     * });
+     * ```
+     *
+     * @param {gsap.DOMTarget} targets
+     * @param {ScrollTriggerBatchVars} vars
+     * @returns {ScrollTriggerInstance[]} An Array of the resulting ScrollTrigger instances
+     * @memberof ScrollTrigger
+     */
+    batch(targets: gsap.DOMTarget, vars: ScrollTriggerBatchVars): ScrollTriggerInstance[];
 
     /**
      * Create scroll triggers that aren't directly connected to a tween or timeline.
@@ -244,6 +265,8 @@ declare namespace gsap.plugins {
   }
 
   type Callback = (self: ScrollTriggerInstance) => any;
+  type BatchCallback = (targets: Element[], triggers: ScrollTriggerInstance[]) => any;
+  type NumFunc = () => number;
   type SnapFunc = (value: number) => number;
   type StartEndFunc = () => string | number;
 
@@ -286,6 +309,7 @@ declare namespace gsap.plugins {
     onLeave?: Callback;
     onLeaveBack?: Callback;
     onRefresh?: Callback;
+    onRefreshInit?: Callback;
     onSnapComplete?: Callback;
     onScrubComplete?: Callback;
     onUpdate?: Callback;
@@ -304,6 +328,29 @@ declare namespace gsap.plugins {
 
   interface ScrollTriggerStaticVars extends ScrollTriggerInstanceVars {
     animation?: gsap.core.Animation;
+  }
+
+  interface ScrollTriggerBatchVars {
+    interval?: number;
+    batchMax?: number | NumFunc;
+    anticipatePin?: number;
+    end?: string | number | StartEndFunc;
+    horizontal?: boolean;
+    once?: boolean;
+    onEnter?: BatchCallback;
+    onEnterBack?: BatchCallback;
+    onLeave?: BatchCallback;
+    onLeaveBack?: BatchCallback;
+    onRefresh?: BatchCallback;
+    onRefreshInit?: Callback;
+    onUpdate?: BatchCallback;
+    onToggle?: BatchCallback;
+    pin?: boolean | string | Element;
+    pinReparent?: boolean;
+    pinSpacing?: boolean | string;
+    scroller?: string | Element;
+    start?: string | number | StartEndFunc;
+    toggleClass?: string | ToggleClassVars;
   }
 }
 
