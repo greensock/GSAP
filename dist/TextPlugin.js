@@ -76,7 +76,7 @@
 	}
 
 	/*!
-	 * TextPlugin 3.3.1
+	 * TextPlugin 3.3.2
 	 * https://greensock.com
 	 *
 	 * @license Copyright 2008-2020, GreenSock. All rights reserved.
@@ -92,7 +92,7 @@
 	};
 
 	var TextPlugin = {
-	  version: "3.3.1",
+	  version: "3.3.2",
 	  name: "text",
 	  init: function init(target, value, tween) {
 	    var i = target.nodeName.toUpperCase(),

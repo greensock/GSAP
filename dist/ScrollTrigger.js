@@ -5,7 +5,7 @@
 }(this, (function (exports) { 'use strict';
 
 	/*!
-	 * ScrollTrigger 3.3.1
+	 * ScrollTrigger 3.3.2
 	 * https://greensock.com
 	 *
 	 * @license Copyright 2008-2020, GreenSock. All rights reserved.
@@ -275,15 +275,24 @@
 	    _refreshAll = function _refreshAll(force) {
 	  var refreshInits = _dispatch("refreshInit"),
 	      l = _triggers.length,
-	      i = 0;
+	      i = l;
 
-	  for (; i < l; i++) {
-	    _triggers[i].refresh(force !== true);
+	  while (i--) {
+	    _triggers[i].scroll.rec = _triggers[i].scroll();
+	  }
+
+	  for (i = 0; i < l; i++) {
+	    _triggers[i] && _triggers[i].refresh(force !== true);
 	  }
 
 	  refreshInits.forEach(function (result) {
 	    return result && result.render && result.render(-1);
 	  });
+	  i = _triggers.length;
+
+	  while (i--) {
+	    _triggers[i].scroll.rec = 0;
+	  }
 
 	  _dispatch("refresh");
 	},
@@ -313,10 +322,10 @@
 	    _propNamesToCopy = [_left, _top, _bottom, _right, _margin + _Bottom, _margin + _Right, _margin + _Top, _margin + _Left, "display", "flexShrink"],
 	    _stateProps = _propNamesToCopy.concat([_width, _height, "boxSizing", "max" + _Width, "max" + _Height, "position", _margin, _padding, _padding + _Top, _padding + _Right, _padding + _Bottom, _padding + _Left]),
 	    _swapPinOut = function _swapPinOut(pin, spacer, state) {
+	  _setState(state);
+
 	  if (pin.parentNode === spacer) {
 	    var parent = spacer.parentNode;
-
-	    _setState(state);
 
 	    if (parent) {
 	      parent.insertBefore(pin, spacer);
@@ -586,6 +595,7 @@
 	        pinGetter,
 	        pinSetter,
 	        pinStart,
+	        pinChange,
 	        spacingStart,
 	        spacingActive,
 	        markerStartSetter,
@@ -617,7 +627,7 @@
 
 	    if (animation) {
 	      animation.vars.lazy = false;
-	      animation._initted || animation.vars.immediateRender !== false && animation.render(0, true, true);
+	      animation._initted || animation.vars.immediateRender !== false && animation.render(-0.01, true, true);
 	      self.animation = animation.pause();
 	      animation.scrollTrigger = self;
 	      scrubSmooth = _isNumber(scrub) && scrub;
@@ -733,10 +743,14 @@
 	      }
 	    }
 
-	    self.revert = function () {
-	      self.update(1);
-	      pin && _swapPinOut(pin, spacer, pinOriginalState);
-	      isReverted = 1;
+	    self.revert = function (revert) {
+	      var r = revert !== false;
+
+	      if (r !== isReverted) {
+	        self.update(r);
+	        pin && r && _swapPinOut(pin, spacer, pinOriginalState);
+	        isReverted = r;
+	      }
 	    };
 
 	    self.refresh = function (soft) {
@@ -750,7 +764,7 @@
 	        return;
 	      }
 
-	      var prevScroll = self.scroll(),
+	      var prevScroll = Math.max(self.scroll(), self.scroll.rec || 0),
 	          prevProgress = self.progress;
 	      _refreshing = 1;
 	      scrubTween && scrubTween.kill();
@@ -761,14 +775,26 @@
 	          scrollerBounds = isViewport ? _winOffsets : _getBounds(scroller),
 	          max = _maxScroll(scroller, direction),
 	          offset = 0,
+	          otherPinOffset = 0,
 	          parsedEnd = vars.end,
 	          parsedEndTrigger = vars.endTrigger || trigger,
 	          parsedStart = vars.start || (pin || !trigger ? "0 0" : "0 100%"),
+	          pinIndex = pin && Math.max(0, _triggers.indexOf(self)) || 0,
 	          cs,
 	          bounds,
 	          scroll,
 	          isVertical,
-	          override;
+	          override,
+	          i,
+	          curTrigger;
+
+	      if (pinIndex) {
+	        i = pinIndex;
+
+	        while (i--) {
+	          _triggers[i].pin === pin && _triggers[i].revert();
+	        }
+	      }
 
 	      start = _parsePosition(parsedStart, trigger, size, direction, self.scroll(), markerStart, markerStartTrigger, self, scrollerBounds, borderWidth, isViewport, max) || (pin ? -0.001 : 0);
 	      _isFunction(parsedEnd) && (parsedEnd = parsedEnd(self));
@@ -787,10 +813,30 @@
 	      change = end - start || (start -= 0.01) && 0.001;
 
 	      if (pin) {
+	        i = pinIndex;
+
+	        while (i--) {
+	          curTrigger = _triggers[i];
+
+	          if (curTrigger.pin === pin && curTrigger.start - curTrigger._pinPush < start) {
+	            otherPinOffset += curTrigger.end - curTrigger.start;
+	          }
+	        }
+
+	        start += otherPinOffset;
+	        end += otherPinOffset;
+	        self._pinPush = otherPinOffset;
+
+	        if (markerStart && otherPinOffset) {
+	          cs = {};
+	          cs[direction.a] = "+=" + otherPinOffset;
+	          gsap.set([markerStart, markerEnd], cs);
+	        }
+
 	        cs = _getComputedStyle(pin);
 	        isVertical = direction === _vertical;
 	        scroll = self.scroll();
-	        pinStart = parseFloat(pinGetter(direction.a));
+	        pinStart = parseFloat(pinGetter(direction.a)) + otherPinOffset;
 
 	        _swapPinIn(pin, spacer, cs);
 
@@ -798,10 +844,10 @@
 	        bounds = _getBounds(pin, true);
 
 	        if (pinSpacing) {
-	          spacer.style[pinSpacing + direction.os2] = change + _px;
-	          spacingActive = pinSpacing === _padding ? _getSize(pin, direction) + change : 0;
+	          spacer.style[pinSpacing + direction.os2] = change + otherPinOffset + _px;
+	          spacingActive = pinSpacing === _padding ? _getSize(pin, direction) + change + otherPinOffset : 0;
 	          spacingActive && (spacer.style[direction.d] = spacingActive + _px);
-	          isViewport && self.scroll(scroll);
+	          isViewport && self.scroll(prevScroll);
 	        }
 
 	        if (isViewport) {
@@ -821,6 +867,21 @@
 	          override[_padding + _Left] = cs[_padding + _Left];
 	          pinActiveState = _copyState(pinOriginalState, override, pinReparent);
 	        }
+
+	        if (animation) {
+	          animation.progress(1, true);
+	          pinChange = pinGetter(direction.a) - pinStart + change + otherPinOffset;
+	          change !== pinChange && pinActiveState.splice(pinActiveState.length - 2, 2);
+	          animation.progress(0, true);
+	        } else {
+	          pinChange = change;
+	        }
+
+	        if (pinIndex) {
+	          for (i = 0; i < pinIndex; i++) {
+	            _triggers[i].pin === pin && _triggers[i].revert(false);
+	          }
+	        }
 	      } else if (trigger && self.scroll()) {
 	        bounds = trigger.parentNode;
 
@@ -837,8 +898,8 @@
 	      self.start = start;
 	      self.end = end;
 	      self.scroll() < prevScroll && self.scroll(prevScroll);
-	      self.update();
-	      _refreshing = isReverted = 0;
+	      self.revert(false);
+	      _refreshing = 0;
 
 	      if (prevProgress !== self.progress) {
 	        scrubTween && animation.totalProgress(prevProgress, true);
@@ -846,7 +907,7 @@
 	        self.update();
 	      }
 
-	      pin && pinSpacing && (spacer._pinOffset = Math.round(self.progress * change));
+	      pin && pinSpacing && (spacer._pinOffset = Math.round(self.progress * pinChange));
 	      onRefresh && onRefresh(self);
 	    };
 
@@ -886,13 +947,22 @@
 	        self.direction = clipped > prevProgress ? 1 : -1;
 	        self.progress = clipped;
 
+	        if (!isToggle) {
+	          if (scrubTween && !_refreshing && !_startup) {
+	            scrubTween.vars.totalProgress = clipped;
+	            scrubTween.invalidate().restart();
+	          } else if (animation) {
+	            animation.totalProgress(clipped, !!_refreshing);
+	          }
+	        }
+
 	        if (pin) {
 	          reset && pinSpacing && (spacer.style[pinSpacing + direction.os2] = spacingStart);
 
 	          if (!isViewport) {
-	            pinSetter(pinStart + change * clipped);
+	            pinSetter(pinStart + pinChange * clipped);
 	          } else if (stateChanged) {
-	            action = scroll + 1 >= _maxScroll(scroller, direction);
+	            action = !reset && scroll + 1 >= _maxScroll(scroller, direction);
 
 	            if (pinReparent) {
 	              if (!_refreshing && (isActive || action)) {
@@ -908,25 +978,19 @@
 
 	            _setState(isActive || action ? pinActiveState : pinState);
 
-	            pinSetter(pinStart + (clipped === 1 && !action ? change : 0));
+	            pinChange !== change && clipped < 1 && isActive || pinSetter(pinStart + (clipped === 1 && !action ? pinChange : 0));
 	          }
-	        }
-
-	        if (!isToggle) {
-	          if (scrubTween && !_refreshing && !_startup) {
-	            scrubTween.vars.totalProgress = clipped;
-	            scrubTween.invalidate().restart();
-	          } else if (animation) {
-	            animation.totalProgress(clipped, !!_refreshing);
-	          }
-
-	          onUpdate && !reset && onUpdate(self);
 	        }
 
 	        if (snap && !tweenTo.tween && !_refreshing && !_startup) {
 	          scrubScrollTime = _lastScrollTime;
 	          snapDelayedCall.restart(true);
 	        }
+
+	        toggleClass && toggled && (!once || isActive) && _toArray(toggleClass.targets).forEach(function (el) {
+	          return el.classList[isActive ? "add" : "remove"](toggleClass.className);
+	        });
+	        onUpdate && !isToggle && !reset && onUpdate(self);
 
 	        if (stateChanged && !_refreshing) {
 	          toggleState = clipped && !prevProgress && clipped < 1 ? 0 : clipped === 1 && prevProgress < 1 ? 1 : prevProgress === 1 && clipped > 0 ? 2 : 3;
@@ -949,9 +1013,6 @@
 	            onUpdate && onUpdate(self);
 	          }
 
-	          toggleClass && toggled && _toArray(toggleClass.targets).forEach(function (el) {
-	            return el.classList.toggle(toggleClass.className);
-	          });
 	          onToggle && toggled && onToggle(self);
 	          callbacks[toggleState] && callbacks[toggleState](self);
 	          once && (callbacks[toggleState] = 0);
@@ -980,16 +1041,22 @@
 	        _addListener(scroller, "scroll", _onScroll);
 
 	        onRefreshInit && _addListener(ScrollTrigger, "refreshInit", onRefreshInit);
-	        animation && (animation.add ? gsap.delayedCall(0.01, self.refresh) : self.refresh());
+	        animation && (animation.add ? gsap.delayedCall(0.01, self.refresh) && (change = 0.01) && (start = end = 0) : self.refresh());
 	      }
 	    };
 
 	    self.disable = function (reset) {
 	      if (enabled) {
 	        enabled = self.isActive = false;
+	        scrubTween && scrubTween.pause();
 	        reset !== enabled && self.update(1);
 	        pin && _swapPinOut(pin, spacer, pinOriginalState);
 	        onRefreshInit && _removeListener(ScrollTrigger, "refreshInit", onRefreshInit);
+
+	        if (snapDelayedCall) {
+	          snapDelayedCall.pause();
+	          tweenTo.tween && tweenTo.tween.kill();
+	        }
 
 	        if (!isViewport) {
 	          var i = _triggers.length;
@@ -1110,7 +1177,7 @@
 
 	  return ScrollTrigger;
 	}();
-	ScrollTrigger.version = "3.3.1";
+	ScrollTrigger.version = "3.3.2";
 
 	ScrollTrigger.create = function (vars, animation) {
 	  return new ScrollTrigger(vars, animation);

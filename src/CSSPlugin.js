@@ -1,5 +1,5 @@
 /*!
- * CSSPlugin 3.3.1
+ * CSSPlugin 3.3.2
  * https://greensock.com
  *
  * Copyright 2008-2020, GreenSock. All rights reserved.
@@ -457,25 +457,15 @@ let _win, _doc, _docElement, _pluginInitted, _tempDiv, _tempDivStyler, _recentSe
 			temp = style.display;
 			style.display = "block";
 			parent = target.parentNode;
-			if (!parent || !_doc.body.contains(target)) {
+			if (!parent || !target.offsetParent) { // note: in 3.3.0 we switched target.offsetParent to _doc.body.contains(target) to avoid [sometimes unnecessary] MutationObserver calls but that wasn't adequate because there are edge cases where nested position: fixed elements need to get reparented to accurately sense transforms. See https://github.com/greensock/GSAP/issues/388 and https://github.com/greensock/GSAP/issues/375
 				addedToDOM = 1; //flag
 				nextSibling = target.nextSibling;
 				_docElement.appendChild(target); //we must add it to the DOM in order to get values properly
 			}
 			matrix = _getComputedTransformMatrixAsArray(target);
-			if (temp) {
-				style.display = temp;
-			} else {
-				_removeProperty(target, "display");
-			}
+			temp ? (style.display = temp) : _removeProperty(target, "display");
 			if (addedToDOM) {
-				if (nextSibling) {
-					parent.insertBefore(target, nextSibling);
-				} else if (parent) {
-					parent.appendChild(target);
-				} else {
-					_docElement.removeChild(target);
-				}
+				nextSibling ? parent.insertBefore(target, nextSibling) : parent ? parent.appendChild(target) : _docElement.removeChild(target);
 			}
 		}
 		return (force2D && matrix.length > 6) ? [matrix[0], matrix[1], matrix[4], matrix[5], matrix[12], matrix[13]] : matrix;

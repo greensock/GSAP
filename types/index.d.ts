@@ -27,6 +27,7 @@
 /// <reference path="pixi-plugin.d.ts"/>
 /// <reference path="scramble-text-plugin.d.ts"/>
 /// <reference path="scroll-to-plugin.d.ts"/>
+/// <reference path="scroll-trigger.d.ts"/>
 /// <reference path="split-text.d.ts"/>
 /// <reference path="text-plugin.d.ts"/>
 /// <reference path="timeline.d.ts"/>
