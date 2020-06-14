@@ -1,5 +1,5 @@
 /*!
- * ScrollTrigger 3.3.2
+ * ScrollTrigger 3.3.3
  * https://greensock.com
  *
  * @license Copyright 2008-2020, GreenSock. All rights reserved.
@@ -1023,12 +1023,12 @@ export var ScrollTrigger = /*#__PURE__*/function () {
         onUpdate && !isToggle && !reset && onUpdate(self);
 
         if (stateChanged && !_refreshing) {
-          toggleState = clipped && !prevProgress && clipped < 1 ? 0 : clipped === 1 && prevProgress < 1 ? 1 : prevProgress === 1 && clipped > 0 ? 2 : 3; // 0 = enter, 1 = leave, 2 = enterBack, 3 = leaveBack
+          toggleState = clipped && !prevProgress ? 0 : clipped === 1 ? 1 : prevProgress === 1 ? 2 : 3; // 0 = enter, 1 = leave, 2 = enterBack, 3 = leaveBack (we prioritize the FIRST encounter, thus if you scroll really fast past the onEnter and onLeave in one tick, it'd prioritize onEnter.
 
           if (clipped === 1 && once) {
             self.kill();
           } else if (isToggle) {
-            action = toggleActions[toggleState];
+            action = !toggled && toggleActions[toggleState + 1] !== "none" && toggleActions[toggleState + 1] || toggleActions[toggleState]; // if it didn't toggle, that means it shot right past and since we prioritize the "enter" action, we should switch to the "leave" in this case (but only if one is defined)
 
             if (animation && (action === "complete" || action === "reset" || action in animation)) {
               if (action === "complete") {
@@ -1043,14 +1043,17 @@ export var ScrollTrigger = /*#__PURE__*/function () {
             onUpdate && onUpdate(self);
           }
 
-          onToggle && toggled && onToggle(self);
-          callbacks[toggleState] && callbacks[toggleState](self);
-          once && (callbacks[toggleState] = 0); // a callback shouldn't be called again if once is true.
-
-          if (!toggled) {
-            // it's possible to go completely past, like from before the start to after the end (or vice-versa) in which case BOTH callbacks should be fired in that order
-            toggleState = clipped === 1 ? 1 : 3;
+          if (toggled || !_startup) {
+            // on startup, the page could be scrolled and we don't want to fire callbacks that didn't toggle. For example onEnter shouldn't fire if the ScrollTrigger isn't actually entered.
+            onToggle && toggled && onToggle(self);
             callbacks[toggleState] && callbacks[toggleState](self);
+            once && (callbacks[toggleState] = 0); // a callback shouldn't be called again if once is true.
+
+            if (!toggled) {
+              // it's possible to go completely past, like from before the start to after the end (or vice-versa) in which case BOTH callbacks should be fired in that order
+              toggleState = clipped === 1 ? 1 : 3;
+              callbacks[toggleState] && callbacks[toggleState](self);
+            }
           }
         } else if (isToggle && onUpdate && !_refreshing) {
           onUpdate(self);
@@ -1214,7 +1217,7 @@ export var ScrollTrigger = /*#__PURE__*/function () {
 
   return ScrollTrigger;
 }();
-ScrollTrigger.version = "3.3.2";
+ScrollTrigger.version = "3.3.3";
 
 ScrollTrigger.create = function (vars, animation) {
   return new ScrollTrigger(vars, animation);
@@ -1264,7 +1267,7 @@ ScrollTrigger.removeEventListener = function (type, callback) {
 ScrollTrigger.batch = function (targets, vars) {
   var result = [],
       varsCopy = {},
-      interval = vars.interval || 0.02,
+      interval = vars.interval || 0.016,
       batchMax = vars.batchMax || 1e9,
       proxyCallback = function proxyCallback(type, callback) {
     var elements = [],

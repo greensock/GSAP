@@ -5,7 +5,7 @@
 }(this, (function (exports) { 'use strict';
 
 	/*!
-	 * ScrollTrigger 3.3.2
+	 * ScrollTrigger 3.3.3
 	 * https://greensock.com
 	 *
 	 * @license Copyright 2008-2020, GreenSock. All rights reserved.
@@ -993,12 +993,12 @@
 	        onUpdate && !isToggle && !reset && onUpdate(self);
 
 	        if (stateChanged && !_refreshing) {
-	          toggleState = clipped && !prevProgress && clipped < 1 ? 0 : clipped === 1 && prevProgress < 1 ? 1 : prevProgress === 1 && clipped > 0 ? 2 : 3;
+	          toggleState = clipped && !prevProgress ? 0 : clipped === 1 ? 1 : prevProgress === 1 ? 2 : 3;
 
 	          if (clipped === 1 && once) {
 	            self.kill();
 	          } else if (isToggle) {
-	            action = toggleActions[toggleState];
+	            action = !toggled && toggleActions[toggleState + 1] !== "none" && toggleActions[toggleState + 1] || toggleActions[toggleState];
 
 	            if (animation && (action === "complete" || action === "reset" || action in animation)) {
 	              if (action === "complete") {
@@ -1013,13 +1013,15 @@
 	            onUpdate && onUpdate(self);
 	          }
 
-	          onToggle && toggled && onToggle(self);
-	          callbacks[toggleState] && callbacks[toggleState](self);
-	          once && (callbacks[toggleState] = 0);
-
-	          if (!toggled) {
-	            toggleState = clipped === 1 ? 1 : 3;
+	          if (toggled || !_startup) {
+	            onToggle && toggled && onToggle(self);
 	            callbacks[toggleState] && callbacks[toggleState](self);
+	            once && (callbacks[toggleState] = 0);
+
+	            if (!toggled) {
+	              toggleState = clipped === 1 ? 1 : 3;
+	              callbacks[toggleState] && callbacks[toggleState](self);
+	            }
 	          }
 	        } else if (isToggle && onUpdate && !_refreshing) {
 	          onUpdate(self);
@@ -1177,7 +1179,7 @@
 
 	  return ScrollTrigger;
 	}();
-	ScrollTrigger.version = "3.3.2";
+	ScrollTrigger.version = "3.3.3";
 
 	ScrollTrigger.create = function (vars, animation) {
 	  return new ScrollTrigger(vars, animation);
@@ -1227,7 +1229,7 @@
 	ScrollTrigger.batch = function (targets, vars) {
 	  var result = [],
 	      varsCopy = {},
-	      interval = vars.interval || 0.02,
+	      interval = vars.interval || 0.016,
 	      batchMax = vars.batchMax || 1e9,
 	      proxyCallback = function proxyCallback(type, callback) {
 	    var elements = [],
