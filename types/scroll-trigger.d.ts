@@ -124,10 +124,10 @@ declare namespace gsap.plugins {
      * ScrollTrigger.batch(".class", {
      *     interval: 0.1,
      *     batchMax: 3,
-     *     onEnter: batch => gsap.to(batch, {opacity: 1, stagger: 0.15, overwrite: true}),
-     *     onLeave: batch => gsap.set(batch, {opacity: 0, overwrite: true}),
-     *     onEnterBack: batch => gsap.to(batch, {opacity: 1, stagger: 0.15, overwrite: true}),
-     *     onLeaveBack: batch => gsap.set(batch, {opacity: 0, overwrite: true})
+     *     onEnter: (elements, triggers) => gsap.to(elements, {opacity: 1, stagger: 0.15, overwrite: true}),
+     *     onLeave: (elements, triggers) => gsap.set(elements, {opacity: 0, overwrite: true}),
+     *     onEnterBack: (elements, triggers) => gsap.to(elements, {opacity: 1, stagger: 0.15, overwrite: true}),
+     *     onLeaveBack: (elements, triggers) => gsap.set(elements, {opacity: 0, overwrite: true})
      * });
      * ```
      *
@@ -137,6 +137,18 @@ declare namespace gsap.plugins {
      * @memberof ScrollTrigger
      */
     batch(targets: gsap.DOMTarget, vars: ScrollTriggerBatchVars): ScrollTriggerInstance[];
+
+    /**
+     * Configure ScrollTrigger
+     *
+     * ```js
+     * ScrollTrigger.config({limitCallbacks: true});
+     * ```
+     *
+     * @param {ScrollTriggerConfigVars} vars
+     * @memberof ScrollTrigger
+     */
+    config(vars: ScrollTriggerConfigVars): void;
 
     /**
      * Create scroll triggers that aren't directly connected to a tween or timeline.
@@ -351,6 +363,11 @@ declare namespace gsap.plugins {
     scroller?: string | Element;
     start?: string | number | StartEndFunc;
     toggleClass?: string | ToggleClassVars;
+  }
+
+  interface ScrollTriggerConfigVars {
+    limitCallbacks?: boolean;
+    syncInterval?: number;
   }
 }
 

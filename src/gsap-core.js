@@ -1,5 +1,5 @@
 /*!
- * GSAP 3.3.3
+ * GSAP 3.3.4
  * https://greensock.com
  *
  * @license Copyright 2008-2020, GreenSock. All rights reserved.
@@ -139,9 +139,7 @@ let _config = {
 	_passThrough = p => p,
 	_setDefaults = (obj, defaults) => {
 		for (let p in defaults) {
-			if (!(p in obj)) {
-				obj[p] = defaults[p];
-			}
+			(p in obj) || (obj[p] = defaults[p]);
 		}
 		return obj;
 	},
@@ -2078,14 +2076,14 @@ let _addComplexStringPropTween = function(target, prop, start, end, setter, stri
 					!autoRevert && (tween._startAt = 0);
 				} else {
 					time && (immediateRender = false); //in rare cases (like if a from() tween runs and then is invalidate()-ed), immediateRender could be true but the initial forced-render gets skipped, so there's no need to force the render in this context when the _time is greater than 0
-					p = _merge(cleanVars, {
+					p = _setDefaults({
 						overwrite: false,
 						data: "isFromStart", //we tag the tween with as "isFromStart" so that if [inside a plugin] we need to only do something at the very END of a tween, we have a way of identifying this tween as merely the one that's setting the beginning values for a "from()" tween. For example, clearProps in CSSPlugin should only get applied at the very END of a tween and without this tag, from(...{height:100, clearProps:"height", delay:1}) would wipe the height at the beginning of the tween and after 1 second, it'd kick back in.
 						lazy: (immediateRender && _isNotFalse(lazy)),
 						immediateRender: immediateRender, //zero-duration tweens render immediately by default, but if we're not specifically instructed to render this tween immediately, we should skip this and merely _init() to record the starting values (rendering them immediately would push them to completion which is wasteful in that case - we'd have to render(-1) immediately after)
 						stagger: 0,
 						parent: parent //ensures that nested tweens that had a stagger are handled properly, like gsap.from(".class", {y:gsap.utils.wrap([-100,100])})
-					});
+					}, cleanVars);
 					harnessVars && (p[harness.prop] = harnessVars); // in case someone does something like .from(..., {css:{}})
 					_removeFromParent(tween._startAt = Tween.set(targets, p));
 					if (!immediateRender) {
@@ -2826,7 +2824,7 @@ export const gsap = _gsap.registerPlugin({
 	_buildModifierPlugin("snap", snap)
 ) || _gsap; //to prevent the core plugins from being dropped via aggressive tree shaking, we must include them in the variable declaration in this way.
 
-Tween.version = Timeline.version = gsap.version = "3.3.3";
+Tween.version = Timeline.version = gsap.version = "3.3.4";
 _coreReady = 1;
 if (_windowExists()) {
 	_wake();

@@ -21,6 +21,8 @@ declare class Draggable {
   readonly pointerY: number;
   readonly rotation: number;
   readonly scrollProxy: any; // TODO: Create interface
+  readonly startX: number;
+  readonly startY: number;
   readonly target: HTMLElement | SVGElement;  
   readonly tween: gsap.core.Tween;  
   readonly vars: Draggable.Vars;

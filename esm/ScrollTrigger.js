@@ -1,5 +1,5 @@
 /*!
- * ScrollTrigger 3.3.3
+ * ScrollTrigger 3.3.4
  * https://greensock.com
  *
  * @license Copyright 2008-2020, GreenSock. All rights reserved.
@@ -26,7 +26,10 @@ var gsap,
     _refreshing,
     _pointerIsDown,
     _transformProp,
-    _startup = 1,
+    _i,
+    _limitCallbacks,
+    // if true, we'll only trigger callbacks if the active state toggles, so if you scroll immediately past both the start and end positions of a ScrollTrigger (thus inactive to inactive), neither its onEnter nor onLeave will be called. This is useful during startup.
+_startup = 1,
     _getTime = Date.now,
     _time1 = _getTime(),
     _lastScrollTime = 0,
@@ -273,32 +276,32 @@ _listeners = {},
 },
     _refreshAll = function _refreshAll(force) {
   var refreshInits = _dispatch("refreshInit"),
-      l = _triggers.length,
-      i = l;
+      l = _triggers.length;
 
-  while (i--) {
-    _triggers[i].scroll.rec = _triggers[i].scroll(); // record the scroll positions so that in each refresh() we can ensure that it doesn't shift. Remember, pinning can make things change around, especially if the same element is pinned multiple times.
+  _i = l;
+
+  while (_i--) {
+    _triggers[_i].scroll.rec = _triggers[_i].scroll(); // record the scroll positions so that in each refresh() we can ensure that it doesn't shift. Remember, pinning can make things change around, especially if the same element is pinned multiple times.
   }
 
-  for (i = 0; i < l; i++) {
-    _triggers[i] && _triggers[i].refresh(force !== true);
+  for (_i = 0; _i < l; _i++) {
+    _triggers[_i] && _triggers[_i].refresh(force !== true);
   }
 
   refreshInits.forEach(function (result) {
     return result && result.render && result.render(-1);
   }); // if the onRefreshInit() returns an animation (typically a gsap.set()), revert it. This makes it easy to put things in a certain spot before refreshing for measurement purposes, and then put things back.
 
-  i = _triggers.length;
+  _i = _triggers.length;
 
-  while (i--) {
-    _triggers[i].scroll.rec = 0;
+  while (_i--) {
+    _triggers[_i].scroll.rec = 0;
   }
 
   _dispatch("refresh");
 },
     _updateAll = function _updateAll() {
   var l = _triggers.length,
-      i = 0,
       time = _getTime(),
       recordVelocity = time - _time1 >= 50;
 
@@ -313,8 +316,8 @@ _listeners = {},
     _time1 = time;
   }
 
-  for (; i < l; i++) {
-    _triggers[i] && _triggers[i].update(0, recordVelocity);
+  for (_i = 0; _i < l; _i++) {
+    _triggers[_i] && _triggers[_i].update(0, recordVelocity);
   }
 
   _request = 0;
@@ -780,7 +783,8 @@ export var ScrollTrigger = /*#__PURE__*/function () {
 
       var prevScroll = Math.max(self.scroll(), self.scroll.rec || 0),
           // record the scroll so we can revert later (repositioning/pinning things can affect scroll position). In the static refresh() method, we first record all the scroll positions as a reference.
-      prevProgress = self.progress;
+      prevProgress = self.progress,
+          prevAnimProgress = animation && animation.progress();
       _refreshing = 1;
       scrubTween && scrubTween.kill();
       invalidateOnRefresh && animation && animation.progress(0).invalidate().progress(self.progress);
@@ -925,6 +929,7 @@ export var ScrollTrigger = /*#__PURE__*/function () {
       self.scroll() < prevScroll && self.scroll(prevScroll);
       self.revert(false);
       _refreshing = 0;
+      prevAnimProgress && isToggle && animation.progress(prevAnimProgress, true);
 
       if (prevProgress !== self.progress) {
         // ensures that the direction is set properly (when refreshing, progress is set back to 0 initially, then back again to wherever it needs to be) and that callbacks are triggered.
@@ -991,7 +996,7 @@ export var ScrollTrigger = /*#__PURE__*/function () {
           if (!isViewport) {
             pinSetter(pinStart + pinChange * clipped);
           } else if (stateChanged) {
-            action = !reset && scroll + 1 >= _maxScroll(scroller, direction); // if it's at the VERY end of the page, don't switch away from position: fixed because it's pointless and it could cause a brief flash when the user scrolls back up (when it gets pinned again)
+            action = !reset && end + 1 > scroll && scroll + 1 >= _maxScroll(scroller, direction); // if it's at the VERY end of the page, don't switch away from position: fixed because it's pointless and it could cause a brief flash when the user scrolls back up (when it gets pinned again)
 
             if (pinReparent) {
               if (!_refreshing && (isActive || action)) {
@@ -1025,9 +1030,7 @@ export var ScrollTrigger = /*#__PURE__*/function () {
         if (stateChanged && !_refreshing) {
           toggleState = clipped && !prevProgress ? 0 : clipped === 1 ? 1 : prevProgress === 1 ? 2 : 3; // 0 = enter, 1 = leave, 2 = enterBack, 3 = leaveBack (we prioritize the FIRST encounter, thus if you scroll really fast past the onEnter and onLeave in one tick, it'd prioritize onEnter.
 
-          if (clipped === 1 && once) {
-            self.kill();
-          } else if (isToggle) {
+          if (isToggle) {
             action = !toggled && toggleActions[toggleState + 1] !== "none" && toggleActions[toggleState + 1] || toggleActions[toggleState]; // if it didn't toggle, that means it shot right past and since we prioritize the "enter" action, we should switch to the "leave" in this case (but only if one is defined)
 
             if (animation && (action === "complete" || action === "reset" || action in animation)) {
@@ -1043,11 +1046,11 @@ export var ScrollTrigger = /*#__PURE__*/function () {
             onUpdate && onUpdate(self);
           }
 
-          if (toggled || !_startup) {
+          if (toggled || !_limitCallbacks) {
             // on startup, the page could be scrolled and we don't want to fire callbacks that didn't toggle. For example onEnter shouldn't fire if the ScrollTrigger isn't actually entered.
             onToggle && toggled && onToggle(self);
             callbacks[toggleState] && callbacks[toggleState](self);
-            once && (callbacks[toggleState] = 0); // a callback shouldn't be called again if once is true.
+            once && (clipped === 1 ? self.kill() : callbacks[toggleState] = 0); // a callback shouldn't be called again if once is true.
 
             if (!toggled) {
               // it's possible to go completely past, like from before the start to after the end (or vice-versa) in which case BOTH callbacks should be fired in that order
@@ -1076,7 +1079,7 @@ export var ScrollTrigger = /*#__PURE__*/function () {
         _addListener(scroller, "scroll", _onScroll);
 
         onRefreshInit && _addListener(ScrollTrigger, "refreshInit", onRefreshInit);
-        animation && (animation.add ? gsap.delayedCall(0.01, self.refresh) && (change = 0.01) && (start = end = 0) : self.refresh()); // if the animation is a timeline, it may not have been populated yet, so it wouldn't render at the proper place on the first refresh(), thus we should schedule one for the next tick.
+        !animation || !animation.add ? self.refresh() : gsap.delayedCall(0.01, self.refresh) && (change = 0.01) && (start = end = 0); // if the animation is a timeline, it may not have been populated yet, so it wouldn't render at the proper place on the first refresh(), thus we should schedule one for the next tick.
       }
     };
 
@@ -1113,7 +1116,11 @@ export var ScrollTrigger = /*#__PURE__*/function () {
       self.disable(reset);
       id && delete _ids[id];
 
-      _triggers.splice(_triggers.indexOf(self), 1);
+      var i = _triggers.indexOf(self);
+
+      _triggers.splice(i, 1);
+
+      i === _i && _i--; // if we're in the middle of a refresh() or update(), splicing would cause skips in the index, so adjust...
 
       animation && (animation.scrollTrigger = null);
     };
@@ -1215,9 +1222,15 @@ export var ScrollTrigger = /*#__PURE__*/function () {
     });
   };
 
+  ScrollTrigger.config = function config(vars) {
+    "limitCallbacks" in vars && (_limitCallbacks = !!vars.limitCallbacks);
+    var ms = vars.syncInterval;
+    ms && clearInterval(_syncInterval) || (_syncInterval = ms) && setInterval(_sync, ms);
+  };
+
   return ScrollTrigger;
 }();
-ScrollTrigger.version = "3.3.3";
+ScrollTrigger.version = "3.3.4";
 
 ScrollTrigger.create = function (vars, animation) {
   return new ScrollTrigger(vars, animation);
@@ -1243,10 +1256,6 @@ ScrollTrigger.getById = function (id) {
 
 ScrollTrigger.getAll = function () {
   return _triggers.slice(0);
-};
-
-ScrollTrigger.syncInterval = function (ms) {
-  return clearInterval(_syncInterval) || (_syncInterval = ms) && setInterval(_sync, ms);
 };
 
 ScrollTrigger.isScrolling = function () {
@@ -1292,7 +1301,8 @@ ScrollTrigger.batch = function (targets, vars) {
 
   if (_isFunction(batchMax)) {
     batchMax = batchMax();
-    ScrollTrigger.addEventListener("refresh", function () {
+
+    _addListener(ScrollTrigger, "refresh", function () {
       return batchMax = vars.batchMax();
     });
   }

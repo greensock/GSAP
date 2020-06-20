@@ -19,7 +19,7 @@
   }
 
   /*!
-   * GSAP 3.3.3
+   * GSAP 3.3.4
    * https://greensock.com
    *
    * @license Copyright 2008-2020, GreenSock. All rights reserved.
@@ -216,9 +216,7 @@
   },
       _setDefaults = function _setDefaults(obj, defaults) {
     for (var p in defaults) {
-      if (!(p in obj)) {
-        obj[p] = defaults[p];
-      }
+      p in obj || (obj[p] = defaults[p]);
     }
 
     return obj;
@@ -2623,14 +2621,14 @@
           !autoRevert && (tween._startAt = 0);
         } else {
           time && (immediateRender = false);
-          p = _merge(cleanVars, {
+          p = _setDefaults({
             overwrite: false,
             data: "isFromStart",
             lazy: immediateRender && _isNotFalse(lazy),
             immediateRender: immediateRender,
             stagger: 0,
             parent: parent
-          });
+          }, cleanVars);
           harnessVars && (p[harness.prop] = harnessVars);
 
           _removeFromParent(tween._startAt = Tween.set(targets, p));
@@ -3555,7 +3553,7 @@
       }
     }
   }, _buildModifierPlugin("roundProps", _roundModifier), _buildModifierPlugin("modifiers"), _buildModifierPlugin("snap", snap)) || _gsap;
-  Tween.version = Timeline.version = gsap.version = "3.3.3";
+  Tween.version = Timeline.version = gsap.version = "3.3.4";
   _coreReady = 1;
 
   if (_windowExists()) {
