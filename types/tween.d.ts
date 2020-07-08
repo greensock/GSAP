@@ -14,6 +14,7 @@ declare namespace gsap.core {
     static from(targets: TweenTarget, vars: TweenVars): Tween;
     static fromTo(targets: TweenTarget, duration: number, fromVars: TweenVars, toVars: TweenVars): Tween;
     static fromTo(targets: TweenTarget, fromVars: TweenVars, toVars: TweenVars): Tween;
+    static set(targets: TweenTarget, vars: TweenVars): Tween;
 
     /**
      * Kills the parts of the tween specified. 

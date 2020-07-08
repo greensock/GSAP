@@ -19,7 +19,7 @@
   }
 
   /*!
-   * GSAP 3.3.4
+   * GSAP 3.4.0
    * https://greensock.com
    *
    * @license Copyright 2008-2020, GreenSock. All rights reserved.
@@ -379,6 +379,19 @@
   },
       _setEnd = function _setEnd(animation) {
     return animation._end = _round(animation._start + (animation._tDur / Math.abs(animation._ts || animation._rts || _tinyNum) || 0));
+  },
+      _alignPlayhead = function _alignPlayhead(animation, totalTime) {
+    var parent = animation._dp;
+
+    if (parent && parent.smoothChildTiming && animation._ts) {
+      animation._start = _round(animation._dp._time - (animation._ts > 0 ? totalTime / animation._ts : ((animation._dirty ? animation.totalDuration() : animation._tDur) - totalTime) / -animation._ts));
+
+      _setEnd(animation);
+
+      parent._dirty || _uncache(parent);
+    }
+
+    return animation;
   },
       _postAddChecks = function _postAddChecks(timeline, child) {
     var t;
@@ -1493,7 +1506,11 @@
       }
 
       this._dirty = 0;
-      return _setDuration(this, this._repeat < 0 ? value : (value - this._repeat * this._rDelay) / (this._repeat + 1));
+      var t = this._time / this._dur || 0;
+
+      _setDuration(this, this._repeat < 0 ? value : (value - this._repeat * this._rDelay) / (this._repeat + 1));
+
+      return this._tTime ? _alignPlayhead(this, t * value + _elapsedCycleDuration(this)) : this;
     };
 
     _proto.totalTime = function totalTime(_totalTime, suppressEvents) {
@@ -1503,14 +1520,10 @@
         return this._tTime;
       }
 
-      var parent = this.parent || this._dp;
+      var parent = this._dp;
 
       if (parent && parent.smoothChildTiming && this._ts) {
-        this._start = _round(parent._time - (this._ts > 0 ? _totalTime / this._ts : ((this._dirty ? this.totalDuration() : this._tDur) - _totalTime) / -this._ts));
-
-        _setEnd(this);
-
-        parent._dirty || _uncache(parent);
+        _alignPlayhead(this, _totalTime);
 
         while (parent.parent) {
           if (parent.parent._time !== parent._start + (parent._ts >= 0 ? parent._tTime / parent._ts : (parent.totalDuration() - parent._tTime) / -parent._ts)) {
@@ -1564,7 +1577,7 @@
       var tTime = this.parent && this._ts ? _parentToChildTotalTime(this.parent._time, this) : this._tTime;
       this._rts = +value || 0;
       this._ts = this._ps || value === -_tinyNum ? 0 : this._rts;
-      return _recacheAncestors(this.totalTime(_clamp(0, this._tDur, tTime), true));
+      return _recacheAncestors(this.totalTime(_clamp(-this._delay, this._tDur, tTime), true));
     };
 
     _proto.paused = function paused(value) {
@@ -1607,6 +1620,18 @@
     _proto.rawTime = function rawTime(wrapRepeats) {
       var parent = this.parent || this._dp;
       return !parent ? this._tTime : wrapRepeats && (!this._ts || this._repeat && this._time && this.totalProgress() < 1) ? this._tTime % (this._dur + this._rDelay) : !this._ts ? this._tTime : _parentToChildTotalTime(parent.rawTime(wrapRepeats), this);
+    };
+
+    _proto.globalTime = function globalTime(rawTime) {
+      var animation = this,
+          time = arguments.length ? rawTime : animation.rawTime();
+
+      while (animation) {
+        time = animation._start + time / (animation._ts || 1);
+        animation = animation._dp;
+      }
+
+      return time;
     };
 
     _proto.repeat = function repeat(value) {
@@ -1690,11 +1715,11 @@
       return this;
     };
 
-    _proto.isActive = function isActive(hasStarted) {
+    _proto.isActive = function isActive() {
       var parent = this.parent || this._dp,
           start = this._start,
           rawTime;
-      return !!(!parent || this._ts && (this._initted || !hasStarted) && parent.isActive(hasStarted) && (rawTime = parent.rawTime(true)) >= start && rawTime < this.endTime(true) - _tinyNum);
+      return !!(!parent || this._ts && this._initted && parent.isActive() && (rawTime = parent.rawTime(true)) >= start && rawTime < this.endTime(true) - _tinyNum);
     };
 
     _proto.eventCallback = function eventCallback(type, callback, params) {
@@ -2137,7 +2162,7 @@
 
       this._forcing = 1;
 
-      if (!this.parent && !this._dp && this._ts) {
+      if (!this._dp && this._ts) {
         this._start = _round(_ticker.time - (this._ts > 0 ? _totalTime2 / this._ts : (this.totalDuration() - _totalTime2) / -this._ts));
       }
 
@@ -2192,11 +2217,12 @@
       var a = [],
           parsedTargets = toArray(targets),
           child = this._first,
+          isGlobalTime = _isNumber(onlyActive),
           children;
 
       while (child) {
         if (child instanceof Tween) {
-          if (_arrayContainsAny(child._targets, parsedTargets) && (!onlyActive || child.isActive(onlyActive === "started"))) {
+          if (_arrayContainsAny(child._targets, parsedTargets) && (isGlobalTime ? (!_overwritingTween || child._initted && child._ts) && child.globalTime(0) <= onlyActive && child.globalTime(child.totalDuration()) > onlyActive : !onlyActive || child.isActive())) {
             a.push(child);
           }
         } else if ((children = child.getTweensOf(parsedTargets, onlyActive)).length) {
@@ -2498,7 +2524,7 @@
     }
 
     if (parsedStart !== end) {
-      if (!isNaN(parsedStart + end)) {
+      if (!isNaN(parsedStart * end)) {
         pt = new PropTween(this._pt, target, prop, +parsedStart || 0, end - (parsedStart || 0), typeof currentValue === "boolean" ? _renderBoolean : _renderPlain, 0, setter);
         funcParam && (pt.fp = funcParam);
         modifier && pt.modifier(modifier, this, target);
@@ -2612,7 +2638,8 @@
         if (immediateRender) {
           if (time > 0) {
             !autoRevert && (tween._startAt = 0);
-          } else if (dur) {
+          } else if (dur && !(time < 0 && prevStartAt)) {
+            tween._zTime = time;
             return;
           }
         }
@@ -2676,7 +2703,7 @@
         if (autoOverwrite && tween._pt) {
           _overwritingTween = tween;
 
-          _globalTimeline.killTweensOf(target, ptLookup, "started");
+          _globalTimeline.killTweensOf(target, ptLookup, tween.globalTime(0));
 
           _overwritingTween = 0;
         }
@@ -2907,7 +2934,7 @@
         }
 
         if (!this._initted) {
-          if (_attemptInitTween(this, time, force, suppressEvents)) {
+          if (_attemptInitTween(this, totalTime < 0 ? totalTime : time, force, suppressEvents)) {
             this._tTime = 0;
             return this;
           }
@@ -3553,7 +3580,7 @@
       }
     }
   }, _buildModifierPlugin("roundProps", _roundModifier), _buildModifierPlugin("modifiers"), _buildModifierPlugin("snap", snap)) || _gsap;
-  Tween.version = Timeline.version = gsap.version = "3.3.4";
+  Tween.version = Timeline.version = gsap.version = "3.4.0";
   _coreReady = 1;
 
   if (_windowExists()) {
@@ -3680,7 +3707,7 @@
       };
       _tempDivStyler = _createElement("div");
       _transformProp = _checkPropPrefix(_transformProp);
-      _transformOriginProp = _checkPropPrefix(_transformOriginProp);
+      _transformOriginProp = _transformProp + "Origin";
       _tempDiv.style.cssText = "border-width:0;line-height:0;position:absolute;padding:0";
       _supports3D = !!_checkPropPrefix("perspective");
       _pluginInitted = 1;
@@ -3754,7 +3781,7 @@
     if (property) {
       var style = target.style;
 
-      if (property in _transformProps) {
+      if (property in _transformProps && property !== _transformOriginProp) {
         property = _transformProp;
       }
 
@@ -3844,10 +3871,7 @@
   },
       _get = function _get(target, property, unit, uncache) {
     var value;
-
-    if (!_pluginInitted) {
-      _initCore();
-    }
+    _pluginInitted || _initCore();
 
     if (property in _propertyAliases && property !== "transform") {
       property = _propertyAliases[property];
@@ -3878,6 +3902,8 @@
       if (s && s !== start) {
         prop = p;
         start = s;
+      } else if (prop === "borderColor") {
+        start = _getComputedProperty(target, "borderTopColor");
       }
     }
 

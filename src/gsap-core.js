@@ -1,5 +1,5 @@
 /*!
- * GSAP 3.3.4
+ * GSAP 3.4.0
  * https://greensock.com
  *
  * @license Copyright 2008-2020, GreenSock. All rights reserved.
@@ -256,6 +256,15 @@ let _config = {
 	_animationCycle = (tTime, cycleDuration) => (tTime /= cycleDuration) && (~~tTime === tTime) ? ~~tTime - 1 : ~~tTime,
 	_parentToChildTotalTime = (parentTime, child) => (parentTime - child._start) * child._ts + (child._ts >= 0 ? 0 : (child._dirty ? child.totalDuration() : child._tDur)),
 	_setEnd = animation => (animation._end = _round(animation._start + ((animation._tDur / Math.abs(animation._ts || animation._rts || _tinyNum)) || 0))),
+	_alignPlayhead = (animation, totalTime) => { // adjusts the animation's _start and _end according to the provided totalTime (only if the parent's smoothChildTiming is true and the animation isn't paused). It doesn't do any rendering or forcing things back into parent timelines, etc. - that's what totalTime() is for.
+		let parent = animation._dp;
+		if (parent && parent.smoothChildTiming && animation._ts) {
+			animation._start = _round(animation._dp._time - (animation._ts > 0 ? totalTime / animation._ts : ((animation._dirty ? animation.totalDuration() : animation._tDur) - totalTime) / -animation._ts));
+			_setEnd(animation);
+			parent._dirty || _uncache(parent); //for performance improvement. If the parent's cache is already dirty, it already took care of marking the ancestors as dirty too, so skip the function call here.
+		}
+		return animation;
+	},
 	/*
 	_totalTimeToTime = (clampedTotalTime, duration, repeat, repeatDelay, yoyo) => {
 		let cycleDuration = duration + repeatDelay,
@@ -1146,7 +1155,9 @@ export class Animation {
 			return this._tDur;
 		}
 		this._dirty = 0;
-		return _setDuration(this, this._repeat < 0 ? value : (value - (this._repeat * this._rDelay)) / (this._repeat + 1));
+		let t = (this._time / this._dur) || 0;
+		_setDuration(this, this._repeat < 0 ? value : (value - (this._repeat * this._rDelay)) / (this._repeat + 1));
+		return this._tTime ? _alignPlayhead(this, t * value + _elapsedCycleDuration(this)) : this; // in case the animation hasn't even started yet and it has a delay. Aligning the playhead in that case would make it appear to lose the delay.
 	}
 
 	totalTime(totalTime, suppressEvents) {
@@ -1154,14 +1165,9 @@ export class Animation {
 		if (!arguments.length) {
 			return this._tTime;
 		}
-		let parent = this.parent || this._dp;
+		let parent = this._dp;
 		if (parent && parent.smoothChildTiming && this._ts) {
-			// if (!parent._dp && parent._time === parent._dur) { // if a root timeline completes...and then a while later one of its children resumes, we must shoot the playhead forward to where it should be raw-wise, otherwise the child will jump to the end. Down side: this assumes it's using the _ticker.time as a reference.
-			// 	parent._time = _ticker.time - parent._start;
-			// }
-			this._start = _round(parent._time - (this._ts > 0 ? totalTime / this._ts : ((this._dirty ? this.totalDuration() : this._tDur) - totalTime) / -this._ts));
-			_setEnd(this);
-			parent._dirty || _uncache(parent); //for performance improvement. If the parent's cache is already dirty, it already took care of marking the ancestors as dirty too, so skip the function call here.
+			_alignPlayhead(this, totalTime);
 			//in case any of the ancestor timelines had completed but should now be enabled, we should reset their totalTime() which will also ensure that they're lined up properly and enabled. Skip for animations that are on the root (wasteful). Example: a TimelineLite.exportRoot() is performed when there's a paused tween on the root, the export will not complete until that tween is unpaused, but imagine a child gets restarted later, after all [unpaused] tweens have completed. The start of that child would get pushed out, but one of the ancestors may have completed.
 			while (parent.parent) {
 				if (parent.parent._time !== parent._start + (parent._ts >= 0 ? parent._tTime / parent._ts : (parent.totalDuration() - parent._tTime) / -parent._ts)) {
@@ -1219,7 +1225,7 @@ export class Animation {
 		// prioritize rendering where the parent's playhead lines up instead of this._tTime because there could be a tween that's animating another tween's timeScale in the same rendering loop (same parent), thus if the timeScale tween renders first, it would alter _start BEFORE _tTime was set on that tick (in the rendering loop), effectively freezing it until the timeScale tween finishes.
 		this._rts = +value || 0;
 		this._ts = (this._ps || value === -_tinyNum) ? 0 : this._rts; // _ts is the functional timeScale which would be 0 if the animation is paused.
-		return _recacheAncestors(this.totalTime(_clamp(0, this._tDur, tTime), true));
+		return _recacheAncestors(this.totalTime(_clamp(-this._delay, this._tDur, tTime), true));
 	}
 
 	paused(value) {
@@ -1260,15 +1266,15 @@ export class Animation {
 		return !parent ? this._tTime : (wrapRepeats && (!this._ts || (this._repeat && this._time && this.totalProgress() < 1))) ? this._tTime % (this._dur + this._rDelay) : !this._ts ? this._tTime : _parentToChildTotalTime(parent.rawTime(wrapRepeats), this);
 	}
 
-	// globalTime(rawTime) {
-	// 	let animation = this,
-	// 		time = arguments.length ? rawTime : animation.rawTime();
-	// 	while (animation) {
-	// 		time = animation._start + time / (animation._ts || 1);
-	// 		animation = animation.parent;
-	// 	}
-	// 	return time;
-	// }
+	globalTime(rawTime) {
+		let animation = this,
+			time = arguments.length ? rawTime : animation.rawTime();
+		while (animation) {
+			time = animation._start + time / (animation._ts || 1);
+			animation = animation._dp;
+		}
+		return time;
+	}
 
 	repeat(value) {
 		if (arguments.length) {
@@ -1343,11 +1349,11 @@ export class Animation {
 		return this;
 	}
 
-	isActive(hasStarted) {
+	isActive() {
 		let parent = this.parent || this._dp,
 			start = this._start,
 			rawTime;
-		return !!(!parent || (this._ts && (this._initted || !hasStarted) && parent.isActive(hasStarted) && (rawTime = parent.rawTime(true)) >= start && rawTime < this.endTime(true) - _tinyNum));
+		return !!(!parent || (this._ts && this._initted && parent.isActive() && (rawTime = parent.rawTime(true)) >= start && rawTime < this.endTime(true) - _tinyNum));
 	}
 
 	eventCallback(type, callback, params) {
@@ -1702,7 +1708,7 @@ export class Timeline extends Animation {
 			return this._tTime;
 		}
 		this._forcing = 1;
-		if (!this.parent && !this._dp && this._ts) { //special case for the global timeline (or any other that has no parent or detached parent).
+		if (!this._dp && this._ts) { //special case for the global timeline (or any other that has no parent or detached parent).
 			this._start = _round(_ticker.time - (this._ts > 0 ? totalTime / this._ts : (this.totalDuration() - totalTime) / -this._ts));
 		}
 		super.totalTime(totalTime, suppressEvents);
@@ -1751,10 +1757,11 @@ export class Timeline extends Animation {
 		let a = [],
 			parsedTargets = toArray(targets),
 			child = this._first,
+			isGlobalTime = _isNumber(onlyActive), // a number is interpreted as a global time. If the animation spans
 			children;
 		while (child) {
 			if (child instanceof Tween) {
-				if (_arrayContainsAny(child._targets, parsedTargets) && (!onlyActive || child.isActive(onlyActive === "started"))) {
+				if (_arrayContainsAny(child._targets, parsedTargets) && (isGlobalTime ? (!_overwritingTween || (child._initted && child._ts)) && child.globalTime(0) <= onlyActive && child.globalTime(child.totalDuration()) > onlyActive : !onlyActive || child.isActive())) { // note: if this is for overwriting, it should only be for tweens that aren't paused and are initted.
 					a.push(child);
 				}
 			} else if ((children = child.getTweensOf(parsedTargets, onlyActive)).length) {
@@ -1996,7 +2003,7 @@ let _addComplexStringPropTween = function(target, prop, start, end, setter, stri
 			}
 		}
 		if (parsedStart !== end) {
-			if (!isNaN(parsedStart + end)) {
+			if (!isNaN(parsedStart * end)) {
 				pt = new PropTween(this._pt, target, prop, +parsedStart || 0, end - (parsedStart || 0), typeof(currentValue) === "boolean" ? _renderBoolean : _renderPlain, 0, setter);
 				funcParam && (pt.fp = funcParam);
 				modifier && pt.modifier(modifier, this, target);
@@ -2066,7 +2073,8 @@ let _addComplexStringPropTween = function(target, prop, start, end, setter, stri
 				if (immediateRender) {
 					if (time > 0) {
 						!autoRevert && (tween._startAt = 0); //tweens that render immediately (like most from() and fromTo() tweens) shouldn't revert when their parent timeline's playhead goes backward past the startTime because the initial render could have happened anytime and it shouldn't be directly correlated to this tween's startTime. Imagine setting up a complex animation where the beginning states of various objects are rendered immediately but the tween doesn't happen for quite some time - if we revert to the starting values as soon as the playhead goes backward past the tween's startTime, it will throw things off visually. Reversion should only happen in Timeline instances where immediateRender was false or when autoRevert is explicitly set to true.
-					} else if (dur) {
+					} else if (dur && !(time < 0 && prevStartAt)) {
+						tween._zTime = time;
 						return; //we skip initialization here so that overwriting doesn't occur until the tween actually begins. Otherwise, if you create several immediateRender:true tweens of the same target/properties to drop into a Timeline, the last one created would overwrite the first ones because they didn't get placed into the timeline yet before the first render occurs and kicks in overwriting.
 					}
 				}
@@ -2118,7 +2126,7 @@ let _addComplexStringPropTween = function(target, prop, start, end, setter, stri
 				tween._op && tween._op[i] && tween.kill(target, tween._op[i]);
 				if (autoOverwrite && tween._pt) {
 					_overwritingTween = tween;
-					_globalTimeline.killTweensOf(target, ptLookup, "started"); //Also make sure the overwriting doesn't overwrite THIS tween!!!
+					_globalTimeline.killTweensOf(target, ptLookup, tween.globalTime(0)); //Also make sure the overwriting doesn't overwrite THIS tween!!!
 					_overwritingTween = 0;
 				}
 				tween._pt && lazy && (_lazyLookup[gsData.id] = 1);
@@ -2303,7 +2311,7 @@ export class Tween extends Animation {
 			}
 
 			if (!this._initted) {
-				if (_attemptInitTween(this, time, force, suppressEvents)) {
+				if (_attemptInitTween(this, totalTime < 0 ? totalTime : time, force, suppressEvents)) {
 					this._tTime = 0; // in constructor if immediateRender is true, we set _tTime to -_tinyNum to have the playhead cross the starting point but we can't leave _tTime as a negative number.
 					return this;
 				}
@@ -2824,7 +2832,7 @@ export const gsap = _gsap.registerPlugin({
 	_buildModifierPlugin("snap", snap)
 ) || _gsap; //to prevent the core plugins from being dropped via aggressive tree shaking, we must include them in the variable declaration in this way.
 
-Tween.version = Timeline.version = gsap.version = "3.3.4";
+Tween.version = Timeline.version = gsap.version = "3.4.0";
 _coreReady = 1;
 if (_windowExists()) {
 	_wake();

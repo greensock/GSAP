@@ -142,7 +142,7 @@ declare namespace gsap.plugins {
      * Configure ScrollTrigger
      *
      * ```js
-     * ScrollTrigger.config({limitCallbacks: true});
+     * ScrollTrigger.config({limitCallbacks: true, autoRefreshEvents: "resize,load,visibilitychange,DOMContentLoaded"});
      * ```
      *
      * @param {ScrollTriggerConfigVars} vars
@@ -210,7 +210,7 @@ declare namespace gsap.plugins {
     getById(id: string): ScrollTriggerInstance;
 
     /**
-     * Find out if a ScrollTrigger-related scroller is currently scrolling
+     * Find out if a ScrollTrigger-related scroller is currently scrolling.
      *
      * ```js
      * ScrollTrigger.isScrolling();
@@ -220,6 +220,22 @@ declare namespace gsap.plugins {
      * @memberof ScrollTrigger
      */
     isScrolling(): boolean;
+
+    /**
+     * Set up ScrollTriggers that only apply to certain viewport sizes using media queries.
+     *
+     * ```js
+     * ScrollTrigger.matchMedia({
+     *     "(min-width: 800px)": function() { },
+     *     "(max-width: 799px)": function() { },
+     *     "all": function() { }
+     * });
+     * ```
+     *
+     * @param {MatchMediaObject} vars
+     * @memberof ScrollTrigger
+     */
+    matchMedia(vars: MatchMediaObject): void;
 
     /**
      * Get the maximum scroll value for any given element.
@@ -259,6 +275,39 @@ declare namespace gsap.plugins {
     removeEventListener(event: "scrollStart" | "scrollEnd" | "refreshInit" | "refresh", callback: gsap.Callback): void;
 
     /**
+     * Sets up proxy methods for a particular scroller so that you can do advanced effects like integrate with a 3rd party smooth scrolling library.
+     *
+     * ```js
+     * ScrollTrigger.scrollerProxy(".container", {
+     *     scrollTop(value) {
+     *         return arguments.length ? locoScroll.scrollTo(value, 0, 0) : locoScroll.scroll.instance.scroll.y;
+     *     },
+     *     getBoundingClientRect() {
+     *        return {top: 0, left: 0, width: window.innerWidth, height: window.innerHeight};
+     *     },
+     *     pinType: document.querySelector(".container").style.transform ? "transform" : "fixed"
+     * });
+     * ```
+     *
+     * @param {string | Element} scroller
+     * @param {ScrollerProxyVars} vars
+     * @memberof ScrollTrigger
+     */
+    scrollerProxy(scroller: string | Element, vars: ScrollerProxyVars): void;
+
+    /**
+     * Records the current inline CSS styles for the given element(s) so they can be reverted later.
+     *
+     * ```js
+     * ScrollTrigger.saveStyles(".panel, #logo");
+     * ```
+     *
+     * @param {gsap.DOMTarget} targets
+     * @memberof ScrollTrigger
+     */
+    saveStyles(targets: gsap.DOMTarget): void;
+
+    /**
      * Checks where the scrollbar is and updates all ScrollTrigger instances' progress and direction values accordingly, controls the animation (if necessary) and fires the appropriate callbacks.
      *
      * ```js
@@ -276,10 +325,23 @@ declare namespace gsap.plugins {
     register(core: typeof gsap): void;
   }
 
+  interface RectObj {
+    top: number;
+    left: number;
+    width: number;
+    height: number;
+  }
+
+  interface MatchMediaObject {
+    [key: string]: Function;
+  }
+
   type Callback = (self: ScrollTriggerInstance) => any;
   type BatchCallback = (targets: Element[], triggers: ScrollTriggerInstance[]) => any;
   type NumFunc = () => number;
   type SnapFunc = (value: number) => number;
+  type GetterSetterNumFunc = (value?: number) => number | void;
+  type GetterRectFunc = () => RectObj;
   type StartEndFunc = () => string | number;
 
   interface MarkersVars {
@@ -368,6 +430,16 @@ declare namespace gsap.plugins {
   interface ScrollTriggerConfigVars {
     limitCallbacks?: boolean;
     syncInterval?: number;
+    autoRefreshEvents?: string;
+  }
+
+  interface ScrollerProxyVars {
+    scrollTop?: GetterSetterNumFunc;
+    scrollLeft?: GetterSetterNumFunc;
+    scrollWidth?: GetterSetterNumFunc;
+    scrollHeight?: GetterSetterNumFunc;
+    getBoundingClientRect?: GetterRectFunc;
+    pinType?: "fixed" | "transform";
   }
 }
 

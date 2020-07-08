@@ -5,7 +5,7 @@
 }(this, (function (exports) { 'use strict';
 
 	/*!
-	 * ScrollTrigger 3.3.4
+	 * ScrollTrigger 3.4.0
 	 * https://greensock.com
 	 *
 	 * @license Copyright 2008-2020, GreenSock. All rights reserved.
@@ -31,8 +31,13 @@
 	    _pointerIsDown,
 	    _transformProp,
 	    _i,
+	    _prevWidth,
+	    _prevHeight,
+	    _autoRefresh,
 	    _limitCallbacks,
 	    _startup = 1,
+	    _proxies = [],
+	    _scrollers = [],
 	    _getTime = Date.now,
 	    _time1 = _getTime(),
 	    _lastScrollTime = 0,
@@ -49,16 +54,56 @@
 	    _isViewport = function _isViewport(e) {
 	  return !!~_root.indexOf(e);
 	},
+	    _getProxyProp = function _getProxyProp(element, property) {
+	  return ~_proxies.indexOf(element) && _proxies[_proxies.indexOf(element) + 1][property];
+	},
 	    _getScrollFunc = function _getScrollFunc(element, _ref) {
-	  var s = _ref.s;
-	  return function (value) {
+	  var s = _ref.s,
+	      sc = _ref.sc;
+
+	  var i = _scrollers.indexOf(element),
+	      func = ~i ? _scrollers[i + 1] : _getProxyProp(element, s) || (_isViewport(element) ? sc : function (value) {
 	    return arguments.length ? element[s] = value : element[s];
+	  });
+
+	  !~i && _scrollers.push(element, func);
+	  return func;
+	},
+	    _getBoundsFunc = function _getBoundsFunc(element) {
+	  return _getProxyProp(element, "getBoundingClientRect") || (_isViewport(element) ? function () {
+	    _winOffsets.width = _win.innerWidth;
+	    _winOffsets.height = _win.innerHeight;
+	    return _winOffsets;
+	  } : function () {
+	    return _getBounds(element);
+	  });
+	},
+	    _getSizeFunc = function _getSizeFunc(scroller, isViewport, _ref2) {
+	  var d = _ref2.d,
+	      d2 = _ref2.d2,
+	      a = _ref2.a;
+	  return (a = _getProxyProp(scroller, "getBoundingClientRect")) ? function () {
+	    return a()[d];
+	  } : function () {
+	    return (isViewport ? _win["inner" + d2] : scroller["client" + d2]) || 0;
 	  };
 	},
-	    _maxScroll = function _maxScroll(element, _ref2) {
-	  var s = _ref2.s,
-	      d2 = _ref2.d2;
-	  return (s = "scroll" + d2) && _isViewport(element) ? Math.max(_docEl[s], _body[s]) - (_win["inner" + d2] || _docEl["client" + d2] || _body["client" + d2]) : element[s] - element["offset" + d2];
+	    _getOffsetsFunc = function _getOffsetsFunc(element, isViewport) {
+	  return !isViewport || ~_proxies.indexOf(element) ? _getBoundsFunc(element) : function () {
+	    return _winOffsets;
+	  };
+	},
+	    _maxScroll = function _maxScroll(element, _ref3) {
+	  var s = _ref3.s,
+	      d2 = _ref3.d2,
+	      d = _ref3.d,
+	      a = _ref3.a;
+	  return (s = "scroll" + d2) && (a = _getProxyProp(element, s)) ? a() - _getBoundsFunc(element)()[d] : _isViewport(element) ? Math.max(_docEl[s], _body[s]) - (_win["inner" + d2] || _docEl["client" + d2] || _body["client" + d2]) : element[s] - element["offset" + d2];
+	},
+	    _iterateAutoRefresh = function _iterateAutoRefresh(func, events) {
+	  for (var i = 0; i < _autoRefresh.length; i += 3) {
+	    (!events || ~events.indexOf(_autoRefresh[i + 1])) && func(_autoRefresh[i], _autoRefresh[i + 1], _autoRefresh[i + 2]);
+	  }
 	},
 	    _isString = function _isString(value) {
 	  return typeof value === "string";
@@ -147,8 +192,8 @@
 	  tween && tween.progress(0).kill();
 	  return bounds;
 	},
-	    _getSize = function _getSize(element, _ref3) {
-	  var d2 = _ref3.d2;
+	    _getSize = function _getSize(element, _ref4) {
+	  var d2 = _ref4.d2;
 	  return element["offset" + d2] || element["client" + d2] || 0;
 	},
 	    _getLabels = function _getLabels(animation) {
@@ -211,23 +256,23 @@
 
 	  return value;
 	},
-	    _createMarker = function _createMarker(type, name, container, direction, _ref4, offset, matchWidthEl) {
-	  var startColor = _ref4.startColor,
-	      endColor = _ref4.endColor,
-	      fontSize = _ref4.fontSize,
-	      indent = _ref4.indent,
-	      fontWeight = _ref4.fontWeight;
+	    _createMarker = function _createMarker(type, name, container, direction, _ref5, offset, matchWidthEl) {
+	  var startColor = _ref5.startColor,
+	      endColor = _ref5.endColor,
+	      fontSize = _ref5.fontSize,
+	      indent = _ref5.indent,
+	      fontWeight = _ref5.fontWeight;
 
 	  var e = _doc.createElement("div"),
-	      isViewport = _isViewport(container),
+	      useFixedPosition = _isViewport(container) || _getProxyProp(container, "pinType") === "fixed",
 	      isScroller = type.indexOf("scroller") !== -1,
-	      parent = isViewport ? _body : container,
+	      parent = useFixedPosition ? _body : container,
 	      isStart = type.indexOf("start") !== -1,
 	      color = isStart ? startColor : endColor,
 	      css = "border-color:" + color + ";font-size:" + fontSize + ";color:" + color + ";font-weight:" + fontWeight + ";pointer-events:none;white-space:nowrap;font-family:sans-serif,Arial;z-index:1000;padding:4px 8px;border-width:0;border-style:solid;";
 
-	  css += "position:" + (isScroller && isViewport ? "fixed;" : "absolute;");
-	  (isScroller || !isViewport) && (css += (direction === _vertical ? _right : _bottom) + ":" + (offset + parseFloat(indent)) + "px;");
+	  css += "position:" + (isScroller && useFixedPosition ? "fixed;" : "absolute;");
+	  (isScroller || !useFixedPosition) && (css += (direction === _vertical ? _right : _bottom) + ":" + (offset + parseFloat(indent)) + "px;");
 	  matchWidthEl && (css += "box-sizing:border-box;text-align:left;width:" + matchWidthEl.offsetWidth + "px;");
 	  e._isStart = isStart;
 	  e.setAttribute("class", "gsap-marker-" + type);
@@ -236,12 +281,14 @@
 	  parent.insertBefore(e, parent.children[0]);
 	  e._offset = e["offset" + direction.op.d2];
 
-	  _positionMarker(e, 0, direction, isViewport, isStart);
+	  _positionMarker(e, 0, direction, isStart);
 
 	  return e;
 	},
-	    _positionMarker = function _positionMarker(marker, start, direction, isViewport, flipped) {
-	  var vars = {},
+	    _positionMarker = function _positionMarker(marker, start, direction, flipped) {
+	  var vars = {
+	    display: "block"
+	  },
 	      side = direction[flipped ? "os2" : "p2"],
 	      oppositeSide = direction[flipped ? "p2" : "os2"];
 	  marker._isFlipped = flipped;
@@ -265,27 +312,90 @@
 	  }
 	},
 	    _onResize = function _onResize() {
-	  return !_refreshing && _getTime() - _lastScrollTime > 200 && _resizeDelay.restart(true);
+	  return !_refreshing && _resizeDelay.restart(true);
 	},
 	    _listeners = {},
 	    _emptyArray = [],
+	    _media = [],
+	    _creatingMedia,
+	    _lastMediaTick,
+	    _onMediaChange = function _onMediaChange(e) {
+	  var tick = gsap.ticker.frame,
+	      matches = [],
+	      i = 0;
+
+	  if (_lastMediaTick !== tick) {
+	    _revertAll();
+
+	    for (; i < _media.length; i += 2) {
+	      _win.matchMedia(_media[i]).matches ? matches.push(i) : _revertAll(1, _media[i]);
+	    }
+
+	    _revertRecorded();
+
+	    for (i = 0; i < matches.length; i++) {
+	      _creatingMedia = _media[matches[i]];
+
+	      _media[matches[i] + 1](e);
+	    }
+
+	    _creatingMedia = 0;
+
+	    _refreshAll(0, 1);
+
+	    _lastMediaTick = tick;
+	  }
+	},
+	    _softRefresh = function _softRefresh() {
+	  return _removeListener(ScrollTrigger, "scrollEnd", _softRefresh) || _refreshAll(true);
+	},
 	    _dispatch = function _dispatch(type) {
 	  return _listeners[type] && _listeners[type].map(function (f) {
 	    return f();
 	  }) || _emptyArray;
 	},
-	    _refreshAll = function _refreshAll(force) {
-	  var refreshInits = _dispatch("refreshInit"),
-	      l = _triggers.length;
+	    _savedStyles = [],
+	    _revertRecorded = function _revertRecorded(media) {
+	  for (var i = 0; i < _savedStyles.length; i += 4) {
+	    if (!media || _savedStyles[i + 3] === media) {
+	      _savedStyles[i].style.cssText = _savedStyles[i + 1];
+	      _savedStyles[i + 2].uncache = 1;
+	    }
+	  }
+	},
+	    _revertAll = function _revertAll(kill, media) {
+	  var trigger;
 
-	  _i = l;
+	  for (_i = 0; _i < _triggers.length; _i++) {
+	    trigger = _triggers[_i];
 
-	  while (_i--) {
-	    _triggers[_i].scroll.rec = _triggers[_i].scroll();
+	    if (!media || trigger.media === media) {
+	      if (kill) {
+	        trigger.kill(1);
+	      } else {
+	        trigger.scroll.rec || (trigger.scroll.rec = trigger.scroll());
+	        trigger.revert();
+	      }
+	    }
 	  }
 
-	  for (_i = 0; _i < l; _i++) {
-	    _triggers[_i] && _triggers[_i].refresh(force !== true);
+	  _revertRecorded(media);
+
+	  media || _dispatch("revert");
+	},
+	    _refreshAll = function _refreshAll(force, skipRevert) {
+	  if (_lastScrollTime && !force) {
+	    _addListener(ScrollTrigger, "scrollEnd", _softRefresh);
+
+	    return;
+	  }
+
+	  var refreshInits = _dispatch("refreshInit");
+
+	  skipRevert || _revertAll();
+
+	  for (_i = 0; _i < _triggers.length; _i++) {
+	    _triggers[_i].refresh();
 	  }
 
 	  refreshInits.forEach(function (result) {
@@ -348,6 +458,7 @@
 	    }
 
 	    spacerStyle.position = cs.position === "absolute" ? "absolute" : "relative";
+	    cs.display === "inline" && (spacerStyle.display = "inline-block");
 	    pinStyle[_bottom] = pinStyle[_right] = "auto";
 	    spacerStyle.overflow = "visible";
 	    spacerStyle.boxSizing = "border-box";
@@ -363,20 +474,22 @@
 	},
 	    _capsExp = /([A-Z])/g,
 	    _setState = function _setState(state) {
-	  var style = state.t.style,
-	      l = state.length,
-	      i = 0,
-	      p,
-	      value;
+	  if (state) {
+	    var style = state.t.style,
+	        l = state.length,
+	        i = 0,
+	        p,
+	        value;
 
-	  for (; i < l; i += 2) {
-	    value = state[i + 1];
-	    p = state[i];
+	    for (; i < l; i += 2) {
+	      value = state[i + 1];
+	      p = state[i];
 
-	    if (value) {
-	      style[p] = value;
-	    } else if (style[p]) {
-	      style.removeProperty(p.replace(_capsExp, "-$1").toLowerCase());
+	      if (value) {
+	        style[p] = value;
+	      } else if (style[p]) {
+	        style.removeProperty(p.replace(_capsExp, "-$1").toLowerCase());
+	      }
 	    }
 	  }
 	},
@@ -411,7 +524,7 @@
 	  left: 0,
 	  top: 0
 	},
-	    _parsePosition = function _parsePosition(value, trigger, scrollerSize, direction, scroll, marker, markerScroller, self, scrollerBounds, borderWidth, isViewport, scrollerMax) {
+	    _parsePosition = function _parsePosition(value, trigger, scrollerSize, direction, scroll, marker, markerScroller, self, scrollerBounds, borderWidth, useFixedPosition, scrollerMax) {
 	  _isFunction(value) && (value = value(self));
 
 	  if (_isString(value) && value.substr(0, 3) === "max") {
@@ -438,10 +551,10 @@
 	    localOffset = _offsetToPx(offsets[0], bounds[direction.d]);
 	    globalOffset = _offsetToPx(offsets[1] || "0", scrollerSize);
 	    value = bounds[direction.p] - scrollerBounds[direction.p] - borderWidth + localOffset + scroll - globalOffset;
-	    markerScroller && _positionMarker(markerScroller, globalOffset, direction, isViewport, scrollerSize - globalOffset < 20 || markerScroller._isStart && globalOffset > 20);
+	    markerScroller && _positionMarker(markerScroller, globalOffset, direction, scrollerSize - globalOffset < 20 || markerScroller._isStart && globalOffset > 20);
 	    scrollerSize -= scrollerSize - globalOffset;
 	  } else if (markerScroller) {
-	    _positionMarker(markerScroller, scrollerSize, direction, isViewport, true);
+	    _positionMarker(markerScroller, scrollerSize, direction, true);
 	  }
 
 	  if (marker) {
@@ -449,11 +562,11 @@
 	        isStart = marker._isStart;
 	    scrollerMax = "scroll" + direction.d2;
 
-	    _positionMarker(marker, position, direction, isViewport, isStart && position > 20 || !isStart && (isViewport ? Math.max(_body[scrollerMax], _docEl[scrollerMax]) : marker.parentNode[scrollerMax]) <= position + 1);
+	    _positionMarker(marker, position, direction, isStart && position > 20 || !isStart && (useFixedPosition ? Math.max(_body[scrollerMax], _docEl[scrollerMax]) : marker.parentNode[scrollerMax]) <= position + 1);
 
-	    if (isViewport) {
+	    if (useFixedPosition) {
 	      scrollerBounds = _getBounds(markerScroller);
-	      isViewport && (marker.style[direction.op.p] = scrollerBounds[direction.op.p] - direction.op.m - marker._offset + _px);
+	      useFixedPosition && (marker.style[direction.op.p] = scrollerBounds[direction.op.p] - direction.op.m - marker._offset + _px);
 	    }
 	  }
 
@@ -483,7 +596,7 @@
 	  }
 	},
 	    _getTweenCreator = function _getTweenCreator(scroller, direction) {
-	  var getScroll = _isViewport(scroller) ? direction.sc : _getScrollFunc(scroller, direction),
+	  var getScroll = _getScrollFunc(scroller, direction),
 	      prop = "_scroll" + direction.p2,
 	      lastScroll,
 	      getTween = function getTween(scrollTo, vars, initialValue, change1, change2) {
@@ -496,7 +609,7 @@
 	    vars.modifiers = modifiers;
 
 	    modifiers[prop] = function (value) {
-	      if (getScroll() !== lastScroll) {
+	      if (Math.abs(getScroll() - lastScroll) > 7) {
 	        tween.kill();
 	        getTween.tween = 0;
 	        value = getScroll();
@@ -564,17 +677,17 @@
 	        scroller = _toArray(vars.scroller || _win)[0],
 	        scrollerCache = gsap.core.getCache(scroller),
 	        isViewport = _isViewport(scroller),
+	        useFixedPosition = isViewport || _getProxyProp(scroller, "pinType") === "fixed",
 	        callbacks = [vars.onEnter, vars.onLeave, vars.onEnterBack, vars.onLeaveBack],
 	        toggleActions = isToggle && (once ? "play" : vars.toggleActions).split(" "),
 	        markers = "markers" in vars ? vars.markers : _defaults.markers,
 	        borderWidth = isViewport ? 0 : parseFloat(_getComputedStyle(scroller)["border" + direction.p2 + _Width]) || 0,
 	        self = this,
-	        softRefresh = function softRefresh() {
-	      return ScrollTrigger.removeEventListener("scrollEnd", softRefresh) || self.refresh();
-	    },
 	        onRefreshInit = vars.onRefreshInit && function () {
 	      return vars.onRefreshInit(self);
 	    },
+	        getScrollerSize = _getSizeFunc(scroller, isViewport, direction),
+	        getScrollerOffsets = _getOffsetsFunc(scroller, isViewport),
 	        tweenTo,
 	        pinCache,
 	        snapFunc,
@@ -610,14 +723,18 @@
 	        scrubSmooth,
 	        snapDurClamp,
 	        snapDelayedCall,
-	        enabled;
+	        enabled,
+	        prevProgress,
+	        prevScroll,
+	        prevAnimProgress;
 
+	    self.media = _creatingMedia;
 	    anticipatePin *= 45;
 
 	    _triggers.push(self);
 
 	    self.scroller = scroller;
-	    self.scroll = isViewport ? direction.sc : _getScrollFunc(scroller, direction);
+	    self.scroll = _getScrollFunc(scroller, direction);
 	    scroll1 = self.scroll();
 	    self.vars = vars;
 	    animation = animation || vars.animation;
@@ -629,7 +746,7 @@
 
 	    if (animation) {
 	      animation.vars.lazy = false;
-	      animation._initted || animation.vars.immediateRender !== false && animation.render(-0.01, true, true);
+	      animation._initted || animation.vars.immediateRender !== false && vars.immediateRender !== false && animation.render(0, true, true);
 	      self.animation = animation.pause();
 	      animation.scrollTrigger = self;
 	      scrubSmooth = _isNumber(scrub) && scrub;
@@ -647,6 +764,9 @@
 	    if (snap) {
 	      _isObject(snap) || (snap = {
 	        snapTo: snap
+	      });
+	      gsap.set(isViewport ? [_body, _docEl] : scroller, {
+	        scrollBehavior: "auto"
 	      });
 	      snapFunc = _isFunction(snap.snapTo) ? snap.snapTo : snap.snapTo === "labels" ? _getLabels(animation) : gsap.utils.snap(snap.snapTo);
 	      snapDurClamp = snap.duration || {
@@ -734,7 +854,7 @@
 	      markerStart = _createMarker("start", id, scroller, direction, markerVars, offset);
 	      markerEnd = _createMarker("end", id, scroller, direction, markerVars, offset);
 
-	      if (!isViewport) {
+	      if (!useFixedPosition) {
 	        _makePositionable(scroller);
 
 	        gsap.set([markerStartTrigger, markerEndTrigger], {
@@ -746,10 +866,22 @@
 	    }
 
 	    self.revert = function (revert) {
-	      var r = revert !== false;
+	      var r = revert !== false,
+	          prevRefreshing = _refreshing;
 
 	      if (r !== isReverted) {
+	        if (r) {
+	          prevScroll = Math.max(self.scroll(), self.scroll.rec || 0);
+	          prevProgress = self.progress;
+	          prevAnimProgress = animation && animation.progress();
+	          markerStart && [markerStart, markerEnd, markerStartTrigger, markerEndTrigger].forEach(function (m) {
+	            return m.style.display = "none";
+	          });
+	        }
+
+	        _refreshing = 1;
 	        self.update(r);
+	        _refreshing = prevRefreshing;
 	        pin && r && _swapPinOut(pin, spacer, pinOriginalState);
 	        isReverted = r;
 	      }
@@ -761,21 +893,18 @@
 	      }
 
 	      if (pin && soft && _lastScrollTime) {
-	        _addListener(ScrollTrigger, "scrollEnd", softRefresh);
+	        _addListener(ScrollTrigger, "scrollEnd", _softRefresh);
 
 	        return;
 	      }
 
-	      var prevScroll = Math.max(self.scroll(), self.scroll.rec || 0),
-	          prevProgress = self.progress,
-	          prevAnimProgress = animation && animation.progress();
 	      _refreshing = 1;
 	      scrubTween && scrubTween.kill();
-	      invalidateOnRefresh && animation && animation.progress(0).invalidate().progress(self.progress);
+	      invalidateOnRefresh && animation && animation.progress(0).invalidate();
 	      isReverted || self.revert();
 
-	      var size = (isViewport ? _win["inner" + direction.d2] : scroller["client" + direction.d2]) || 0,
-	          scrollerBounds = isViewport ? _winOffsets : _getBounds(scroller),
+	      var size = getScrollerSize(),
+	          scrollerBounds = getScrollerOffsets(),
 	          max = _maxScroll(scroller, direction),
 	          offset = 0,
 	          otherPinOffset = 0,
@@ -799,7 +928,7 @@
 	        }
 	      }
 
-	      start = _parsePosition(parsedStart, trigger, size, direction, self.scroll(), markerStart, markerStartTrigger, self, scrollerBounds, borderWidth, isViewport, max) || (pin ? -0.001 : 0);
+	      start = _parsePosition(parsedStart, trigger, size, direction, self.scroll(), markerStart, markerStartTrigger, self, scrollerBounds, borderWidth, useFixedPosition, max) || (pin ? -0.001 : 0);
 	      _isFunction(parsedEnd) && (parsedEnd = parsedEnd(self));
 
 	      if (_isString(parsedEnd) && !parsedEnd.indexOf("+=")) {
@@ -812,7 +941,7 @@
 	        }
 	      }
 
-	      end = Math.max(start, _parsePosition(parsedEnd || (parsedEndTrigger ? "100% 0" : max), parsedEndTrigger, size, direction, self.scroll() + offset, markerEnd, markerEndTrigger, self, scrollerBounds, borderWidth, isViewport, max)) || -0.001;
+	      end = Math.max(start, _parsePosition(parsedEnd || (parsedEndTrigger ? "100% 0" : max), parsedEndTrigger, size, direction, self.scroll() + offset, markerEnd, markerEndTrigger, self, scrollerBounds, borderWidth, useFixedPosition, max)) || -0.001;
 	      change = end - start || (start -= 0.01) && 0.001;
 
 	      if (pin) {
@@ -850,10 +979,10 @@
 	          spacer.style[pinSpacing + direction.os2] = change + otherPinOffset + _px;
 	          spacingActive = pinSpacing === _padding ? _getSize(pin, direction) + change + otherPinOffset : 0;
 	          spacingActive && (spacer.style[direction.d] = spacingActive + _px);
-	          isViewport && self.scroll(prevScroll);
+	          useFixedPosition && self.scroll(prevScroll);
 	        }
 
-	        if (isViewport) {
+	        if (useFixedPosition) {
 	          override = {
 	            top: bounds.top + (isVertical ? scroll - start : 0) + _px,
 	            left: bounds.left + (isVertical ? 0 : scroll - start) + _px,
@@ -900,7 +1029,8 @@
 
 	      self.start = start;
 	      self.end = end;
-	      self.scroll() < prevScroll && self.scroll(prevScroll);
+	      scroll1 = scroll2 = self.scroll();
+	      scroll1 < prevScroll && self.scroll(prevScroll);
 	      self.revert(false);
 	      _refreshing = 0;
 	      prevAnimProgress && isToggle && animation.progress(prevAnimProgress, true);
@@ -941,7 +1071,7 @@
 	        }
 	      }
 
-	      anticipatePin && !clipped && pin && !_refreshing && start < scroll + (scroll - scroll2) / (_getTime() - _time2) * anticipatePin && (clipped = 0.0001);
+	      anticipatePin && !clipped && pin && !_refreshing && !_startup && _lastScrollTime && start < scroll + (scroll - scroll2) / (_getTime() - _time2) * anticipatePin && (clipped = 0.0001);
 
 	      if (clipped !== prevProgress && enabled) {
 	        isActive = self.isActive = !!clipped && clipped < 1;
@@ -963,10 +1093,10 @@
 	        if (pin) {
 	          reset && pinSpacing && (spacer.style[pinSpacing + direction.os2] = spacingStart);
 
-	          if (!isViewport) {
+	          if (!useFixedPosition) {
 	            pinSetter(pinStart + pinChange * clipped);
 	          } else if (stateChanged) {
-	            action = !reset && end + 1 > scroll && scroll + 1 >= _maxScroll(scroller, direction);
+	            action = !reset && clipped > prevProgress && end + 1 > scroll && scroll + 1 >= _maxScroll(scroller, direction);
 
 	            if (pinReparent) {
 	              if (!_refreshing && (isActive || action)) {
@@ -1051,10 +1181,11 @@
 
 	    self.disable = function (reset) {
 	      if (enabled) {
+	        reset !== false && self.revert();
 	        enabled = self.isActive = false;
 	        scrubTween && scrubTween.pause();
-	        reset !== enabled && self.update(1);
 	        pin && _swapPinOut(pin, spacer, pinOriginalState);
+	        pinCache && (pinCache.uncache = 1);
 	        onRefreshInit && _removeListener(ScrollTrigger, "refreshInit", onRefreshInit);
 
 	        if (snapDelayedCall) {
@@ -1078,8 +1209,8 @@
 	      }
 	    };
 
-	    self.kill = function (reset) {
-	      self.disable(reset);
+	    self.kill = function (revert) {
+	      self.disable(revert);
 	      id && delete _ids[id];
 
 	      var i = _triggers.indexOf(self);
@@ -1087,81 +1218,96 @@
 	      _triggers.splice(i, 1);
 
 	      i === _i && _i--;
-	      animation && (animation.scrollTrigger = null);
+
+	      if (animation) {
+	        animation.scrollTrigger = null;
+	        revert && animation.render(-1);
+	        animation.kill();
+	      }
+
+	      markerStart && [markerStart, markerEnd, markerStartTrigger, markerEndTrigger].forEach(function (m) {
+	        return m.parentNode.removeChild(m);
+	      });
+	      pinCache && (pinCache.uncache = 1);
 	    };
 
 	    self.enable();
 	  };
 
 	  ScrollTrigger.register = function register(core) {
-	    gsap = core || _getGSAP();
+	    if (!_coreInitted) {
+	      gsap = core || _getGSAP();
 
-	    if (_windowExists() && window.document) {
-	      _win = window;
-	      _doc = document;
-	      _docEl = _doc.documentElement;
-	      _body = _doc.body;
-	    }
+	      if (_windowExists() && window.document) {
+	        _win = window;
+	        _doc = document;
+	        _docEl = _doc.documentElement;
+	        _body = _doc.body;
+	      }
 
-	    if (gsap) {
-	      _toArray = gsap.utils.toArray;
-	      _clamp = gsap.utils.clamp;
-	      gsap.core.globals("ScrollTrigger", ScrollTrigger);
+	      if (gsap) {
+	        _toArray = gsap.utils.toArray;
+	        _clamp = gsap.utils.clamp;
+	        gsap.core.globals("ScrollTrigger", ScrollTrigger);
 
-	      if (_body) {
-	        _raf = _win.requestAnimationFrame || function (f) {
-	          return setTimeout(f, 16);
-	        };
+	        if (_body) {
+	          _raf = _win.requestAnimationFrame || function (f) {
+	            return setTimeout(f, 16);
+	          };
 
-	        _addListener(_win, "mousewheel", _onScroll);
+	          _addListener(_win, "mousewheel", _onScroll);
 
-	        _root = [_win, _doc, _docEl, _body];
+	          _root = [_win, _doc, _docEl, _body];
 
-	        _addListener(_doc, "scroll", _onScroll);
+	          _addListener(_doc, "scroll", _onScroll);
 
-	        var bodyStyle = _body.style,
-	            border = bodyStyle.borderTop,
-	            bounds;
-	        bodyStyle.borderTop = "1px solid #000";
-	        bounds = _getBounds(_body);
-	        _vertical.m = Math.round(bounds.top + _vertical.sc()) || 0;
-	        _horizontal.m = Math.round(bounds.left + _horizontal.sc()) || 0;
-	        border ? bodyStyle.borderTop = border : bodyStyle.removeProperty("border-top");
-	        _syncInterval = setInterval(_sync, 100);
-	        gsap.delayedCall(0.5, function () {
-	          return _startup = 0;
-	        });
+	          var bodyStyle = _body.style,
+	              border = bodyStyle.borderTop,
+	              bounds;
+	          bodyStyle.borderTop = "1px solid #000";
+	          bounds = _getBounds(_body);
+	          _vertical.m = Math.round(bounds.top + _vertical.sc()) || 0;
+	          _horizontal.m = Math.round(bounds.left + _horizontal.sc()) || 0;
+	          border ? bodyStyle.borderTop = border : bodyStyle.removeProperty("border-top");
+	          _syncInterval = setInterval(_sync, 200);
+	          gsap.delayedCall(0.5, function () {
+	            return _startup = 0;
+	          });
 
-	        _addListener(_doc, "touchcancel", _passThrough);
+	          _addListener(_doc, "touchcancel", _passThrough);
 
-	        _addListener(_body, "touchstart", _passThrough);
+	          _addListener(_body, "touchstart", _passThrough);
 
-	        _multiListener(_addListener, _doc, "pointerdown,touchstart,mousedown", function () {
-	          return _pointerIsDown = 1;
-	        });
+	          _multiListener(_addListener, _doc, "pointerdown,touchstart,mousedown", function () {
+	            return _pointerIsDown = 1;
+	          });
 
-	        _multiListener(_addListener, _doc, "pointerup,touchend,mouseup", function () {
-	          return _pointerIsDown = 0;
-	        });
+	          _multiListener(_addListener, _doc, "pointerup,touchend,mouseup", function () {
+	            return _pointerIsDown = 0;
+	          });
 
-	        _transformProp = gsap.utils.checkPrefix("transform");
+	          _transformProp = gsap.utils.checkPrefix("transform");
 
-	        _stateProps.push(_transformProp);
+	          _stateProps.push(_transformProp);
 
-	        _coreInitted = _getTime();
-	        _resizeDelay = gsap.delayedCall(0.2, _refreshAll).pause();
+	          _coreInitted = _getTime();
+	          _resizeDelay = gsap.delayedCall(0.2, _refreshAll).pause();
+	          _autoRefresh = [_doc, "visibilitychange", function () {
+	            var w = _win.innerWidth,
+	                h = _win.innerHeight;
 
-	        _addListener(_doc, "visibilitychange", function () {
-	          return _doc.hidden || _refreshAll();
-	        });
+	            if (_doc.hidden) {
+	              _prevWidth = w;
+	              _prevHeight = h;
+	            } else if (_prevWidth !== w || _prevHeight !== h) {
+	              _onResize();
+	            }
+	          }, _doc, "DOMContentLoaded", _refreshAll, _win, "load", function () {
+	            return _lastScrollTime || _refreshAll();
+	          }, _win, "resize", _onResize];
 
-	        _addListener(_doc, "DOMContentLoaded", _refreshAll);
-
-	        _addListener(_win, "load", function () {
-	          return _lastScrollTime || _refreshAll();
-	        });
-
-	        _addListener(_win, "resize", _onResize);
+	          _iterateAutoRefresh(_addListener);
+	        }
 	      }
 	    }
 
@@ -1186,11 +1332,56 @@
 	    "limitCallbacks" in vars && (_limitCallbacks = !!vars.limitCallbacks);
 	    var ms = vars.syncInterval;
 	    ms && clearInterval(_syncInterval) || (_syncInterval = ms) && setInterval(_sync, ms);
+	    "autoRefreshEvents" in vars && (_iterateAutoRefresh(_removeListener) || _iterateAutoRefresh(_addListener, vars.autoRefreshEvents || "none"));
+	  };
+
+	  ScrollTrigger.scrollerProxy = function scrollerProxy(target, vars) {
+	    var t = _toArray(target)[0];
+
+	    _isViewport(t) ? _proxies.unshift(_win, vars, _body, vars, _docEl, vars) : _proxies.unshift(t, vars);
+	  };
+
+	  ScrollTrigger.matchMedia = function matchMedia(vars) {
+	    var mq, p;
+
+	    for (p in vars) {
+	      if (p === "all") {
+	        _creatingMedia = p;
+	        vars[p]();
+	        _creatingMedia = 0;
+	      } else {
+	        mq = _win.matchMedia(p);
+
+	        if (mq) {
+	          _media.push(p, vars[p]);
+
+	          mq.addListener ? mq.addListener(_onMediaChange) : mq.addEventListener("change", _onMediaChange);
+	        }
+	      }
+	    }
+
+	    _onMediaChange();
+
+	    return _media;
 	  };
 
 	  return ScrollTrigger;
 	}();
-	ScrollTrigger.version = "3.3.4";
+	ScrollTrigger.version = "3.4.0";
+
+	ScrollTrigger.saveStyles = function (targets) {
+	  return targets ? _toArray(targets).forEach(function (target) {
+	    var i = _savedStyles.indexOf(target);
+
+	    i >= 0 && _savedStyles.splice(i, 4);
+
+	    _savedStyles.push(target, target.style.cssText, gsap.core.getCache(target), _creatingMedia);
+	  }) : _savedStyles;
+	};
+
+	ScrollTrigger.revert = function (soft, media) {
+	  return _revertAll(!soft, media);
+	};
 
 	ScrollTrigger.create = function (vars, animation) {
 	  return new ScrollTrigger(vars, animation);
@@ -1207,7 +1398,7 @@
 	};
 
 	ScrollTrigger.getScrollFunc = function (element, horizontal) {
-	  return (horizontal = horizontal ? _horizontal : _vertical) && (_isViewport(element) ? horizontal.sc : _getScrollFunc(element, horizontal));
+	  return _getScrollFunc(_toArray(element)[0], horizontal ? _horizontal : _vertical);
 	};
 
 	ScrollTrigger.getById = function (id) {
