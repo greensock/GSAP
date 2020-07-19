@@ -40,6 +40,20 @@ declare namespace gsap.plugins {
     arrayToRawPath(values: Point2D[], vars?: ArrayToRawPathObject): RawPath;
 
     /**
+     * Measures the path and caches the values on the RawPath itself for fast and accurate subsequent processing.
+     *
+     * ```js
+     * MotionPathPlugin.cacheRawPathMeasurements(rawPath);
+     * ```
+     *
+     * @param {RawPath} rawPath
+     * @param {number} resolution
+     * @returns {RawPath} the RawPath that was passed in
+     * @memberof MotionPathPlugin
+     */
+    cacheRawPathMeasurements(rawPath: RawPath, resolution?: number): RawPath;
+
+    /**
      * Gets the matrix to convert points from one element's local coordinates into a
      * different element's local coordinate system.
      *
@@ -53,6 +67,7 @@ declare namespace gsap.plugins {
      * @memberof MotionPathPlugin
      */
     convertCoordinates(fromElement: Element, toElement: Element): Matrix2D;
+
     /**
      * Converts a point from one element's local coordinates into a
      * different element's local coordinate system.

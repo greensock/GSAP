@@ -61,9 +61,10 @@ declare namespace gsap.plugins {
      * ```
      *
      * @param {boolean} reset
+     * @param {boolean} allowScrub
      * @memberof ScrollTrigger
      */
-    kill(reset?: boolean): void;
+    kill(reset?: boolean, allowScrub?: boolean): void;
 
     /**
      * Gets the scroll position of the ScrollTrigger's scroller.
@@ -275,6 +276,18 @@ declare namespace gsap.plugins {
     removeEventListener(event: "scrollStart" | "scrollEnd" | "refreshInit" | "refresh", callback: gsap.Callback): void;
 
     /**
+     * Records the current inline CSS styles for the given element(s) so they can be reverted later.
+     *
+     * ```js
+     * ScrollTrigger.saveStyles(".panel, #logo");
+     * ```
+     *
+     * @param {gsap.DOMTarget} targets
+     * @memberof ScrollTrigger
+     */
+    saveStyles(targets: gsap.DOMTarget): void;
+
+    /**
      * Sets up proxy methods for a particular scroller so that you can do advanced effects like integrate with a 3rd party smooth scrolling library.
      *
      * ```js
@@ -296,16 +309,16 @@ declare namespace gsap.plugins {
     scrollerProxy(scroller: string | Element, vars: ScrollerProxyVars): void;
 
     /**
-     * Records the current inline CSS styles for the given element(s) so they can be reverted later.
+     * Sorts the internal Array of ScrollTriggers by "refreshPriority" first, then by their "start" positions (or by a custom function you provide).
      *
      * ```js
-     * ScrollTrigger.saveStyles(".panel, #logo");
+     * ScrollTrigger.sort();
      * ```
      *
-     * @param {gsap.DOMTarget} targets
+     * @param {Function} func
      * @memberof ScrollTrigger
      */
-    saveStyles(targets: gsap.DOMTarget): void;
+    sort(func?: Function): ScrollTriggerInstance[];
 
     /**
      * Checks where the scrollbar is and updates all ScrollTrigger instances' progress and direction values accordingly, controls the animation (if necessary) and fires the appropriate callbacks.
@@ -391,6 +404,7 @@ declare namespace gsap.plugins {
     pin?: boolean | string | Element;
     pinReparent?: boolean;
     pinSpacing?: boolean | string;
+    refreshPriority: number;
     scroller?: string | Element;
     scrub?: boolean | number;
     snap?: number | number[] | "labels" | SnapFunc | SnapVars;

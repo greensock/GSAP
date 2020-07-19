@@ -19,7 +19,7 @@
   }
 
   /*!
-   * GSAP 3.4.0
+   * GSAP 3.4.1
    * https://greensock.com
    *
    * @license Copyright 2008-2020, GreenSock. All rights reserved.
@@ -338,10 +338,7 @@
     child._next = child._prev = child.parent = null;
   },
       _removeFromParent = function _removeFromParent(child, onlyIfParentHasAutoRemove) {
-    if (child.parent && (!onlyIfParentHasAutoRemove || child.parent.autoRemoveChildren)) {
-      child.parent.remove(child);
-    }
-
+    child.parent && (!onlyIfParentHasAutoRemove || child.parent.autoRemoveChildren) && child.parent.remove(child);
     child._act = 0;
   },
       _uncache = function _uncache(animation) {
@@ -2603,7 +2600,8 @@
         plugin,
         ptLookup,
         index,
-        harnessVars;
+        harnessVars,
+        overwritten;
     tl && (!keyframes || !ease) && (ease = "none");
     tween._ease = _parseEase(ease, _defaults.ease);
     tween._yEase = yoyoEase ? _invertEase(_parseEase(yoyoEase === true ? ease : yoyoEase, _defaults.ease)) : 0;
@@ -2705,6 +2703,7 @@
 
           _globalTimeline.killTweensOf(target, ptLookup, tween.globalTime(0));
 
+          overwritten = !tween.parent;
           _overwritingTween = 0;
         }
 
@@ -2717,7 +2716,7 @@
 
     tween._from = !tl && !!vars.runBackwards;
     tween._onUpdate = onUpdate;
-    tween._initted = !!tween.parent;
+    tween._initted = (!tween._op || tween._pt) && !overwritten;
   },
       _addAliasesToVars = function _addAliasesToVars(targets, vars) {
     var harness = targets[0] ? _getCache(targets[0]).harness : 0,
@@ -3037,6 +3036,7 @@
           i;
 
       if ((!vars || vars === "all") && _arraysMatch(parsedTargets, killingTargets)) {
+        vars === "all" && (this._pt = 0);
         return _interrupt(this);
       }
 
@@ -3580,7 +3580,7 @@
       }
     }
   }, _buildModifierPlugin("roundProps", _roundModifier), _buildModifierPlugin("modifiers"), _buildModifierPlugin("snap", snap)) || _gsap;
-  Tween.version = Timeline.version = gsap.version = "3.4.0";
+  Tween.version = Timeline.version = gsap.version = "3.4.1";
   _coreReady = 1;
 
   if (_windowExists()) {

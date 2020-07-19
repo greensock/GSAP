@@ -1,5 +1,5 @@
 /*!
- * GSAP 3.4.0
+ * GSAP 3.4.1
  * https://greensock.com
  *
  * @license Copyright 2008-2020, GreenSock. All rights reserved.
@@ -228,9 +228,7 @@ let _config = {
 		child._next = child._prev = child.parent = null; // don't delete the _dp just so we can revert if necessary. But parent should be null to indicate the item isn't in a linked list.
 	},
 	_removeFromParent = (child, onlyIfParentHasAutoRemove) => {
-		if (child.parent && (!onlyIfParentHasAutoRemove || child.parent.autoRemoveChildren)) {
-			child.parent.remove(child);
-		}
+		child.parent && (!onlyIfParentHasAutoRemove || child.parent.autoRemoveChildren) && child.parent.remove(child);
 		child._act = 0;
 	},
 	_uncache = animation => {
@@ -2054,7 +2052,7 @@ let _addComplexStringPropTween = function(target, prop, start, end, setter, stri
 			fullTargets = (parent && parent.data === "nested") ? parent.parent._targets : targets,
 			autoOverwrite = (tween._overwrite === "auto"),
 			tl = tween.timeline,
-			cleanVars, i, p, pt, target, hasPriority, gsData, harness, plugin, ptLookup, index, harnessVars;
+			cleanVars, i, p, pt, target, hasPriority, gsData, harness, plugin, ptLookup, index, harnessVars, overwritten;
 		tl && (!keyframes || !ease) && (ease = "none");
 		tween._ease = _parseEase(ease, _defaults.ease);
 		tween._yEase = yoyoEase ? _invertEase(_parseEase(yoyoEase === true ? ease : yoyoEase, _defaults.ease)) : 0;
@@ -2087,7 +2085,7 @@ let _addComplexStringPropTween = function(target, prop, start, end, setter, stri
 					p = _setDefaults({
 						overwrite: false,
 						data: "isFromStart", //we tag the tween with as "isFromStart" so that if [inside a plugin] we need to only do something at the very END of a tween, we have a way of identifying this tween as merely the one that's setting the beginning values for a "from()" tween. For example, clearProps in CSSPlugin should only get applied at the very END of a tween and without this tag, from(...{height:100, clearProps:"height", delay:1}) would wipe the height at the beginning of the tween and after 1 second, it'd kick back in.
-						lazy: (immediateRender && _isNotFalse(lazy)),
+						lazy: immediateRender && _isNotFalse(lazy),
 						immediateRender: immediateRender, //zero-duration tweens render immediately by default, but if we're not specifically instructed to render this tween immediately, we should skip this and merely _init() to record the starting values (rendering them immediately would push them to completion which is wasteful in that case - we'd have to render(-1) immediately after)
 						stagger: 0,
 						parent: parent //ensures that nested tweens that had a stagger are handled properly, like gsap.from(".class", {y:gsap.utils.wrap([-100,100])})
@@ -2127,6 +2125,7 @@ let _addComplexStringPropTween = function(target, prop, start, end, setter, stri
 				if (autoOverwrite && tween._pt) {
 					_overwritingTween = tween;
 					_globalTimeline.killTweensOf(target, ptLookup, tween.globalTime(0)); //Also make sure the overwriting doesn't overwrite THIS tween!!!
+					overwritten = !tween.parent;
 					_overwritingTween = 0;
 				}
 				tween._pt && lazy && (_lazyLookup[gsData.id] = 1);
@@ -2136,7 +2135,7 @@ let _addComplexStringPropTween = function(target, prop, start, end, setter, stri
 		}
 		tween._from = !tl && !!vars.runBackwards; //nested timelines should never run backwards - the backwards-ness is in the child tweens.
 		tween._onUpdate = onUpdate;
-		tween._initted = !!tween.parent; // if overwrittenProps resulted in the entire tween being killed, do NOT flag it as initted or else it may render for one tick.
+		tween._initted = (!tween._op || tween._pt) && !overwritten; // if overwrittenProps resulted in the entire tween being killed, do NOT flag it as initted or else it may render for one tick.
 	},
 	_addAliasesToVars = (targets, vars) => {
 		let harness = targets[0] ? _getCache(targets[0]).harness : 0,
@@ -2395,6 +2394,7 @@ export class Tween extends Animation {
 			firstPT = this._pt,
 			overwrittenProps, curLookup, curOverwriteProps, props, p, pt, i;
 		if ((!vars || vars === "all") && _arraysMatch(parsedTargets, killingTargets)) {
+			vars === "all" && (this._pt = 0);
 			return _interrupt(this);
 		}
 		overwrittenProps = this._op = this._op || [];
@@ -2832,7 +2832,7 @@ export const gsap = _gsap.registerPlugin({
 	_buildModifierPlugin("snap", snap)
 ) || _gsap; //to prevent the core plugins from being dropped via aggressive tree shaking, we must include them in the variable declaration in this way.
 
-Tween.version = Timeline.version = gsap.version = "3.4.0";
+Tween.version = Timeline.version = gsap.version = "3.4.1";
 _coreReady = 1;
 if (_windowExists()) {
 	_wake();

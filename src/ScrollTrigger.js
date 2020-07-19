@@ -1,5 +1,5 @@
 /*!
- * ScrollTrigger 3.4.0
+ * ScrollTrigger 3.4.1
  * https://greensock.com
  *
  * @license Copyright 2008-2020, GreenSock. All rights reserved.
@@ -9,7 +9,7 @@
 */
 /* eslint-disable */
 
-let gsap, _coreInitted, _win, _doc, _docEl, _body, _root, _resizeDelay, _raf, _request, _toArray, _clamp, _time2, _syncInterval, _refreshing, _pointerIsDown, _transformProp, _i, _prevWidth, _prevHeight, _autoRefresh,
+let gsap, _coreInitted, _win, _doc, _docEl, _body, _root, _resizeDelay, _raf, _request, _toArray, _clamp, _time2, _syncInterval, _refreshing, _pointerIsDown, _transformProp, _i, _prevWidth, _prevHeight, _autoRefresh, _sort,
 	_limitCallbacks, // if true, we'll only trigger callbacks if the active state toggles, so if you scroll immediately past both the start and end positions of a ScrollTrigger (thus inactive to inactive), neither its onEnter nor onLeave will be called. This is useful during startup.
 	_startup = 1,
 	_proxies = [],
@@ -42,6 +42,15 @@ let gsap, _coreInitted, _win, _doc, _docEl, _body, _root, _resizeDelay, _raf, _r
 	_isFunction = value => typeof(value) === "function",
 	_isNumber = value => typeof(value) === "number",
 	_isObject = value => typeof(value) === "object",
+	_callIfFunc = value => _isFunction(value) && value(),
+	_combineFunc = (f1, f2) => () => {
+		let result1 = _callIfFunc(f1),
+			result2 = _callIfFunc(f2);
+		return () => {
+			_callIfFunc(result1);
+			_callIfFunc(result2);
+		}
+	},
 	_abs = Math.abs,
 	_scrollLeft = "scrollLeft",
 	_scrollTop = "scrollTop",
@@ -160,15 +169,15 @@ let gsap, _coreInitted, _win, _doc, _docEl, _body, _root, _resizeDelay, _raf, _r
 		let tick = gsap.ticker.frame,
 			matches = [],
 			i = 0;
-		if (_lastMediaTick !== tick) {
+		if (_lastMediaTick !== tick || _startup) {
 			_revertAll();
-			for (; i < _media.length; i+=2) {
-				_win.matchMedia(_media[i]).matches ? matches.push(i) : _revertAll(1, _media[i]); // Firefox doesn't update the "matches" property of the MediaQueryList object correctly - it only does so as it calls its change handler - so we must re-create a media query here to ensure it's accurate.
+			for (; i < _media.length; i+=3) {
+				_win.matchMedia(_media[i]).matches ? matches.push(i) : _revertAll(1, _media[i]) || (_isFunction(_media[i+2]) && _media[i+2]()); // Firefox doesn't update the "matches" property of the MediaQueryList object correctly - it only does so as it calls its change handler - so we must re-create a media query here to ensure it's accurate.
 			}
 			_revertRecorded(); // in case killing/reverting any of the animations actually added inline styles back.
 			for (i = 0; i < matches.length; i++) {
 				_creatingMedia = _media[matches[i]];
-				_media[matches[i]+1](e);
+				_media[matches[i]+2] = _media[matches[i]+1](e);
 			}
 			_creatingMedia = 0;
 			_refreshAll(0, 1);
@@ -208,6 +217,7 @@ let gsap, _coreInitted, _win, _doc, _docEl, _body, _root, _resizeDelay, _raf, _r
 			return;
 		}
 		let refreshInits = _dispatch("refreshInit");
+		_sort && ScrollTrigger.sort();
 		skipRevert || _revertAll();
 		for (_i = 0; _i < _triggers.length; _i++) {
 			_triggers[_i].refresh();
@@ -219,10 +229,15 @@ let gsap, _coreInitted, _win, _doc, _docEl, _body, _root, _resizeDelay, _raf, _r
 		}
 		_dispatch("refresh");
 	},
+	_lastScroll = 0,
+	_direction = 1,
 	_updateAll = () => {
 		let l = _triggers.length,
 			time = _getTime(),
-			recordVelocity = time - _time1 >= 50;
+			recordVelocity = time - _time1 >= 50,
+			scroll = l && _triggers[0].scroll();
+		_direction = _lastScroll > scroll ? -1 : 1;
+		_lastScroll = scroll;
 		if (recordVelocity) {
 			if (_lastScrollTime && !_pointerIsDown && time - _lastScrollTime > 200) {
 				_lastScrollTime = 0;
@@ -231,12 +246,20 @@ let gsap, _coreInitted, _win, _doc, _docEl, _body, _root, _resizeDelay, _raf, _r
 			_time2 = _time1;
 			_time1 = time;
 		}
-		for (_i = 0; _i < l; _i++) {
-			_triggers[_i] && _triggers[_i].update(0, recordVelocity);
+		if (_direction < 0) {
+			_i = l;
+			while (_i--) {
+				_triggers[_i].update(0, recordVelocity);
+			}
+			_direction = 1;
+		} else {
+			for (_i = 0; _i < l; _i++) {
+				_triggers[_i] && _triggers[_i].update(0, recordVelocity);
+			}
 		}
 		_request = 0;
 	},
-	_propNamesToCopy = [_left, _top, _bottom, _right, _margin + _Bottom, _margin + _Right, _margin + _Top, _margin + _Left, "display", "flexShrink"],
+	_propNamesToCopy = [_left, _top, _bottom, _right, _margin + _Bottom, _margin + _Right, _margin + _Top, _margin + _Left, "display", "flexShrink", "float"],
 	_stateProps = _propNamesToCopy.concat([_width, _height, "boxSizing", "max" + _Width, "max" + _Height, "position", _margin, _padding, _padding + _Top, _padding + _Right, _padding + _Bottom, _padding + _Left]),
 	_swapPinOut = (pin, spacer, state) => {
 		_setState(state);
@@ -441,7 +464,7 @@ export class ScrollTrigger {
 			getScrollerOffsets = _getOffsetsFunc(scroller, isViewport),
 			tweenTo, pinCache, snapFunc, isReverted, scroll1, scroll2, start, end, markerStart, markerEnd, markerStartTrigger, markerEndTrigger, markerVars,
 			change, pinOriginalState, pinActiveState, pinState, spacer, offset, pinGetter, pinSetter, pinStart, pinChange, spacingStart, spacingActive, markerStartSetter,
-			markerEndSetter, cs, snap1, snap2, scrubScrollTime, scrubTween, scrubSmooth, snapDurClamp, snapDelayedCall, enabled, prevProgress, prevScroll, prevAnimProgress;
+			markerEndSetter, cs, snap1, snap2, scrubScrollTime, scrubTween, scrubSmooth, snapDurClamp, snapDelayedCall, prevProgress, prevScroll, prevAnimProgress;
 
 		self.media = _creatingMedia;
 		anticipatePin *= 45;
@@ -451,6 +474,7 @@ export class ScrollTrigger {
 		scroll1 = self.scroll();
 		self.vars = vars;
 		animation = animation || vars.animation;
+		("refreshPriority" in vars) && (_sort = 1);
 		scrollerCache.tweenScroll = scrollerCache.tweenScroll || {
 			top: _getTweenCreator(scroller, _vertical),
 			left: _getTweenCreator(scroller, _horizontal)
@@ -545,16 +569,15 @@ export class ScrollTrigger {
 		}
 
 		self.revert = revert => {
-			let r = revert !== false,
+			let r = revert !== false || !self.enabled,
 				prevRefreshing = _refreshing;
 			if (r !== isReverted) {
 				if (r) {
 					prevScroll = Math.max(self.scroll(), self.scroll.rec || 0); // record the scroll so we can revert later (repositioning/pinning things can affect scroll position). In the static refresh() method, we first record all the scroll positions as a reference.
 					prevProgress = self.progress;
 					prevAnimProgress = animation && animation.progress();
-					markerStart && [markerStart, markerEnd, markerStartTrigger, markerEndTrigger].forEach(m => m.style.display = "none");
 				}
-
+				markerStart && [markerStart, markerEnd, markerStartTrigger, markerEndTrigger].forEach(m => m.style.display = r ? "none" : "block");
 				_refreshing = 1;
 				self.update(r); // make sure the pin is back in its original position so that all the measurements are correct.
 				_refreshing = prevRefreshing;
@@ -565,7 +588,7 @@ export class ScrollTrigger {
 
 
 		self.refresh = soft => {
-			if (_refreshing || !enabled) {
+			if (_refreshing || !self.enabled) {
 				return;
 			}
 			if (pin && soft && _lastScrollTime) {
@@ -585,13 +608,12 @@ export class ScrollTrigger {
 				parsedEnd = vars.end,
 				parsedEndTrigger = vars.endTrigger || trigger,
 				parsedStart = vars.start || (pin || !trigger ? "0 0" : "0 100%"),
-				pinIndex = pin && Math.max(0, _triggers.indexOf(self)) || 0,
-				cs, bounds, scroll, isVertical, override, i, curTrigger;
-			if (pinIndex) { // user might try to pin the same element more than once, so we must find any prior triggers with the same pin, revert them, and determine how long they're pinning so that we can offset things appropriately. Make sure we revert from last to first so that things "rewind" properly.
-				i = pinIndex;
-				while (i--) {
-					_triggers[i].pin === pin && _triggers[i].revert();
-				}
+				triggerIndex = (trigger && Math.max(0, _triggers.indexOf(self))) || 0,
+				i = triggerIndex,
+				cs, bounds, scroll, isVertical, override, curTrigger, curPin;
+			while (i--) { // user might try to pin the same element more than once, so we must find any prior triggers with the same pin, revert them, and determine how long they're pinning so that we can offset things appropriately. Make sure we revert from last to first so that things "rewind" properly.
+				curPin = _triggers[i].pin;
+				curPin && (curPin === trigger || curPin === pin) && _triggers[i].revert();
 			}
 			start = _parsePosition(parsedStart, trigger, size, direction, self.scroll(), markerStart, markerStartTrigger, self, scrollerBounds, borderWidth, useFixedPosition, max) || (pin ? -0.001 : 0);
 			_isFunction(parsedEnd) && (parsedEnd = parsedEnd(self));
@@ -606,22 +628,28 @@ export class ScrollTrigger {
 			}
 			end = Math.max(start, _parsePosition(parsedEnd || (parsedEndTrigger ? "100% 0" : max), parsedEndTrigger, size, direction, self.scroll() + offset, markerEnd, markerEndTrigger, self, scrollerBounds, borderWidth, useFixedPosition, max)) || -0.001;
 			change = (end - start) || ((start -= 0.01) && 0.001);
+
+			offset = 0;
+			i = triggerIndex;
+			while (i--) {
+				curTrigger = _triggers[i];
+				curPin = curTrigger.pin;
+				if (curPin && curTrigger.start - curTrigger._pinPush < start) {
+					cs = curTrigger.end - curTrigger.start;
+					curPin === trigger && (offset += cs);
+					curPin === pin && (otherPinOffset += cs);
+				}
+			}
+			start += offset;
+			end += offset;
+			self._pinPush = otherPinOffset;
+			if (markerStart && offset) { // offset the markers if necessary
+				cs = {};
+				cs[direction.a] = "+=" + offset;
+				gsap.set([markerStart, markerEnd], cs);
+			}
+
 			if (pin) {
-				i = pinIndex;
-				while (i--) {
-					curTrigger = _triggers[i];
-					if (curTrigger.pin === pin && curTrigger.start - curTrigger._pinPush < start) {
-						otherPinOffset += curTrigger.end - curTrigger.start;
-					}
-				}
-				start += otherPinOffset;
-				end += otherPinOffset;
-				self._pinPush = otherPinOffset;
-				if (markerStart && otherPinOffset) { // offset the markers if necessary
-					cs = {};
-					cs[direction.a] = "+=" + otherPinOffset;
-					gsap.set([markerStart, markerEnd], cs);
-				}
 				cs = _getComputedStyle(pin);
 				isVertical = (direction === _vertical);
 				scroll = self.scroll(); // recalculate because the triggers can affect the scroll
@@ -661,11 +689,6 @@ export class ScrollTrigger {
 				} else {
 					pinChange = change
 				}
-				if (pinIndex) { // make sure we revert from first to last to make sure things reach their end state properly
-					for (i = 0; i < pinIndex; i++) {
-						_triggers[i].pin === pin && _triggers[i].revert(false);
-					}
-				}
 			} else if (trigger && self.scroll()) { // it may be INSIDE a pinned element, so walk up the tree and look for any elements with _pinOffset to compensate because anything with pinSpacing that's already scrolled would throw off the measurements in getBoundingClientRect()
 				bounds = trigger.parentNode;
 				while (bounds && bounds !== _body) {
@@ -675,6 +698,10 @@ export class ScrollTrigger {
 					}
 					bounds = bounds.parentNode;
 				}
+			}
+			for (i = 0; i < triggerIndex; i++) { // make sure we revert from first to last to make sure things reach their end state properly
+				curTrigger = _triggers[i].pin;
+				curTrigger && (curTrigger === trigger || curTrigger === pin) && _triggers[i].revert(false);
 			}
 			self.start = start;
 			self.end = end;
@@ -710,7 +737,7 @@ export class ScrollTrigger {
 			}
 			// anticipate the pinning a few ticks ahead of time based on velocity to avoid a visual glitch due to the fact that most browsers do scrolling on a separate thread (not synced with requestAnimationFrame).
 			(anticipatePin && !clipped && pin && !_refreshing && !_startup && _lastScrollTime && start < scroll + ((scroll - scroll2) / (_getTime() - _time2)) * anticipatePin) && (clipped = 0.0001);
-			if (clipped !== prevProgress && enabled) {
+			if (clipped !== prevProgress && self.enabled) {
 				isActive = self.isActive = !!clipped && clipped < 1;
 				wasActive = !!prevProgress && prevProgress < 1;
 				toggled = isActive !== wasActive;
@@ -768,7 +795,7 @@ export class ScrollTrigger {
 					if (toggled || !_limitCallbacks) { // on startup, the page could be scrolled and we don't want to fire callbacks that didn't toggle. For example onEnter shouldn't fire if the ScrollTrigger isn't actually entered.
 						onToggle && toggled && onToggle(self);
 						callbacks[toggleState] && callbacks[toggleState](self);
-						once && (clipped === 1 ? self.kill() : (callbacks[toggleState] = 0)); // a callback shouldn't be called again if once is true.
+						once && (clipped === 1 ? self.kill(false, 1) : (callbacks[toggleState] = 0)); // a callback shouldn't be called again if once is true.
 						if (!toggled) { // it's possible to go completely past, like from before the start to after the end (or vice-versa) in which case BOTH callbacks should be fired in that order
 							toggleState = clipped === 1 ? 1 : 3;
 							callbacks[toggleState] && callbacks[toggleState](self);
@@ -786,8 +813,8 @@ export class ScrollTrigger {
 		};
 
 		self.enable = () => {
-			if (!enabled) {
-				enabled = true;
+			if (!self.enabled) {
+				self.enabled = true;
 				_addListener(scroller, "resize", _onResize);
 				_addListener(scroller, "scroll", _onScroll);
 				onRefreshInit && _addListener(ScrollTrigger, "refreshInit", onRefreshInit);
@@ -795,12 +822,12 @@ export class ScrollTrigger {
 			}
 		};
 
-		self.disable = reset => {
-			if (enabled) {
+		self.disable = (reset, allowScrub) => {
+			if (self.enabled) {
 				reset !== false && self.revert();
-				enabled = self.isActive = false;
-				scrubTween && scrubTween.pause();
-				pin && _swapPinOut(pin, spacer, pinOriginalState);
+				self.enabled = self.isActive = false;
+				allowScrub || (scrubTween && scrubTween.pause());
+				prevScroll = 0;
 				pinCache && (pinCache.uncache = 1);
 				onRefreshInit && _removeListener(ScrollTrigger, "refreshInit", onRefreshInit);
 				if (snapDelayedCall) {
@@ -820,16 +847,16 @@ export class ScrollTrigger {
 			}
 		};
 
-		self.kill = revert => {
-			self.disable(revert);
+		self.kill = (revert, allowScrub) => {
+			self.disable(revert, allowScrub);
 			id && (delete _ids[id]);
 			let i = _triggers.indexOf(self);
 			_triggers.splice(i, 1);
-			i === _i && _i--; // if we're in the middle of a refresh() or update(), splicing would cause skips in the index, so adjust...
+			i === _i && _direction > 0 && _i--; // if we're in the middle of a refresh() or update(), splicing would cause skips in the index, so adjust...
 			if (animation) {
 				animation.scrollTrigger = null;
 				revert && animation.render(-1);
-				animation.kill();
+				(allowScrub && scrubTween) || animation.kill();
 			}
 			markerStart && [markerStart, markerEnd, markerStartTrigger, markerEndTrigger].forEach(m => m.parentNode.removeChild(m));
 			pinCache && (pinCache.uncache = 1);
@@ -917,27 +944,35 @@ export class ScrollTrigger {
 	}
 
 	static matchMedia(vars) {
-		let mq, p;
+		let mq, p, i, func, result;
 		for (p in vars) {
+			i = _media.indexOf(p);
+			func = vars[p];
+			_creatingMedia = p;
 			if (p === "all") {
-				_creatingMedia = p;
-				vars[p]();
-				_creatingMedia = 0;
+				func();
 			} else {
 				mq = _win.matchMedia(p);
 				if (mq) {
-					_media.push(p, vars[p]);
-					mq.addListener ? mq.addListener(_onMediaChange) : mq.addEventListener("change", _onMediaChange);
+					mq.matches && (result = func());
+					if (~i) {
+						_media[i + 1] = _combineFunc(_media[i + 1], func);
+						_media[i + 2] = _combineFunc(_media[i + 2], result);
+					} else {
+						i = _media.length;
+						_media.push(p, func, result);
+						mq.addListener ? mq.addListener(_onMediaChange) : mq.addEventListener("change", _onMediaChange);
+					}
 				}
 			}
+			_creatingMedia = 0;
 		}
-		_onMediaChange();
 		return _media;
 	}
 
 }
 
-ScrollTrigger.version = "3.4.0";
+ScrollTrigger.version = "3.4.1";
 ScrollTrigger.saveStyles = targets => targets ? _toArray(targets).forEach(target => {
 	let i = _savedStyles.indexOf(target);
 	i >= 0 && _savedStyles.splice(i, 4);
@@ -995,6 +1030,7 @@ ScrollTrigger.batch = (targets, vars) => {
 	});
 	return result;
 }
+ScrollTrigger.sort = func => _triggers.sort(func || ((a, b) => (a.vars.refreshPriority || 0) * -1e6 + a.start - (b.start + (b.vars.refreshPriority || 0) * -1e6)));
 
 _getGSAP() && gsap.registerPlugin(ScrollTrigger);
 
