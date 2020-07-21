@@ -404,7 +404,7 @@ declare namespace gsap.plugins {
     pin?: boolean | string | Element;
     pinReparent?: boolean;
     pinSpacing?: boolean | string;
-    refreshPriority: number;
+    refreshPriority?: number;
     scroller?: string | Element;
     scrub?: boolean | number;
     snap?: number | number[] | "labels" | SnapFunc | SnapVars;

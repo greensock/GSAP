@@ -1,5 +1,5 @@
 /*!
- * ScrollTrigger 3.4.1
+ * ScrollTrigger 3.4.2
  * https://greensock.com
  *
  * @license Copyright 2008-2020, GreenSock. All rights reserved.
@@ -271,7 +271,7 @@ let gsap, _coreInitted, _win, _doc, _docEl, _body, _root, _resizeDelay, _raf, _r
 			}
 		}
 	},
-	_swapPinIn = (pin, spacer, cs) => {
+	_swapPinIn = (pin, spacer, cs, spacerState) => {
 		if (pin.parentNode !== spacer) {
 			let i = _propNamesToCopy.length,
 				spacerStyle = spacer.style,
@@ -289,6 +289,7 @@ let gsap, _coreInitted, _win, _doc, _docEl, _body, _root, _resizeDelay, _raf, _r
 			spacerStyle[_width] = _getSize(pin, _horizontal) + _px;
 			spacerStyle[_height] = _getSize(pin, _vertical) + _px;
 			spacerStyle[_padding] = pinStyle[_margin] = pinStyle[_top] = pinStyle[_left] = "0";
+			_setState(spacerState);
 			pinStyle[_width] = cs[_width];
 			pinStyle[_height] = cs[_height];
 			pinStyle[_padding] = cs[_padding];
@@ -463,7 +464,7 @@ export class ScrollTrigger {
 			getScrollerSize = _getSizeFunc(scroller, isViewport, direction),
 			getScrollerOffsets = _getOffsetsFunc(scroller, isViewport),
 			tweenTo, pinCache, snapFunc, isReverted, scroll1, scroll2, start, end, markerStart, markerEnd, markerStartTrigger, markerEndTrigger, markerVars,
-			change, pinOriginalState, pinActiveState, pinState, spacer, offset, pinGetter, pinSetter, pinStart, pinChange, spacingStart, spacingActive, markerStartSetter,
+			change, pinOriginalState, pinActiveState, pinState, spacer, offset, pinGetter, pinSetter, pinStart, pinChange, spacingStart, spacerState, markerStartSetter,
 			markerEndSetter, cs, snap1, snap2, scrubScrollTime, scrubTween, scrubSmooth, snapDurClamp, snapDelayedCall, prevProgress, prevScroll, prevAnimProgress;
 
 		self.media = _creatingMedia;
@@ -550,6 +551,7 @@ export class ScrollTrigger {
 			spacingStart = cs[pinSpacing + direction.os2];
 			pinGetter = gsap.getProperty(pin);
 			pinSetter = gsap.quickSetter(pin, direction.a, _px);
+			pin.firstChild && !_maxScroll(pin, direction) && (pin.style.overflow = "hidden"); // protects from collapsing margins!
 			_swapPinIn(pin, spacer, cs);
 			pinState = _getState(pin);
 		}
@@ -581,7 +583,7 @@ export class ScrollTrigger {
 				_refreshing = 1;
 				self.update(r); // make sure the pin is back in its original position so that all the measurements are correct.
 				_refreshing = prevRefreshing;
-				pin && r && _swapPinOut(pin, spacer, pinOriginalState);
+				pin && (r ? _swapPinOut(pin, spacer, pinOriginalState) : _swapPinIn(pin, spacer, _getComputedStyle(pin), spacerState));
 				isReverted = r;
 			}
 		}
@@ -659,9 +661,11 @@ export class ScrollTrigger {
 				// transforms will interfere with the top/left/right/bottom placement, so remove them temporarily. getBoundingClientRect() factors in transforms.
 				bounds = _getBounds(pin, true);
 				if (pinSpacing) {
-					spacer.style[pinSpacing + direction.os2] = change + otherPinOffset + _px;
-					spacingActive = (pinSpacing === _padding) ? _getSize(pin, direction) + change + otherPinOffset : 0;
-					spacingActive && (spacer.style[direction.d] = spacingActive + _px); // for box-sizing: border-box (must include padding).
+					spacerState = [pinSpacing + direction.os2, change + otherPinOffset + _px];
+					spacerState.t = spacer;
+					i = (pinSpacing === _padding) ? _getSize(pin, direction) + change + otherPinOffset : 0;
+					i && spacerState.push(direction.d, i + _px); // for box-sizing: border-box (must include padding).
+					_setState(spacerState);
 					useFixedPosition && self.scroll(prevScroll);
 				}
 				if (useFixedPosition) {
@@ -972,7 +976,7 @@ export class ScrollTrigger {
 
 }
 
-ScrollTrigger.version = "3.4.1";
+ScrollTrigger.version = "3.4.2";
 ScrollTrigger.saveStyles = targets => targets ? _toArray(targets).forEach(target => {
 	let i = _savedStyles.indexOf(target);
 	i >= 0 && _savedStyles.splice(i, 4);

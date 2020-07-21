@@ -1,5 +1,5 @@
 /*!
- * ScrollTrigger 3.4.1
+ * ScrollTrigger 3.4.2
  * https://greensock.com
  *
  * @license Copyright 2008-2020, GreenSock. All rights reserved.
@@ -482,7 +482,7 @@ _revertRecorded = function _revertRecorded(media) {
     }
   }
 },
-    _swapPinIn = function _swapPinIn(pin, spacer, cs) {
+    _swapPinIn = function _swapPinIn(pin, spacer, cs, spacerState) {
   if (pin.parentNode !== spacer) {
     var i = _propNamesToCopy.length,
         spacerStyle = spacer.style,
@@ -502,6 +502,9 @@ _revertRecorded = function _revertRecorded(media) {
     spacerStyle[_width] = _getSize(pin, _horizontal) + _px;
     spacerStyle[_height] = _getSize(pin, _vertical) + _px;
     spacerStyle[_padding] = pinStyle[_margin] = pinStyle[_top] = pinStyle[_left] = "0";
+
+    _setState(spacerState);
+
     pinStyle[_width] = cs[_width];
     pinStyle[_height] = cs[_height];
     pinStyle[_padding] = cs[_padding];
@@ -757,7 +760,7 @@ export var ScrollTrigger = /*#__PURE__*/function () {
         pinStart,
         pinChange,
         spacingStart,
-        spacingActive,
+        spacerState,
         markerStartSetter,
         markerEndSetter,
         cs,
@@ -890,6 +893,7 @@ export var ScrollTrigger = /*#__PURE__*/function () {
       spacingStart = cs[pinSpacing + direction.os2];
       pinGetter = gsap.getProperty(pin);
       pinSetter = gsap.quickSetter(pin, direction.a, _px);
+      pin.firstChild && !_maxScroll(pin, direction) && (pin.style.overflow = "hidden"); // protects from collapsing margins!
 
       _swapPinIn(pin, spacer, cs);
 
@@ -934,7 +938,7 @@ export var ScrollTrigger = /*#__PURE__*/function () {
         self.update(r); // make sure the pin is back in its original position so that all the measurements are correct.
 
         _refreshing = prevRefreshing;
-        pin && r && _swapPinOut(pin, spacer, pinOriginalState);
+        pin && (r ? _swapPinOut(pin, spacer, pinOriginalState) : _swapPinIn(pin, spacer, _getComputedStyle(pin), spacerState));
         isReverted = r;
       }
     };
@@ -1034,9 +1038,12 @@ export var ScrollTrigger = /*#__PURE__*/function () {
         bounds = _getBounds(pin, true);
 
         if (pinSpacing) {
-          spacer.style[pinSpacing + direction.os2] = change + otherPinOffset + _px;
-          spacingActive = pinSpacing === _padding ? _getSize(pin, direction) + change + otherPinOffset : 0;
-          spacingActive && (spacer.style[direction.d] = spacingActive + _px); // for box-sizing: border-box (must include padding).
+          spacerState = [pinSpacing + direction.os2, change + otherPinOffset + _px];
+          spacerState.t = spacer;
+          i = pinSpacing === _padding ? _getSize(pin, direction) + change + otherPinOffset : 0;
+          i && spacerState.push(direction.d, i + _px); // for box-sizing: border-box (must include padding).
+
+          _setState(spacerState);
 
           useFixedPosition && self.scroll(prevScroll);
         }
@@ -1454,7 +1461,7 @@ export var ScrollTrigger = /*#__PURE__*/function () {
 
   return ScrollTrigger;
 }();
-ScrollTrigger.version = "3.4.1";
+ScrollTrigger.version = "3.4.2";
 
 ScrollTrigger.saveStyles = function (targets) {
   return targets ? _toArray(targets).forEach(function (target) {
