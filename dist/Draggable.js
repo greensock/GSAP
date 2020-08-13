@@ -1125,7 +1125,7 @@
 
       _touchEventLookup = function (types) {
         var standard = types.split(","),
-            converted = (!_isUndefined(_tempDiv.onpointerdown) ? "pointerdown,pointermove,pointerup,pointercancel" : !_isUndefined(_tempDiv.onmspointerdown) ? "MSPointerDown,MSPointerMove,MSPointerUp,MSPointerCancel" : types).split(","),
+            converted = ("onpointerdown" in _tempDiv ? "pointerdown,pointermove,pointerup,pointercancel" : "onmspointerdown" in _tempDiv ? "MSPointerDown,MSPointerMove,MSPointerUp,MSPointerCancel" : types).split(","),
             obj = {},
             i = 4;
 
@@ -1813,14 +1813,16 @@
       },
           recordStartPositions = function recordStartPositions() {
         var edgeTolerance = 1 - self.edgeResistance,
+            offsetX = isFixed ? _getDocScrollLeft$1(ownerDoc) : 0,
+            offsetY = isFixed ? _getDocScrollTop$1(ownerDoc) : 0,
             parsedOrigin,
             x,
             y;
         updateMatrix(false);
 
         if (matrix) {
-          _point1.x = self.pointerX;
-          _point1.y = self.pointerY;
+          _point1.x = self.pointerX - offsetX;
+          _point1.y = self.pointerY - offsetY;
           matrix.apply(_point1, _point1);
           startPointerX = _point1.x;
           startPointerY = _point1.y;
@@ -1850,14 +1852,8 @@
               y: parseFloat(parsedOrigin[1]) || 0
             });
             syncXY(true, true);
-            x = self.pointerX - rotationOrigin.x;
-            y = rotationOrigin.y - self.pointerY;
-
-            if (isFixed) {
-              x -= _getDocScrollLeft$1(ownerDoc);
-              y += _getDocScrollTop$1(ownerDoc);
-            }
-
+            x = self.pointerX - rotationOrigin.x - offsetX;
+            y = rotationOrigin.y - self.pointerY + offsetY;
             startElementX = self.x;
             startElementY = self.y = Math.atan2(y, x) * _RAD2DEG;
           } else {
@@ -2082,7 +2078,7 @@
           checkAutoScrollBounds = true;
         }
 
-        setPointerPosition(e.pageX - (isFixed && rotationMode ? _getDocScrollLeft$1(ownerDoc) : 0), e.pageY - (isFixed && rotationMode ? _getDocScrollTop$1(ownerDoc) : 0), hasMoveCallback);
+        setPointerPosition(e.pageX, e.pageY, hasMoveCallback);
       },
           setPointerPosition = function setPointerPosition(pointerX, pointerY, invokeOnMove) {
         var dragTolerance = 1 - self.dragResistance,
@@ -2104,6 +2100,11 @@
             temp;
         self.pointerX = pointerX;
         self.pointerY = pointerY;
+
+        if (isFixed) {
+          pointerX -= _getDocScrollLeft$1(ownerDoc);
+          pointerY -= _getDocScrollTop$1(ownerDoc);
+        }
 
         if (rotationMode) {
           y = Math.atan2(rotationOrigin.y - pointerY, pointerX - rotationOrigin.x) * _RAD2DEG;
@@ -2446,10 +2447,7 @@
       };
 
       old = Draggable.get(target);
-
-      if (old) {
-        old.kill();
-      }
+      old && old.kill();
 
       _this2.startDrag = function (event, align) {
         var r1, r2, p1, p2;
@@ -2909,7 +2907,7 @@
   });
 
   Draggable.zIndex = 1000;
-  Draggable.version = "3.4.2";
+  Draggable.version = "3.5.0";
   _getGSAP() && gsap.registerPlugin(Draggable);
 
   exports.Draggable = Draggable;

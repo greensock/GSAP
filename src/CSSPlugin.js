@@ -1,5 +1,5 @@
 /*!
- * CSSPlugin 3.4.2
+ * CSSPlugin 3.5.0
  * https://greensock.com
  *
  * Copyright 2008-2020, GreenSock. All rights reserved.
@@ -871,9 +871,7 @@ export const CSSPlugin = {
 		let props = this._props,
 			style = target.style,
 			startValue, endValue, endNum, startNum, type, specialProp, p, startUnit, endUnit, relative, isTransformRelated, transformPropTween, cache, smooth, hasPriority;
-		if (!_pluginInitted) {
-			_initCore();
-		}
+		_pluginInitted || _initCore();
 		for (p in vars) {
 			if (p === "autoRound") {
 				continue;
@@ -897,7 +895,7 @@ export const CSSPlugin = {
 				}
 			} else if (p.substr(0,2) === "--") { //CSS variable
 				this.add(style, "setProperty", getComputedStyle(target).getPropertyValue(p) + "", endValue + "", index, targets, 0, 0, p);
-			} else {
+			} else if (type !== "undefined") {
 				startValue = _get(target, p);
 				startNum = parseFloat(startValue);
 				relative = (type === "string" && endValue.charAt(1) === "=") ? +(endValue.charAt(0) + "1") : 0;
@@ -914,9 +912,7 @@ export const CSSPlugin = {
 					}
 					if (p !== "scale" && p !== "transform") {
 						p = _propertyAliases[p];
-						if (~p.indexOf(",")) {
-							p = p.split(",")[0];
-						}
+						~p.indexOf(",") && (p = p.split(",")[0]);
 					}
 				}
 
@@ -941,9 +937,7 @@ export const CSSPlugin = {
 							_applySVGOrigin(target, endValue, 0, smooth, 0, this);
 						} else {
 							endUnit = parseFloat(endValue.split(" ")[2]) || 0; //handle the zOrigin separately!
-							if (endUnit !== cache.zOrigin) {
-								_addNonTweeningPT(this, cache, "zOrigin", cache.zOrigin, endUnit);
-							}
+							endUnit !== cache.zOrigin && _addNonTweeningPT(this, cache, "zOrigin", cache.zOrigin, endUnit);
 							_addNonTweeningPT(this, style, p, _firstTwoOnly(startValue), _firstTwoOnly(endValue));
 						}
 						continue;
@@ -994,9 +988,7 @@ export const CSSPlugin = {
 				props.push(p);
 			}
 		}
-		if (hasPriority) {
-			_sortPropTweensByPriority(this);
-		}
+		hasPriority && _sortPropTweensByPriority(this);
 
 	},
 	get: _get,

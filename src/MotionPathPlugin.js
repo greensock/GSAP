@@ -1,5 +1,5 @@
 /*!
- * MotionPathPlugin 3.4.2
+ * MotionPathPlugin 3.5.0
  * https://greensock.com
  *
  * @license Copyright 2008-2020, GreenSock. All rights reserved.
@@ -139,7 +139,7 @@ let _xProps = ["x","translateX","left","marginLeft"],
 
 
 export const MotionPathPlugin = {
-	version: "3.4.2",
+	version: "3.5.0",
 	name: "motionPath",
 	register(core, Plugin, propTween) {
 		gsap = core;
@@ -184,9 +184,7 @@ export const MotionPathPlugin = {
 				x = y = 0;
 			}
 			for (p in firstObj) {
-				if (p !== x && p !== y) {
-					rawPaths.push(_segmentToRawPath(this, _populateSegmentFromArray([], path, p, 2), target, p, 0, slicer, vars));
-				}
+				p !== x && p !== y && rawPaths.push(_segmentToRawPath(this, _populateSegmentFromArray([], path, p, 2), target, p, 0, slicer, vars));
 			}
 		} else {
 			rawPath = slicer(_align(getRawPath(vars.path), target, vars));

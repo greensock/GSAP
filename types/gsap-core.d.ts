@@ -125,6 +125,7 @@ declare namespace gsap {
     sleep(): void;
     tick(): void;
     time: number;
+    deltaRatio(fps?: number): number;
     wake(): void;
   }
 

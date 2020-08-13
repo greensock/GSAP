@@ -3,7 +3,7 @@ function _assertThisInitialized(self) { if (self === void 0) { throw new Referen
 function _inheritsLoose(subClass, superClass) { subClass.prototype = Object.create(superClass.prototype); subClass.prototype.constructor = subClass; subClass.__proto__ = superClass; }
 
 /*!
- * Draggable 3.4.2
+ * Draggable 3.5.0
  * https://greensock.com
  *
  * @license Copyright 2008-2020, GreenSock. All rights reserved.
@@ -810,7 +810,7 @@ ScrollProxy = function ScrollProxy(element, vars) {
     _touchEventLookup = function (types) {
       //we create an object that makes it easy to translate touch event types into their "pointer" counterparts if we're in a browser that uses those instead. Like IE10 uses "MSPointerDown" instead of "touchstart", for example.
       var standard = types.split(","),
-          converted = (!_isUndefined(_tempDiv.onpointerdown) ? "pointerdown,pointermove,pointerup,pointercancel" : !_isUndefined(_tempDiv.onmspointerdown) ? "MSPointerDown,MSPointerMove,MSPointerUp,MSPointerCancel" : types).split(","),
+          converted = ("onpointerdown" in _tempDiv ? "pointerdown,pointermove,pointerup,pointercancel" : "onmspointerdown" in _tempDiv ? "MSPointerDown,MSPointerMove,MSPointerUp,MSPointerCancel" : types).split(","),
           obj = {},
           i = 4;
 
@@ -1513,14 +1513,16 @@ export var Draggable = /*#__PURE__*/function (_EventDispatcher) {
     },
         recordStartPositions = function recordStartPositions() {
       var edgeTolerance = 1 - self.edgeResistance,
+          offsetX = isFixed ? _getDocScrollLeft(ownerDoc) : 0,
+          offsetY = isFixed ? _getDocScrollTop(ownerDoc) : 0,
           parsedOrigin,
           x,
           y;
       updateMatrix(false);
 
       if (matrix) {
-        _point1.x = self.pointerX;
-        _point1.y = self.pointerY;
+        _point1.x = self.pointerX - offsetX;
+        _point1.y = self.pointerY - offsetY;
         matrix.apply(_point1, _point1);
         startPointerX = _point1.x; //translate to local coordinate system
 
@@ -1552,14 +1554,8 @@ export var Draggable = /*#__PURE__*/function (_EventDispatcher) {
             y: parseFloat(parsedOrigin[1]) || 0
           });
           syncXY(true, true);
-          x = self.pointerX - rotationOrigin.x;
-          y = rotationOrigin.y - self.pointerY;
-
-          if (isFixed) {
-            x -= _getDocScrollLeft(ownerDoc);
-            y += _getDocScrollTop(ownerDoc);
-          }
-
+          x = self.pointerX - rotationOrigin.x - offsetX;
+          y = rotationOrigin.y - self.pointerY + offsetY;
           startElementX = self.x; //starting rotation (x always refers to rotation in type:"rotation", measured in degrees)
 
           startElementY = self.y = Math.atan2(y, x) * _RAD2DEG;
@@ -1814,7 +1810,7 @@ export var Draggable = /*#__PURE__*/function (_EventDispatcher) {
         checkAutoScrollBounds = true;
       }
 
-      setPointerPosition(e.pageX - (isFixed && rotationMode ? _getDocScrollLeft(ownerDoc) : 0), e.pageY - (isFixed && rotationMode ? _getDocScrollTop(ownerDoc) : 0), hasMoveCallback);
+      setPointerPosition(e.pageX, e.pageY, hasMoveCallback);
     },
         setPointerPosition = function setPointerPosition(pointerX, pointerY, invokeOnMove) {
       var dragTolerance = 1 - self.dragResistance,
@@ -1836,6 +1832,11 @@ export var Draggable = /*#__PURE__*/function (_EventDispatcher) {
           temp;
       self.pointerX = pointerX;
       self.pointerY = pointerY;
+
+      if (isFixed) {
+        pointerX -= _getDocScrollLeft(ownerDoc);
+        pointerY -= _getDocScrollTop(ownerDoc);
+      }
 
       if (rotationMode) {
         y = Math.atan2(rotationOrigin.y - pointerY, pointerX - rotationOrigin.x) * _RAD2DEG;
@@ -2194,11 +2195,8 @@ export var Draggable = /*#__PURE__*/function (_EventDispatcher) {
     };
 
     old = Draggable.get(target);
-
-    if (old) {
-      old.kill(); // avoids duplicates (an element can only be controlled by one Draggable)
-    } //give the user access to start/stop dragging...
-
+    old && old.kill(); // avoids duplicates (an element can only be controlled by one Draggable)
+    //give the user access to start/stop dragging...
 
     _this2.startDrag = function (event, align) {
       var r1, r2, p1, p2;
@@ -2664,6 +2662,6 @@ _setDefaults(Draggable.prototype, {
 });
 
 Draggable.zIndex = 1000;
-Draggable.version = "3.4.2";
+Draggable.version = "3.5.0";
 _getGSAP() && gsap.registerPlugin(Draggable);
 export { Draggable as default };

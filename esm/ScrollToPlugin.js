@@ -1,5 +1,5 @@
 /*!
- * ScrollToPlugin 3.4.2
+ * ScrollToPlugin 3.5.0
  * https://greensock.com
  *
  * @license Copyright 2008-2020, GreenSock. All rights reserved.
@@ -67,8 +67,8 @@ var gsap,
 
   return offsets;
 },
-    _parseVal = function _parseVal(value, target, axis, currentVal) {
-  return !isNaN(value) && typeof value !== "object" ? parseFloat(value) : _isString(value) && value.charAt(1) === "=" ? parseFloat(value.substr(2)) * (value.charAt(0) === "-" ? -1 : 1) + currentVal : value === "max" ? _max(target, axis) : Math.min(_max(target, axis), _getOffset(value, target)[axis]);
+    _parseVal = function _parseVal(value, target, axis, currentVal, offset) {
+  return !isNaN(value) && typeof value !== "object" ? parseFloat(value) - offset : _isString(value) && value.charAt(1) === "=" ? parseFloat(value.substr(2)) * (value.charAt(0) === "-" ? -1 : 1) + currentVal - offset : value === "max" ? _max(target, axis) - offset : Math.min(_max(target, axis), _getOffset(value, target)[axis] - offset);
 },
     _initCore = function _initCore() {
   gsap = _getGSAP();
@@ -87,7 +87,7 @@ var gsap,
 };
 
 export var ScrollToPlugin = {
-  version: "3.4.2",
+  version: "3.5.0",
   name: "scrollTo",
   rawVars: 1,
   register: function register(core) {
@@ -128,7 +128,7 @@ export var ScrollToPlugin = {
     data.y = data.yPrev = data.getY();
 
     if (value.x != null) {
-      data.add(data, "x", data.x, _parseVal(value.x, target, "x", data.x) - (value.offsetX || 0), index, targets, Math.round);
+      data.add(data, "x", data.x, _parseVal(value.x, target, "x", data.x, value.offsetX || 0), index, targets, Math.round);
 
       data._props.push("scrollTo_x");
     } else {
@@ -136,7 +136,7 @@ export var ScrollToPlugin = {
     }
 
     if (value.y != null) {
-      data.add(data, "y", data.y, _parseVal(value.y, target, "y", data.y) - (value.offsetY || 0), index, targets, Math.round);
+      data.add(data, "y", data.y, _parseVal(value.y, target, "y", data.y, value.offsetY || 0), index, targets, Math.round);
 
       data._props.push("scrollTo_y");
     } else {

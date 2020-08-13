@@ -1,5 +1,5 @@
 /*!
- * Draggable 3.4.2
+ * Draggable 3.5.0
  * https://greensock.com
  *
  * @license Copyright 2008-2020, GreenSock. All rights reserved.
@@ -554,7 +554,7 @@ let gsap, _win, _doc, _docElement, _body, _tempDiv, _placeholderDiv, _coreInitte
 			}());
 			_touchEventLookup = (function(types) { //we create an object that makes it easy to translate touch event types into their "pointer" counterparts if we're in a browser that uses those instead. Like IE10 uses "MSPointerDown" instead of "touchstart", for example.
 				let standard = types.split(","),
-					converted = (!_isUndefined(_tempDiv.onpointerdown) ? "pointerdown,pointermove,pointerup,pointercancel" : !_isUndefined(_tempDiv.onmspointerdown) ? "MSPointerDown,MSPointerMove,MSPointerUp,MSPointerCancel" : types).split(","),
+					converted = ("onpointerdown" in _tempDiv ? "pointerdown,pointermove,pointerup,pointercancel" : "onmspointerdown" in _tempDiv ? "MSPointerDown,MSPointerMove,MSPointerUp,MSPointerCancel" : types).split(","),
 					obj = {},
 					i = 4;
 				while (--i > -1) {
@@ -1095,11 +1095,13 @@ export class Draggable extends EventDispatcher {
 
 			recordStartPositions = () => {
 				let edgeTolerance = 1 - self.edgeResistance,
+					offsetX = isFixed ? _getDocScrollLeft(ownerDoc) : 0,
+					offsetY = isFixed ? _getDocScrollTop(ownerDoc) : 0,
 					parsedOrigin, x, y;
 				updateMatrix(false);
 				if (matrix) {
-					_point1.x = self.pointerX;
-					_point1.y = self.pointerY;
+					_point1.x = self.pointerX - offsetX;
+					_point1.y = self.pointerY - offsetY;
 					matrix.apply(_point1, _point1);
 					startPointerX = _point1.x; //translate to local coordinate system
 					startPointerY = _point1.y;
@@ -1124,12 +1126,8 @@ export class Draggable extends EventDispatcher {
 						parsedOrigin = target.ownerSVGElement ? [gsCache.xOrigin - target.getBBox().x, gsCache.yOrigin - target.getBBox().y] : (_getComputedStyle(target)[_transformOriginProp] || "0 0").split(" ");
 						rotationOrigin = self.rotationOrigin = getGlobalMatrix(target).apply({x: parseFloat(parsedOrigin[0]) || 0, y: parseFloat(parsedOrigin[1]) || 0});
 						syncXY(true, true);
-						x = self.pointerX - rotationOrigin.x;
-						y = rotationOrigin.y - self.pointerY;
-						if (isFixed) {
-							x -= _getDocScrollLeft(ownerDoc);
-							y += _getDocScrollTop(ownerDoc);
-						}
+						x = self.pointerX - rotationOrigin.x - offsetX;
+						y = rotationOrigin.y - self.pointerY + offsetY;
 						startElementX = self.x; //starting rotation (x always refers to rotation in type:"rotation", measured in degrees)
 						startElementY = self.y = Math.atan2(y, x) * _RAD2DEG;
 					} else {
@@ -1305,7 +1303,7 @@ export class Draggable extends EventDispatcher {
 				if (self.autoScroll) {
 					checkAutoScrollBounds = true;
 				}
-				setPointerPosition(e.pageX - (isFixed && rotationMode ? _getDocScrollLeft(ownerDoc) : 0), e.pageY - (isFixed && rotationMode ? _getDocScrollTop(ownerDoc) : 0), hasMoveCallback);
+				setPointerPosition(e.pageX, e.pageY, hasMoveCallback);
 			},
 
 			setPointerPosition = (pointerX, pointerY, invokeOnMove) => {
@@ -1323,6 +1321,10 @@ export class Draggable extends EventDispatcher {
 					xChange, yChange, x, y, dif, temp;
 				self.pointerX = pointerX;
 				self.pointerY = pointerY;
+				if (isFixed) {
+					pointerX -= _getDocScrollLeft(ownerDoc);
+					pointerY -= _getDocScrollTop(ownerDoc);
+				}
 				if (rotationMode) {
 					y = Math.atan2(rotationOrigin.y - pointerY, pointerX - rotationOrigin.x) * _RAD2DEG;
 					dif = self.y - y;
@@ -1595,9 +1597,7 @@ export class Draggable extends EventDispatcher {
 			localizePoint = p => matrix ? {x:p.x * matrix.a + p.y * matrix.c + matrix.e, y:p.x * matrix.b + p.y * matrix.d + matrix.f} : {x:p.x, y:p.y};
 
 		old = Draggable.get(target);
-		if (old) {
-			old.kill(); // avoids duplicates (an element can only be controlled by one Draggable)
-		}
+		old && old.kill(); // avoids duplicates (an element can only be controlled by one Draggable)
 
 		//give the user access to start/stop dragging...
 		this.startDrag = (event, align) => {
@@ -1917,7 +1917,7 @@ export class Draggable extends EventDispatcher {
 _setDefaults(Draggable.prototype, {pointerX:0, pointerY: 0, startX: 0, startY: 0, deltaX: 0, deltaY: 0, isDragging: false, isPressed: false});
 
 Draggable.zIndex = 1000;
-Draggable.version = "3.4.2";
+Draggable.version = "3.5.0";
 
 _getGSAP() && gsap.registerPlugin(Draggable);
 

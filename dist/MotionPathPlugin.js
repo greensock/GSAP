@@ -1448,7 +1448,7 @@
 	}
 
 	/*!
-	 * MotionPathPlugin 3.4.2
+	 * MotionPathPlugin 3.5.0
 	 * https://greensock.com
 	 *
 	 * @license Copyright 2008-2020, GreenSock. All rights reserved.
@@ -1644,7 +1644,7 @@
 	};
 
 	var MotionPathPlugin = {
-	  version: "3.4.2",
+	  version: "3.5.0",
 	  name: "motionPath",
 	  register: function register(core, Plugin, propTween) {
 	    gsap = core;
@@ -1701,9 +1701,7 @@
 	      }
 
 	      for (p in firstObj) {
-	        if (p !== x && p !== y) {
-	          rawPaths.push(_segmentToRawPath(this, _populateSegmentFromArray([], path, p, 2), target, p, 0, slicer, vars));
-	        }
+	        p !== x && p !== y && rawPaths.push(_segmentToRawPath(this, _populateSegmentFromArray([], path, p, 2), target, p, 0, slicer, vars));
 	      }
 	    } else {
 	      rawPath = slicer(_align(getRawPath(vars.path), target, vars));

@@ -1,5 +1,5 @@
 /*!
- * ScrollToPlugin 3.4.2
+ * ScrollToPlugin 3.5.0
  * https://greensock.com
  *
  * @license Copyright 2008-2020, GreenSock. All rights reserved.
@@ -41,7 +41,7 @@ let gsap, _coreInitted, _window, _docEl, _body, _toArray, _config,
 		}
 		return offsets;
 	},
-	_parseVal = (value, target, axis, currentVal) => !isNaN(value) && typeof(value) !== "object" ? parseFloat(value) : (_isString(value) && value.charAt(1) === "=") ? parseFloat(value.substr(2)) * (value.charAt(0) === "-" ? -1 : 1) + currentVal : (value === "max") ? _max(target, axis) : Math.min(_max(target, axis), _getOffset(value, target)[axis]),
+	_parseVal = (value, target, axis, currentVal, offset) => !isNaN(value) && typeof(value) !== "object" ? parseFloat(value) - offset : (_isString(value) && value.charAt(1) === "=") ? parseFloat(value.substr(2)) * (value.charAt(0) === "-" ? -1 : 1) + currentVal - offset : (value === "max") ? _max(target, axis) - offset : Math.min(_max(target, axis), _getOffset(value, target)[axis] - offset),
 	_initCore = () => {
 		gsap = _getGSAP();
 		if (_windowExists() && gsap && document.body) {
@@ -57,7 +57,7 @@ let gsap, _coreInitted, _window, _docEl, _body, _toArray, _config,
 
 
 export const ScrollToPlugin = {
-	version:"3.4.2",
+	version:"3.5.0",
 	name:"scrollTo",
 	rawVars:1,
 	register(core) {
@@ -87,13 +87,13 @@ export const ScrollToPlugin = {
 		data.x = data.xPrev = data.getX();
 		data.y = data.yPrev = data.getY();
 		if (value.x != null) {
-			data.add(data, "x", data.x, _parseVal(value.x, target, "x", data.x) - (value.offsetX || 0), index, targets, Math.round);
+			data.add(data, "x", data.x, _parseVal(value.x, target, "x", data.x, value.offsetX || 0), index, targets, Math.round);
 			data._props.push("scrollTo_x");
 		} else {
 			data.skipX = 1;
 		}
 		if (value.y != null) {
-			data.add(data, "y", data.y, _parseVal(value.y, target, "y", data.y) - (value.offsetY || 0), index, targets, Math.round);
+			data.add(data, "y", data.y, _parseVal(value.y, target, "y", data.y, value.offsetY || 0), index, targets, Math.round);
 			data._props.push("scrollTo_y");
 		} else {
 			data.skipY = 1;

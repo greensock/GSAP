@@ -140,6 +140,18 @@ declare namespace gsap.plugins {
     batch(targets: gsap.DOMTarget, vars: ScrollTriggerBatchVars): ScrollTriggerInstance[];
 
     /**
+     * Un-registers .matchMedia() break points (or just one).
+     *
+     * ```js
+     * ScrollTrigger.clearMatchMedia();
+     * ```
+     *
+     * @param {string} name
+     * @memberof ScrollTrigger
+     */
+    clearMatchMedia(name?: string): void;
+
+    /**
      * Configure ScrollTrigger
      *
      * ```js
@@ -366,7 +378,7 @@ declare namespace gsap.plugins {
   }
 
   interface ToggleClassVars {
-    class: string;
+    className: string;
     targets?: gsap.DOMTarget;
   }
 
@@ -404,6 +416,7 @@ declare namespace gsap.plugins {
     pin?: boolean | string | Element;
     pinReparent?: boolean;
     pinSpacing?: boolean | string;
+    pinType?: "fixed" | "transform";
     refreshPriority?: number;
     scroller?: string | Element;
     scrub?: boolean | number;
@@ -436,6 +449,7 @@ declare namespace gsap.plugins {
     pin?: boolean | string | Element;
     pinReparent?: boolean;
     pinSpacing?: boolean | string;
+    pinType?: "fixed" | "transform";
     scroller?: string | Element;
     start?: string | number | StartEndFunc;
     toggleClass?: string | ToggleClassVars;
