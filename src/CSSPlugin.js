@@ -1,5 +1,5 @@
 /*!
- * CSSPlugin 3.5.0
+ * CSSPlugin 3.5.1
  * https://greensock.com
  *
  * Copyright 2008-2020, GreenSock. All rights reserved.
@@ -965,10 +965,8 @@ export const CSSPlugin = {
 				if (isTransformRelated || ((endNum || endNum === 0) && (startNum || startNum === 0) && !_complexExp.test(endValue) && (p in style))) {
 					startUnit = (startValue + "").substr((startNum + "").length);
 					endNum || (endNum = 0); // protect against NaN
-					endUnit = (endValue + "").substr((endNum + "").length) || ((p in _config.units) ? _config.units[p] : startUnit);
-					if (startUnit !== endUnit) {
-						startNum = _convertToUnit(target, p, startValue, endUnit);
-					}
+					endUnit = getUnit(endValue) || ((p in _config.units) ? _config.units[p] : startUnit);
+					startUnit !== endUnit && (startNum = _convertToUnit(target, p, startValue, endUnit));
 					this._pt = new PropTween(this._pt, isTransformRelated ? cache : style, p, startNum, relative ? relative * endNum : endNum - startNum, (endUnit === "px" && vars.autoRound !== false && !isTransformRelated) ? _renderRoundedCSSProp : _renderCSSProp);
 					this._pt.u = endUnit || 0;
 					if (startUnit !== endUnit) { //when the tween goes all the way back to the beginning, we need to revert it to the OLD/ORIGINAL value (with those units). We record that as a "b" (beginning) property and point to a render method that handles that. (performance optimization)

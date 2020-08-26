@@ -15,6 +15,8 @@ declare class Draggable {
   readonly maxRotation: number;
   readonly maxX: number;
   readonly maxY: number;
+  readonly minX: number;
+  readonly minY: number;
   readonly minRotation: number;
   readonly pointerEvent: TouchEvent | PointerEvent;
   readonly pointerX: number;

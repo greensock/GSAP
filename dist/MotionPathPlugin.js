@@ -338,18 +338,10 @@
 
 	    if (!e.t) {
 	      eSegIndex--;
-
-	      if (reverse) {
-	        sSegIndex--;
-	      }
+	      reverse && sSegIndex--;
 	    } else if (_splitSegment(path, eSegIndex, ei, e.t)) {
-	      if (invertedOrder && sShift) {
-	        sSegIndex++;
-	      }
-
-	      if (reverse) {
-	        eSegIndex++;
-	      }
+	      invertedOrder && sShift && sSegIndex++;
+	      reverse && eSegIndex++;
 	    }
 
 	    copy = [];
@@ -409,10 +401,7 @@
 	    }
 	  }
 
-	  if (reverse) {
-	    _reverseRawPath(path, wrap || loops);
-	  }
-
+	  reverse && _reverseRawPath(path, wrap || loops);
 	  path.totalLength = 0;
 	  return path;
 	}
@@ -1448,7 +1437,7 @@
 	}
 
 	/*!
-	 * MotionPathPlugin 3.5.0
+	 * MotionPathPlugin 3.5.1
 	 * https://greensock.com
 	 *
 	 * @license Copyright 2008-2020, GreenSock. All rights reserved.
@@ -1644,7 +1633,7 @@
 	};
 
 	var MotionPathPlugin = {
-	  version: "3.5.0",
+	  version: "3.5.1",
 	  name: "motionPath",
 	  register: function register(core, Plugin, propTween) {
 	    gsap = core;

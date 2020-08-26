@@ -1,5 +1,5 @@
 /*!
- * ScrollTrigger 3.5.0
+ * ScrollTrigger 3.5.1
  * https://greensock.com
  *
  * @license Copyright 2008-2020, GreenSock. All rights reserved.
@@ -339,21 +339,29 @@ _lastMediaTick,
     _onMediaChange = function _onMediaChange(e) {
   var tick = gsap.ticker.frame,
       matches = [],
-      i = 0;
+      i = 0,
+      index;
 
   if (_lastMediaTick !== tick || _startup) {
     _revertAll();
 
-    for (; i < _media.length; i += 3) {
-      _win.matchMedia(_media[i]).matches ? matches.push(i) : _revertAll(1, _media[i]) || _isFunction(_media[i + 2]) && _media[i + 2](); // Firefox doesn't update the "matches" property of the MediaQueryList object correctly - it only does so as it calls its change handler - so we must re-create a media query here to ensure it's accurate.
+    for (; i < _media.length; i += 4) {
+      index = _win.matchMedia(_media[i]).matches;
+
+      if (index !== _media[i + 3]) {
+        // note: some browsers fire the matchMedia event multiple times, like when going full screen, so we shouldn't call the function multiple times. Check to see if it's already matched.
+        _media[i + 3] = index;
+        index ? matches.push(i) : _revertAll(1, _media[i]) || _isFunction(_media[i + 2]) && _media[i + 2](); // Firefox doesn't update the "matches" property of the MediaQueryList object correctly - it only does so as it calls its change handler - so we must re-create a media query here to ensure it's accurate.
+      }
     }
 
     _revertRecorded(); // in case killing/reverting any of the animations actually added inline styles back.
 
 
     for (i = 0; i < matches.length; i++) {
-      _creatingMedia = _media[matches[i]];
-      _media[matches[i] + 2] = _media[matches[i] + 1](e);
+      index = matches[i];
+      _creatingMedia = _media[index];
+      _media[index + 2] = _media[index + 1](e);
     }
 
     _creatingMedia = 0;
@@ -429,6 +437,8 @@ _revertRecorded = function _revertRecorded(media) {
   while (_i--) {
     _triggers[_i].scroll.rec = 0;
   }
+
+  _resizeDelay.pause();
 
   _dispatch("refresh");
 },
@@ -507,8 +517,8 @@ _revertRecorded = function _revertRecorded(media) {
 
     _setState(spacerState);
 
-    pinStyle[_width] = cs[_width];
-    pinStyle[_height] = cs[_height];
+    pinStyle[_width] = pinStyle["max" + _Width] = cs[_width];
+    pinStyle[_height] = pinStyle["max" + _Height] = cs[_height];
     pinStyle[_padding] = cs[_padding];
     pin.parentNode.insertBefore(spacer, pin);
     spacer.appendChild(pin);
@@ -618,7 +628,7 @@ _revertRecorded = function _revertRecorded(media) {
   return Math.round(value);
 },
     _prefixExp = /(?:webkit|moz|length|cssText)/i,
-    _reparent = function _reparent(element, parent) {
+    _reparent = function _reparent(element, parent, top, left) {
   if (element.parentNode !== parent) {
     var style = element.style,
         p,
@@ -635,10 +645,14 @@ _revertRecorded = function _revertRecorded(media) {
           style[p] = cs[p];
         }
       }
+
+      style.top = top;
+      style.left = left;
     } else {
       style.cssText = element._stOrig;
     }
 
+    gsap.core.getCache(element).uncache = 1;
     parent.appendChild(element);
   }
 },
@@ -654,12 +668,12 @@ _getTweenCreator = function _getTweenCreator(scroller, direction) {
         onComplete = vars.onComplete,
         modifiers = {};
     tween && tween.kill();
-    lastScroll1 = initialValue;
+    lastScroll1 = Math.round(initialValue);
     vars[prop] = scrollTo;
     vars.modifiers = modifiers;
 
     modifiers[prop] = function (value) {
-      value = getScroll();
+      value = Math.round(getScroll()); // round because in some [very uncommon] Windows environments, it can get reported with decimals even though it was set without.
 
       if (value !== lastScroll1 && value !== lastScroll2) {
         // if the user scrolls, kill the tween. iOS Safari intermittently misreports the scroll position, it may be the most recently-set one or the one before that!
@@ -964,7 +978,7 @@ export var ScrollTrigger = /*#__PURE__*/function () {
           otherPinOffset = 0,
           parsedEnd = vars.end,
           parsedEndTrigger = vars.endTrigger || trigger,
-          parsedStart = vars.start || (pin || !trigger ? "0 0" : "0 100%"),
+          parsedStart = vars.start || (vars.start === 0 ? 0 : pin || !trigger ? "0 0" : "0 100%"),
           triggerIndex = trigger && Math.max(0, _triggers.indexOf(self)) || 0,
           i = triggerIndex,
           cs,
@@ -1029,6 +1043,7 @@ export var ScrollTrigger = /*#__PURE__*/function () {
         scroll = self.scroll(); // recalculate because the triggers can affect the scroll
 
         pinStart = parseFloat(pinGetter(direction.a)) + otherPinOffset;
+        !max && end > 1 && ((isViewport ? _body : scroller).style["overflow-" + direction.a] = "scroll"); // makes sure the scroller has a scrollbar, otherwise if something has width: 100%, for example, it would be too big (exclude the scrollbar). See https://greensock.com/forums/topic/25182-scrolltrigger-width-of-page-increase-where-markers-are-set-to-false/
 
         _swapPinIn(pin, spacer, cs);
 
@@ -1177,11 +1192,10 @@ export var ScrollTrigger = /*#__PURE__*/function () {
                 var bounds = _getBounds(pin, true),
                     _offset = scroll - start;
 
-                pin.style.top = bounds.top + (direction === _vertical ? _offset : 0) + _px;
-                pin.style.left = bounds.left + (direction === _vertical ? 0 : _offset) + _px;
+                _reparent(pin, _body, bounds.top + (direction === _vertical ? _offset : 0) + _px, bounds.left + (direction === _vertical ? 0 : _offset) + _px);
+              } else {
+                _reparent(pin, spacer);
               }
-
-              _reparent(pin, !reset && (isActive || action) ? _body : spacer);
             }
 
             _setState(isActive || action ? pinActiveState : pinState);
@@ -1266,7 +1280,7 @@ export var ScrollTrigger = /*#__PURE__*/function () {
 
         if (snapDelayedCall) {
           snapDelayedCall.pause();
-          tweenTo.tween && tweenTo.tween.kill();
+          tweenTo.tween && tweenTo.tween.kill() && (tweenTo.tween = 0);
         }
 
         if (!isViewport) {
@@ -1423,6 +1437,7 @@ export var ScrollTrigger = /*#__PURE__*/function () {
   };
 
   ScrollTrigger.matchMedia = function matchMedia(vars) {
+    // _media is populated in the following order: mediaQueryString, onMatch, onUnmatch, isMatched. So if there are two media queries, the Array would have a length of 8
     var mq, p, i, func, result;
 
     for (p in vars) {
@@ -1448,6 +1463,8 @@ export var ScrollTrigger = /*#__PURE__*/function () {
 
             mq.addListener ? mq.addListener(_onMediaChange) : mq.addEventListener("change", _onMediaChange);
           }
+
+          _media[i + 3] = mq.matches;
         }
       }
 
@@ -1460,12 +1477,12 @@ export var ScrollTrigger = /*#__PURE__*/function () {
   ScrollTrigger.clearMatchMedia = function clearMatchMedia(query) {
     query || (_media.length = 0);
     query = _media.indexOf(query);
-    query >= 0 && _media.splice(query, 3);
+    query >= 0 && _media.splice(query, 4);
   };
 
   return ScrollTrigger;
 }();
-ScrollTrigger.version = "3.5.0";
+ScrollTrigger.version = "3.5.1";
 
 ScrollTrigger.saveStyles = function (targets) {
   return targets ? _toArray(targets).forEach(function (target) {

@@ -133,11 +133,11 @@ declare namespace gsap.core {
      * ```
      *
      * @param {number} value
-     * @param {boolean} [supressEvents]
+     * @param {boolean} [suppressEvents]
      * @returns {Animation} The tween
      * @memberof Animation
      */
-    iteration(value: number, supressEvents?: boolean): this;
+    iteration(value: number, suppressEvents?: boolean): this;
     /**
      * Gets the current iteration of the animation.
      *
@@ -172,11 +172,11 @@ declare namespace gsap.core {
      * ```
      *
      * @param {number} [atTime]
-     * @param {number} [supressEvents]
+     * @param {boolean} [suppressEvents]
      * @returns {Animation} The animation
      * @memberof Animation
      */
-    pause(atTime?: number, supressEvents?: boolean): this;
+    pause(atTime?: number | string, suppressEvents?: boolean): this;
 
     /**
      * Sets the paused state of the animation.
@@ -211,11 +211,11 @@ declare namespace gsap.core {
      * ```
      *
      * @param {number} [from]
-     * @param {boolean} [supressEvents]
+     * @param {boolean} [suppressEvents]
      * @returns {Animation} The animation
      * @memberof Animation
      */
-    play(from?: number | string | null, supressEvents?: boolean): this;
+    play(from?: number | string | null, suppressEvents?: boolean): this;
 
     /**
      * Sets the progress of the animation (between 0 and 1).
@@ -225,11 +225,11 @@ declare namespace gsap.core {
      * ```
      *
      * @param {number} value
-     * @param {boolean} [supressEvents]
+     * @param {boolean} [suppressEvents]
      * @returns {Animation} The animation
      * @memberof Animation
      */
-    progress(value: number, supressEvents?: boolean): this;
+    progress(value: number, suppressEvents?: boolean): this;
     /**
      * Gets the progress of the animation.
      *
@@ -243,6 +243,21 @@ declare namespace gsap.core {
     progress(): number;
     
     rawTime(wrapRepeats?: boolean): number;
+
+    /**
+     * Forces things to render at a certain time WITHOUT adjusting the animation's position in its parent timeline
+     *
+     * ```js
+     * anim.render(1);
+     * ```
+     *
+     * @param {number} totalTime
+     * @param {boolean} [suppressEvents]
+     * @param {boolean} [force]
+     * @returns {Animation} The animation
+     * @memberof Animation
+     */
+    render(totalTime: number, suppressEvents?: boolean, force?: boolean): this;
 
     /**
      * Sets the number of repeats of the animation.
@@ -301,11 +316,11 @@ declare namespace gsap.core {
      * ```
      *
      * @param {number} [includeDelay]
-     * @param {boolean} [supressEvents]
+     * @param {boolean} [suppressEvents]
      * @returns {Animation} The animation
      * @memberof Animation
      */
-    restart(includeDelay?: boolean, supressEvents?: boolean): this;
+    restart(includeDelay?: boolean, suppressEvents?: boolean): this;
 
     /**
      * Continues a paused animation in the direction it was headed (forwards or reverse), optionally from the given time.
@@ -316,11 +331,11 @@ declare namespace gsap.core {
      * ```
      *
      * @param {number} [from]
-     * @param {boolean} [supressEvents]
+     * @param {boolean} [suppressEvents]
      * @returns {Animation} The animation
      * @memberof Animation
      */
-    resume(from?: number | string | null, supressEvents?: boolean): this;
+    resume(from?: number | string, suppressEvents?: boolean): this;
 
     /**
      * Plays an animation in the reverse direction, optionally from the given time.
@@ -331,11 +346,11 @@ declare namespace gsap.core {
      * ```
      *
      * @param {number} [from]
-     * @param {boolean} [supressEvents]
+     * @param {boolean} [suppressEvents]
      * @returns {Animation} The animation
      * @memberof Animation
      */
-    reverse(from?: number | string | null, supressEvents?: boolean): this;
+    reverse(from?: number | string, suppressEvents?: boolean): this;
 
     /**
      * Sets the reversed state of the animation.
@@ -393,7 +408,7 @@ declare namespace gsap.core {
      * ```
      *
      * @param {number| string} time
-     * @param {boolean} suppressEvents
+     * @param {boolean} [suppressEvents]
      * @returns {Animation} The animation
      * @memberof Animation
      */
@@ -420,11 +435,11 @@ declare namespace gsap.core {
      * ```
      *
      * @param {number} value
-     * @param {boolean} [supressEvents]
+     * @param {boolean} [suppressEvents]
      * @returns {Animation} The animation
      * @memberof Animation
      */
-    time(value: number, supressEvents?: boolean): this;
+    time(value: number, suppressEvents?: boolean): this;
     /**
      * Gets the current time of the given animation.
      *
@@ -518,11 +533,11 @@ declare namespace gsap.core {
      * ```
      *
      * @param {number} value
-     * @param {boolean} [supressEvents]
+     * @param {boolean} [suppressEvents]
      * @returns {Animation} The animation
      * @memberof Animation
      */
-    totalTime(value: number, supressEvents?: boolean): this;
+    totalTime(value: number, suppressEvents?: boolean): this;
     /**
      * Gets the total time (meaning where the playhead is, including repeats) of the given animation.
      *

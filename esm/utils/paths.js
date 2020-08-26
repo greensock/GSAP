@@ -1,5 +1,5 @@
 /*!
- * paths 3.5.0
+ * paths 3.5.1
  * https://greensock.com
  *
  * Copyright 2008-2020, GreenSock. All rights reserved.
@@ -365,18 +365,10 @@ export function sliceRawPath(rawPath, start, end) {
 
     if (!e.t) {
       eSegIndex--;
-
-      if (reverse) {
-        sSegIndex--;
-      }
+      reverse && sSegIndex--;
     } else if (_splitSegment(path, eSegIndex, ei, e.t)) {
-      if (invertedOrder && sShift) {
-        sSegIndex++;
-      }
-
-      if (reverse) {
-        eSegIndex++;
-      }
+      invertedOrder && sShift && sSegIndex++;
+      reverse && eSegIndex++;
     }
 
     copy = [];
@@ -438,13 +430,10 @@ export function sliceRawPath(rawPath, start, end) {
     }
   }
 
-  if (reverse) {
-    _reverseRawPath(path, wrap || loops);
-  }
-
+  reverse && _reverseRawPath(path, wrap || loops);
   path.totalLength = 0;
   return path;
-} //measures a Segment according to its resolution (so if segment.resolution is 6, for example, it'll take 6 samples equally across each Bezier) and create/populate a "samples" array that has the length up to each of those sample points (always increasing from the start) as well as a "lookup" array that's broken up according to the smallest distance between 2 samples. This gives us a very fast way of looking up a progress position rather than looping through all the points/Beziers. You can optionally have it only measure a subset, starting at startIndex and going for a specific number of beziers (remember, there are 3 x/y pairs each, for a total of 6 elements for each Bezier). It will also populate a "totalLength" property, but that's not generally super accurate because by default it'll only take 6 samples per Bezier. But for performance reasons, it's perfectly adequate for measuring progress values along the path. If you need a more accurate totalLength, either increase the resolution or use the more advanced bezierToPoints() method which keeps adding points until they don't deviate by more than a certain precision value.
+} //measures a Segment according to its resolution (so if segment.resolution is 6, for example, it'll take 6 samples equally across each Bezier) and create/populate a "samples" Array that has the length up to each of those sample points (always increasing from the start) as well as a "lookup" array that's broken up according to the smallest distance between 2 samples. This gives us a very fast way of looking up a progress position rather than looping through all the points/Beziers. You can optionally have it only measure a subset, starting at startIndex and going for a specific number of beziers (remember, there are 3 x/y pairs each, for a total of 6 elements for each Bezier). It will also populate a "totalLength" property, but that's not generally super accurate because by default it'll only take 6 samples per Bezier. But for performance reasons, it's perfectly adequate for measuring progress values along the path. If you need a more accurate totalLength, either increase the resolution or use the more advanced bezierToPoints() method which keeps adding points until they don't deviate by more than a certain precision value.
 
 function measureSegment(segment, startIndex, bezierQty) {
   startIndex = startIndex || 0;

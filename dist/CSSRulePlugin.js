@@ -5,7 +5,7 @@
 }(this, (function (exports) { 'use strict';
 
 	/*!
-	 * CSSRulePlugin 3.5.0
+	 * CSSRulePlugin 3.5.1
 	 * https://greensock.com
 	 *
 	 * @license Copyright 2008-2020, GreenSock. All rights reserved.
@@ -51,7 +51,7 @@
 	};
 
 	var CSSRulePlugin = {
-	  version: "3.5.0",
+	  version: "3.5.1",
 	  name: "cssRule",
 	  init: function init(target, value, tween, index, targets) {
 	    if (!_checkRegister() || typeof target.cssText === "undefined") {

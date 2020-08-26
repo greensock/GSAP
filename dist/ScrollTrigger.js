@@ -5,7 +5,7 @@
 }(this, (function (exports) { 'use strict';
 
 	/*!
-	 * ScrollTrigger 3.5.0
+	 * ScrollTrigger 3.5.1
 	 * https://greensock.com
 	 *
 	 * @license Copyright 2008-2020, GreenSock. All rights reserved.
@@ -338,20 +338,27 @@
 	    _onMediaChange = function _onMediaChange(e) {
 	  var tick = gsap.ticker.frame,
 	      matches = [],
-	      i = 0;
+	      i = 0,
+	      index;
 
 	  if (_lastMediaTick !== tick || _startup) {
 	    _revertAll();
 
-	    for (; i < _media.length; i += 3) {
-	      _win.matchMedia(_media[i]).matches ? matches.push(i) : _revertAll(1, _media[i]) || _isFunction(_media[i + 2]) && _media[i + 2]();
+	    for (; i < _media.length; i += 4) {
+	      index = _win.matchMedia(_media[i]).matches;
+
+	      if (index !== _media[i + 3]) {
+	        _media[i + 3] = index;
+	        index ? matches.push(i) : _revertAll(1, _media[i]) || _isFunction(_media[i + 2]) && _media[i + 2]();
+	      }
 	    }
 
 	    _revertRecorded();
 
 	    for (i = 0; i < matches.length; i++) {
-	      _creatingMedia = _media[matches[i]];
-	      _media[matches[i] + 2] = _media[matches[i] + 1](e);
+	      index = matches[i];
+	      _creatingMedia = _media[index];
+	      _media[index + 2] = _media[index + 1](e);
 	    }
 
 	    _creatingMedia = 0;
@@ -424,6 +431,8 @@
 	  while (_i--) {
 	    _triggers[_i].scroll.rec = 0;
 	  }
+
+	  _resizeDelay.pause();
 
 	  _dispatch("refresh");
 	},
@@ -502,8 +511,8 @@
 
 	    _setState(spacerState);
 
-	    pinStyle[_width] = cs[_width];
-	    pinStyle[_height] = cs[_height];
+	    pinStyle[_width] = pinStyle["max" + _Width] = cs[_width];
+	    pinStyle[_height] = pinStyle["max" + _Height] = cs[_height];
 	    pinStyle[_padding] = cs[_padding];
 	    pin.parentNode.insertBefore(spacer, pin);
 	    spacer.appendChild(pin);
@@ -610,7 +619,7 @@
 	  return Math.round(value);
 	},
 	    _prefixExp = /(?:webkit|moz|length|cssText)/i,
-	    _reparent = function _reparent(element, parent) {
+	    _reparent = function _reparent(element, parent, top, left) {
 	  if (element.parentNode !== parent) {
 	    var style = element.style,
 	        p,
@@ -625,10 +634,14 @@
 	          style[p] = cs[p];
 	        }
 	      }
+
+	      style.top = top;
+	      style.left = left;
 	    } else {
 	      style.cssText = element._stOrig;
 	    }
 
+	    gsap.core.getCache(element).uncache = 1;
 	    parent.appendChild(element);
 	  }
 	},
@@ -642,12 +655,12 @@
 	        onComplete = vars.onComplete,
 	        modifiers = {};
 	    tween && tween.kill();
-	    lastScroll1 = initialValue;
+	    lastScroll1 = Math.round(initialValue);
 	    vars[prop] = scrollTo;
 	    vars.modifiers = modifiers;
 
 	    modifiers[prop] = function (value) {
-	      value = getScroll();
+	      value = Math.round(getScroll());
 
 	      if (value !== lastScroll1 && value !== lastScroll2) {
 	        tween.kill();
@@ -944,7 +957,7 @@
 	          otherPinOffset = 0,
 	          parsedEnd = vars.end,
 	          parsedEndTrigger = vars.endTrigger || trigger,
-	          parsedStart = vars.start || (pin || !trigger ? "0 0" : "0 100%"),
+	          parsedStart = vars.start || (vars.start === 0 ? 0 : pin || !trigger ? "0 0" : "0 100%"),
 	          triggerIndex = trigger && Math.max(0, _triggers.indexOf(self)) || 0,
 	          i = triggerIndex,
 	          cs,
@@ -1005,6 +1018,7 @@
 	        isVertical = direction === _vertical;
 	        scroll = self.scroll();
 	        pinStart = parseFloat(pinGetter(direction.a)) + otherPinOffset;
+	        !max && end > 1 && ((isViewport ? _body : scroller).style["overflow-" + direction.a] = "scroll");
 
 	        _swapPinIn(pin, spacer, cs);
 
@@ -1143,11 +1157,10 @@
 	                var bounds = _getBounds(pin, true),
 	                    _offset = scroll - start;
 
-	                pin.style.top = bounds.top + (direction === _vertical ? _offset : 0) + _px;
-	                pin.style.left = bounds.left + (direction === _vertical ? 0 : _offset) + _px;
+	                _reparent(pin, _body, bounds.top + (direction === _vertical ? _offset : 0) + _px, bounds.left + (direction === _vertical ? 0 : _offset) + _px);
+	              } else {
+	                _reparent(pin, spacer);
 	              }
-
-	              _reparent(pin, !reset && (isActive || action) ? _body : spacer);
 	            }
 
 	            _setState(isActive || action ? pinActiveState : pinState);
@@ -1228,7 +1241,7 @@
 
 	        if (snapDelayedCall) {
 	          snapDelayedCall.pause();
-	          tweenTo.tween && tweenTo.tween.kill();
+	          tweenTo.tween && tweenTo.tween.kill() && (tweenTo.tween = 0);
 	        }
 
 	        if (!isViewport) {
@@ -1405,6 +1418,8 @@
 
 	            mq.addListener ? mq.addListener(_onMediaChange) : mq.addEventListener("change", _onMediaChange);
 	          }
+
+	          _media[i + 3] = mq.matches;
 	        }
 	      }
 
@@ -1417,12 +1432,12 @@
 	  ScrollTrigger.clearMatchMedia = function clearMatchMedia(query) {
 	    query || (_media.length = 0);
 	    query = _media.indexOf(query);
-	    query >= 0 && _media.splice(query, 3);
+	    query >= 0 && _media.splice(query, 4);
 	  };
 
 	  return ScrollTrigger;
 	}();
-	ScrollTrigger.version = "3.5.0";
+	ScrollTrigger.version = "3.5.1";
 
 	ScrollTrigger.saveStyles = function (targets) {
 	  return targets ? _toArray(targets).forEach(function (target) {

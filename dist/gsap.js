@@ -19,7 +19,7 @@
   }
 
   /*!
-   * GSAP 3.5.0
+   * GSAP 3.5.1
    * https://greensock.com
    *
    * @license Copyright 2008-2020, GreenSock. All rights reserved.
@@ -72,7 +72,7 @@
       _isFuncOrString = function _isFuncOrString(value) {
     return _isFunction(value) || _isString(value);
   },
-      _isTypedArray = typeof ArrayBuffer === "function" ? ArrayBuffer.isView : function () {},
+      _isTypedArray = typeof ArrayBuffer === "function" && ArrayBuffer.isView || function () {},
       _isArray = Array.isArray,
       _strictNumExp = /(?:-?\.?\d|\.)+/gi,
       _numExp = /[-+=.]*\d+[.e\-+]*\d*[e\-\+]*\d*/g,
@@ -328,7 +328,7 @@
     child._act = 0;
   },
       _uncache = function _uncache(animation, child) {
-    if (!child || child._end > animation._dur || child._start < 0) {
+    if (animation && (!child || child._end > animation._dur || child._start < 0)) {
       var a = animation;
 
       while (a) {
@@ -450,11 +450,11 @@
       }
     }
 
-    if (!tween._initted && _attemptInitTween(tween, totalTime, force, suppressEvents)) {
-      return;
-    }
-
     if (ratio !== prevRatio || force || tween._zTime === _tinyNum || !totalTime && tween._zTime) {
+      if (!tween._initted && _attemptInitTween(tween, totalTime, force, suppressEvents)) {
+        return;
+      }
+
       prevIteration = tween._zTime;
       tween._zTime = totalTime || (suppressEvents ? _tinyNum : 0);
       suppressEvents || (suppressEvents = totalTime && !prevIteration);
@@ -564,7 +564,7 @@
     return value < min ? min : value > max ? max : value;
   },
       getUnit = function getUnit(value) {
-    return (value + "").substr((parseFloat(value) + "").length);
+    return (value = (value + "").substr((parseFloat(value) + "").length)) && isNaN(value) ? value : "";
   },
       clamp = function clamp(min, max, value) {
     return _conditionalReturn(value, function (v) {
@@ -1912,7 +1912,7 @@
 
             if (doesWrap) {
               this._lock = 2;
-              prevTime = rewinding ? dur + 0.0001 : -0.0001;
+              prevTime = rewinding ? dur : -0.0001;
               this.render(prevTime, true);
               this.vars.repeatRefresh && !isYoyo && this.invalidate();
             }
@@ -2209,6 +2209,7 @@
         ease: "none",
         lazy: false,
         time: endTime,
+        overwrite: "auto",
         duration: vars.duration || Math.abs((endTime - (startAt && "time" in startAt ? startAt.time : tl._time)) / tl.timeScale()) || _tinyNum,
         onStart: function onStart() {
           tl.pause();
@@ -2626,7 +2627,7 @@
         target = targets[i];
         gsData = target._gsap || _harness(targets)[i]._gsap;
         tween._ptLookup[i] = ptLookup = {};
-        _lazyLookup[gsData.id] && _lazyRender();
+        _lazyLookup[gsData.id] && _lazyTweens.length && _lazyRender();
         index = fullTargets === targets ? i : fullTargets.indexOf(target);
 
         if (harness && (plugin = new harness()).init(target, harnessVars || cleanVars, tween, index, fullTargets) !== false) {
@@ -3522,7 +3523,7 @@
       }
     }
   }, _buildModifierPlugin("roundProps", _roundModifier), _buildModifierPlugin("modifiers"), _buildModifierPlugin("snap", snap)) || _gsap;
-  Tween.version = Timeline.version = gsap.version = "3.5.0";
+  Tween.version = Timeline.version = gsap.version = "3.5.1";
   _coreReady = 1;
 
   if (_windowExists()) {
@@ -4727,12 +4728,8 @@
           if (isTransformRelated || (endNum || endNum === 0) && (startNum || startNum === 0) && !_complexExp.test(endValue) && p in style) {
             startUnit = (startValue + "").substr((startNum + "").length);
             endNum || (endNum = 0);
-            endUnit = (endValue + "").substr((endNum + "").length) || (p in _config.units ? _config.units[p] : startUnit);
-
-            if (startUnit !== endUnit) {
-              startNum = _convertToUnit(target, p, startValue, endUnit);
-            }
-
+            endUnit = getUnit(endValue) || (p in _config.units ? _config.units[p] : startUnit);
+            startUnit !== endUnit && (startNum = _convertToUnit(target, p, startValue, endUnit));
             this._pt = new PropTween(this._pt, isTransformRelated ? cache : style, p, startNum, relative ? relative * endNum : endNum - startNum, endUnit === "px" && vars.autoRound !== false && !isTransformRelated ? _renderRoundedCSSProp : _renderCSSProp);
             this._pt.u = endUnit || 0;
 

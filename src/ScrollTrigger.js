@@ -1,5 +1,5 @@
 /*!
- * ScrollTrigger 3.5.0
+ * ScrollTrigger 3.5.1
  * https://greensock.com
  *
  * @license Copyright 2008-2020, GreenSock. All rights reserved.
@@ -168,16 +168,22 @@ let gsap, _coreInitted, _win, _doc, _docEl, _body, _root, _resizeDelay, _raf, _r
 	_onMediaChange = e => {
 		let tick = gsap.ticker.frame,
 			matches = [],
-			i = 0;
+			i = 0,
+			index;
 		if (_lastMediaTick !== tick || _startup) {
 			_revertAll();
-			for (; i < _media.length; i+=3) {
-				_win.matchMedia(_media[i]).matches ? matches.push(i) : _revertAll(1, _media[i]) || (_isFunction(_media[i+2]) && _media[i+2]()); // Firefox doesn't update the "matches" property of the MediaQueryList object correctly - it only does so as it calls its change handler - so we must re-create a media query here to ensure it's accurate.
+			for (; i < _media.length; i+=4) {
+				index = _win.matchMedia(_media[i]).matches;
+				if (index !== _media[i+3]) { // note: some browsers fire the matchMedia event multiple times, like when going full screen, so we shouldn't call the function multiple times. Check to see if it's already matched.
+					_media[i+3] = index;
+					index ? matches.push(i) : _revertAll(1, _media[i]) || (_isFunction(_media[i+2]) && _media[i+2]()); // Firefox doesn't update the "matches" property of the MediaQueryList object correctly - it only does so as it calls its change handler - so we must re-create a media query here to ensure it's accurate.
+				}
 			}
 			_revertRecorded(); // in case killing/reverting any of the animations actually added inline styles back.
 			for (i = 0; i < matches.length; i++) {
-				_creatingMedia = _media[matches[i]];
-				_media[matches[i]+2] = _media[matches[i]+1](e);
+				index = matches[i];
+				_creatingMedia = _media[index];
+				_media[index+2] = _media[index+1](e);
 			}
 			_creatingMedia = 0;
 			_refreshAll(0, 1);
@@ -228,6 +234,7 @@ let gsap, _coreInitted, _win, _doc, _docEl, _body, _root, _resizeDelay, _raf, _r
 		while (_i--) {
 			_triggers[_i].scroll.rec = 0;
 		}
+		_resizeDelay.pause();
 		_dispatch("refresh");
 	},
 	_lastScroll = 0,
@@ -291,8 +298,8 @@ let gsap, _coreInitted, _win, _doc, _docEl, _body, _root, _resizeDelay, _raf, _r
 			spacerStyle[_height] = _getSize(pin, _vertical) + _px;
 			spacerStyle[_padding] = pinStyle[_margin] = pinStyle[_top] = pinStyle[_left] = "0";
 			_setState(spacerState);
-			pinStyle[_width] = cs[_width];
-			pinStyle[_height] = cs[_height];
+			pinStyle[_width] = pinStyle["max" + _Width] = cs[_width];
+			pinStyle[_height] = pinStyle["max" + _Height] = cs[_height];
 			pinStyle[_padding] = cs[_padding];
 			pin.parentNode.insertBefore(spacer, pin);
 			spacer.appendChild(pin);
@@ -378,7 +385,7 @@ let gsap, _coreInitted, _win, _doc, _docEl, _body, _root, _resizeDelay, _raf, _r
 		return Math.round(value);
 	},
 	_prefixExp = /(?:webkit|moz|length|cssText)/i,
-	_reparent = (element, parent) => {
+	_reparent = (element, parent, top, left) => {
 		if (element.parentNode !== parent) {
 			let style = element.style,
 				p, cs;
@@ -390,9 +397,12 @@ let gsap, _coreInitted, _win, _doc, _docEl, _body, _root, _resizeDelay, _raf, _r
 						style[p] = cs[p];
 					}
 				}
+				style.top = top;
+				style.left = left;
 			} else {
 				style.cssText = element._stOrig;
 			}
+			gsap.core.getCache(element).uncache = 1;
 			parent.appendChild(element);
 		}
 	},
@@ -406,11 +416,11 @@ let gsap, _coreInitted, _win, _doc, _docEl, _body, _root, _resizeDelay, _raf, _r
 					onComplete = vars.onComplete,
 					modifiers = {};
 				tween && tween.kill();
-				lastScroll1 = initialValue;
+				lastScroll1 = Math.round(initialValue);
 				vars[prop] = scrollTo;
 				vars.modifiers = modifiers;
 				modifiers[prop] = value => {
-					value = getScroll();
+					value = Math.round(getScroll()); // round because in some [very uncommon] Windows environments, it can get reported with decimals even though it was set without.
 					if (value !== lastScroll1 && value !== lastScroll2) { // if the user scrolls, kill the tween. iOS Safari intermittently misreports the scroll position, it may be the most recently-set one or the one before that!
 						tween.kill();
 						getTween.tween = 0;
@@ -607,7 +617,7 @@ export class ScrollTrigger {
 				otherPinOffset = 0,
 				parsedEnd = vars.end,
 				parsedEndTrigger = vars.endTrigger || trigger,
-				parsedStart = vars.start || (pin || !trigger ? "0 0" : "0 100%"),
+				parsedStart = vars.start || (vars.start === 0 ? 0 : (pin || !trigger ? "0 0" : "0 100%")),
 				triggerIndex = (trigger && Math.max(0, _triggers.indexOf(self))) || 0,
 				i = triggerIndex,
 				cs, bounds, scroll, isVertical, override, curTrigger, curPin, oppositeScroll;
@@ -654,6 +664,7 @@ export class ScrollTrigger {
 				isVertical = direction === _vertical;
 				scroll = self.scroll(); // recalculate because the triggers can affect the scroll
 				pinStart = parseFloat(pinGetter(direction.a)) + otherPinOffset;
+				!max && end > 1 && ((isViewport ? _body : scroller).style["overflow-" + direction.a] = "scroll"); // makes sure the scroller has a scrollbar, otherwise if something has width: 100%, for example, it would be too big (exclude the scrollbar). See https://greensock.com/forums/topic/25182-scrolltrigger-width-of-page-increase-where-markers-are-set-to-false/
 				_swapPinIn(pin, spacer, cs);
 				pinState = _getState(pin);
 				// transforms will interfere with the top/left/right/bottom placement, so remove them temporarily. getBoundingClientRect() factors in transforms.
@@ -765,10 +776,10 @@ export class ScrollTrigger {
 							if (!reset && (isActive || action)) {
 								let bounds = _getBounds(pin, true),
 									offset = scroll - start;
-								pin.style.top = (bounds.top + (direction === _vertical ? offset : 0)) + _px;
-								pin.style.left = (bounds.left + (direction === _vertical ? 0 : offset)) + _px;
+								_reparent(pin, _body, (bounds.top + (direction === _vertical ? offset : 0)) + _px, (bounds.left + (direction === _vertical ? 0 : offset)) + _px);
+							} else {
+								_reparent(pin, spacer);
 							}
-							_reparent(pin, !reset && (isActive || action) ? _body : spacer);
 						}
 						_setState(isActive || action ? pinActiveState : pinState);
 						(pinChange !== change && clipped < 1 && isActive) || pinSetter(pinStart + (clipped === 1 && !action ? pinChange : 0));
@@ -832,7 +843,7 @@ export class ScrollTrigger {
 				onRefreshInit && _removeListener(ScrollTrigger, "refreshInit", onRefreshInit);
 				if (snapDelayedCall) {
 					snapDelayedCall.pause();
-					tweenTo.tween && tweenTo.tween.kill();
+					tweenTo.tween && tweenTo.tween.kill() && (tweenTo.tween = 0);
 				}
 				if (!isViewport) {
 					let i = _triggers.length;
@@ -943,7 +954,7 @@ export class ScrollTrigger {
 		_isViewport(t) ? _proxies.unshift(_win, vars, _body, vars, _docEl, vars) : _proxies.unshift(t, vars);
 	}
 
-	static matchMedia(vars) {
+	static matchMedia(vars) { // _media is populated in the following order: mediaQueryString, onMatch, onUnmatch, isMatched. So if there are two media queries, the Array would have a length of 8
 		let mq, p, i, func, result;
 		for (p in vars) {
 			i = _media.indexOf(p);
@@ -963,6 +974,7 @@ export class ScrollTrigger {
 						_media.push(p, func, result);
 						mq.addListener ? mq.addListener(_onMediaChange) : mq.addEventListener("change", _onMediaChange);
 					}
+					_media[i + 3] = mq.matches;
 				}
 			}
 			_creatingMedia = 0;
@@ -973,12 +985,12 @@ export class ScrollTrigger {
 	static clearMatchMedia(query) {
 		query || (_media.length = 0);
 		query = _media.indexOf(query);
-		query >= 0 && _media.splice(query, 3);
+		query >= 0 && _media.splice(query, 4);
 	}
 
 }
 
-ScrollTrigger.version = "3.5.0";
+ScrollTrigger.version = "3.5.1";
 ScrollTrigger.saveStyles = targets => targets ? _toArray(targets).forEach(target => {
 	let i = _savedStyles.indexOf(target);
 	i >= 0 && _savedStyles.splice(i, 4);

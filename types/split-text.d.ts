@@ -41,6 +41,7 @@ declare namespace SplitText {
     wordsClass?: string;
     linesClass?: string;
     position?: string;
+    lineThreshold?: number;
     reduceWhiteSpace?: boolean;
     specialChars?: string[] | Function;
     wordDelimiter?: string;

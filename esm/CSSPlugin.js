@@ -1,5 +1,5 @@
 /*!
- * CSSPlugin 3.5.0
+ * CSSPlugin 3.5.1
  * https://greensock.com
  *
  * Copyright 2008-2020, GreenSock. All rights reserved.
@@ -1320,12 +1320,8 @@ export var CSSPlugin = {
           startUnit = (startValue + "").substr((startNum + "").length);
           endNum || (endNum = 0); // protect against NaN
 
-          endUnit = (endValue + "").substr((endNum + "").length) || (p in _config.units ? _config.units[p] : startUnit);
-
-          if (startUnit !== endUnit) {
-            startNum = _convertToUnit(target, p, startValue, endUnit);
-          }
-
+          endUnit = getUnit(endValue) || (p in _config.units ? _config.units[p] : startUnit);
+          startUnit !== endUnit && (startNum = _convertToUnit(target, p, startValue, endUnit));
           this._pt = new PropTween(this._pt, isTransformRelated ? cache : style, p, startNum, relative ? relative * endNum : endNum - startNum, endUnit === "px" && vars.autoRound !== false && !isTransformRelated ? _renderRoundedCSSProp : _renderCSSProp);
           this._pt.u = endUnit || 0;
 

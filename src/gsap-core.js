@@ -1,5 +1,5 @@
 /*!
- * GSAP 3.5.0
+ * GSAP 3.5.1
  * https://greensock.com
  *
  * @license Copyright 2008-2020, GreenSock. All rights reserved.
@@ -36,7 +36,7 @@ let _config = {
 	_isNotFalse = value => value !== false,
 	_windowExists = () => typeof(window) !== "undefined",
 	_isFuncOrString = value => _isFunction(value) || _isString(value),
-	_isTypedArray = typeof ArrayBuffer === "function" ? ArrayBuffer.isView : function() {},
+	_isTypedArray = (typeof ArrayBuffer === "function" && ArrayBuffer.isView) || function() {}, // note: IE10 has ArrayBuffer, but NOT ArrayBuffer.isView().
 	_isArray = Array.isArray,
 	_strictNumExp = /(?:-?\.?\d|\.)+/gi, //only numbers (including negatives and decimals) but NOT relative values.
 	_numExp = /[-+=.]*\d+[.e\-+]*\d*[e\-\+]*\d*/g, //finds any numbers, including ones that start with += or -=, negative numbers, and ones in scientific notation like 1e-8.
@@ -219,7 +219,7 @@ let _config = {
 		child._act = 0;
 	},
 	_uncache = (animation, child) => {
-		if (!child || child._end > animation._dur || child._start < 0) { // performance optimization: if a child animation is passed in we should only uncache if that child EXTENDS the animation (its end time is beyond the end)
+		if (animation && (!child || child._end > animation._dur || child._start < 0)) { // performance optimization: if a child animation is passed in we should only uncache if that child EXTENDS the animation (its end time is beyond the end)
 			let a = animation;
 			while (a) {
 				a._dirty = 1;
@@ -319,10 +319,10 @@ let _config = {
 				tween.vars.repeatRefresh && tween._initted && tween.invalidate();
 			}
 		}
-		if (!tween._initted && _attemptInitTween(tween, totalTime, force, suppressEvents)) { // if we render the very beginning (time == 0) of a fromTo(), we must force the render (normal tweens wouldn't need to render at a time of 0 when the prevTime was also 0). This is also mandatory to make sure overwriting kicks in immediately.
-			return;
-		}
 		if (ratio !== prevRatio || force || tween._zTime === _tinyNum || (!totalTime && tween._zTime)) {
+			if (!tween._initted && _attemptInitTween(tween, totalTime, force, suppressEvents)) { // if we render the very beginning (time == 0) of a fromTo(), we must force the render (normal tweens wouldn't need to render at a time of 0 when the prevTime was also 0). This is also mandatory to make sure overwriting kicks in immediately.
+				return;
+			}
 			prevIteration = tween._zTime;
 			tween._zTime = totalTime || (suppressEvents ? _tinyNum : 0); // when the playhead arrives at EXACTLY time 0 (right on top) of a zero-duration tween, we need to discern if events are suppressed so that when the playhead moves again (next time), it'll trigger the callback. If events are NOT suppressed, obviously the callback would be triggered in this render. Basically, the callback should fire either when the playhead ARRIVES or LEAVES this exact spot, not both. Imagine doing a timeline.seek(0) and there's a callback that sits at 0. Since events are suppressed on that seek() by default, nothing will fire, but when the playhead moves off of that position, the callback should fire. This behavior is what people intuitively expect.
 			suppressEvents || (suppressEvents = totalTime && !prevIteration); // if it was rendered previously at exactly 0 (_zTime) and now the playhead is moving away, DON'T fire callbacks otherwise they'll seem like duplicates.
@@ -405,7 +405,7 @@ let _config = {
 	},
 	_conditionalReturn = (value, func) => value || value === 0 ? func(value) : func,
 	_clamp = (min, max, value) => value < min ? min : value > max ? max : value,
-	getUnit = value => (value + "").substr((parseFloat(value) + "").length),
+	getUnit = value => (value = (value + "").substr((parseFloat(value) + "").length)) && isNaN(value) ? value : "", // note: protect against padded numbers as strings, like "100.100". That shouldn't return "00" as the unit. If it's numeric, return no unit.
 	clamp = (min, max, value) => _conditionalReturn(value, v => _clamp(min, max, v)),
 	_slice = [].slice,
 	_isArrayLike = (value, nonEmpty) => value && (_isObject(value) && "length" in value && ((!nonEmpty && !value.length) || ((value.length - 1) in value && _isObject(value[0]))) && !value.nodeType && value !== _win),
@@ -1532,7 +1532,7 @@ export class Timeline extends Animation {
 					tDur = this._tDur;
 					if (doesWrap) {
 						this._lock = 2;
-						prevTime = rewinding ? dur + 0.0001 : -0.0001;
+						prevTime = rewinding ? dur : -0.0001;
 						this.render(prevTime, true);
 						this.vars.repeatRefresh && !isYoyo && this.invalidate();
 					}
@@ -1758,6 +1758,7 @@ export class Timeline extends Animation {
 				ease: "none",
 				lazy: false,
 				time: endTime,
+				overwrite: "auto",
 				duration: vars.duration || (Math.abs((endTime - ((startAt && "time" in startAt) ? startAt.time : tl._time)) / tl.timeScale())) || _tinyNum,
 				onStart: () => {
 					tl.pause();
@@ -2078,7 +2079,7 @@ let _addComplexStringPropTween = function(target, prop, start, end, setter, stri
 				target = targets[i];
 				gsData = target._gsap || _harness(targets)[i]._gsap;
 				tween._ptLookup[i] = ptLookup = {};
-				_lazyLookup[gsData.id] && _lazyRender(); //if other tweens of the same target have recently initted but haven't rendered yet, we've got to force the render so that the starting values are correct (imagine populating a timeline with a bunch of sequential tweens and then jumping to the end)
+				_lazyLookup[gsData.id] && _lazyTweens.length && _lazyRender(); //if other tweens of the same target have recently initted but haven't rendered yet, we've got to force the render so that the starting values are correct (imagine populating a timeline with a bunch of sequential tweens and then jumping to the end)
 				index = fullTargets === targets ? i : fullTargets.indexOf(target);
 				if (harness && (plugin = new harness()).init(target, harnessVars || cleanVars, tween, index, fullTargets) !== false) {
 					tween._pt = pt = new PropTween(tween._pt, target, plugin.name, 0, 1, plugin.render, plugin, 0, plugin.priority);
@@ -2797,7 +2798,7 @@ export const gsap = _gsap.registerPlugin({
 	_buildModifierPlugin("snap", snap)
 ) || _gsap; //to prevent the core plugins from being dropped via aggressive tree shaking, we must include them in the variable declaration in this way.
 
-Tween.version = Timeline.version = gsap.version = "3.5.0";
+Tween.version = Timeline.version = gsap.version = "3.5.1";
 _coreReady = 1;
 if (_windowExists()) {
 	_wake();
