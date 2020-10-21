@@ -20,7 +20,7 @@ declare namespace gsap {
   type DOMTarget = Element | string | null | ArrayLike<Element | string | null>;
   type TweenTarget = string | object | null; 
 
-  type Callback = (...args: any[]) => void;
+  type Callback = (...args: any[]) => void | null;
   type CallbackType = "onComplete" | "onInterrupt" | "onRepeat" | "onReverseComplete" | "onStart" | "onUpdate";
   type TickerCallback = (time: number, deltaTime: number, frame: number, elapsed: number) => void;
 
