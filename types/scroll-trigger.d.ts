@@ -385,8 +385,8 @@ declare namespace gsap.plugins {
   interface SnapVars {
     delay?: number;
     duration?: number | RangeObject;
-    ease?: gsap.Ease;
-    snapTo?: number | number[] | "labels" | SnapFunc;
+    ease?: string | EaseFunction;
+    snapTo?: number | number[] | "labels" | "labelsDirectional" | SnapFunc;
   }
 
   interface RangeObject {
@@ -420,7 +420,7 @@ declare namespace gsap.plugins {
     refreshPriority?: number;
     scroller?: string | Element;
     scrub?: boolean | number;
-    snap?: number | number[] | "labels" | SnapFunc | SnapVars;
+    snap?: number | number[] | "labels" | "labelsDirectional" | SnapFunc | SnapVars;
     start?: string | number | StartEndFunc;
     toggleActions?: string;
     toggleClass?: string | ToggleClassVars;

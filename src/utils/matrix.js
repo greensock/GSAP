@@ -1,8 +1,8 @@
 /*!
- * matrix 3.5.1
+ * matrix 3.6.0
  * https://greensock.com
  *
- * Copyright 2008-2020, GreenSock. All rights reserved.
+ * Copyright 2008-2021, GreenSock. All rights reserved.
  * Subject to the terms at https://greensock.com/standard-license or for
  * Club GreenSock members, the agreement issued with that membership.
  * @author: Jack Doyle, jack@greensock.com
@@ -38,10 +38,11 @@ let _doc, _win, _docElement, _body,	_divContainer, _svgContainer, _identityMatri
 		}
 		return doc;
 	},
-	_forceNonZeroScale = e => { // walks up the element's ancestors and finds any that had their scale set to 0 via GSAP, and changes them to 0.0001 to ensure that measurements work
+	_forceNonZeroScale = e => { // walks up the element's ancestors and finds any that had their scale set to 0 via GSAP, and changes them to 0.0001 to ensure that measurements work. Firefox has a bug that causes it to incorrectly report getBoundingClientRect() when scale is 0.
 		let a, cache;
 		while (e && e !== _body) {
 			cache = e._gsap;
+			cache && cache.uncache && cache.get(e, "x"); // force re-parsing of transforms if necessary
 			if (cache && !cache.scaleX && !cache.scaleY && cache.renderTransform) {
 				cache.scaleX = cache.scaleY = 1e-4;
 				cache.renderTransform(1, cache);
@@ -90,7 +91,7 @@ let _doc, _win, _docElement, _body,	_divContainer, _svgContainer, _identityMatri
 				type = svg ? (i ? "rect" : "g") : "div",
 				x = i !== 2 ? 0 : 100,
 				y = i === 3 ? 100 : 0,
-				css = "position:absolute;display:block;pointer-events:none;",
+				css = "position:absolute;display:block;pointer-events:none;margin:0;padding:0;",
 				e = _doc.createElementNS ? _doc.createElementNS(ns.replace(/^https/, "http"), type) : _doc.createElement(type);
 			if (i) {
 				if (!svg) {
@@ -102,9 +103,7 @@ let _doc, _win, _docElement, _body,	_divContainer, _svgContainer, _identityMatri
 					_divContainer.appendChild(e);
 
 				} else {
-					if (!_svgContainer) {
-						_svgContainer = _createSibling(element);
-					}
+					_svgContainer || (_svgContainer = _createSibling(element));
 					e.setAttribute("width", 0.01);
 					e.setAttribute("height", 0.01);
 					e.setAttribute("transform", "translate(" + x + "," + y + ")");
@@ -127,13 +126,12 @@ let _doc, _win, _docElement, _body,	_divContainer, _svgContainer, _identityMatri
 		let svg = _svgOwner(element),
 			isRootSVG = element === svg,
 			siblings = svg ? _svgTemps : _divTemps,
-			container, m, b, x, y;
+			parent = element.parentNode,
+			container, m, b, x, y, cs;
 		if (element === _win) {
 			return element;
 		}
-		if (!siblings.length) {
-			siblings.push(_createSibling(element, 1), _createSibling(element, 2), _createSibling(element, 3));
-		}
+		siblings.length || siblings.push(_createSibling(element, 1), _createSibling(element, 2), _createSibling(element, 3));
 		container = svg ? _svgContainer : _divContainer;
 		if (svg) {
 			b = isRootSVG ? {x:0, y:0} : element.getBBox();
@@ -151,7 +149,7 @@ let _doc, _win, _docElement, _body,	_divContainer, _svgContainer, _identityMatri
 				x = y = 0;
 			}
 			container.setAttribute("transform", "matrix(" + m.a + "," + m.b + "," + m.c + "," + m.d + "," + (m.e + x) + "," + (m.f + y) + ")");
-			(isRootSVG ? svg : element.parentNode).appendChild(container);
+			(isRootSVG ? svg : parent).appendChild(container);
 		} else {
 			x = y = 0;
 			if (_hasOffsetBug) { // some browsers (like Safari) have a bug that causes them to misreport offset values. When an ancestor element has a transform applied, it's supposed to treat it as if it's position: relative (new context). Safari botches this, so we need to find the closest ancestor (between the element and its offsetParent) that has a transform applied and if one is found, grab its offsetTop/Left and subtract them to compensate.
@@ -165,18 +163,26 @@ let _doc, _win, _docElement, _body,	_divContainer, _svgContainer, _identityMatri
 					}
 				}
 			}
+			cs = _win.getComputedStyle(element);
+			if (cs.position !== "absolute") {
+				m = element.offsetParent;
+				while (parent !== m) { // if there's an ancestor element between the element and its offsetParent that's scrolled, we must factor that in.
+					x += parent.scrollLeft || 0;
+					y += parent.scrollTop || 0;
+					parent = parent.parentNode;
+				}
+			}
 			b = container.style;
 			b.top = (element.offsetTop - y) + "px";
 			b.left = (element.offsetLeft - x) + "px";
-			m = _win.getComputedStyle(element);
-			b[_transformProp] = m[_transformProp];
-			b[_transformOriginProp] = m[_transformOriginProp];
-			b.border = m.border;
-			b.borderLeftStyle = m.borderLeftStyle;
-			b.borderTopStyle = m.borderTopStyle;
-			b.borderLeftWidth = m.borderLeftWidth;
-			b.borderTopWidth = m.borderTopWidth;
-			b.position = m.position === "fixed" ? "fixed" : "absolute";
+			b[_transformProp] = cs[_transformProp];
+			b[_transformOriginProp] = cs[_transformOriginProp];
+			// b.border = m.border;
+			// b.borderLeftStyle = m.borderLeftStyle;
+			// b.borderTopStyle = m.borderTopStyle;
+			// b.borderLeftWidth = m.borderLeftWidth;
+			// b.borderTopWidth = m.borderTopWidth;
+			b.position = cs.position === "fixed" ? "fixed" : "absolute";
 			element.parentNode.appendChild(container);
 		}
 		return container;
@@ -246,18 +252,18 @@ export class Matrix2D {
 
 }
 
-//feed in an element and it'll return a 2D matrix (optionally inverted) so that you can translate between coordinate spaces.
+// Feed in an element and it'll return a 2D matrix (optionally inverted) so that you can translate between coordinate spaces.
 // Inverting lets you translate a global point into a local coordinate space. No inverting lets you go the other way.
 // We needed this to work around various browser bugs, like Firefox doesn't accurately report getScreenCTM() when there
 // are transforms applied to ancestor elements.
 // The matrix math to convert any x/y coordinate is as follows, which is wrapped in a convenient apply() method of Matrix2D above:
 //     tx = m.a * x + m.c * y + m.e
 //     ty = m.b * x + m.d * y + m.f
-export function getGlobalMatrix(element, inverse, adjustGOffset) { // adjustGOffset is typically used only when grabbing an element's PARENT's global matrix, and it ignores the x/y offset of any SVG <g> elements because they behave in a special way.
+export function getGlobalMatrix(element, inverse, adjustGOffset, includeScrollInFixed) { // adjustGOffset is typically used only when grabbing an element's PARENT's global matrix, and it ignores the x/y offset of any SVG <g> elements because they behave in a special way.
 	if (!element || !element.parentNode || (_doc || _setDoc(element)).documentElement === element) {
 		return new Matrix2D();
 	}
-	let zeroScales = _forceNonZeroScale(element.parentNode),
+	let zeroScales = _forceNonZeroScale(element),
 		svg = _svgOwner(element),
 		temps = svg ? _svgTemps : _divTemps,
 		container = _placeSiblings(element, adjustGOffset),
@@ -265,7 +271,7 @@ export function getGlobalMatrix(element, inverse, adjustGOffset) { // adjustGOff
 		b2 = temps[1].getBoundingClientRect(),
 		b3 = temps[2].getBoundingClientRect(),
 		parent = container.parentNode,
-		isFixed = _isFixed(element),
+		isFixed = !includeScrollInFixed && _isFixed(element),
 		m = new Matrix2D(
 			(b2.left - b1.left) / 100,
 			(b2.top - b1.top) / 100,
@@ -285,6 +291,8 @@ export function getGlobalMatrix(element, inverse, adjustGOffset) { // adjustGOff
 	}
 	return inverse ? m.inverse() : m;
 }
+
+export { _getDocScrollTop, _getDocScrollLeft, _setDoc };
 
 // export function getMatrix(element) {
 // 	_doc || _setDoc(element);

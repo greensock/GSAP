@@ -1,7 +1,7 @@
 declare namespace gsap {
 
   interface TweenVars {
-    morphSVG?: SVGPathValue;
+    morphSVG?: SVGPathValue | gsap.plugins.MorphSVGVars;
   }
 }
 
@@ -57,6 +57,17 @@ declare namespace gsap.plugins {
   interface MorphSVGPluginClass extends MorphSVGPlugin {
     new(): PluginScope & MorphSVGPlugin;
     prototype: PluginScope & MorphSVGPlugin;
+  }
+
+  interface MorphSVGVars {
+    shape: SVGPathValue;
+    type?: "rotational" | "linear";
+    origin?: string;
+    shapeIndex?: number | "auto" | number[];
+    precompile?: "log" | string[];
+    map?: "size" | "position" | "complexity";
+    render?: Function;
+    updateTarget?: boolean;
   }
 
   const morphSVG: MorphSVGPluginClass;

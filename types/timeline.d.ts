@@ -12,6 +12,7 @@ declare namespace gsap.core {
     labels: Labels;
     smoothChildTiming: boolean;
     vars: TimelineVars;
+    [key: string]: any; // for gsap.registerEffect({... extendTimeline: true})
 
     constructor(vars?: TimelineVars, time?: number);
 

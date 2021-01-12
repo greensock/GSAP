@@ -80,13 +80,13 @@ declare namespace gsap.core {
      * ```
      *
      * @param {CallbackType} type
-     * @param {Callback} callback
+     * @param {Callback | null} callback
      * @param {any[]} [params]
      * @param {object} [scope]
      * @returns {Animation} The animation
      * @memberof Animation
      */
-    eventCallback(type: CallbackType, callback: Callback, params?: any[], scope?: object): this;
+    eventCallback(type: CallbackType, callback: Callback | null, params?: any[], scope?: object): this;
     /**
      * Gets the requested callback function of the animation.
      *

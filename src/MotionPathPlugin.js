@@ -1,8 +1,8 @@
 /*!
- * MotionPathPlugin 3.5.1
+ * MotionPathPlugin 3.6.0
  * https://greensock.com
  *
- * @license Copyright 2008-2020, GreenSock. All rights reserved.
+ * @license Copyright 2008-2021, GreenSock. All rights reserved.
  * Subject to the terms at https://greensock.com/standard-license or for
  * Club GreenSock members, the agreement issued with that membership.
  * @author: Jack Doyle, jack@greensock.com
@@ -12,17 +12,18 @@
 import { getRawPath, cacheRawPathMeasurements, getPositionOnPath, pointsToSegment, flatPointsToSegment, sliceRawPath, stringToRawPath, rawPathToString, transformRawPath, convertToPath } from "./utils/paths.js";
 import { getGlobalMatrix } from "./utils/matrix.js";
 
-let _xProps = ["x","translateX","left","marginLeft"],
-	_yProps = ["y","translateY","top","marginTop"],
+let _xProps = "x,translateX,left,marginLeft,xPercent".split(","),
+	_yProps = "y,translateY,top,marginTop,yPercent".split(","),
 	_DEG2RAD = Math.PI / 180,
 	gsap, PropTween, _getUnit, _toArray,
 	_getGSAP = () => gsap || (typeof(window) !== "undefined" && (gsap = window.gsap) && gsap.registerPlugin && gsap),
 	_populateSegmentFromArray = (segment, values, property, mode) => { //mode: 0 = x but don't fill y yet, 1 = y, 2 = x and fill y with 0.
 		let l = values.length,
 			si = mode === 2 ? 0 : mode,
-			i = 0;
+			i = 0,
+			v;
 		for (; i < l; i++) {
-			segment[si] = parseFloat(values[i][property]);
+			segment[si] = v = parseFloat(values[i][property]);
 			mode === 2 && (segment[si+1] = 0);
 			si += 2;
 		}
@@ -38,18 +39,18 @@ let _xProps = ["x","translateX","left","marginLeft"],
 			y = (segment[i+1] += y);
 		}
 	},
-	_segmentToRawPath = (plugin, segment, target, x, y, slicer, vars) => {
+	_segmentToRawPath = (plugin, segment, target, x, y, slicer, vars, unitX, unitY) => {
 		if (vars.type === "cubic") {
 			segment = [segment];
 		} else {
-			segment.unshift(_getPropNum(target, x, vars.unitX), y ? _getPropNum(target, y, vars.unitY) : 0);
+			segment.unshift(_getPropNum(target, x, unitX), y ? _getPropNum(target, y, unitY) : 0);
 			vars.relative && _relativize(segment);
 			let pointFunc = y ? pointsToSegment : flatPointsToSegment;
 			segment = [pointFunc(segment, vars.curviness)];
 		}
 		segment = slicer(_align(segment, target, vars));
-		_addDimensionalPropTween(plugin, target, x, segment, "x", vars.unitX);
-		y && _addDimensionalPropTween(plugin, target, y, segment, "y", vars.unitY);
+		_addDimensionalPropTween(plugin, target, x, segment, "x", unitX);
+		y && _addDimensionalPropTween(plugin, target, y, segment, "y", unitY);
 		return cacheRawPathMeasurements(segment, vars.resolution || (vars.curviness === 0 ? 20 : 12)); //when curviness is 0, it creates control points right on top of the anchors which makes it more sensitive to resolution, thus we change the default accordingly.
 	},
 	_emptyFunc = v => v,
@@ -139,7 +140,7 @@ let _xProps = ["x","translateX","left","marginLeft"],
 
 
 export const MotionPathPlugin = {
-	version: "3.5.1",
+	version: "3.6.0",
 	name: "motionPath",
 	register(core, Plugin, propTween) {
 		gsap = core;
@@ -156,11 +157,10 @@ export const MotionPathPlugin = {
 			vars = {path:vars};
 		}
 		let rawPaths = [],
-			path = vars.path,
+			{path, autoRotate, unitX, unitY, x, y} = vars,
 			firstObj = path[0],
-			autoRotate = vars.autoRotate,
 			slicer = _sliceModifier(vars.start, ("end" in vars) ? vars.end : 1),
-			rawPath, p, x, y;
+			rawPath, p;
 		this.rawPaths = rawPaths;
 		this.target = target;
 		if ((this.rotate = (autoRotate || autoRotate === 0))) { //get the rotational data FIRST so that the setTransform() method is called in the correct order in the render() loop - rotation gets set last.
@@ -172,19 +172,19 @@ export const MotionPathPlugin = {
 		}
 		if (Array.isArray(path) && !("closed" in path) && typeof(firstObj) !== "number") {
 			for (p in firstObj) {
-				if (~_xProps.indexOf(p)) {
+				if (!x && ~_xProps.indexOf(p)) {
 					x = p;
-				} else if (~_yProps.indexOf(p)) {
+				} else if (!y && ~_yProps.indexOf(p)) {
 					y = p;
 				}
 			}
 			if (x && y) { //correlated values
-				rawPaths.push(_segmentToRawPath(this, _populateSegmentFromArray(_populateSegmentFromArray([], path, x, 0), path, y, 1), target, vars.x || x, vars.y || y, slicer, vars));
+				rawPaths.push(_segmentToRawPath(this, _populateSegmentFromArray(_populateSegmentFromArray([], path, x, 0), path, y, 1), target, x, y, slicer, vars, unitX || _getUnit(path[0][x]), unitY || _getUnit(path[0][y])));
 			} else {
 				x = y = 0;
 			}
 			for (p in firstObj) {
-				p !== x && p !== y && rawPaths.push(_segmentToRawPath(this, _populateSegmentFromArray([], path, p, 2), target, p, 0, slicer, vars));
+				p !== x && p !== y && rawPaths.push(_segmentToRawPath(this, _populateSegmentFromArray([], path, p, 2), target, p, 0, slicer, vars, _getUnit(path[0][p])));
 			}
 		} else {
 			rawPath = slicer(_align(getRawPath(vars.path), target, vars));

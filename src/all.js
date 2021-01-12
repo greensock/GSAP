@@ -24,6 +24,7 @@ export * from "./TextPlugin.js";
 //export * from "./ScrambleTextPlugin.js";
 //export * from "./CustomBounce.js";
 //export * from "./CustomWiggle.js";
+//export * from "./Flip.js";
 //export * from "./GSDevTools.js";
 //export * from "./InertiaPlugin.js";
 //export * from "./MorphSVGPlugin.js";

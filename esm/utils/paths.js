@@ -1,8 +1,8 @@
 /*!
- * paths 3.5.1
+ * paths 3.6.0
  * https://greensock.com
  *
- * Copyright 2008-2020, GreenSock. All rights reserved.
+ * Copyright 2008-2021, GreenSock. All rights reserved.
  * Subject to the terms at https://greensock.com/standard-license or for
  * Club GreenSock members, the agreement issued with that membership.
  * @author: Jack Doyle, jack@greensock.com
@@ -40,6 +40,9 @@ var _svgPathExp = /[achlmqstvz]|(-?\d*\.?\d*(?:e[\-+]?\d+)?)[0-9]/ig,
 _round = function _round(value) {
   return Math.round(value * _roundingNum) / _roundingNum || 0;
 },
+    _roundPrecise = function _roundPrecise(value) {
+  return Math.round(value * 1e10) / 1e10 || 0;
+},
     _splitSegment = function _splitSegment(rawPath, segIndex, i, t) {
   var segment = rawPath[segIndex],
       shift = t === 1 ? 6 : subdivideSegment(segment, i, t);
@@ -52,15 +55,10 @@ _round = function _round(value) {
 },
     _reverseRawPath = function _reverseRawPath(rawPath, skipOuter) {
   var i = rawPath.length;
-
-  if (!skipOuter) {
-    rawPath.reverse();
-  }
+  skipOuter || rawPath.reverse();
 
   while (i--) {
-    if (!rawPath[i].reversed) {
-      reverseSegment(rawPath[i]);
-    }
+    rawPath[i].reversed || reverseSegment(rawPath[i]);
   }
 },
     _copyMetaData = function _copyMetaData(source, copy) {
@@ -72,7 +70,7 @@ _round = function _round(value) {
     copy.lookup = source.lookup.slice(0);
     copy.minLength = source.minLength;
     copy.resolution = source.resolution;
-  } else {
+  } else if (source.totalPoints) {
     //rawPath
     copy.totalPoints = source.totalPoints;
   }
@@ -85,7 +83,7 @@ _appendOrMerge = function _appendOrMerge(rawPath, segment) {
       prevSeg = rawPath[index - 1] || [],
       l = prevSeg.length;
 
-  if (segment[0] === prevSeg[l - 2] && segment[1] === prevSeg[l - 1]) {
+  if (index && segment[0] === prevSeg[l - 2] && segment[1] === prevSeg[l - 1]) {
     segment = prevSeg.concat(segment.slice(2));
     index--;
   }
@@ -298,30 +296,29 @@ function getRotationAtBezierT(segment, i, t) {
 }
 
 export function sliceRawPath(rawPath, start, end) {
-  if (_isUndefined(end)) {
-    end = 1;
-  }
+  end = _isUndefined(end) ? 1 : _roundPrecise(end) || 0; // we must round to avoid issues like 4.15 / 8 = 0.8300000000000001 instead of 0.83 or 2.8 / 5 = 0.5599999999999999 instead of 0.56 and if someone is doing a loop like start: 2.8 / 0.5, end: 2.8 / 0.5 + 1.
 
-  start = start || 0;
-  var reverse = start > end,
-      loops = Math.max(0, ~~(_abs(end - start) - 1e-8));
+  start = _roundPrecise(start) || 0;
+  var loops = Math.max(0, ~~(_abs(end - start) - 1e-8)),
+      path = copyRawPath(rawPath);
 
-  if (reverse) {
-    reverse = end;
-    end = start;
-    start = reverse;
-    reverse = 1;
-    loops -= loops ? 1 : 0;
+  if (start > end) {
+    start = 1 - start;
+    end = 1 - end;
+
+    _reverseRawPath(path);
+
+    path.totalLength = 0;
   }
 
   if (start < 0 || end < 0) {
-    var offset = ~~Math.min(start, end) + 1;
+    var offset = Math.abs(~~Math.min(start, end)) + 1;
     start += offset;
     end += offset;
   }
 
-  var path = copyRawPath(rawPath.totalLength ? rawPath : cacheRawPathMeasurements(rawPath)),
-      wrap = end > 1,
+  path.totalLength || cacheRawPathMeasurements(path);
+  var wrap = end > 1,
       s = getProgressData(path, start, _temp, true),
       e = getProgressData(path, end, _temp2),
       eSeg = e.segment,
@@ -332,7 +329,7 @@ export function sliceRawPath(rawPath, start, end) {
       si = s.i,
       sameSegment = sSegIndex === eSegIndex,
       sameBezier = ei === si && sameSegment,
-      invertedOrder = sameSegment && si > ei || sameBezier && s.t > e.t,
+      wrapsBehind,
       sShift,
       eShift,
       i,
@@ -342,55 +339,43 @@ export function sliceRawPath(rawPath, start, end) {
       j;
 
   if (wrap || loops) {
+    wrapsBehind = eSegIndex < sSegIndex || sameSegment && ei < si || sameBezier && e.t < s.t;
+
     if (_splitSegment(path, sSegIndex, si, s.t)) {
-      sShift = 1;
       sSegIndex++;
 
-      if (sameBezier) {
-        if (invertedOrder) {
-          e.t /= s.t;
-        } else {
-          e.t = (e.t - s.t) / (1 - s.t);
-          eSegIndex++;
-          ei = 0;
-        }
-      } else if (sSegIndex <= eSegIndex + 1 && !invertedOrder) {
+      if (!wrapsBehind) {
         eSegIndex++;
 
-        if (sameSegment) {
+        if (sameBezier) {
+          e.t = (e.t - s.t) / (1 - s.t);
+          ei = 0;
+        } else if (sameSegment) {
           ei -= si;
         }
       }
     }
 
-    if (!e.t) {
+    if (1 - (end - start) < 1e-5) {
+      eSegIndex = sSegIndex - 1;
+    } else if (!e.t && eSegIndex) {
       eSegIndex--;
-      reverse && sSegIndex--;
-    } else if (_splitSegment(path, eSegIndex, ei, e.t)) {
-      invertedOrder && sShift && sSegIndex++;
-      reverse && eSegIndex++;
+    } else if (_splitSegment(path, eSegIndex, ei, e.t) && wrapsBehind) {
+      sSegIndex++;
+    }
+
+    if (s.t === 1) {
+      sSegIndex = (sSegIndex + 1) % path.length;
     }
 
     copy = [];
     totalSegments = path.length;
     l = 1 + totalSegments * loops;
     j = sSegIndex;
+    l += (totalSegments - sSegIndex + eSegIndex) % totalSegments;
 
-    if (reverse) {
-      eSegIndex = (eSegIndex || totalSegments) - 1;
-      l += (totalSegments - eSegIndex + sSegIndex) % totalSegments;
-
-      for (i = 0; i < l; i++) {
-        _appendOrMerge(copy, path[j]);
-
-        j = (j || totalSegments) - 1;
-      }
-    } else {
-      l += (totalSegments - sSegIndex + eSegIndex) % totalSegments;
-
-      for (i = 0; i < l; i++) {
-        _appendOrMerge(copy, path[j++ % totalSegments]);
-      }
+    for (i = 0; i < l; i++) {
+      _appendOrMerge(copy, path[j++ % totalSegments]);
     }
 
     path = copy;
@@ -399,24 +384,14 @@ export function sliceRawPath(rawPath, start, end) {
 
     if (start !== end) {
       sShift = subdivideSegment(sSeg, si, sameBezier ? s.t / e.t : s.t);
-
-      if (sameSegment) {
-        eShift += sShift;
-      }
-
+      sameSegment && (eShift += sShift);
       eSeg.splice(ei + eShift + 2);
-
-      if (sShift || si) {
-        sSeg.splice(0, si + sShift);
-      }
-
+      (sShift || si) && sSeg.splice(0, si + sShift);
       i = path.length;
 
       while (i--) {
         //chop off any extra segments
-        if (i < sSegIndex || i > eSegIndex) {
-          path.splice(i, 1);
-        }
+        (i < sSegIndex || i > eSegIndex) && path.splice(i, 1);
       }
     } else {
       eSeg.angle = getRotationAtBezierT(eSeg, ei + eShift, 0); //record the value before we chop because it'll be impossible to determine the angle after its length is 0!
@@ -430,7 +405,6 @@ export function sliceRawPath(rawPath, start, end) {
     }
   }
 
-  reverse && _reverseRawPath(path, wrap || loops);
   path.totalLength = 0;
   return path;
 } //measures a Segment according to its resolution (so if segment.resolution is 6, for example, it'll take 6 samples equally across each Bezier) and create/populate a "samples" Array that has the length up to each of those sample points (always increasing from the start) as well as a "lookup" array that's broken up according to the smallest distance between 2 samples. This gives us a very fast way of looking up a progress position rather than looping through all the points/Beziers. You can optionally have it only measure a subset, starting at startIndex and going for a specific number of beziers (remember, there are 3 x/y pairs each, for a total of 6 elements for each Bezier). It will also populate a "totalLength" property, but that's not generally super accurate because by default it'll only take 6 samples per Bezier. But for performance reasons, it's perfectly adequate for measuring progress values along the path. If you need a more accurate totalLength, either increase the resolution or use the more advanced bezierToPoints() method which keeps adding points until they don't deviate by more than a certain precision value.
@@ -599,43 +573,53 @@ function getProgressData(rawPath, progress, decoratee, pushToNextIfAtEnd) {
       i,
       t;
 
-  if (rawPath.length > 1) {
-    //speed optimization: most of the time, there's only one segment so skip the recursion.
-    length = rawPath.totalLength * progress;
-    max = i = 0;
+  if (!progress) {
+    t = i = segIndex = 0;
+    segment = rawPath[0];
+  } else if (progress === 1) {
+    t = 1;
+    segIndex = rawPath.length - 1;
+    segment = rawPath[segIndex];
+    i = segment.length - 8;
+  } else {
+    if (rawPath.length > 1) {
+      //speed optimization: most of the time, there's only one segment so skip the recursion.
+      length = rawPath.totalLength * progress;
+      max = i = 0;
 
-    while ((max += rawPath[i++].totalLength) < length) {
-      segIndex = i;
+      while ((max += rawPath[i++].totalLength) < length) {
+        segIndex = i;
+      }
+
+      segment = rawPath[segIndex];
+      min = max - segment.totalLength;
+      progress = (length - min) / (max - min) || 0;
     }
 
-    segment = rawPath[segIndex];
-    min = max - segment.totalLength;
-    progress = (length - min) / (max - min) || 0;
-  }
+    samples = segment.samples;
+    resolution = segment.resolution; //how many samples per cubic bezier chunk
 
-  samples = segment.samples;
-  resolution = segment.resolution; //how many samples per cubic bezier chunk
+    length = segment.totalLength * progress;
+    i = segment.lookup[~~(length / segment.minLength)] || 0;
+    min = i ? samples[i - 1] : 0;
+    max = samples[i];
 
-  length = segment.totalLength * progress;
-  i = segment.lookup[~~(length / segment.minLength)] || 0;
-  min = i ? samples[i - 1] : 0;
-  max = samples[i];
+    if (max < length) {
+      min = max;
+      max = samples[++i];
+    }
 
-  if (max < length) {
-    min = max;
-    max = samples[++i];
-  }
+    t = 1 / resolution * ((length - min) / (max - min) + i % resolution);
+    i = ~~(i / resolution) * 6;
 
-  t = 1 / resolution * ((length - min) / (max - min) + i % resolution);
-  i = ~~(i / resolution) * 6;
-
-  if (pushToNextIfAtEnd && t === 1) {
-    if (i + 6 < segment.length) {
-      i += 6;
-      t = 0;
-    } else if (segIndex + 1 < rawPath.length) {
-      i = t = 0;
-      segment = rawPath[++segIndex];
+    if (pushToNextIfAtEnd && t === 1) {
+      if (i + 6 < segment.length) {
+        i += 6;
+        t = 0;
+      } else if (segIndex + 1 < rawPath.length) {
+        i = t = 0;
+        segment = rawPath[++segIndex];
+      }
     }
   }
 
@@ -680,7 +664,7 @@ export function getPositionOnPath(rawPath, progress, includeAngle, point) {
   samples = segment.samples;
   resolution = segment.resolution;
   length = segment.totalLength * progress;
-  i = segment.lookup[~~(length / segment.minLength)] || 0;
+  i = segment.lookup[progress < 1 ? ~~(length / segment.minLength) : segment.lookup.length - 1] || 0;
   min = i ? samples[i - 1] : 0;
   max = samples[i];
 
@@ -1092,6 +1076,8 @@ export function flatPointsToSegment(points, curviness) {
 
 export function pointsToSegment(points, curviness, cornerThreshold) {
   //points = simplifyPoints(points, tolerance);
+  _abs(points[0] - points[2]) < 1e-4 && _abs(points[1] - points[3]) < 1e-4 && (points = points.slice(2)); // if the first two points are super close, dump the first one.
+
   var l = points.length - 2,
       x = +points[0],
       y = +points[1],
@@ -1140,6 +1126,11 @@ export function pointsToSegment(points, curviness, cornerThreshold) {
     y = nextY;
     nextX = +points[i + 2];
     nextY = +points[i + 3];
+
+    if (x === nextX && y === nextY) {
+      continue;
+    }
+
     dx1 = dx2;
     dy1 = dy2;
     dx2 = nextX - x;
@@ -1176,7 +1167,7 @@ export function pointsToSegment(points, curviness, cornerThreshold) {
     }
   }
 
-  segment.push(_round(nextX), _round(nextY), _round(nextX), _round(nextY));
+  x !== nextX || y !== nextY || segment.length < 4 ? segment.push(_round(nextX), _round(nextY), _round(nextX), _round(nextY)) : segment.length -= 2;
 
   if (closed) {
     segment.splice(0, 6);
@@ -1226,15 +1217,9 @@ function simplifyStep(points, first, last, tolerance, simplified) {
   }
 
   if (maxSqDist > tolerance) {
-    if (index - first > 2) {
-      simplifyStep(points, first, index, tolerance, simplified);
-    }
-
+    index - first > 2 && simplifyStep(points, first, index, tolerance, simplified);
     simplified.push(points[index], points[index + 1]);
-
-    if (last - index > 2) {
-      simplifyStep(points, index, last, tolerance, simplified);
-    }
+    last - index > 2 && simplifyStep(points, index, last, tolerance, simplified);
   }
 } //points is an array of x/y values like [x, y, x, y, x, y]
 

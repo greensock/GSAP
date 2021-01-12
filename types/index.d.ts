@@ -1,6 +1,7 @@
 // Type definitions for gsap 3.0
 // Project: https://greensock.com/
-// Definitions by: Blake Bowen <https://github.com/OSUblake>
+// Definitions by: Jack Doyle <https://github.com/jackdoyle>
+//                 Blake Bowen <https://github.com/OSUblake>
 //                 Pedro Tavares <https://github.com/dipscom>
 //                 Zach Saucier <https://github.com/ZachSaucier>
 // Definitions: https://github.com/greensock/GSAP
@@ -15,6 +16,7 @@
 /// <reference path="draw-svg-plugin.d.ts"/>
 /// <reference path="ease.d.ts"/>
 /// <reference path="easel-plugin.d.ts"/>
+/// <reference path="flip.d.ts"/>
 /// <reference path="gs-dev-tools.d.ts"/>
 /// <reference path="gsap-plugins.d.ts"/>
 /// <reference path="gsap-utils.d.ts"/>

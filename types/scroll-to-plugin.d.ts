@@ -12,7 +12,7 @@ declare namespace ScrollToPlugin {
 declare namespace gsap {
 
   interface TweenVars {
-    scrollTo?: number | string | Element | ScrollToPlugin.Vars;
+    scrollTo?: number | string | Element | Function | ScrollToPlugin.Vars;
   }
 }
 

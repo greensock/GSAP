@@ -2,7 +2,7 @@
 
 #### Professional-grade animation for the modern web
 
-GSAP is a JavaScript library for building high-performance animations that work in **every** major browser. Animate CSS, SVG, canvas, React, Vue, WebGL, colors, strings, motion paths, generic objects...anything JavaScript can touch! The <a href="https://greensock.com/scrolltrigger">ScrollTrigger</a> plugin lets you create jaw-dropping scroll-based animations with minimal code. No other library delivers such advanced sequencing, reliability, and tight control while solving real-world problems on millions of sites. GSAP works around countless browser inconsistencies; your animations **just work**. At its core, GSAP is a high-speed property manipulator, updating values over time with extreme accuracy. It's up to 20x faster than jQuery! See https://greensock.com/why-gsap/ for what makes GSAP so special.
+GSAP is a robust JavaScript toolset that turns developers into animation superheroes. Build high-performance animations that work in **every** major browser. Animate CSS, SVG, canvas, React, Vue, WebGL, colors, strings, motion paths, generic objects...anything JavaScript can touch! GSAP's <a href="https://greensock.com/scrolltrigger">ScrollTrigger</a> plugin lets you create jaw-dropping scroll-based animations with minimal code. No other library delivers such advanced sequencing, reliability, and tight control while solving real-world problems on millions of sites. GSAP works around countless browser inconsistencies; your animations **just work**. At its core, GSAP is a high-speed property manipulator, updating values over time with extreme accuracy. It's up to 20x faster than jQuery! See https://greensock.com/why-gsap/ for what makes GSAP so special.
 
 ### What is GSAP? (video)
 
@@ -18,7 +18,7 @@ View the <a href="https://greensock.com/docs">full documentation here</a>, inclu
 
 ### CDN
 ```html
-<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.5.1/gsap.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.6.0/gsap.min.js"></script>
 ```
 Click the green "Get GSAP Now" button at <a href="https://greensock.com/?download=GSAP-JS">greensock.com</a> for more options and installation instructions, including CDN URLs for various plugins. 
 
@@ -56,7 +56,7 @@ Download <a href="https://greensock.com/club/">Club GreenSock</a> members-only p
 
 ### ScrollTrigger
 
-If you're looking to do scroll-driven animations, GSAP's <a href="https://greensock.com/scrolltrigger">ScrollTrigger</a> plugin is a great option. 
+If you're looking to do scroll-driven animations, GSAP's <a href="https://greensock.com/scrolltrigger">ScrollTrigger</a> plugin is the new standard. 
 
 [![ScrollTrigger](http://greensock.com/_img/github/thumb-scrolltrigger-small.gif)](http://greensock.com/scrolltrigger)
 
@@ -96,4 +96,4 @@ Sign up for a free GreenSock account to gain access to <a href="https://greensoc
 ### License
 GreenSock's standard "no charge" license can be viewed at <a href="https://greensock.com/standard-license">http://greensock.com/standard-license</a>. <a href="https://greensock.com/club/">Club GreenSock</a> members are granted additional rights. See <a href="https://greensock.com/licensing/">http://greensock.com/licensing/</a> for details. Why doesn't GreenSock use an MIT (or similar) open source license, and why is that a **good** thing? This article explains it all: <a href="https://greensock.com/why-license/" target="_blank">http://greensock.com/why-license/</a>
 
-Copyright (c) 2008-2020, GreenSock. All rights reserved. 
+Copyright (c) 2008-2021, GreenSock. All rights reserved. 

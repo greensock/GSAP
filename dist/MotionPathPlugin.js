@@ -34,6 +34,9 @@
 	    _round = function _round(value) {
 	  return Math.round(value * _roundingNum) / _roundingNum || 0;
 	},
+	    _roundPrecise = function _roundPrecise(value) {
+	  return Math.round(value * 1e10) / 1e10 || 0;
+	},
 	    _splitSegment = function _splitSegment(rawPath, segIndex, i, t) {
 	  var segment = rawPath[segIndex],
 	      shift = t === 1 ? 6 : subdivideSegment(segment, i, t);
@@ -46,15 +49,10 @@
 	},
 	    _reverseRawPath = function _reverseRawPath(rawPath, skipOuter) {
 	  var i = rawPath.length;
-
-	  if (!skipOuter) {
-	    rawPath.reverse();
-	  }
+	  skipOuter || rawPath.reverse();
 
 	  while (i--) {
-	    if (!rawPath[i].reversed) {
-	      reverseSegment(rawPath[i]);
-	    }
+	    rawPath[i].reversed || reverseSegment(rawPath[i]);
 	  }
 	},
 	    _copyMetaData = function _copyMetaData(source, copy) {
@@ -65,7 +63,7 @@
 	    copy.lookup = source.lookup.slice(0);
 	    copy.minLength = source.minLength;
 	    copy.resolution = source.resolution;
-	  } else {
+	  } else if (source.totalPoints) {
 	    copy.totalPoints = source.totalPoints;
 	  }
 
@@ -76,7 +74,7 @@
 	      prevSeg = rawPath[index - 1] || [],
 	      l = prevSeg.length;
 
-	  if (segment[0] === prevSeg[l - 2] && segment[1] === prevSeg[l - 1]) {
+	  if (index && segment[0] === prevSeg[l - 2] && segment[1] === prevSeg[l - 1]) {
 	    segment = prevSeg.concat(segment.slice(2));
 	    index--;
 	  }
@@ -271,30 +269,28 @@
 	}
 
 	function sliceRawPath(rawPath, start, end) {
-	  if (_isUndefined(end)) {
-	    end = 1;
-	  }
+	  end = _isUndefined(end) ? 1 : _roundPrecise(end) || 0;
+	  start = _roundPrecise(start) || 0;
+	  var loops = Math.max(0, ~~(_abs(end - start) - 1e-8)),
+	      path = copyRawPath(rawPath);
 
-	  start = start || 0;
-	  var reverse = start > end,
-	      loops = Math.max(0, ~~(_abs(end - start) - 1e-8));
+	  if (start > end) {
+	    start = 1 - start;
+	    end = 1 - end;
 
-	  if (reverse) {
-	    reverse = end;
-	    end = start;
-	    start = reverse;
-	    reverse = 1;
-	    loops -= loops ? 1 : 0;
+	    _reverseRawPath(path);
+
+	    path.totalLength = 0;
 	  }
 
 	  if (start < 0 || end < 0) {
-	    var offset = ~~Math.min(start, end) + 1;
+	    var offset = Math.abs(~~Math.min(start, end)) + 1;
 	    start += offset;
 	    end += offset;
 	  }
 
-	  var path = copyRawPath(rawPath.totalLength ? rawPath : cacheRawPathMeasurements(rawPath)),
-	      wrap = end > 1,
+	  path.totalLength || cacheRawPathMeasurements(path);
+	  var wrap = end > 1,
 	      s = getProgressData(path, start, _temp, true),
 	      e = getProgressData(path, end, _temp2),
 	      eSeg = e.segment,
@@ -305,7 +301,7 @@
 	      si = s.i,
 	      sameSegment = sSegIndex === eSegIndex,
 	      sameBezier = ei === si && sameSegment,
-	      invertedOrder = sameSegment && si > ei || sameBezier && s.t > e.t,
+	      wrapsBehind,
 	      sShift,
 	      eShift,
 	      i,
@@ -315,55 +311,43 @@
 	      j;
 
 	  if (wrap || loops) {
+	    wrapsBehind = eSegIndex < sSegIndex || sameSegment && ei < si || sameBezier && e.t < s.t;
+
 	    if (_splitSegment(path, sSegIndex, si, s.t)) {
-	      sShift = 1;
 	      sSegIndex++;
 
-	      if (sameBezier) {
-	        if (invertedOrder) {
-	          e.t /= s.t;
-	        } else {
-	          e.t = (e.t - s.t) / (1 - s.t);
-	          eSegIndex++;
-	          ei = 0;
-	        }
-	      } else if (sSegIndex <= eSegIndex + 1 && !invertedOrder) {
+	      if (!wrapsBehind) {
 	        eSegIndex++;
 
-	        if (sameSegment) {
+	        if (sameBezier) {
+	          e.t = (e.t - s.t) / (1 - s.t);
+	          ei = 0;
+	        } else if (sameSegment) {
 	          ei -= si;
 	        }
 	      }
 	    }
 
-	    if (!e.t) {
+	    if (1 - (end - start) < 1e-5) {
+	      eSegIndex = sSegIndex - 1;
+	    } else if (!e.t && eSegIndex) {
 	      eSegIndex--;
-	      reverse && sSegIndex--;
-	    } else if (_splitSegment(path, eSegIndex, ei, e.t)) {
-	      invertedOrder && sShift && sSegIndex++;
-	      reverse && eSegIndex++;
+	    } else if (_splitSegment(path, eSegIndex, ei, e.t) && wrapsBehind) {
+	      sSegIndex++;
+	    }
+
+	    if (s.t === 1) {
+	      sSegIndex = (sSegIndex + 1) % path.length;
 	    }
 
 	    copy = [];
 	    totalSegments = path.length;
 	    l = 1 + totalSegments * loops;
 	    j = sSegIndex;
+	    l += (totalSegments - sSegIndex + eSegIndex) % totalSegments;
 
-	    if (reverse) {
-	      eSegIndex = (eSegIndex || totalSegments) - 1;
-	      l += (totalSegments - eSegIndex + sSegIndex) % totalSegments;
-
-	      for (i = 0; i < l; i++) {
-	        _appendOrMerge(copy, path[j]);
-
-	        j = (j || totalSegments) - 1;
-	      }
-	    } else {
-	      l += (totalSegments - sSegIndex + eSegIndex) % totalSegments;
-
-	      for (i = 0; i < l; i++) {
-	        _appendOrMerge(copy, path[j++ % totalSegments]);
-	      }
+	    for (i = 0; i < l; i++) {
+	      _appendOrMerge(copy, path[j++ % totalSegments]);
 	    }
 
 	    path = copy;
@@ -372,23 +356,13 @@
 
 	    if (start !== end) {
 	      sShift = subdivideSegment(sSeg, si, sameBezier ? s.t / e.t : s.t);
-
-	      if (sameSegment) {
-	        eShift += sShift;
-	      }
-
+	      sameSegment && (eShift += sShift);
 	      eSeg.splice(ei + eShift + 2);
-
-	      if (sShift || si) {
-	        sSeg.splice(0, si + sShift);
-	      }
-
+	      (sShift || si) && sSeg.splice(0, si + sShift);
 	      i = path.length;
 
 	      while (i--) {
-	        if (i < sSegIndex || i > eSegIndex) {
-	          path.splice(i, 1);
-	        }
+	        (i < sSegIndex || i > eSegIndex) && path.splice(i, 1);
 	      }
 	    } else {
 	      eSeg.angle = getRotationAtBezierT(eSeg, ei + eShift, 0);
@@ -401,7 +375,6 @@
 	    }
 	  }
 
-	  reverse && _reverseRawPath(path, wrap || loops);
 	  path.totalLength = 0;
 	  return path;
 	}
@@ -562,41 +535,51 @@
 	      i,
 	      t;
 
-	  if (rawPath.length > 1) {
-	    length = rawPath.totalLength * progress;
-	    max = i = 0;
+	  if (!progress) {
+	    t = i = segIndex = 0;
+	    segment = rawPath[0];
+	  } else if (progress === 1) {
+	    t = 1;
+	    segIndex = rawPath.length - 1;
+	    segment = rawPath[segIndex];
+	    i = segment.length - 8;
+	  } else {
+	    if (rawPath.length > 1) {
+	      length = rawPath.totalLength * progress;
+	      max = i = 0;
 
-	    while ((max += rawPath[i++].totalLength) < length) {
-	      segIndex = i;
+	      while ((max += rawPath[i++].totalLength) < length) {
+	        segIndex = i;
+	      }
+
+	      segment = rawPath[segIndex];
+	      min = max - segment.totalLength;
+	      progress = (length - min) / (max - min) || 0;
 	    }
 
-	    segment = rawPath[segIndex];
-	    min = max - segment.totalLength;
-	    progress = (length - min) / (max - min) || 0;
-	  }
+	    samples = segment.samples;
+	    resolution = segment.resolution;
+	    length = segment.totalLength * progress;
+	    i = segment.lookup[~~(length / segment.minLength)] || 0;
+	    min = i ? samples[i - 1] : 0;
+	    max = samples[i];
 
-	  samples = segment.samples;
-	  resolution = segment.resolution;
-	  length = segment.totalLength * progress;
-	  i = segment.lookup[~~(length / segment.minLength)] || 0;
-	  min = i ? samples[i - 1] : 0;
-	  max = samples[i];
+	    if (max < length) {
+	      min = max;
+	      max = samples[++i];
+	    }
 
-	  if (max < length) {
-	    min = max;
-	    max = samples[++i];
-	  }
+	    t = 1 / resolution * ((length - min) / (max - min) + i % resolution);
+	    i = ~~(i / resolution) * 6;
 
-	  t = 1 / resolution * ((length - min) / (max - min) + i % resolution);
-	  i = ~~(i / resolution) * 6;
-
-	  if (pushToNextIfAtEnd && t === 1) {
-	    if (i + 6 < segment.length) {
-	      i += 6;
-	      t = 0;
-	    } else if (segIndex + 1 < rawPath.length) {
-	      i = t = 0;
-	      segment = rawPath[++segIndex];
+	    if (pushToNextIfAtEnd && t === 1) {
+	      if (i + 6 < segment.length) {
+	        i += 6;
+	        t = 0;
+	      } else if (segIndex + 1 < rawPath.length) {
+	        i = t = 0;
+	        segment = rawPath[++segIndex];
+	      }
 	    }
 	  }
 
@@ -640,7 +623,7 @@
 	  samples = segment.samples;
 	  resolution = segment.resolution;
 	  length = segment.totalLength * progress;
-	  i = segment.lookup[~~(length / segment.minLength)] || 0;
+	  i = segment.lookup[progress < 1 ? ~~(length / segment.minLength) : segment.lookup.length - 1] || 0;
 	  min = i ? samples[i - 1] : 0;
 	  max = samples[i];
 
@@ -986,6 +969,7 @@
 	  return segment;
 	}
 	function pointsToSegment(points, curviness, cornerThreshold) {
+	  _abs(points[0] - points[2]) < 1e-4 && _abs(points[1] - points[3]) < 1e-4 && (points = points.slice(2));
 	  var l = points.length - 2,
 	      x = +points[0],
 	      y = +points[1],
@@ -1033,6 +1017,11 @@
 	    y = nextY;
 	    nextX = +points[i + 2];
 	    nextY = +points[i + 3];
+
+	    if (x === nextX && y === nextY) {
+	      continue;
+	    }
+
 	    dx1 = dx2;
 	    dy1 = dy2;
 	    dx2 = nextX - x;
@@ -1060,7 +1049,7 @@
 	    }
 	  }
 
-	  segment.push(_round(nextX), _round(nextY), _round(nextX), _round(nextY));
+	  x !== nextX || y !== nextY || segment.length < 4 ? segment.push(_round(nextX), _round(nextY), _round(nextX), _round(nextY)) : segment.length -= 2;
 
 	  if (closed) {
 	    segment.splice(0, 6);
@@ -1145,6 +1134,7 @@
 
 	  while (e && e !== _body) {
 	    cache = e._gsap;
+	    cache && cache.uncache && cache.get(e, "x");
 
 	    if (cache && !cache.scaleX && !cache.scaleY && cache.renderTransform) {
 	      cache.scaleX = cache.scaleY = 1e-4;
@@ -1186,7 +1176,7 @@
 	        type = svg ? i ? "rect" : "g" : "div",
 	        x = i !== 2 ? 0 : 100,
 	        y = i === 3 ? 100 : 0,
-	        css = "position:absolute;display:block;pointer-events:none;",
+	        css = "position:absolute;display:block;pointer-events:none;margin:0;padding:0;",
 	        e = _doc.createElementNS ? _doc.createElementNS(ns.replace(/^https/, "http"), type) : _doc.createElement(type);
 
 	    if (i) {
@@ -1200,10 +1190,7 @@
 
 	        _divContainer.appendChild(e);
 	      } else {
-	        if (!_svgContainer) {
-	          _svgContainer = _createSibling(element);
-	        }
-
+	        _svgContainer || (_svgContainer = _createSibling(element));
 	        e.setAttribute("width", 0.01);
 	        e.setAttribute("height", 0.01);
 	        e.setAttribute("transform", "translate(" + x + "," + y + ")");
@@ -1231,20 +1218,19 @@
 	  var svg = _svgOwner(element),
 	      isRootSVG = element === svg,
 	      siblings = svg ? _svgTemps : _divTemps,
+	      parent = element.parentNode,
 	      container,
 	      m,
 	      b,
 	      x,
-	      y;
+	      y,
+	      cs;
 
 	  if (element === _win) {
 	    return element;
 	  }
 
-	  if (!siblings.length) {
-	    siblings.push(_createSibling(element, 1), _createSibling(element, 2), _createSibling(element, 3));
-	  }
-
+	  siblings.length || siblings.push(_createSibling(element, 1), _createSibling(element, 2), _createSibling(element, 3));
 	  container = svg ? _svgContainer : _divContainer;
 
 	  if (svg) {
@@ -1269,7 +1255,7 @@
 	    }
 
 	    container.setAttribute("transform", "matrix(" + m.a + "," + m.b + "," + m.c + "," + m.d + "," + (m.e + x) + "," + (m.f + y) + ")");
-	    (isRootSVG ? svg : element.parentNode).appendChild(container);
+	    (isRootSVG ? svg : parent).appendChild(container);
 	  } else {
 	    x = y = 0;
 
@@ -1286,18 +1272,24 @@
 	      }
 	    }
 
+	    cs = _win.getComputedStyle(element);
+
+	    if (cs.position !== "absolute") {
+	      m = element.offsetParent;
+
+	      while (parent !== m) {
+	        x += parent.scrollLeft || 0;
+	        y += parent.scrollTop || 0;
+	        parent = parent.parentNode;
+	      }
+	    }
+
 	    b = container.style;
 	    b.top = element.offsetTop - y + "px";
 	    b.left = element.offsetLeft - x + "px";
-	    m = _win.getComputedStyle(element);
-	    b[_transformProp] = m[_transformProp];
-	    b[_transformOriginProp] = m[_transformOriginProp];
-	    b.border = m.border;
-	    b.borderLeftStyle = m.borderLeftStyle;
-	    b.borderTopStyle = m.borderTopStyle;
-	    b.borderLeftWidth = m.borderLeftWidth;
-	    b.borderTopWidth = m.borderTopWidth;
-	    b.position = m.position === "fixed" ? "fixed" : "absolute";
+	    b[_transformProp] = cs[_transformProp];
+	    b[_transformOriginProp] = cs[_transformOriginProp];
+	    b.position = cs.position === "fixed" ? "fixed" : "absolute";
 	    element.parentNode.appendChild(container);
 	  }
 
@@ -1405,12 +1397,12 @@
 
 	  return Matrix2D;
 	}();
-	function getGlobalMatrix(element, inverse, adjustGOffset) {
+	function getGlobalMatrix(element, inverse, adjustGOffset, includeScrollInFixed) {
 	  if (!element || !element.parentNode || (_doc || _setDoc(element)).documentElement === element) {
 	    return new Matrix2D();
 	  }
 
-	  var zeroScales = _forceNonZeroScale(element.parentNode),
+	  var zeroScales = _forceNonZeroScale(element),
 	      svg = _svgOwner(element),
 	      temps = svg ? _svgTemps : _divTemps,
 	      container = _placeSiblings(element, adjustGOffset),
@@ -1418,7 +1410,7 @@
 	      b2 = temps[1].getBoundingClientRect(),
 	      b3 = temps[2].getBoundingClientRect(),
 	      parent = container.parentNode,
-	      isFixed = _isFixed(element),
+	      isFixed = !includeScrollInFixed && _isFixed(element),
 	      m = new Matrix2D((b2.left - b1.left) / 100, (b2.top - b1.top) / 100, (b3.left - b1.left) / 100, (b3.top - b1.top) / 100, b1.left + (isFixed ? 0 : _getDocScrollLeft()), b1.top + (isFixed ? 0 : _getDocScrollTop()));
 
 	  parent.removeChild(container);
@@ -1437,17 +1429,17 @@
 	}
 
 	/*!
-	 * MotionPathPlugin 3.5.1
+	 * MotionPathPlugin 3.6.0
 	 * https://greensock.com
 	 *
-	 * @license Copyright 2008-2020, GreenSock. All rights reserved.
+	 * @license Copyright 2008-2021, GreenSock. All rights reserved.
 	 * Subject to the terms at https://greensock.com/standard-license or for
 	 * Club GreenSock members, the agreement issued with that membership.
 	 * @author: Jack Doyle, jack@greensock.com
 	*/
 
-	var _xProps = ["x", "translateX", "left", "marginLeft"],
-	    _yProps = ["y", "translateY", "top", "marginTop"],
+	var _xProps = "x,translateX,left,marginLeft,xPercent".split(","),
+	    _yProps = "y,translateY,top,marginTop,yPercent".split(","),
 	    _DEG2RAD$1 = Math.PI / 180,
 	    gsap,
 	    PropTween,
@@ -1459,10 +1451,11 @@
 	    _populateSegmentFromArray = function _populateSegmentFromArray(segment, values, property, mode) {
 	  var l = values.length,
 	      si = mode === 2 ? 0 : mode,
-	      i = 0;
+	      i = 0,
+	      v;
 
 	  for (; i < l; i++) {
-	    segment[si] = parseFloat(values[i][property]);
+	    segment[si] = v = parseFloat(values[i][property]);
 	    mode === 2 && (segment[si + 1] = 0);
 	    si += 2;
 	  }
@@ -1482,11 +1475,11 @@
 	    y = segment[i + 1] += y;
 	  }
 	},
-	    _segmentToRawPath = function _segmentToRawPath(plugin, segment, target, x, y, slicer, vars) {
+	    _segmentToRawPath = function _segmentToRawPath(plugin, segment, target, x, y, slicer, vars, unitX, unitY) {
 	  if (vars.type === "cubic") {
 	    segment = [segment];
 	  } else {
-	    segment.unshift(_getPropNum(target, x, vars.unitX), y ? _getPropNum(target, y, vars.unitY) : 0);
+	    segment.unshift(_getPropNum(target, x, unitX), y ? _getPropNum(target, y, unitY) : 0);
 	    vars.relative && _relativize(segment);
 	    var pointFunc = y ? pointsToSegment : flatPointsToSegment;
 	    segment = [pointFunc(segment, vars.curviness)];
@@ -1494,9 +1487,9 @@
 
 	  segment = slicer(_align(segment, target, vars));
 
-	  _addDimensionalPropTween(plugin, target, x, segment, "x", vars.unitX);
+	  _addDimensionalPropTween(plugin, target, x, segment, "x", unitX);
 
-	  y && _addDimensionalPropTween(plugin, target, y, segment, "y", vars.unitY);
+	  y && _addDimensionalPropTween(plugin, target, y, segment, "y", unitY);
 	  return cacheRawPathMeasurements(segment, vars.resolution || (vars.curviness === 0 ? 20 : 12));
 	},
 	    _emptyFunc = function _emptyFunc(v) {
@@ -1633,7 +1626,7 @@
 	};
 
 	var MotionPathPlugin = {
-	  version: "3.5.1",
+	  version: "3.6.0",
 	  name: "motionPath",
 	  register: function register(core, Plugin, propTween) {
 	    gsap = core;
@@ -1654,14 +1647,17 @@
 	    }
 
 	    var rawPaths = [],
-	        path = vars.path,
+	        _vars = vars,
+	        path = _vars.path,
+	        autoRotate = _vars.autoRotate,
+	        unitX = _vars.unitX,
+	        unitY = _vars.unitY,
+	        x = _vars.x,
+	        y = _vars.y,
 	        firstObj = path[0],
-	        autoRotate = vars.autoRotate,
 	        slicer = _sliceModifier(vars.start, "end" in vars ? vars.end : 1),
 	        rawPath,
-	        p,
-	        x,
-	        y;
+	        p;
 
 	    this.rawPaths = rawPaths;
 	    this.target = target;
@@ -1676,21 +1672,21 @@
 
 	    if (Array.isArray(path) && !("closed" in path) && typeof firstObj !== "number") {
 	      for (p in firstObj) {
-	        if (~_xProps.indexOf(p)) {
+	        if (!x && ~_xProps.indexOf(p)) {
 	          x = p;
-	        } else if (~_yProps.indexOf(p)) {
+	        } else if (!y && ~_yProps.indexOf(p)) {
 	          y = p;
 	        }
 	      }
 
 	      if (x && y) {
-	        rawPaths.push(_segmentToRawPath(this, _populateSegmentFromArray(_populateSegmentFromArray([], path, x, 0), path, y, 1), target, vars.x || x, vars.y || y, slicer, vars));
+	        rawPaths.push(_segmentToRawPath(this, _populateSegmentFromArray(_populateSegmentFromArray([], path, x, 0), path, y, 1), target, x, y, slicer, vars, unitX || _getUnit(path[0][x]), unitY || _getUnit(path[0][y])));
 	      } else {
 	        x = y = 0;
 	      }
 
 	      for (p in firstObj) {
-	        p !== x && p !== y && rawPaths.push(_segmentToRawPath(this, _populateSegmentFromArray([], path, p, 2), target, p, 0, slicer, vars));
+	        p !== x && p !== y && rawPaths.push(_segmentToRawPath(this, _populateSegmentFromArray([], path, p, 2), target, p, 0, slicer, vars, _getUnit(path[0][p])));
 	      }
 	    } else {
 	      rawPath = slicer(_align(getRawPath(vars.path), target, vars));

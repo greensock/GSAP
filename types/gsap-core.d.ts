@@ -14,7 +14,8 @@ declare namespace gsap {
     | typeof Draggable
     | typeof GSDevTools
     | typeof MotionPathHelper
-    | typeof SplitText;
+    | typeof SplitText
+    | typeof Flip;
 
   // querySelector returns type Element | null
   type DOMTarget = Element | string | null | ArrayLike<Element | string | null>;

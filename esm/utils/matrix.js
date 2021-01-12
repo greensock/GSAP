@@ -1,8 +1,8 @@
 /*!
- * matrix 3.5.1
+ * matrix 3.6.0
  * https://greensock.com
  *
- * Copyright 2008-2020, GreenSock. All rights reserved.
+ * Copyright 2008-2021, GreenSock. All rights reserved.
  * Subject to the terms at https://greensock.com/standard-license or for
  * Club GreenSock members, the agreement issued with that membership.
  * @author: Jack Doyle, jack@greensock.com
@@ -54,11 +54,12 @@ var _doc,
   return doc;
 },
     _forceNonZeroScale = function _forceNonZeroScale(e) {
-  // walks up the element's ancestors and finds any that had their scale set to 0 via GSAP, and changes them to 0.0001 to ensure that measurements work
+  // walks up the element's ancestors and finds any that had their scale set to 0 via GSAP, and changes them to 0.0001 to ensure that measurements work. Firefox has a bug that causes it to incorrectly report getBoundingClientRect() when scale is 0.
   var a, cache;
 
   while (e && e !== _body) {
     cache = e._gsap;
+    cache && cache.uncache && cache.get(e, "x"); // force re-parsing of transforms if necessary
 
     if (cache && !cache.scaleX && !cache.scaleY && cache.renderTransform) {
       cache.scaleX = cache.scaleY = 1e-4;
@@ -120,7 +121,7 @@ _divTemps = [],
         type = svg ? i ? "rect" : "g" : "div",
         x = i !== 2 ? 0 : 100,
         y = i === 3 ? 100 : 0,
-        css = "position:absolute;display:block;pointer-events:none;",
+        css = "position:absolute;display:block;pointer-events:none;margin:0;padding:0;",
         e = _doc.createElementNS ? _doc.createElementNS(ns.replace(/^https/, "http"), type) : _doc.createElement(type);
 
     if (i) {
@@ -134,10 +135,7 @@ _divTemps = [],
 
         _divContainer.appendChild(e);
       } else {
-        if (!_svgContainer) {
-          _svgContainer = _createSibling(element);
-        }
-
+        _svgContainer || (_svgContainer = _createSibling(element));
         e.setAttribute("width", 0.01);
         e.setAttribute("height", 0.01);
         e.setAttribute("transform", "translate(" + x + "," + y + ")");
@@ -166,20 +164,19 @@ _divTemps = [],
   var svg = _svgOwner(element),
       isRootSVG = element === svg,
       siblings = svg ? _svgTemps : _divTemps,
+      parent = element.parentNode,
       container,
       m,
       b,
       x,
-      y;
+      y,
+      cs;
 
   if (element === _win) {
     return element;
   }
 
-  if (!siblings.length) {
-    siblings.push(_createSibling(element, 1), _createSibling(element, 2), _createSibling(element, 3));
-  }
-
+  siblings.length || siblings.push(_createSibling(element, 1), _createSibling(element, 2), _createSibling(element, 3));
   container = svg ? _svgContainer : _divContainer;
 
   if (svg) {
@@ -205,7 +202,7 @@ _divTemps = [],
     }
 
     container.setAttribute("transform", "matrix(" + m.a + "," + m.b + "," + m.c + "," + m.d + "," + (m.e + x) + "," + (m.f + y) + ")");
-    (isRootSVG ? svg : element.parentNode).appendChild(container);
+    (isRootSVG ? svg : parent).appendChild(container);
   } else {
     x = y = 0;
 
@@ -223,18 +220,30 @@ _divTemps = [],
       }
     }
 
+    cs = _win.getComputedStyle(element);
+
+    if (cs.position !== "absolute") {
+      m = element.offsetParent;
+
+      while (parent !== m) {
+        // if there's an ancestor element between the element and its offsetParent that's scrolled, we must factor that in.
+        x += parent.scrollLeft || 0;
+        y += parent.scrollTop || 0;
+        parent = parent.parentNode;
+      }
+    }
+
     b = container.style;
     b.top = element.offsetTop - y + "px";
     b.left = element.offsetLeft - x + "px";
-    m = _win.getComputedStyle(element);
-    b[_transformProp] = m[_transformProp];
-    b[_transformOriginProp] = m[_transformOriginProp];
-    b.border = m.border;
-    b.borderLeftStyle = m.borderLeftStyle;
-    b.borderTopStyle = m.borderTopStyle;
-    b.borderLeftWidth = m.borderLeftWidth;
-    b.borderTopWidth = m.borderTopWidth;
-    b.position = m.position === "fixed" ? "fixed" : "absolute";
+    b[_transformProp] = cs[_transformProp];
+    b[_transformOriginProp] = cs[_transformOriginProp]; // b.border = m.border;
+    // b.borderLeftStyle = m.borderLeftStyle;
+    // b.borderTopStyle = m.borderTopStyle;
+    // b.borderLeftWidth = m.borderLeftWidth;
+    // b.borderTopWidth = m.borderTopWidth;
+
+    b.position = cs.position === "fixed" ? "fixed" : "absolute";
     element.parentNode.appendChild(container);
   }
 
@@ -341,7 +350,7 @@ export var Matrix2D = /*#__PURE__*/function () {
   };
 
   return Matrix2D;
-}(); //feed in an element and it'll return a 2D matrix (optionally inverted) so that you can translate between coordinate spaces.
+}(); // Feed in an element and it'll return a 2D matrix (optionally inverted) so that you can translate between coordinate spaces.
 // Inverting lets you translate a global point into a local coordinate space. No inverting lets you go the other way.
 // We needed this to work around various browser bugs, like Firefox doesn't accurately report getScreenCTM() when there
 // are transforms applied to ancestor elements.
@@ -349,13 +358,13 @@ export var Matrix2D = /*#__PURE__*/function () {
 //     tx = m.a * x + m.c * y + m.e
 //     ty = m.b * x + m.d * y + m.f
 
-export function getGlobalMatrix(element, inverse, adjustGOffset) {
+export function getGlobalMatrix(element, inverse, adjustGOffset, includeScrollInFixed) {
   // adjustGOffset is typically used only when grabbing an element's PARENT's global matrix, and it ignores the x/y offset of any SVG <g> elements because they behave in a special way.
   if (!element || !element.parentNode || (_doc || _setDoc(element)).documentElement === element) {
     return new Matrix2D();
   }
 
-  var zeroScales = _forceNonZeroScale(element.parentNode),
+  var zeroScales = _forceNonZeroScale(element),
       svg = _svgOwner(element),
       temps = svg ? _svgTemps : _divTemps,
       container = _placeSiblings(element, adjustGOffset),
@@ -363,7 +372,7 @@ export function getGlobalMatrix(element, inverse, adjustGOffset) {
       b2 = temps[1].getBoundingClientRect(),
       b3 = temps[2].getBoundingClientRect(),
       parent = container.parentNode,
-      isFixed = _isFixed(element),
+      isFixed = !includeScrollInFixed && _isFixed(element),
       m = new Matrix2D((b2.left - b1.left) / 100, (b2.top - b1.top) / 100, (b3.left - b1.left) / 100, (b3.top - b1.top) / 100, b1.left + (isFixed ? 0 : _getDocScrollLeft()), b1.top + (isFixed ? 0 : _getDocScrollTop()));
 
   parent.removeChild(container);
@@ -379,7 +388,8 @@ export function getGlobalMatrix(element, inverse, adjustGOffset) {
   }
 
   return inverse ? m.inverse() : m;
-} // export function getMatrix(element) {
+}
+export { _getDocScrollTop, _getDocScrollLeft, _setDoc }; // export function getMatrix(element) {
 // 	_doc || _setDoc(element);
 // 	let m = (_win.getComputedStyle(element)[_transformProp] + "").substr(7).match(/[-.]*\d+[.e\-+]*\d*[e\-\+]*\d*/g),
 // 		is2D = m && m.length === 6;

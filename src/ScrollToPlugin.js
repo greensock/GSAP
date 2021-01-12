@@ -1,8 +1,8 @@
 /*!
- * ScrollToPlugin 3.5.1
+ * ScrollToPlugin 3.6.0
  * https://greensock.com
  *
- * @license Copyright 2008-2020, GreenSock. All rights reserved.
+ * @license Copyright 2008-2021, GreenSock. All rights reserved.
  * Subject to the terms at https://greensock.com/standard-license or for
  * Club GreenSock members, the agreement issued with that membership.
  * @author: Jack Doyle, jack@greensock.com
@@ -13,6 +13,7 @@ let gsap, _coreInitted, _window, _docEl, _body, _toArray, _config,
 	_windowExists = () => typeof(window) !== "undefined",
 	_getGSAP = () => gsap || (_windowExists() && (gsap = window.gsap) && gsap.registerPlugin && gsap),
 	_isString = value => typeof(value) === "string",
+	_isFunction = value => typeof(value) === "function",
 	_max = (element, axis) => {
 		let dim = (axis === "x") ? "Width" : "Height",
 			scroll = "scroll" + dim,
@@ -30,8 +31,26 @@ let gsap, _coreInitted, _window, _docEl, _body, _toArray, _config,
 		}
 		return () => e[p];
 	},
+	_clean = (value, index, target, targets) => {
+		_isFunction(value) && (value = value(index, target, targets));
+		if (typeof(value) !== "object") {
+			return _isString(value) && value !== "max" && value.charAt(1) !== "=" ? {x: value, y: value} : {y: value}; //if we don't receive an object as the parameter, assume the user intends "y".
+		} else if (value.nodeType) {
+			return {y: value, x: value};
+		} else {
+			let result = {}, p;
+			for (p in value) {
+				p !== "onAutoKill" && (result[p] = _isFunction(value[p]) ? value[p](index, target, targets) : value[p]);
+			}
+			return result;
+		}
+	},
 	_getOffset = (element, container) => {
-		let rect = _toArray(element)[0].getBoundingClientRect(),
+		element = _toArray(element)[0];
+		if (!element || !element.getBoundingClientRect) {
+			return console.warn("scrollTo target doesn't exist. Using 0") || {x:0, y:0};
+		}
+		let rect = element.getBoundingClientRect(),
 			isRoot = (!container || container === _window || container === _body),
 			cRect = isRoot ? {top:_docEl.clientTop - (_window.pageYOffset || _docEl.scrollTop || _body.scrollTop || 0), left:_docEl.clientLeft - (_window.pageXOffset || _docEl.scrollLeft || _body.scrollLeft || 0)} : container.getBoundingClientRect(),
 			offsets = {x: rect.left - cRect.left, y: rect.top - cRect.top};
@@ -57,29 +76,20 @@ let gsap, _coreInitted, _window, _docEl, _body, _toArray, _config,
 
 
 export const ScrollToPlugin = {
-	version:"3.5.1",
-	name:"scrollTo",
-	rawVars:1,
+	version: "3.6.0",
+	name: "scrollTo",
+	rawVars: 1,
 	register(core) {
 		gsap = core;
 		_initCore();
 	},
 	init(target, value, tween, index, targets) {
-		if (!_coreInitted) {
-			_initCore();
-		}
+		_coreInitted || _initCore();
 		let data = this;
 		data.isWin = (target === _window);
 		data.target = target;
 		data.tween = tween;
-		if (typeof(value) !== "object") {
-			value = {y:value}; //if we don't receive an object as the parameter, assume the user intends "y".
-			if (_isString(value.y) && value.y !== "max" && value.y.charAt(1) !== "=") {
-				value.x = value.y;
-			}
-		} else if (value.nodeType) {
-			value = {y:value, x:value};
-		}
+		value = _clean(value, index, target, targets);
 		data.vars = value;
 		data.autoKill = !!value.autoKill;
 		data.getX = _buildGetter(target, "x");
@@ -128,20 +138,14 @@ export const ScrollToPlugin = {
 			}
 			if (data.skipX && data.skipY) {
 				tween.kill();
-				if (data.vars.onAutoKill) {
-					data.vars.onAutoKill.apply(tween, data.vars.onAutoKillParams || []);
-				}
+				data.vars.onAutoKill && data.vars.onAutoKill.apply(tween, data.vars.onAutoKillParams || []);
 			}
 		}
 		if (isWin) {
 			_window.scrollTo((!data.skipX) ? data.x : x, (!data.skipY) ? data.y : y);
 		} else {
-			if (!data.skipY) {
-				target.scrollTop = data.y;
-			}
-			if (!data.skipX) {
-				target.scrollLeft = data.x;
-			}
+			data.skipY || (target.scrollTop = data.y);
+			data.skipX || (target.scrollLeft = data.x);
 		}
 		data.xPrev = data.x;
 		data.yPrev = data.y;

@@ -1,8 +1,8 @@
 /*!
- * Draggable 3.5.1
+ * Draggable 3.6.0
  * https://greensock.com
  *
- * @license Copyright 2008-2020, GreenSock. All rights reserved.
+ * @license Copyright 2008-2021, GreenSock. All rights reserved.
  * Subject to the terms at https://greensock.com/standard-license or for
  * Club GreenSock members, the agreement issued with that membership.
  * @author: Jack Doyle, jack@greensock.com
@@ -51,6 +51,15 @@ let gsap, _win, _doc, _docElement, _body, _tempDiv, _placeholderDiv, _coreInitte
 			}
 		}
 		return obj;
+	},
+	_setTouchActionForAllDescendants = (elements, value) => {
+		let i = elements.length,
+			children;
+		while (i--) {
+			value ? (elements[i].style.touchAction = value) : elements[i].style.removeProperty("touch-action");
+			children = elements[i].children;
+			children && children.length && _setTouchActionForAllDescendants(children, value);
+		}
 	},
 	_renderQueueTick = () => _renderQueue.forEach(func => func()),
 	_addToRenderQueue = func => {
@@ -320,7 +329,6 @@ let gsap, _win, _doc, _docElement, _body, _tempDiv, _placeholderDiv, _coreInitte
 		while (i--) {
 			e = elements[i];
 			e.ondragstart = e.onselectstart = selectable ? null : _emptyFunc;
-			//setStyle(e, "userSelect", (selectable ? "text" : "none"));
 			gsap.set(e, {lazy:true, userSelect: (selectable ? "text" : "none")});
 		}
 	},
@@ -806,6 +814,7 @@ export class Draggable extends EventDispatcher {
 				if (!target._gsap) { //just in case the _gsap cache got wiped, like if the user called clearProps on the transform or something (very rare).
 					gsCache = gsap.core.getCache(target);
 				}
+				gsCache.uncache && gsap.getProperty(target, "x"); // trigger a re-cache
 				if (xyMode) {
 					self.x = parseFloat(gsCache.x);
 					self.y = parseFloat(gsCache.y);
@@ -850,9 +859,7 @@ export class Draggable extends EventDispatcher {
 						dirty = true;
 					}
 				}
-				if (dirty) {
-					render(true);
-				}
+				dirty && render(true);
 				if (!skipOnUpdate) {
 					self.deltaX = self.x - x;
 					self.deltaY = self.y - y;
@@ -1099,13 +1106,11 @@ export class Draggable extends EventDispatcher {
 					offsetY = isFixed ? _getDocScrollTop(ownerDoc) : 0,
 					parsedOrigin, x, y;
 				updateMatrix(false);
-				if (matrix) {
-					_point1.x = self.pointerX - offsetX;
-					_point1.y = self.pointerY - offsetY;
-					matrix.apply(_point1, _point1);
-					startPointerX = _point1.x; //translate to local coordinate system
-					startPointerY = _point1.y;
-				}
+				_point1.x = self.pointerX - offsetX;
+				_point1.y = self.pointerY - offsetY;
+				matrix && matrix.apply(_point1, _point1);
+				startPointerX = _point1.x; //translate to local coordinate system
+				startPointerY = _point1.y;
 				if (dirty) {
 					setPointerPosition(self.pointerX, self.pointerY);
 					render(true);
@@ -1187,9 +1192,7 @@ export class Draggable extends EventDispatcher {
 				touchDragAxis = null;
 				if (!_supportsPointer  || !touchEventTarget) {
 					_addListener(ownerDoc, "mouseup", onRelease);
-					if (e && e.target) {
-						_addListener(e.target, "mouseup", onRelease); //we also have to listen directly on the element because some browsers don't bubble up the event to the _doc on elements with contentEditable="true"
-					}
+					e && e.target && _addListener(e.target, "mouseup", onRelease); //we also have to listen directly on the element because some browsers don't bubble up the event to the _doc on elements with contentEditable="true"
 				}
 				isClicking = (isClickable.call(self, e.target) && vars.dragClickables === false && !force);
 				if (isClicking) {
@@ -1197,6 +1200,7 @@ export class Draggable extends EventDispatcher {
 					_dispatchEvent(self, "pressInit", "onPressInit");
 					_dispatchEvent(self, "press", "onPress");
 					_setSelectable(triggers, true); //accommodates things like inputs and elements with contentEditable="true" (otherwise user couldn't drag to select text)
+					isPreventingDefault = false;
 					return;
 				}
 				allowNativeTouchScrolling = (!touchEventTarget || allowX === allowY || self.vars.allowNativeTouchScrolling === false || (self.vars.allowContextMenu && e && (e.ctrlKey || e.which > 2))) ? false : allowX ? "y" : "x"; //note: in Chrome, right-clicking (for a context menu) fires onPress and it doesn't have the event.which set properly, so we must look for event.ctrlKey. If the user wants to allow context menus we should of course sense it here and not allow native touch scrolling.
@@ -1240,7 +1244,6 @@ export class Draggable extends EventDispatcher {
 				if (!rotationMode && (vars.cursor !== false || vars.activeCursor)) {
 					i = triggers.length;
 					while (--i > -1) {
-						//_setStyle(triggers[i], "cursor", vars.activeCursor || vars.cursor || (_defaultCursor === "grab" ? "grabbing" : _defaultCursor));
 						gsap.set(triggers[i], {cursor: vars.activeCursor || vars.cursor || (_defaultCursor === "grab" ? "grabbing" : _defaultCursor)});
 					}
 				}
@@ -1261,7 +1264,7 @@ export class Draggable extends EventDispatcher {
 					e = touches[0];
 					if (e !== touch && e.identifier !== touchID) { //Usually changedTouches[0] will be what we're looking for, but in case it's not, look through the rest of the array...(and Android browsers don't reuse the event like iOS)
 						i = touches.length;
-						while (--i > -1 && (e = touches[i]).identifier !== touchID) {}
+						while (--i > -1 && (e = touches[i]).identifier !== touchID && e.target !== target) {} // Some Android devices dispatch a touchstart AND pointerdown initially, and then only pointermove thus the touchID may not match because it was grabbed from the touchstart event whereas the pointer event is the one that the browser dispatches for move, so if the event target matches this Draggable's target, let it through.
 						if (i < 0) {
 							return;
 						}
@@ -1437,7 +1440,7 @@ export class Draggable extends EventDispatcher {
 
 			//called when the mouse/touch is released
 			onRelease = (e, force) => {
-				if (!enabled || !self.isPressed || (e && touchID != null && !force && ((e.pointerId && e.pointerId !== touchID) || (e.changedTouches && !_hasTouchID(e.changedTouches, touchID))))) {  //for some Microsoft browsers, we must attach the listener to the doc rather than the trigger so that when the finger moves outside the bounds of the trigger, things still work. So if the event we're receiving has a pointerId that doesn't match the touchID, ignore it (for multi-touch)
+				if (!enabled || !self.isPressed || (e && touchID != null && !force && ((e.pointerId && e.pointerId !== touchID && e.target !== target) || (e.changedTouches && !_hasTouchID(e.changedTouches, touchID))))) {  //for some Microsoft browsers, we must attach the listener to the doc rather than the trigger so that when the finger moves outside the bounds of the trigger, things still work. So if the event we're receiving has a pointerId that doesn't match the touchID, ignore it (for multi-touch)
 					isPreventingDefault && e && enabled && _preventDefault(e); // in some browsers, we must listen for multiple event types like touchend, pointerup, mouseup. The first time this function is called, we record whether or not we _preventDefault() so that on duplicate calls, we can do the same if necessary.
 					return;
 				}
@@ -1458,9 +1461,7 @@ export class Draggable extends EventDispatcher {
 				_removeListener(_win, "touchforcechange", _preventDefault);
 				if (!_supportsPointer || !touchEventTarget) {
 					_removeListener(ownerDoc, "mouseup", onRelease);
-					if (e && e.target) {
-						_removeListener(e.target, "mouseup", onRelease);
-					}
+					e && e.target && _removeListener(e.target, "mouseup", onRelease);
 				}
 				dirty = false;
 				if (isClicking && !isContextMenuRelease) {
@@ -1492,7 +1493,7 @@ export class Draggable extends EventDispatcher {
 						e = touches[0];
 						if (e !== touch && e.identifier !== touchID) { //Usually changedTouches[0] will be what we're looking for, but in case it's not, look through the rest of the array...(and Android browsers don't reuse the event like iOS)
 							i = touches.length;
-							while (--i > -1 && (e = touches[i]).identifier !== touchID) {}
+							while (--i > -1 && (e = touches[i]).identifier !== touchID && e.target !== target) {}
 							if (i < 0) {
 								return;
 							}
@@ -1591,6 +1592,10 @@ export class Draggable extends EventDispatcher {
 					if (!trusted || !e.detail || !recentlyClicked || defaultPrevented) {
 						_preventDefault(e);
 					}
+				}
+				if (!recentlyClicked && !recentlyDragged) { // for script-triggered event dispatches, like element.click()
+					e && e.target && (self.pointerEvent = e);
+					_dispatchEvent(self, "click", "onClick");
 				}
 			},
 
@@ -1710,9 +1715,7 @@ export class Draggable extends EventDispatcher {
 			if (applyBounds) {
 				self.applyBounds();
 			} else {
-				if (dirty && ignoreExternalChanges) {
-					render(true);
-				}
+				dirty && ignoreExternalChanges && render(true);
 				syncXY(true);
 			}
 			if (sticky) {
@@ -1742,8 +1745,8 @@ export class Draggable extends EventDispatcher {
 			if (gsap.utils.checkPrefix("touchCallout")) {
 				setVars.touchCallout = "none";
 			}
-			setVars.touchAction = (allowX === allowY) ? "none" : vars.allowNativeTouchScrolling || vars.allowEventDefault ? "manipulation" : allowX ? "pan-y" : "pan-x";
 			if (type !== "soft") {
+				_setTouchActionForAllDescendants(triggers, (allowX === allowY) ? "none" : (vars.allowNativeTouchScrolling && (target.scrollHeight === target.clientHeight) === (target.scrollWidth === target.clientHeight)) || vars.allowEventDefault ? "manipulation" : allowX ? "pan-y" : "pan-x"); // Some browsers like Internet Explorer will fire a pointercancel event when the user attempts to drag when touchAction is "manipulate" because it's perceived as a pan. If the element has scrollable content in only one direction, we should use pan-x or pan-y accordingly so that the pointercancel doesn't prevent dragging.
 				i = triggers.length;
 				while (--i > -1) {
 					trigger = triggers[i];
@@ -1784,11 +1787,11 @@ export class Draggable extends EventDispatcher {
 				}
 			}
 			if (type !== "soft") {
+				_setTouchActionForAllDescendants(triggers, null);
 				i = triggers.length;
 				while (--i > -1) {
 					trigger = triggers[i];
 					_setStyle(trigger, "touchCallout", null);
-					_setStyle(trigger, "touchAction", null);
 					_removeListener(trigger, "mousedown", onPress);
 					_removeListener(trigger, "touchstart", onPress);
 					_removeListener(trigger, "click", onClick);
@@ -1805,17 +1808,11 @@ export class Draggable extends EventDispatcher {
 			}
 			_removeScrollListener(target, updateScroll);
 			enabled = false;
-			if (InertiaPlugin && type !== "soft") {
-				InertiaPlugin.untrack(scrollProxy || target, (xyMode ? "x,y" : rotationMode ? "rotation" : "top,left"));
-			}
-			if (scrollProxy) {
-				scrollProxy.disable();
-			}
+			InertiaPlugin && type !== "soft" && InertiaPlugin.untrack(scrollProxy || target, (xyMode ? "x,y" : rotationMode ? "rotation" : "top,left"));
+			scrollProxy && scrollProxy.disable();
 			_removeFromRenderQueue(render);
 			self.isDragging = self.isPressed = isClicking = false;
-			if (dragging) {
-				_dispatchEvent(self, "dragend", "onDragEnd");
-			}
+			dragging && _dispatchEvent(self, "dragend", "onDragEnd");
 			return self;
 		};
 
@@ -1825,9 +1822,7 @@ export class Draggable extends EventDispatcher {
 
 		this.kill = function() {
 			self.isThrowing = false;
-			if (self.tween) {
-				self.tween.kill();
-			}
+			self.tween && self.tween.kill();
 			self.disable();
 			gsap.set(triggers, {clearProps:"userSelect"});
 			delete _lookup[target._gsDragID];
@@ -1836,9 +1831,8 @@ export class Draggable extends EventDispatcher {
 
 		if (~type.indexOf("scroll")) {
 			scrollProxy = this.scrollProxy = new ScrollProxy(target, _extend({onKill:function() { //ScrollProxy's onKill() gets called if/when the ScrollProxy senses that the user interacted with the scroll position manually (like using the scrollbar). IE9 doesn't fire the "mouseup" properly when users drag the scrollbar of an element, so this works around that issue.
-					if (self.isPressed) {
-						onRelease(null);
-					}}}, vars));
+					self.isPressed && onRelease(null);
+			}}, vars));
 			//a bug in many Android devices' stock browser causes scrollTop to get forced back to 0 after it is altered via JS, so we set overflow to "hidden" on mobile/touch devices (they hide the scroll bar anyway). That works around the bug. (This bug is discussed at https://code.google.com/p/android/issues/detail?id=19625)
 			target.style.overflowY = (allowY && !_isTouchDevice) ? "auto" : "hidden";
 			target.style.overflowX = (allowX && !_isTouchDevice) ? "auto" : "hidden";
@@ -1870,9 +1864,7 @@ export class Draggable extends EventDispatcher {
 	}
 
 	static create(targets, vars) {
-		if (!_coreInitted) {
-			_initCore(true);
-		}
+		_coreInitted || _initCore(true);
 		return _toArray(targets).map(target => new Draggable(target, vars));
 	}
 
@@ -1917,7 +1909,7 @@ export class Draggable extends EventDispatcher {
 _setDefaults(Draggable.prototype, {pointerX:0, pointerY: 0, startX: 0, startY: 0, deltaX: 0, deltaY: 0, isDragging: false, isPressed: false});
 
 Draggable.zIndex = 1000;
-Draggable.version = "3.5.1";
+Draggable.version = "3.6.0";
 
 _getGSAP() && gsap.registerPlugin(Draggable);
 

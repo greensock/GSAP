@@ -79,10 +79,10 @@ declare namespace gsap.plugins {
      * @param {Element} fromElement
      * @param {Element} toElement
      * @param {Point2D} point
-     * @returns {Point2D} A matrix to convert from one element's coordinate system to another's
+     * @returns {Point2D} the converted point
      * @memberof MotionPathPlugin
      */
-      convertCoordinates(fromElement: Element, toElement: Element, point: Point2D): Matrix2D;
+      convertCoordinates(fromElement: Element, toElement: Element, point: Point2D): Point2D;
 
     /**
      * Converts SVG shapes into <path>s.
