@@ -461,7 +461,7 @@ let gsap, _coreInitted, _win, _doc, _docEl, _body, _root, _resizeDelay, _raf, _r
 				return tween;
 			};
 		scroller[prop] = getScroll;
-		scroller.addEventListener("mousewheel", () => getTween.tween && getTween.tween.kill() && (getTween.tween = 0)); // Windows machines handle mousewheel scrolling in chunks (like "3 lines per scroll") meaning the typical strategy for cancelling the scroll isn't as sensitive. It's much more likely to match one of the previous 2 scroll event positions. So we kill any snapping as soon as there's a mousewheel event.
+		scroller.addEventListener("wheel", () => getTween.tween && getTween.tween.kill() && (getTween.tween = 0)); // Windows machines handle wheel scrolling in chunks (like "3 lines per scroll") meaning the typical strategy for cancelling the scroll isn't as sensitive. It's much more likely to match one of the previous 2 scroll event positions. So we kill any snapping as soon as there's a wheel event.
 		return getTween;
 	};
 
@@ -926,7 +926,7 @@ export class ScrollTrigger {
 				gsap.core.globals("ScrollTrigger", ScrollTrigger); // must register the global manually because in Internet Explorer, functions (classes) don't have a "name" property.
 				if (_body) {
 					_raf = _win.requestAnimationFrame || (f => setTimeout(f, 16));
-					_addListener(_win, "mousewheel", _onScroll);
+					_addListener(_win, "wheel", _onScroll);
 					_root = [_win, _doc, _docEl, _body];
 					_addListener(_doc, "scroll", _onScroll); // some browsers (like Chrome), the window stops dispatching scroll events on the window if you scroll really fast, but it's consistent on the document!
 					let bodyStyle = _body.style,
