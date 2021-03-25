@@ -1,5 +1,5 @@
 /*!
- * matrix 3.6.0
+ * matrix 3.6.1
  * https://greensock.com
  *
  * Copyright 2008-2021, GreenSock. All rights reserved.
@@ -148,8 +148,8 @@ let _doc, _win, _docElement, _body,	_divContainer, _svgContainer, _identityMatri
 			if (adjustGOffset && element.tagName.toLowerCase() === "g") {
 				x = y = 0;
 			}
-			container.setAttribute("transform", "matrix(" + m.a + "," + m.b + "," + m.c + "," + m.d + "," + (m.e + x) + "," + (m.f + y) + ")");
 			(isRootSVG ? svg : parent).appendChild(container);
+			container.setAttribute("transform", "matrix(" + m.a + "," + m.b + "," + m.c + "," + m.d + "," + (m.e + x) + "," + (m.f + y) + ")");
 		} else {
 			x = y = 0;
 			if (_hasOffsetBug) { // some browsers (like Safari) have a bug that causes them to misreport offset values. When an ancestor element has a transform applied, it's supposed to treat it as if it's position: relative (new context). Safari botches this, so we need to find the closest ancestor (between the element and its offsetParent) that has a transform applied and if one is found, grab its offsetTop/Left and subtract them to compensate.
@@ -166,7 +166,7 @@ let _doc, _win, _docElement, _body,	_divContainer, _svgContainer, _identityMatri
 			cs = _win.getComputedStyle(element);
 			if (cs.position !== "absolute") {
 				m = element.offsetParent;
-				while (parent !== m) { // if there's an ancestor element between the element and its offsetParent that's scrolled, we must factor that in.
+				while (parent && parent !== m) { // if there's an ancestor element between the element and its offsetParent that's scrolled, we must factor that in.
 					x += parent.scrollLeft || 0;
 					y += parent.scrollTop || 0;
 					parent = parent.parentNode;

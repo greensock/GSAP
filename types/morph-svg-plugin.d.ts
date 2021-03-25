@@ -24,11 +24,42 @@ declare namespace gsap.plugins {
      * @param {boolean} [swap] 
      * @returns {SVGPathElement[]} The converted paths
      * @memberof MorphSVGPlugin
+     * @link https://greensock.com/docs/v3/Plugins/MorphSVGPlugin/static.convertToPath()
      */
     convertToPath(shape: string | SVGPrimitive | (string | SVGPrimitive)[], swap?: boolean): SVGPathElement[];
 
     /**
-     * Converts a rawPath into a string of path data.
+     * Returns a RawPath associated with whatever is passed in (path data string, selector text, <path> element, or a RawPath)
+     *
+     * ```js
+     * MorphSVGPlugin.getRawPath("#my-path");
+     * ```
+     *
+     * @param {SVGPathValue} path
+     * @returns {array} The RawPath
+     * @memberof MorphSVGPlugin
+     * @link https://greensock.com/docs/v3/Plugins/MorphSVGPlugin/static.getRawPath()
+     */
+    getRawPath(path: SVGPathValue): string[];
+
+    /**
+     * Accepts two strings representing SVG path data and matches the number of points between them, returning an Array with the edited path data strings [shape1, shape2].
+     *
+     * ```js
+     * MorphSVGPlugin.normalizeStrings(shape1, shape2, {map: "complexity"});
+     * ```
+     *
+     * @param {string} shape1
+     * @param {string} shape2
+     * @param {NormalizeVars} config
+     * @returns {string[]} An Array containing the converted string data with matching numbers of points, like [shape1, shape2]
+     * @memberof MorphSVGPlugin
+     * @link https://greensock.com/docs/v3/Plugins/MorphSVGPlugin/static.normalizeStrings()
+     */
+    normalizeStrings(shape1: string, shape2: string, config?: NormalizeVars): string[];
+
+    /**
+     * Converts a RawPath into a string of path data.
      *
      * ```js
      * MorphSVGPlugin.rawPathToString(myRawPath);
@@ -37,6 +68,7 @@ declare namespace gsap.plugins {
      * @param {RawPath} rawPath
      * @returns {string} The converted path data
      * @memberof MorphSVGPlugin
+     * @link https://greensock.com/docs/v3/Plugins/MorphSVGPlugin/static.rawPathToString()
      */
     rawPathToString(rawPath: RawPath): string;
 
@@ -50,8 +82,14 @@ declare namespace gsap.plugins {
      * @param {string} data
      * @returns {RawPath} The converted RawPath
      * @memberof MorphSVGPlugin
+     * @link https://greensock.com/docs/v3/Plugins/MorphSVGPlugin/static.stringToRawPath()
      */
     stringToRawPath(data: string): RawPath;
+  }
+
+  interface NormalizeVars {
+    shapeIndex?: number | "auto" | number[];
+    map?: "complexity" | "position" | "size";
   }
 
   interface MorphSVGPluginClass extends MorphSVGPlugin {

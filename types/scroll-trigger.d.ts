@@ -25,11 +25,15 @@ declare namespace gsap.plugins {
      *
      * ```js
      * scrollTrigger.disable();
+     * scrollTrigger.disable(true);
      * ```
-     *
+     * 
+     * @param {boolean} revert
+     * @param {boolean} allowAnimation
      * @memberof ScrollTrigger
+     * @link https://greensock.com/docs/v3/Plugins/ScrollTrigger/disable()
      */
-    disable(): void;
+    disable(revert?: boolean, allowAnimation?: boolean): void;
 
     /**
      * Re-enables a disabled ScrollTrigger instance.
@@ -39,6 +43,7 @@ declare namespace gsap.plugins {
      * ```
      *
      * @memberof ScrollTrigger
+     * @link https://greensock.com/docs/v3/Plugins/ScrollTrigger/enable()
      */
     enable(): void;
 
@@ -46,10 +51,11 @@ declare namespace gsap.plugins {
      * Gets the current velocity of the element's scroll on which the ScrollTrigger is attached to (in pixels per second).
      *
      * ```js
-     * scrollTrigger.disable();
+     * scrollTrigger.getVelocity();
      * ```
      *
      * @memberof ScrollTrigger
+     * @link https://greensock.com/docs/v3/Plugins/ScrollTrigger/getVekocity()
      */
     getVelocity(): number;
 
@@ -61,10 +67,11 @@ declare namespace gsap.plugins {
      * ```
      *
      * @param {boolean} reset
-     * @param {boolean} allowScrub
+     * @param {boolean} allowAnimation
      * @memberof ScrollTrigger
+     * @link https://greensock.com/docs/v3/Plugins/ScrollTrigger/kill()
      */
-    kill(reset?: boolean, allowScrub?: boolean): void;
+    kill(reset?: boolean, allowAnimation?: boolean): void;
 
     /**
      * Gets the scroll position of the ScrollTrigger's scroller.
@@ -75,6 +82,7 @@ declare namespace gsap.plugins {
      *
      * @returns {number} The scroll position of the scroller
      * @memberof ScrollTrigger
+     * @link https://greensock.com/docs/v3/Plugins/ScrollTrigger/scroll()
      */
     scroll(): number;
     /**
@@ -86,6 +94,7 @@ declare namespace gsap.plugins {
      *
      * @param {number} position
      * @memberof ScrollTrigger
+     * @link https://greensock.com/docs/v3/Plugins/ScrollTrigger/scroll()
      */
     scroll(position: number): void;
 
@@ -115,6 +124,7 @@ declare namespace gsap.plugins {
      * @param {"scrollStart" | "scrollEnd" | "refreshInit" | "refresh"} event
      * @param {gsap.Callback} callback
      * @memberof ScrollTrigger
+     * @link https://greensock.com/docs/v3/Plugins/ScrollTrigger/static.addEventListener()
      */
     addEventListener(event: "scrollStart" | "scrollEnd" | "refreshInit" | "refresh", callback: gsap.Callback): void;
 
@@ -136,6 +146,7 @@ declare namespace gsap.plugins {
      * @param {ScrollTriggerBatchVars} vars
      * @returns {ScrollTriggerInstance[]} An Array of the resulting ScrollTrigger instances
      * @memberof ScrollTrigger
+     * @link https://greensock.com/docs/v3/Plugins/ScrollTrigger/static.batch()
      */
     batch(targets: gsap.DOMTarget, vars: ScrollTriggerBatchVars): ScrollTriggerInstance[];
 
@@ -148,6 +159,7 @@ declare namespace gsap.plugins {
      *
      * @param {string} name
      * @memberof ScrollTrigger
+     * @link https://greensock.com/docs/v3/Plugins/ScrollTrigger/static.clearMatchMedia()
      */
     clearMatchMedia(name?: string): void;
 
@@ -160,6 +172,7 @@ declare namespace gsap.plugins {
      *
      * @param {ScrollTriggerConfigVars} vars
      * @memberof ScrollTrigger
+     * @link https://greensock.com/docs/v3/Plugins/ScrollTrigger/static.config()
      */
     config(vars: ScrollTriggerConfigVars): void;
 
@@ -177,6 +190,7 @@ declare namespace gsap.plugins {
      * @param {ScrollTrigger.Vars} vars
      * @returns {ScrollTriggerInstance} The ScrollTrigger
      * @memberof ScrollTrigger
+     * @link https://greensock.com/docs/v3/Plugins/ScrollTrigger/static.create()
      */
     create(vars: ScrollTriggerStaticVars): ScrollTriggerInstance;
 
@@ -193,6 +207,7 @@ declare namespace gsap.plugins {
      * @param {ScrollTrigger.Vars} vars
      * @returns {ScrollTriggerInstance} The ScrollTrigger
      * @memberof ScrollTrigger
+     * @link https://greensock.com/docs/v3/Plugins/ScrollTrigger/static.defaults()
      */
     defaults(vars: ScrollTriggerStaticVars): ScrollTriggerInstance;
 
@@ -206,6 +221,7 @@ declare namespace gsap.plugins {
      *
      * @returns {ScrollTriggerInstance[]} The ScrollTrigger
      * @memberof ScrollTrigger
+     * @link https://greensock.com/docs/v3/Plugins/ScrollTrigger/static.getAll()
      */
     getAll(): ScrollTriggerInstance[];
 
@@ -219,6 +235,7 @@ declare namespace gsap.plugins {
      * @param {string} id
      * @returns {ScrollTriggerInstance} The ScrollTrigger
      * @memberof ScrollTrigger
+     * @link https://greensock.com/docs/v3/Plugins/ScrollTrigger/static.getById()
      */
     getById(id: string): ScrollTriggerInstance;
 
@@ -231,6 +248,7 @@ declare namespace gsap.plugins {
      *
      * @returns {boolean} Whether or not the scroller is scrolling
      * @memberof ScrollTrigger
+     * @link https://greensock.com/docs/v3/Plugins/ScrollTrigger/static.isScrolling()
      */
     isScrolling(): boolean;
 
@@ -247,6 +265,7 @@ declare namespace gsap.plugins {
      *
      * @param {MatchMediaObject} vars
      * @memberof ScrollTrigger
+     * @link https://greensock.com/docs/v3/Plugins/ScrollTrigger/static.matchMedia()
      */
     matchMedia(vars: MatchMediaObject): void;
 
@@ -259,6 +278,7 @@ declare namespace gsap.plugins {
      *
      * @returns {number} The max distance the element can scroll
      * @memberof ScrollTrigger
+     * @link https://greensock.com/docs/v3/Plugins/ScrollTrigger/static.maxScroll()
      */
     maxScroll(target: Element): number;
 
@@ -271,6 +291,7 @@ declare namespace gsap.plugins {
      *
      * @param {boolean} safe
      * @memberof ScrollTrigger
+     * @link https://greensock.com/docs/v3/Plugins/ScrollTrigger/static.refresh()
      */
     refresh(safe?: boolean): void;
 
@@ -284,6 +305,7 @@ declare namespace gsap.plugins {
      * @param {"scrollStart" | "scrollEnd" | "refreshInit" | "refresh"} event
      * @param {gsap.Callback} callback
      * @memberof ScrollTrigger
+     * @link https://greensock.com/docs/v3/Plugins/ScrollTrigger/static.removeEventListener()
      */
     removeEventListener(event: "scrollStart" | "scrollEnd" | "refreshInit" | "refresh", callback: gsap.Callback): void;
 
@@ -296,6 +318,7 @@ declare namespace gsap.plugins {
      *
      * @param {gsap.DOMTarget} targets
      * @memberof ScrollTrigger
+     * @link https://greensock.com/docs/v3/Plugins/ScrollTrigger/static.targets()
      */
     saveStyles(targets: gsap.DOMTarget): void;
 
@@ -317,6 +340,7 @@ declare namespace gsap.plugins {
      * @param {string | Element} scroller
      * @param {ScrollerProxyVars} vars
      * @memberof ScrollTrigger
+     * @link https://greensock.com/docs/v3/Plugins/ScrollTrigger/static.scrollerProxy()
      */
     scrollerProxy(scroller: string | Element, vars: ScrollerProxyVars): void;
 
@@ -329,6 +353,7 @@ declare namespace gsap.plugins {
      *
      * @param {Function} func
      * @memberof ScrollTrigger
+     * @link https://greensock.com/docs/v3/Plugins/ScrollTrigger/static.sort()
      */
     sort(func?: Function): ScrollTriggerInstance[];
 
@@ -340,6 +365,7 @@ declare namespace gsap.plugins {
      * ```
      *
      * @memberof ScrollTrigger
+     * @link https://greensock.com/docs/v3/Plugins/ScrollTrigger/static.update()
      */
     update(): void;
   }
@@ -385,8 +411,12 @@ declare namespace gsap.plugins {
   interface SnapVars {
     delay?: number;
     duration?: number | RangeObject;
+    inertia?: boolean;
     ease?: string | EaseFunction;
     snapTo?: number | number[] | "labels" | "labelsDirectional" | SnapFunc;
+    onInterrupt?: Callback;
+    onStart?: Callback;
+    onComplete?: Callback;
   }
 
   interface RangeObject {

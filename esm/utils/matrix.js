@@ -1,5 +1,5 @@
 /*!
- * matrix 3.6.0
+ * matrix 3.6.1
  * https://greensock.com
  *
  * Copyright 2008-2021, GreenSock. All rights reserved.
@@ -201,8 +201,8 @@ _divTemps = [],
       x = y = 0;
     }
 
-    container.setAttribute("transform", "matrix(" + m.a + "," + m.b + "," + m.c + "," + m.d + "," + (m.e + x) + "," + (m.f + y) + ")");
     (isRootSVG ? svg : parent).appendChild(container);
+    container.setAttribute("transform", "matrix(" + m.a + "," + m.b + "," + m.c + "," + m.d + "," + (m.e + x) + "," + (m.f + y) + ")");
   } else {
     x = y = 0;
 
@@ -225,7 +225,7 @@ _divTemps = [],
     if (cs.position !== "absolute") {
       m = element.offsetParent;
 
-      while (parent !== m) {
+      while (parent && parent !== m) {
         // if there's an ancestor element between the element and its offsetParent that's scrolled, we must factor that in.
         x += parent.scrollLeft || 0;
         y += parent.scrollTop || 0;

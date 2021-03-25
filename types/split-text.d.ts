@@ -8,6 +8,18 @@ declare class SplitText {
 
 
   /**
+   * Reverts the innerHTML to the original content.
+   * 
+   * ```js
+   * split.revert();
+   * ```
+   *
+   * @memberof SplitText
+   * @link https://greensock.com/docs/v3/Plugins/SplitText/revert()
+   */
+  revert(): void;
+
+  /**
    * Re-splits a SplitText according to the vars provided. It will automatically call revert() first if necessary. Useful if you want to change the way the text is split after the SplitText instance is created.
    * 
    * ```js
@@ -17,20 +29,9 @@ declare class SplitText {
    * @param {SplitText.Vars} vars
    * @returns {SplitText} The SplitText object created
    * @memberof SplitText
+   * @link https://greensock.com/docs/v3/Plugins/SplitText/split()
    */
   split(vars: SplitText.Vars): SplitText;
-
-
-  /**
-   * Reverts the innerHTML to the original content.
-   * 
-   * ```js
-   * split.revert();
-   * ```
-   *
-   * @memberof SplitText
-   */
-  revert(): void;
 }
 
 declare namespace SplitText {

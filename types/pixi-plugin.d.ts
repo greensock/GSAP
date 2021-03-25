@@ -11,11 +11,11 @@ declare namespace PixiPlugin {
 
   interface Vars {
     [key: string]: any;
-    alpha?: number;
+    alpha?: number | string;
     anchor?: number;
-    anchorX?: number;
-    anchorY?: number;
-    angle?: number;
+    anchorX?: number | string;
+    anchorY?: number | string;
+    angle?: number | string;
     autoAlpha?: number;
     blur?: number;
     blurX?: number;
@@ -28,38 +28,38 @@ declare namespace PixiPlugin {
     combineCMF?: boolean;
     contrast?: number;
     fillColor?: string | number;
-    height?: number;
+    height?: number | string;
     hue?: number;
     lineColor?: string | number;
     matrix?: PixiMatrix;
     pivot?: number;
-    pivotX?: number;
-    pivotY?: number;
-    position?: number;
-    positionX?: number;
-    positionY?: number;
+    pivotX?: number | string;
+    pivotY?: number | string;
+    position?: number | string;
+    positionX?: number | string;
+    positionY?: number | string;
     resolution?: number;
     rotation?: number | string;
     saturation?: number;
-    scale?: number;
-    scaleX?: number;
-    scaleY?: number;
-    skew?: number;
-    skewX?: number;
-    skewY?: number;
+    scale?: number | string;
+    scaleX?: number | string;
+    scaleY?: number | string;
+    skew?: number | string;
+    skewX?: number | string;
+    skewY?: number | string;
     tilePosition?: number;
-    tilePositionX?: number;
-    tilePositionY?: number;
+    tilePositionX?: number | string;
+    tilePositionY?: number | string;
     tileScale?: number;
-    tileScaleX?: number;
-    tileScaleY?: number;
-    tileX?: number;
-    tileY?: number;
+    tileScaleX?: number | string;
+    tileScaleY?: number | string;
+    tileX?: number | string;
+    tileY?: number | string;
     tint?: string | number;
-    width?: number;
-    x?: number;
-    y?: number;
-    zIndex?: number;
+    width?: number | string;
+    x?: number | string;
+    y?: number | string;
+    zIndex?: number | string;
   }
 }
 
@@ -84,6 +84,7 @@ declare namespace gsap.plugins {
      *
      * @param {object} pixi
      * @memberof PixiPlugin
+     * @link https://greensock.com/docs/v3/Plugins/PixiPlugin/static.registerPIXI()
      */
     registerPIXI(pixi: object): void;
   }

@@ -35,7 +35,25 @@ declare namespace gsap {
 
 declare namespace gsap.plugins {
 
-  interface InertiaPlugin extends Plugin, VelocityTrackerStatic { }
+  interface InertiaPlugin extends Plugin, VelocityTrackerStatic {
+    // TODO add missing methods
+    // TODO improve docs on site as well
+
+    /**
+     * Returns the current velocity of the given property and target object (only works if you started tracking the property using the InertiaPlugin.track() method).
+     *
+     * ```js
+     * InertiaPlugin.getVelocity(obj, "x,y");
+     * ```
+     * 
+     * @param {Element} target
+     * @param {string} props
+     * @returns {number} The current velocity
+     * @memberof InertiaPlugin
+     * @link https://greensock.com/docs/v3/Plugins/InertiaPlugin/static.getVelocity()
+     */
+     getVelocity(target: Element, props: string): number;
+  }
 
   interface InertiaPluginClass extends InertiaPlugin {
     new(): PluginScope & InertiaPlugin;

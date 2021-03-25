@@ -1,5 +1,5 @@
 /*!
- * ScrollToPlugin 3.6.0
+ * ScrollToPlugin 3.6.1
  * https://greensock.com
  *
  * @license Copyright 2008-2021, GreenSock. All rights reserved.
@@ -70,7 +70,7 @@ var gsap,
         p;
 
     for (p in value) {
-      p !== "onAutoKill" && (result[p] = _isFunction(value[p]) ? value[p](index, target, targets) : value[p]);
+      result[p] = p !== "onAutoKill" && _isFunction(value[p]) ? value[p](index, target, targets) : value[p];
     }
 
     return result;
@@ -125,7 +125,7 @@ var gsap,
 };
 
 export var ScrollToPlugin = {
-  version: "3.6.0",
+  version: "3.6.1",
   name: "scrollTo",
   rawVars: 1,
   register: function register(core) {
@@ -148,7 +148,7 @@ export var ScrollToPlugin = {
     data.y = data.yPrev = data.getY();
 
     if (value.x != null) {
-      data.add(data, "x", data.x, _parseVal(value.x, target, "x", data.x, value.offsetX || 0), index, targets, Math.round);
+      data.add(data, "x", data.x, _parseVal(value.x, target, "x", data.x, value.offsetX || 0), index, targets);
 
       data._props.push("scrollTo_x");
     } else {
@@ -156,7 +156,7 @@ export var ScrollToPlugin = {
     }
 
     if (value.y != null) {
-      data.add(data, "y", data.y, _parseVal(value.y, target, "y", data.y, value.offsetY || 0), index, targets, Math.round);
+      data.add(data, "y", data.y, _parseVal(value.y, target, "y", data.y, value.offsetY || 0), index, targets);
 
       data._props.push("scrollTo_y");
     } else {

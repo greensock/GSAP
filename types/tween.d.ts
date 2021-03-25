@@ -39,6 +39,7 @@ declare namespace gsap.core {
      *
      * @returns {Tween} The tween
      * @memberof Tween
+     * @link https://greensock.com/docs/v3/GSAP/Tween/kill()
      */
     kill(target?: object, propertiesList?: string): this;
 
@@ -51,6 +52,7 @@ declare namespace gsap.core {
      *
      * @returns {T[]} The array of targets
      * @memberof Tween
+     * @link https://greensock.com/docs/v3/GSAP/Tween/targets()
      */
     targets<T>(): T[];
   }

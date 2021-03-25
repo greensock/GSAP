@@ -13,8 +13,28 @@ declare class MotionPathHelper {
    * @param {MotionPathHelper.Vars} [vars]
    * @returns {MotionPathHelper} The MotionPathHelper instance
    * @memberof MotionPathHelper
+   * @link https://greensock.com/docs/v3/Plugins/MotionPathPlugin/MotionPathHelper
    */
   static create(target: gsap.DOMTarget, vars?: MotionPathHelper.Vars): MotionPathHelper;
+
+  /**
+   * Makes an SVG <path> editable in the browser.
+   *
+   * ```js
+   * MotionPathHelper.editPath(".myClass", {
+   *     onPress: () => console.log("press"),
+   *     onRelease: () => console.log("release"),
+   *     onUpdate: () => console.log("update")
+   * });
+   * ```
+   *
+   * @param {gsap.DOMTarget} target
+   * @param {MotionPathHelper.EditPathVars} [vars]
+   * @returns {object} A PathEditor instance
+   * @memberof MotionPathHelper
+   * @link https://greensock.com/docs/v3/Plugins/MotionPathHelper/static.editPath()
+   */
+  static editPath(target: gsap.DOMTarget, vars?: MotionPathHelper.EditPathVars): MotionPathHelper;
 }
 
 declare namespace MotionPathHelper {
@@ -29,6 +49,20 @@ declare namespace MotionPathHelper {
     pathOpacity?: number;
     selected?: boolean;
     start?: number;
+  }
+
+  interface EditPathVars {
+    [key: string]: any;
+    anchorSnap?: Function;
+    callbackScope?: object;
+    draggable?: boolean;
+    handleSize?: number;
+    handleSnap?: Function;
+    onDeleteAnchor?: Function;
+    onPress?: Function;
+    onRelease?: Function;
+    onUpdate?: Function;
+    selected?: boolean;
   }
 }
 

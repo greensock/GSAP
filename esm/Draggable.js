@@ -3,7 +3,7 @@ function _assertThisInitialized(self) { if (self === void 0) { throw new Referen
 function _inheritsLoose(subClass, superClass) { subClass.prototype = Object.create(superClass.prototype); subClass.prototype.constructor = subClass; subClass.__proto__ = superClass; }
 
 /*!
- * Draggable 3.6.0
+ * Draggable 3.6.1
  * https://greensock.com
  *
  * @license Copyright 2008-2021, GreenSock. All rights reserved.
@@ -916,11 +916,7 @@ export var Draggable = /*#__PURE__*/function (_EventDispatcher) {
     var _this2;
 
     _this2 = _EventDispatcher.call(this) || this;
-
-    if (!gsap) {
-      _initCore(1);
-    }
-
+    _coreInitted || _initCore(1);
     target = _toArray(target)[0]; //in case the target is a selector object or selector text
 
     if (!InertiaPlugin) {
@@ -1119,7 +1115,7 @@ export var Draggable = /*#__PURE__*/function (_EventDispatcher) {
             }
 
             if (allowX) {
-              self.deltaY = x - parseFloat(target.style.left || 0);
+              self.deltaX = x - parseFloat(target.style.left || 0);
               target.style.left = x + "px";
             }
           }
@@ -1169,8 +1165,8 @@ export var Draggable = /*#__PURE__*/function (_EventDispatcher) {
         self.y = scrollProxy.top();
         self.x = scrollProxy.left();
       } else {
-        self.y = parseInt(target.style.top || (cs = _getComputedStyle(target)) && cs.top, 10) || 0;
-        self.x = parseInt(target.style.left || (cs || {}).left, 10) || 0;
+        self.y = parseFloat(target.style.top || (cs = _getComputedStyle(target)) && cs.top) || 0;
+        self.x = parseFloat(target.style.left || (cs || {}).left) || 0;
       }
 
       if ((snapX || snapY || snapXY) && !skipSnap && (self.isDragging || self.isThrowing)) {
@@ -1591,8 +1587,8 @@ export var Draggable = /*#__PURE__*/function (_EventDispatcher) {
         }
       }
 
-      self.startX = startElementX;
-      self.startY = startElementY;
+      self.startX = startElementX = _round(startElementX);
+      self.startY = startElementY = _round(startElementY);
     },
         isTweening = function isTweening() {
       return self.tween && self.tween.isActive();
@@ -2010,6 +2006,11 @@ export var Draggable = /*#__PURE__*/function (_EventDispatcher) {
 
       dirty = false;
 
+      if (wasDragging) {
+        dragEndTime = _lastDragTime = _getTime();
+        self.isDragging = false;
+      }
+
       if (isClicking && !isContextMenuRelease) {
         if (e) {
           _removeListener(e.target, "change", onRelease);
@@ -2035,11 +2036,6 @@ export var Draggable = /*#__PURE__*/function (_EventDispatcher) {
         while (--i > -1) {
           _setStyle(triggers[i], "cursor", vars.cursor || (vars.cursor !== false ? _defaultCursor : null));
         }
-      }
-
-      if (wasDragging) {
-        dragEndTime = _lastDragTime = _getTime();
-        self.isDragging = false;
       }
 
       _dragCount--;
@@ -2650,6 +2646,6 @@ _setDefaults(Draggable.prototype, {
 });
 
 Draggable.zIndex = 1000;
-Draggable.version = "3.6.0";
+Draggable.version = "3.6.1";
 _getGSAP() && gsap.registerPlugin(Draggable);
 export { Draggable as default };

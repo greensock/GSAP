@@ -19,7 +19,7 @@
   }
 
   /*!
-   * GSAP 3.6.0
+   * GSAP 3.6.1
    * https://greensock.com
    *
    * @license Copyright 2008-2021, GreenSock. All rights reserved.
@@ -470,7 +470,6 @@
       tween._from && (ratio = 1 - ratio);
       tween._time = 0;
       tween._tTime = tTime;
-      suppressEvents || _callback(tween, "onStart");
       pt = tween._pt;
 
       while (pt) {
@@ -907,6 +906,7 @@
       _interrupt = function _interrupt(animation) {
     _removeFromParent(animation);
 
+    animation.scrollTrigger && animation.scrollTrigger.kill(false);
     animation.progress() < 1 && _callback(animation, "onInterrupt");
     return animation;
   },
@@ -1930,7 +1930,7 @@
             !suppressEvents && this.parent && _callback(this, "onRepeat");
             this.vars.repeatRefresh && !isYoyo && (this.invalidate()._lock = 1);
 
-            if (prevTime !== this._time || prevPaused !== !this._ts) {
+            if (prevTime && prevTime !== this._time || prevPaused !== !this._ts || this.vars.onRepeat && !this.parent && !this._act) {
               return this;
             }
 
@@ -1941,7 +1941,6 @@
               this._lock = 2;
               prevTime = rewinding ? dur : -0.0001;
               this.render(prevTime, true);
-              this.vars.repeatRefresh && !isYoyo && this.invalidate();
             }
 
             this._lock = 0;
@@ -1973,7 +1972,7 @@
           prevTime = 0;
         }
 
-        !prevTime && (time || !dur && totalTime >= 0) && !suppressEvents && _callback(this, "onStart");
+        !prevTime && time && !suppressEvents && _callback(this, "onStart");
 
         if (time >= prevTime && totalTime >= 0) {
           child = this._first;
@@ -2233,7 +2232,7 @@
           onStartParams = _vars.onStartParams,
           immediateRender = _vars.immediateRender,
           tween = Tween.to(tl, _setDefaults({
-        ease: "none",
+        ease: vars.ease || "none",
         lazy: false,
         immediateRender: false,
         time: endTime,
@@ -2622,6 +2621,8 @@
             time && (tween._zTime = time);
             return;
           }
+        } else if (autoRevert === false) {
+          tween._startAt = 0;
         }
       } else if (runBackwards && dur) {
         if (prevStartAt) {
@@ -3557,7 +3558,7 @@
       }
     }
   }, _buildModifierPlugin("roundProps", _roundModifier), _buildModifierPlugin("modifiers"), _buildModifierPlugin("snap", snap)) || _gsap;
-  Tween.version = Timeline.version = gsap.version = "3.6.0";
+  Tween.version = Timeline.version = gsap.version = "3.6.1";
   _coreReady = 1;
 
   if (_windowExists()) {
@@ -4210,7 +4211,7 @@
     matrix = _getMatrix(target, cache.svg);
 
     if (cache.svg) {
-      t1 = !cache.uncache && target.getAttribute("data-svg-origin");
+      t1 = !cache.uncache && !uncache && target.getAttribute("data-svg-origin");
 
       _applySVGOrigin(target, t1 || origin, !!t1 || cache.originIsAbsolute, cache.smooth !== false, matrix);
     }
@@ -4231,7 +4232,7 @@
         scaleY = Math.sqrt(d * d + c * c);
         rotation = a || b ? _atan2(b, a) * _RAD2DEG : 0;
         skewX = c || d ? _atan2(c, d) * _RAD2DEG + rotation : 0;
-        skewX && (scaleY *= Math.cos(skewX * _DEG2RAD));
+        skewX && (scaleY *= Math.abs(Math.cos(skewX * _DEG2RAD)));
 
         if (cache.svg) {
           x -= xOrigin - (xOrigin * a + yOrigin * c);
@@ -4554,10 +4555,17 @@
 
     return pt;
   },
+      _assign = function _assign(target, source) {
+    for (var p in source) {
+      target[p] = source[p];
+    }
+
+    return target;
+  },
       _addRawTransformPTs = function _addRawTransformPTs(plugin, transforms, target) {
-    var style = _tempDivStyler.style,
-        startCache = target._gsap,
+    var startCache = _assign({}, target._gsap),
         exclude = "perspective,force3D,transformOrigin,svgOrigin",
+        style = target.style,
         endCache,
         p,
         startValue,
@@ -4566,12 +4574,22 @@
         endNum,
         startUnit,
         endUnit;
-    style.cssText = getComputedStyle(target).cssText + ";position:absolute;display:block;";
-    style[_transformProp] = transforms;
 
-    _doc$1.body.appendChild(_tempDivStyler);
+    if (startCache.svg) {
+      startValue = target.getAttribute("transform");
+      target.setAttribute("transform", "");
+      style[_transformProp] = transforms;
+      endCache = _parseTransform(target, 1);
 
-    endCache = _parseTransform(_tempDivStyler, 1);
+      _removeProperty(target, _transformProp);
+
+      target.setAttribute("transform", startValue);
+    } else {
+      startValue = getComputedStyle(target)[_transformProp];
+      style[_transformProp] = transforms;
+      endCache = _parseTransform(target, 1);
+      style[_transformProp] = startValue;
+    }
 
     for (p in _transformProps) {
       startValue = startCache[p];
@@ -4582,14 +4600,14 @@
         endUnit = getUnit(endValue);
         startNum = startUnit !== endUnit ? _convertToUnit(target, p, startValue, endUnit) : parseFloat(startValue);
         endNum = parseFloat(endValue);
-        plugin._pt = new PropTween(plugin._pt, startCache, p, startNum, endNum - startNum, _renderCSSProp);
+        plugin._pt = new PropTween(plugin._pt, endCache, p, startNum, endNum - startNum, _renderCSSProp);
         plugin._pt.u = endUnit || 0;
 
         plugin._props.push(p);
       }
     }
 
-    _doc$1.body.removeChild(_tempDivStyler);
+    _assign(endCache, startCache);
   };
 
   _forEachName("padding,margin,Width,Radius", function (name, index) {
@@ -4676,8 +4694,13 @@
         } else if (p.substr(0, 2) === "--") {
           startValue = (getComputedStyle(target).getPropertyValue(p) + "").trim();
           endValue += "";
-          startUnit = getUnit(startValue);
-          endUnit = getUnit(endValue);
+          _colorExp.lastIndex = 0;
+
+          if (!_colorExp.test(startValue)) {
+            startUnit = getUnit(startValue);
+            endUnit = getUnit(endValue);
+          }
+
           endUnit ? startUnit !== endUnit && (startValue = _convertToUnit(target, p, startValue, endUnit) + endUnit) : startUnit && (endValue += startUnit);
           this.add(style, "setProperty", startValue, endValue, index, targets, 0, 0, p);
         } else if (type !== "undefined") {

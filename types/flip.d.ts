@@ -121,18 +121,50 @@ declare namespace gsap {
     register(core: typeof gsap): void;
 
     /**
-     * Captures information about the current state of the targets so that they can be Flipped later.
+     * Gets the matrix to convert points from one element's local coordinates into a
+     * different element's local coordinate system.
      *
      * ```js
-     * const state = Flip.getState(".my-class, .another-class", {props: "backgroundColor,color", simple: true});
+     * Flip.convertCoordinates(fromElement, toElement);
      * ```
      *
-     * @param {Element | string | null | ArrayLike<Element | string>} targets
-     * @param {FlipStateVars | string} vars
-     * @returns {FlipStateInstance} The resulting state object
+     * @param {Element} fromElement
+     * @param {Element} toElement
+     * @returns {Matrix2D} A matrix to convert from one element's coordinate system to another's
      * @memberof Flip
      */
-    getState(targets: Element | string | null | ArrayLike<Element | string>, vars?: FlipStateVars | string): FlipStateInstance;
+    convertCoordinates(fromElement: Element, toElement: Element): gsap.plugins.Matrix2D;
+    /**
+     * Converts a point from one element's local coordinates into a
+     * different element's local coordinate system.
+     *
+     * ```js
+     * Flip.convertCoordinates(fromElement, toElement, point);
+     * ```
+     *
+     * @param {Element} fromElement
+     * @param {Element} toElement
+     * @param {gsap.Point2D} point
+     * @returns {gsap.Point2D} A matrix to convert from one element's coordinate system to another's
+     * @memberof Flip
+     */
+    convertCoordinates(fromElement: Element, toElement: Element, point: Point2D): gsap.Point2D;
+    
+    /**
+     * Changes the x/y/rotation/skewX transforms (and width/height or scaleX/scaleY) to fit one element exactly into the the position/size/rotation of another element.
+     *
+     * ```js
+     * Flip.fit(".el-1", ".el-2", {scale: true, absolute: true, duration: 1, ease: "power2"});
+     * ```
+     *
+     * @param {Element | string} fromElement
+     * @param {Element | FlipStateInstance | string} toElement
+     * @param {FitVars} vars
+     * @returns {core.Tween | FitReturnVars} The Tween instance, or if getVars: true is set, an object containing "x" and "y" properties along with either "width" and "height" (default), or if scale: true is in the vars object, "scaleX" and "scaleY" properties. It will also include any standard tween-related properties ("scale", "getVars", and "absolute" will be stripped out)
+     * @memberof Flip
+     * @link https://greensock.com/docs/v3/Plugins/Flip/static.fit()
+     */
+    fit(fromElement: Element | string, toElement: Element | FlipStateInstance | string, vars?: FitVars): core.Tween | FitReturnVars;
 
     /**
      * Animates the targets from the provided state to their current state (position/size).
@@ -150,27 +182,24 @@ declare namespace gsap {
      * @param {FlipToFromVars} vars
      * @returns {core.Timeline} The resulting Timeline animation
      * @memberof Flip
+     * @link https://greensock.com/docs/v3/Plugins/Flip/static.from()
      */
     from(state: FlipStateInstance, vars?: FlipToFromVars): core.Timeline;
 
     /**
-     * Animates the targets from the current state to the provided state.
+     * Captures information about the current state of the targets so that they can be Flipped later.
      *
      * ```js
-     * Flip.to(state, {
-     *    duration: 1,
-     *    ease: "power1.inOut",
-     *    stagger: 0.1,
-     *    onComplete: () => console.log("done")
-     * });
+     * const state = Flip.getState(".my-class, .another-class", {props: "backgroundColor,color", simple: true});
      * ```
      *
-     * @param {FlipStateInstance} state
-     * @param {FlipToFromVars} vars
-     * @returns {core.Timeline} The resulting Timeline animation
+     * @param {Element | string | null | ArrayLike<Element | string>} targets
+     * @param {FlipStateVars | string} vars
+     * @returns {FlipStateInstance} The resulting state object
      * @memberof Flip
+     * @link https://greensock.com/docs/v3/Plugins/Flip/static.getState()
      */
-    to(state: FlipStateInstance, vars?: FlipToFromVars): core.Timeline;
+    getState(targets: Element | string | null | ArrayLike<Element | string>, vars?: FlipStateVars | string): FlipStateInstance;
 
     /**
      * Gets the timeline for the most recently-created flip animation associated with the provided element
@@ -197,23 +226,9 @@ declare namespace gsap {
      * @param {Element | string} target
      * @returns {boolean} whether or not the target element is actively flipping
      * @memberof Flip
+     * @link https://greensock.com/docs/v3/Plugins/Flip/static.isFlipping()
      */
     isFlipping(target: Element | string): boolean;
-
-    /**
-     * Changes the x/y/rotation/skewX transforms (and width/height or scaleX/scaleY) to fit one element exactly into the the position/size/rotation of another element.
-     *
-     * ```js
-     * Flip.fit(".el-1", ".el-2", {scale: true, absolute: true, duration: 1, ease: "power2"});
-     * ```
-     *
-     * @param {Element | string} fromElement
-     * @param {Element | FlipStateInstance | string} toElement
-     * @param {FitVars} vars
-     * @returns {core.Tween | FitReturnVars} The Tween instance, or if getVars: true is set, an object containing "x" and "y" properties along with either "width" and "height" (default), or if scale: true is in the vars object, "scaleX" and "scaleY" properties. It will also include any standard tween-related properties ("scale", "getVars", and "absolute" will be stripped out)
-     * @memberof Flip
-     */
-    fit(fromElement: Element | string, toElement: Element | FlipStateInstance | string, vars?: FitVars): core.Tween | FitReturnVars;
 
     /**
      * Sets all of the provided target elements to position: absolute while retaining their current positioning.
@@ -225,39 +240,29 @@ declare namespace gsap {
      * @param {Element | string | null | ArrayLike<Element | string>} targets
      * @returns {Element[]} An Array containing the Elements that were affected
      * @memberof Flip
+     * @link https://greensock.com/docs/v3/Plugins/Flip/static.makeAbsolute()
      */
-    makeAbsolute(targets: Element | string | null | ArrayLike<Element | string>): Element[];
+     makeAbsolute(targets: Element | string | null | ArrayLike<Element | string>): Element[];
 
     /**
-     * Gets the matrix to convert points from one element's local coordinates into a
-     * different element's local coordinate system.
+     * Animates the targets from the current state to the provided state.
      *
      * ```js
-     * Flip.convertCoordinates(fromElement, toElement);
+     * Flip.to(state, {
+     *    duration: 1,
+     *    ease: "power1.inOut",
+     *    stagger: 0.1,
+     *    onComplete: () => console.log("done")
+     * });
      * ```
      *
-     * @param {Element} fromElement
-     * @param {Element} toElement
-     * @returns {Matrix2D} A matrix to convert from one element's coordinate system to another's
+     * @param {FlipStateInstance} state
+     * @param {FlipToFromVars} vars
+     * @returns {core.Timeline} The resulting Timeline animation
      * @memberof Flip
+     * @link https://greensock.com/docs/v3/Plugins/Flip/static.to()
      */
-    convertCoordinates(fromElement: Element, toElement: Element): gsap.plugins.Matrix2D;
-
-    /**
-     * Converts a point from one element's local coordinates into a
-     * different element's local coordinate system.
-     *
-     * ```js
-     * Flip.convertCoordinates(fromElement, toElement, point);
-     * ```
-     *
-     * @param {Element} fromElement
-     * @param {Element} toElement
-     * @param {gsap.Point2D} point
-     * @returns {gsap.Point2D} A matrix to convert from one element's coordinate system to another's
-     * @memberof Flip
-     */
-    convertCoordinates(fromElement: Element, toElement: Element, point: Point2D): gsap.Point2D;
+    to(state: FlipStateInstance, vars?: FlipToFromVars): core.Timeline;
   }
 
 }

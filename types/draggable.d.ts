@@ -44,6 +44,7 @@ declare class Draggable {
    * @param {Draggable.Vars} [vars]
    * @returns {Draggable[]} Array of Draggables
    * @memberof Draggable
+   * @link https://greensock.com/docs/v3/Plugins/Draggable/static.create()
    */
   static create(target: gsap.DOMTarget, vars?: Draggable.Vars): Draggable[];
 
@@ -57,6 +58,7 @@ declare class Draggable {
    * @param {gsap.DOMTarget} target
    * @returns {Draggable} The Draggable
    * @memberof Draggable
+   * @link https://greensock.com/docs/v3/Plugins/Draggable/static.get()
    */
   static get(target: gsap.DOMTarget): Draggable;
 
@@ -72,6 +74,7 @@ declare class Draggable {
    * @param {number | string} [threshold]
    * @returns {boolean} If the hit threshhold is met or not
    * @memberof Draggable
+   * @link https://greensock.com/docs/v3/Plugins/Draggable/static.hitTest()
    */
   static hitTest(testObject1: Draggable.TestObject, testObject2: Draggable.TestObject, threshold?: number | string): boolean;
 
@@ -84,6 +87,7 @@ declare class Draggable {
    *
    * @returns {number} The time since the last drag ended
    * @memberof Draggable
+   * @link https://greensock.com/docs/v3/Plugins/Draggable/static.timeSinceDrag()
    */
   static timeSinceDrag(): number;
   
@@ -98,6 +102,7 @@ declare class Draggable {
    * @param {Draggable.CallbackType} type
    * @param {gsap.Callback} callback
    * @memberof Draggable
+   * @link https://greensock.com/docs/v3/Plugins/Draggable/addEventListener()
    */
   addEventListener(type: Draggable.CallbackType, callback: gsap.Callback): void;
 
@@ -113,6 +118,7 @@ declare class Draggable {
    *
    * @param {gsap.DOMTarget | Draggable.BoundsMinMax | Draggable.BoundsRectangle | Draggable.BoundsRotation} bounds
    * @memberof Draggable
+   * @link https://greensock.com/docs/v3/Plugins/Draggable/applyBounds()
    */
   applyBounds(bounds: gsap.DOMTarget | Draggable.BoundsMinMax | Draggable.BoundsRectangle | Draggable.BoundsRotation): void;
 
@@ -125,6 +131,7 @@ declare class Draggable {
    * 
    * @returns {Draggable} The Draggable instance
    * @memberof Draggable
+   * @link https://greensock.com/docs/v3/Plugins/Draggable/disable()
    */
   disable(): this;
 
@@ -139,6 +146,7 @@ declare class Draggable {
    * 
    * @returns {Draggable} The Draggable instance
    * @memberof Draggable
+   * @link https://greensock.com/docs/v3/Plugins/Draggable/enable()
    */
   enable(): this;
 
@@ -152,6 +160,7 @@ declare class Draggable {
    * @param {boolean} value
    * @returns {Draggable} The Draggable
    * @memberof Draggable
+   * @link https://greensock.com/docs/v3/Plugins/Draggable/enabled()
    */
   enabled(value: boolean): this;
   /**
@@ -163,6 +172,7 @@ declare class Draggable {
    *
    * @returns {boolean} The enabled state
    * @memberof Draggable
+   * @link https://greensock.com/docs/v3/Plugins/Draggable/enabled()
    */
   enabled(): boolean;
 
@@ -176,6 +186,7 @@ declare class Draggable {
    *
    * @param {Event} event
    * @memberof Draggable
+   * @link https://greensock.com/docs/v3/Plugins/Draggable/endDrag()
    */
   endDrag(event: Event): void;
 
@@ -191,6 +202,7 @@ declare class Draggable {
    * @param {"start" | "velocity" | gsap.DOMTarget} from
    * @returns {Draggable.Direction} The direction
    * @memberof Draggable
+   * @link https://greensock.com/docs/v3/Plugins/Draggable/getDirection()
    */
   getDirection(from: "start" | "velocity" | gsap.DOMTarget): Draggable.Direction;
 
@@ -205,6 +217,7 @@ declare class Draggable {
    * @param {number | string} [threshold]
    * @returns {boolean} If the hit threshhold is met or not
    * @memberof Draggable
+   * @link https://greensock.com/docs/v3/Plugins/Draggable/static.hitTest()
    */
   hitTest(testObject: Draggable.TestObject, threshold?: number | string): boolean;
 
@@ -218,6 +231,7 @@ declare class Draggable {
    * 
    * @returns {Draggable} The Draggable instance
    * @memberof Draggable
+   * @link https://greensock.com/docs/v3/Plugins/Draggable/kill()
    */
   kill(): this;
 
@@ -233,6 +247,7 @@ declare class Draggable {
    *
    * @param {Event} event
    * @memberof Draggable
+   * @link https://greensock.com/docs/v3/Plugins/Draggable/startDrag()
    */
   startDrag(event: Event): void;
 
@@ -245,6 +260,7 @@ declare class Draggable {
    *
    * @returns {number} The time since the last drag ended
    * @memberof Draggable
+   * @link https://greensock.com/docs/v3/Plugins/Draggable/static.timeSinceDrag()
    */
   timeSinceDrag(): number;
 
@@ -259,6 +275,7 @@ declare class Draggable {
    * @param {boolean} [sticky]
    * @returns {Draggable} The Draggable instance
    * @memberof Draggable
+   * @link https://greensock.com/docs/v3/Plugins/Draggable/update()
    */
   update(applyBounds?: boolean, sticky?: boolean): this;
 }

@@ -1,5 +1,5 @@
 /*!
- * Draggable 3.6.0
+ * Draggable 3.6.1
  * https://greensock.com
  *
  * @license Copyright 2008-2021, GreenSock. All rights reserved.
@@ -647,9 +647,7 @@ export class Draggable extends EventDispatcher {
 
 	constructor(target, vars) {
 		super();
-		if (!gsap) {
-			_initCore(1);
-		}
+		_coreInitted || _initCore(1);
 		target = _toArray(target)[0]; //in case the target is a selector object or selector text
 		if (!InertiaPlugin) {
 			InertiaPlugin = gsap.plugins.inertia;
@@ -785,7 +783,7 @@ export class Draggable extends EventDispatcher {
 								target.style.top = y + "px";
 							}
 							if (allowX) {
-								self.deltaY = x - parseFloat(target.style.left || 0);
+								self.deltaX = x - parseFloat(target.style.left || 0);
 								target.style.left = x + "px";
 							}
 						}
@@ -824,8 +822,8 @@ export class Draggable extends EventDispatcher {
 					self.y = scrollProxy.top();
 					self.x = scrollProxy.left();
 				} else {
-					self.y = parseInt(target.style.top || ((cs = _getComputedStyle(target)) && cs.top), 10) || 0;
-					self.x = parseInt(target.style.left || (cs || {}).left, 10) || 0;
+					self.y = parseFloat(target.style.top || ((cs = _getComputedStyle(target)) && cs.top)) || 0;
+					self.x = parseFloat(target.style.left || (cs || {}).left) || 0;
 				}
 				if ((snapX || snapY || snapXY) && !skipSnap && (self.isDragging || self.isThrowing)) {
 					if (snapXY) {
@@ -1158,8 +1156,8 @@ export class Draggable extends EventDispatcher {
 						}
 					}
 				}
-				self.startX = startElementX;
-				self.startY = startElementY;
+				self.startX = startElementX = _round(startElementX);
+				self.startY = startElementY = _round(startElementY);
 			},
 
 			isTweening = () => self.tween && self.tween.isActive(),
@@ -1464,6 +1462,10 @@ export class Draggable extends EventDispatcher {
 					e && e.target && _removeListener(e.target, "mouseup", onRelease);
 				}
 				dirty = false;
+				if (wasDragging) {
+					dragEndTime = _lastDragTime = _getTime();
+					self.isDragging = false;
+				}
 				if (isClicking && !isContextMenuRelease) {
 					if (e) {
 						_removeListener(e.target, "change", onRelease);
@@ -1481,10 +1483,6 @@ export class Draggable extends EventDispatcher {
 					while (--i > -1) {
 						_setStyle(triggers[i], "cursor", vars.cursor || (vars.cursor !== false ? _defaultCursor : null));
 					}
-				}
-				if (wasDragging) {
-					dragEndTime = _lastDragTime = _getTime();
-					self.isDragging = false;
 				}
 				_dragCount--;
 				if (e) {
@@ -1909,7 +1907,7 @@ export class Draggable extends EventDispatcher {
 _setDefaults(Draggable.prototype, {pointerX:0, pointerY: 0, startX: 0, startY: 0, deltaX: 0, deltaY: 0, isDragging: false, isPressed: false});
 
 Draggable.zIndex = 1000;
-Draggable.version = "3.6.0";
+Draggable.version = "3.6.1";
 
 _getGSAP() && gsap.registerPlugin(Draggable);
 

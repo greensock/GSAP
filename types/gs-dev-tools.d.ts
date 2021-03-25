@@ -12,6 +12,7 @@ declare class GSDevTools {
    * @param {GSDevTools.Vars} vars
    * @returns {GSDevTools} The GSDevTools instance
    * @memberof GSDevTools
+   * @link https://greensock.com/docs/v3/Plugins/GSDevTools/static.create()
    */
   static create(vars?: GSDevTools.Vars): GSDevTools;
 }

@@ -1,5 +1,5 @@
 /*!
- * CSSPlugin 3.6.0
+ * CSSPlugin 3.6.1
  * https://greensock.com
  *
  * Copyright 2008-2021, GreenSock. All rights reserved.
@@ -9,7 +9,7 @@
 */
 /* eslint-disable */
 
-import {gsap, _getProperty, _numExp, _numWithUnitExp, getUnit, _isString, _isUndefined, _renderComplexString, _relExp, _forEachName, _sortPropTweensByPriority, _colorStringFilter, _checkPlugin, _replaceRandom, _plugins, GSCache, PropTween, _config, _ticker, _round, _missingPlugin, _getSetter, _getCache,
+import {gsap, _getProperty, _numExp, _numWithUnitExp, getUnit, _isString, _isUndefined, _renderComplexString, _relExp, _forEachName, _sortPropTweensByPriority, _colorStringFilter, _checkPlugin, _replaceRandom, _plugins, GSCache, PropTween, _config, _ticker, _round, _missingPlugin, _getSetter, _getCache, _colorExp,
 	_setDefaults, _removeLinkedListItem //for the commented-out className feature.
 } from "./gsap-core.js";
 
@@ -535,7 +535,7 @@ let _win, _doc, _docElement, _pluginInitted, _tempDiv, _tempDivStyler, _recentSe
 		cache.svg = !!(target.getCTM && _isSVG(target));
 		matrix = _getMatrix(target, cache.svg);
 		if (cache.svg) {
-			t1 = !cache.uncache && target.getAttribute("data-svg-origin");
+			t1 = !cache.uncache && !uncache && target.getAttribute("data-svg-origin");
 			_applySVGOrigin(target, t1 || origin, !!t1 || cache.originIsAbsolute, cache.smooth !== false, matrix);
 		}
 		xOrigin = cache.xOrigin || 0;
@@ -554,7 +554,7 @@ let _win, _doc, _docElement, _pluginInitted, _tempDiv, _tempDivStyler, _recentSe
 				scaleY = Math.sqrt(d * d + c * c);
 				rotation = (a || b) ? _atan2(b, a) * _RAD2DEG : 0; //note: if scaleX is 0, we cannot accurately measure rotation. Same for skewX with a scaleY of 0. Therefore, we default to the previously recorded value (or zero if that doesn't exist).
 				skewX = (c || d) ? _atan2(c, d) * _RAD2DEG + rotation : 0;
-				skewX && (scaleY *= Math.cos(skewX * _DEG2RAD));
+				skewX && (scaleY *= Math.abs(Math.cos(skewX * _DEG2RAD)));
 				if (cache.svg) {
 					x -= xOrigin - (xOrigin * a + yOrigin * c);
 					y -= yOrigin - (xOrigin * b + yOrigin * d);
@@ -810,15 +810,30 @@ let _win, _doc, _docElement, _pluginInitted, _tempDiv, _tempDivStyler, _recentSe
 		plugin._props.push(property);
 		return pt;
 	},
+	_assign = (target, source) => { // Internet Explorer doesn't have Object.assign(), so we recreate it here.
+		for (let p in source) {
+			target[p] = source[p];
+		}
+		return target;
+	},
 	_addRawTransformPTs = (plugin, transforms, target) => { //for handling cases where someone passes in a whole transform string, like transform: "scale(2, 3) rotate(20deg) translateY(30em)"
-		let style = _tempDivStyler.style,
-			startCache = target._gsap,
+		let startCache = _assign({}, target._gsap),
 			exclude = "perspective,force3D,transformOrigin,svgOrigin",
+			style = target.style,
 			endCache, p, startValue, endValue, startNum, endNum, startUnit, endUnit;
-		style.cssText = getComputedStyle(target).cssText + ";position:absolute;display:block;"; //%-based translations will fail unless we set the width/height to match the original target (and padding/borders can affect it)
-		style[_transformProp] = transforms;
-		_doc.body.appendChild(_tempDivStyler);
-		endCache = _parseTransform(_tempDivStyler, 1);
+		if (startCache.svg) {
+			startValue = target.getAttribute("transform");
+			target.setAttribute("transform", "");
+			style[_transformProp] = transforms;
+			endCache = _parseTransform(target, 1);
+			_removeProperty(target, _transformProp);
+			target.setAttribute("transform", startValue);
+		} else {
+			startValue = getComputedStyle(target)[_transformProp];
+			style[_transformProp] = transforms;
+			endCache = _parseTransform(target, 1);
+			style[_transformProp] = startValue;
+		}
 		for (p in _transformProps) {
 			startValue = startCache[p];
 			endValue = endCache[p];
@@ -827,12 +842,12 @@ let _win, _doc, _docElement, _pluginInitted, _tempDiv, _tempDivStyler, _recentSe
 				endUnit = getUnit(endValue);
 				startNum = (startUnit !== endUnit) ? _convertToUnit(target, p, startValue, endUnit) : parseFloat(startValue);
 				endNum = parseFloat(endValue);
-				plugin._pt = new PropTween(plugin._pt, startCache, p, startNum, endNum - startNum, _renderCSSProp);
+				plugin._pt = new PropTween(plugin._pt, endCache, p, startNum, endNum - startNum, _renderCSSProp);
 				plugin._pt.u = endUnit || 0;
 				plugin._props.push(p);
 			}
 		}
-		_doc.body.removeChild(_tempDivStyler);
+		_assign(endCache, startCache);
 	};
 
 // handle splitting apart padding, margin, borderWidth, and borderRadius into their 4 components. Firefox, for example, won't report borderRadius correctly - it will only do borderTopLeftRadius and the other corners. We also want to handle paddingTop, marginLeft, borderRightWidth, etc.
@@ -891,8 +906,11 @@ export const CSSPlugin = {
 			} else if (p.substr(0,2) === "--") { //CSS variable
 				startValue = (getComputedStyle(target).getPropertyValue(p) + "").trim();
 				endValue += "";
-				startUnit = getUnit(startValue);
-				endUnit = getUnit(endValue);
+				_colorExp.lastIndex = 0;
+				if (!_colorExp.test(startValue)) { // colors don't have units
+					startUnit = getUnit(startValue);
+					endUnit = getUnit(endValue);
+				}
 				endUnit ? startUnit !== endUnit && (startValue = _convertToUnit(target, p, startValue, endUnit) + endUnit) : startUnit && (endValue += startUnit);
 				this.add(style, "setProperty", startValue, endValue, index, targets, 0, 0, p);
 			} else if (type !== "undefined") {

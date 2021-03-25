@@ -1,5 +1,5 @@
 /*!
- * ScrollTrigger 3.6.0
+ * ScrollTrigger 3.6.1
  * https://greensock.com
  *
  * @license Copyright 2008-2021, GreenSock. All rights reserved.
@@ -44,6 +44,9 @@ _startup = 1,
     _enabled = 1,
     _passThrough = function _passThrough(v) {
   return v;
+},
+    _round = function _round(value) {
+  return Math.round(value * 100000) / 100000 || 0;
 },
     _windowExists = function _windowExists() {
   return typeof window !== "undefined";
@@ -240,6 +243,8 @@ _getBounds = function _getBounds(element, withoutTransforms) {
     });
 
     if (st.direction > 0) {
+      value -= 1e-4; // to avoid rounding errors. If we're too strict, it might snap forward, then immediately again, and again.
+
       for (i = 0; i < a.length; i++) {
         if (a[i] >= value) {
           return a[i];
@@ -249,6 +254,7 @@ _getBounds = function _getBounds(element, withoutTransforms) {
       return a.pop();
     } else {
       i = a.length;
+      value += 1e-4;
 
       while (i--) {
         if (a[i] <= value) {
@@ -500,7 +506,7 @@ _revertRecorded = function _revertRecorded(media) {
   if (_direction < 0) {
     _i = l;
 
-    while (_i--) {
+    while (_i-- > 0) {
       _triggers[_i] && _triggers[_i].update(0, recordVelocity);
     }
 
@@ -707,7 +713,7 @@ _getTweenCreator = function _getTweenCreator(scroller, direction) {
     vars.modifiers = modifiers;
 
     modifiers[prop] = function (value) {
-      value = Math.round(getScroll()); // round because in some [very uncommon] Windows environments, it can get reported with decimals even though it was set without.
+      value = _round(getScroll()); // round because in some [very uncommon] Windows environments, it can get reported with decimals even though it was set without.
 
       if (value !== lastScroll1 && value !== lastScroll2 && Math.abs(value - lastScroll1) > 2) {
         // if the user scrolls, kill the tween. iOS Safari intermittently misreports the scroll position, it may be the most recently-set one or the one before that! When Safari is zoomed (CMD-+), it often misreports as 1 pixel off too! So if we set the scroll position to 125, for example, it'll actually report it as 124.
@@ -718,7 +724,7 @@ _getTweenCreator = function _getTweenCreator(scroller, direction) {
       }
 
       lastScroll2 = lastScroll1;
-      return lastScroll1 = Math.round(value);
+      return lastScroll1 = _round(value);
     };
 
     vars.onComplete = function () {
@@ -731,9 +737,9 @@ _getTweenCreator = function _getTweenCreator(scroller, direction) {
   };
 
   scroller[prop] = getScroll;
-  scroller.addEventListener("mousewheel", function () {
+  scroller.addEventListener("wheel", function () {
     return getTween.tween && getTween.tween.kill() && (getTween.tween = 0);
-  }); // Windows machines handle mousewheel scrolling in chunks (like "3 lines per scroll") meaning the typical strategy for cancelling the scroll isn't as sensitive. It's much more likely to match one of the previous 2 scroll event positions. So we kill any snapping as soon as there's a mousewheel event.
+  }); // Windows machines handle mousewheel scrolling in chunks (like "3 lines per scroll") meaning the typical strategy for cancelling the scroll isn't as sensitive. It's much more likely to match one of the previous 2 scroll event positions. So we kill any snapping as soon as there's a wheel event.
 
   return getTween;
 };
@@ -884,10 +890,14 @@ export var ScrollTrigger = /*#__PURE__*/function () {
           var totalProgress = animation && !isToggle ? animation.totalProgress() : self.progress,
               velocity = (totalProgress - snap2) / (_getTime() - _time2) * 1000 || 0,
               change1 = _abs(velocity / 2) * velocity / 0.185,
-              naturalEnd = totalProgress + change1,
+              naturalEnd = totalProgress + (snap.inertia === false ? 0 : change1),
               endValue = _clamp(0, 1, snapFunc(naturalEnd, self)),
               scroll = self.scroll(),
               endScroll = Math.round(start + endValue * change),
+              _snap = snap,
+              onStart = _snap.onStart,
+              _onInterrupt = _snap.onInterrupt,
+              _onComplete = _snap.onComplete,
               tween = tweenTo.tween;
 
           if (scroll <= end && scroll >= start && endScroll !== scroll) {
@@ -901,11 +911,16 @@ export var ScrollTrigger = /*#__PURE__*/function () {
               ease: snap.ease || "power3",
               data: Math.abs(endScroll - scroll),
               // record the distance so that if another snap tween occurs (conflict) we can prioritize the closest snap.
+              onInterrupt: function onInterrupt() {
+                return snapDelayedCall.restart(true) && _onInterrupt && _onInterrupt(self);
+              },
               onComplete: function onComplete() {
                 snap1 = snap2 = animation && !isToggle ? animation.totalProgress() : self.progress;
                 onSnapComplete && onSnapComplete(self);
+                _onComplete && _onComplete(self);
               }
             }, scroll, change1 * change, endScroll - scroll - change1 * change);
+            onStart && onStart(self, tweenTo.tween);
           }
         } else if (self.isActive) {
           snapDelayedCall.restart(true);
@@ -993,8 +1008,8 @@ export var ScrollTrigger = /*#__PURE__*/function () {
       }
     };
 
-    self.refresh = function (soft) {
-      if (_refreshing || !self.enabled) {
+    self.refresh = function (soft, force) {
+      if ((_refreshing || !self.enabled) && !force) {
         return;
       }
 
@@ -1031,8 +1046,11 @@ export var ScrollTrigger = /*#__PURE__*/function () {
 
       while (i--) {
         // user might try to pin the same element more than once, so we must find any prior triggers with the same pin, revert them, and determine how long they're pinning so that we can offset things appropriately. Make sure we revert from last to first so that things "rewind" properly.
-        curPin = _triggers[i].pin;
-        curPin && (curPin === trigger || curPin === pin) && _triggers[i].revert();
+        curTrigger = _triggers[i];
+        curTrigger.end || curTrigger.refresh(0, 1) || (_refreshing = 1); // if it's a timeline-based trigger that hasn't been fully initialized yet because it's waiting for 1 tick, just force the refresh() here, otherwise if it contains a pin that's supposed to affect other ScrollTriggers further down the page, they won't be adjusted properly.
+
+        curPin = curTrigger.pin;
+        curPin && (curPin === trigger || curPin === pin) && curTrigger.revert();
       }
 
       start = _parsePosition(parsedStart, trigger, size, direction, self.scroll(), markerStart, markerStartTrigger, self, scrollerBounds, borderWidth, useFixedPosition, max) || (pin ? -0.001 : 0);
@@ -1402,7 +1420,7 @@ export var ScrollTrigger = /*#__PURE__*/function () {
             return setTimeout(f, 16);
           };
 
-          _addListener(_win, "mousewheel", _onScroll);
+          _addListener(_win, "wheel", _onScroll);
 
           _root = [_win, _doc, _docEl, _body];
 
@@ -1549,7 +1567,7 @@ export var ScrollTrigger = /*#__PURE__*/function () {
 
   return ScrollTrigger;
 }();
-ScrollTrigger.version = "3.6.0";
+ScrollTrigger.version = "3.6.1";
 
 ScrollTrigger.saveStyles = function (targets) {
   return targets ? _toArray(targets).forEach(function (target) {

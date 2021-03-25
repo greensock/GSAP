@@ -1,5 +1,5 @@
 /*!
- * GSAP 3.6.0
+ * GSAP 3.6.1
  * https://greensock.com
  *
  * @license Copyright 2008-2021, GreenSock. All rights reserved.
@@ -337,7 +337,6 @@ let _config = {
 			tween._from && (ratio = 1 - ratio);
 			tween._time = 0;
 			tween._tTime = tTime;
-			suppressEvents || _callback(tween, "onStart");
 			pt = tween._pt;
 			while (pt) {
 				pt.r(ratio, pt.d);
@@ -626,6 +625,7 @@ let _config = {
 	},
 	_interrupt = animation => {
 		_removeFromParent(animation);
+		animation.scrollTrigger && animation.scrollTrigger.kill(false);
 		animation.progress() < 1 && _callback(animation, "onInterrupt");
 		return animation;
 	},
@@ -1553,7 +1553,7 @@ export class Timeline extends Animation {
 					this.render(prevTime || (isYoyo ? 0 : _round(iteration * cycleDuration)), suppressEvents, !dur)._lock = 0;
 					!suppressEvents && this.parent && _callback(this, "onRepeat");
 					this.vars.repeatRefresh && !isYoyo && (this.invalidate()._lock = 1);
-					if (prevTime !== this._time || prevPaused !== !this._ts) {
+					if ((prevTime && prevTime !== this._time) || prevPaused !== !this._ts || (this.vars.onRepeat && !this.parent && !this._act)) { // if prevTime is 0 and we render at the very end, _time will be the end, thus won't match. So in this edge case, prevTime won't match _time but that's okay. If it gets killed in the onRepeat, eject as well.
 						return this;
 					}
 					dur = this._dur; // in case the duration changed in the onRepeat
@@ -1562,7 +1562,6 @@ export class Timeline extends Animation {
 						this._lock = 2;
 						prevTime = rewinding ? dur : -0.0001;
 						this.render(prevTime, true);
-						this.vars.repeatRefresh && !isYoyo && this.invalidate();
 					}
 					this._lock = 0;
 					if (!this._ts && !prevPaused) {
@@ -1589,7 +1588,7 @@ export class Timeline extends Animation {
 				this._zTime = totalTime;
 				prevTime = 0; // upon init, the playhead should always go forward; someone could invalidate() a completed timeline and then if they restart(), that would make child tweens render in reverse order which could lock in the wrong starting values if they build on each other, like tl.to(obj, {x: 100}).to(obj, {x: 0}).
 			}
-			!prevTime && (time || (!dur && totalTime >= 0)) && !suppressEvents && _callback(this, "onStart");
+			!prevTime && time && !suppressEvents && _callback(this, "onStart");
 			if (time >= prevTime && totalTime >= 0) {
 				child = this._first;
 				while (child) {
@@ -1789,7 +1788,7 @@ export class Timeline extends Animation {
 			endTime = _parsePosition(tl, position),
 			{ startAt, onStart, onStartParams, immediateRender } = vars,
 			tween = Tween.to(tl, _setDefaults({
-				ease: "none",
+				ease: vars.ease || "none",
 				lazy: false,
 				immediateRender: false,
 				time: endTime,
@@ -2084,6 +2083,8 @@ let _addComplexStringPropTween = function(target, prop, start, end, setter, stri
 						time && (tween._zTime = time);
 						return; //we skip initialization here so that overwriting doesn't occur until the tween actually begins. Otherwise, if you create several immediateRender:true tweens of the same target/properties to drop into a Timeline, the last one created would overwrite the first ones because they didn't get placed into the timeline yet before the first render occurs and kicks in overwriting.
 					}
+				} else if (autoRevert === false) {
+					tween._startAt = 0;
 				}
 			} else if (runBackwards && dur) {
 				//from() tweens must be handled uniquely: their beginning values must be rendered but we don't want overwriting to occur yet (when time is still 0). Wait until the tween actually begins before doing all the routines like overwriting. At that time, we should render at the END of the tween to ensure that things initialize correctly (remember, from() tweens go backwards)
@@ -2835,7 +2836,7 @@ export const gsap = _gsap.registerPlugin({
 	_buildModifierPlugin("snap", snap)
 ) || _gsap; //to prevent the core plugins from being dropped via aggressive tree shaking, we must include them in the variable declaration in this way.
 
-Tween.version = Timeline.version = gsap.version = "3.6.0";
+Tween.version = Timeline.version = gsap.version = "3.6.1";
 _coreReady = 1;
 if (_windowExists()) {
 	_wake();
@@ -2844,4 +2845,4 @@ if (_windowExists()) {
 export const { Power0, Power1, Power2, Power3, Power4, Linear, Quad, Cubic, Quart, Quint, Strong, Elastic, Back, SteppedEase, Bounce, Sine, Expo, Circ } = _easeMap;
 export { Tween as TweenMax, Tween as TweenLite, Timeline as TimelineMax, Timeline as TimelineLite, gsap as default, wrap, wrapYoyo, distribute, random, snap, normalize, getUnit, clamp, splitColor, toArray, mapRange, pipe, unitize, interpolate, shuffle };
 //export some internal methods/orojects for use in CSSPlugin so that we can externalize that file and allow custom builds that exclude it.
-export { _getProperty, _numExp, _numWithUnitExp, _isString, _isUndefined, _renderComplexString, _relExp, _setDefaults, _removeLinkedListItem, _forEachName, _sortPropTweensByPriority, _colorStringFilter, _replaceRandom, _checkPlugin, _plugins, _ticker, _config, _roundModifier, _round, _missingPlugin, _getSetter, _getCache }
+export { _getProperty, _numExp, _numWithUnitExp, _isString, _isUndefined, _renderComplexString, _relExp, _setDefaults, _removeLinkedListItem, _forEachName, _sortPropTweensByPriority, _colorStringFilter, _replaceRandom, _checkPlugin, _plugins, _ticker, _config, _roundModifier, _round, _missingPlugin, _getSetter, _getCache, _colorExp }
