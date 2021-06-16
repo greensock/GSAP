@@ -1429,7 +1429,7 @@
 	}
 
 	/*!
-	 * MotionPathPlugin 3.6.1
+	 * MotionPathPlugin 3.7.0
 	 * https://greensock.com
 	 *
 	 * @license Copyright 2008-2021, GreenSock. All rights reserved.
@@ -1479,7 +1479,7 @@
 	  if (vars.type === "cubic") {
 	    segment = [segment];
 	  } else {
-	    segment.unshift(_getPropNum(target, x, unitX), y ? _getPropNum(target, y, unitY) : 0);
+	    vars.fromCurrent !== false && segment.unshift(_getPropNum(target, x, unitX), y ? _getPropNum(target, y, unitY) : 0);
 	    vars.relative && _relativize(segment);
 	    var pointFunc = y ? pointsToSegment : flatPointsToSegment;
 	    segment = [pointFunc(segment, vars.curviness)];
@@ -1626,7 +1626,7 @@
 	};
 
 	var MotionPathPlugin = {
-	  version: "3.6.1",
+	  version: "3.7.0",
 	  name: "motionPath",
 	  register: function register(core, Plugin, propTween) {
 	    gsap = core;

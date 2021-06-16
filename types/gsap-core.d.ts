@@ -15,7 +15,8 @@ declare namespace gsap {
     | typeof GSDevTools
     | typeof MotionPathHelper
     | typeof SplitText
-    | typeof Flip;
+    | typeof Flip
+    | typeof ScrollTrigger;
 
   // querySelector returns type Element | null
   type DOMTarget = Element | string | null | ArrayLike<Element | string | null>;
@@ -212,7 +213,7 @@ declare namespace gsap {
    * Transfers all tweens, timelines, and (optionally) delayed calls from the root timeline into a new timeline.
    *
    * ```js
-   * const exportedTL = gsap.exportRoot();
+   * let exportedTL = gsap.exportRoot();
    * ```
    *
    * @param {TimelineVars} [vars]
@@ -243,7 +244,7 @@ declare namespace gsap {
    * ```js
    * gsap.from(".class", 1, {x: 100});
    * ```
-   * @deprecated since version 2
+   * @deprecated since 3.0.0
    * @param {TweenTarget} targets
    * @param {number} duration - The duration parameter is deprecated. Use the `duration` property instead.
    * @param {TweenVars} vars
@@ -274,7 +275,7 @@ declare namespace gsap {
    * ```js
    * gsap.fromTo(".class", 1, {x: 0}, {x: 100});
    * ```
-   * @deprecated since version 2
+   * @deprecated since version 3.0.0
    * @param {TweenTarget} targets
    * @param {number} duration - The duration parameter is deprecated. Use the `duration` property instead.
    * @param {TweenVars} fromVars
@@ -396,7 +397,7 @@ declare namespace gsap {
    * Returns a function that acts as a simpler alternative of gsap.set() that is more performant but less versatile.
    *
    * ```js
-   * const setX = gsap.quickSetter("#id", "x", "px");
+   * let setX = gsap.quickSetter("#id", "x", "px");
    * 
    * // later
    * setX(100);
@@ -512,7 +513,7 @@ declare namespace gsap {
    * ```js
    * gsap.to(".class", 1, {x: 100});
    * ```
-   * @deprecated since version 2
+   * @deprecated since version 3.0.0
    * @param {TweenTarget} targets
    * @param {number} duration - The duration parameter is deprecated. Use the `duration` property instead.
    * @param {TweenVars} vars
@@ -538,15 +539,32 @@ declare namespace gsap {
    * @memberof gsap
    * @link https://greensock.com/docs/v3/GSAP/gsap.updateRoot()
    */
-  function updateRoot(time: number): void;
-
-  
+  function updateRoot(time: number): void;  
 }
 
 // TODO: Move to files where declared
+/**
+ * @deprecated since 3.0.0
+ * @link https://greensock.com/3-migration/
+ */
 declare class TweenLite extends gsap.core.Tween {}
+
+/**
+ * @deprecated since 3.0.0
+ * @link https://greensock.com/3-migration/
+ */
 declare class TweenMax extends gsap.core.Tween {}
+
+/**
+ * @deprecated since 3.0.0
+ * @link https://greensock.com/3-migration/
+ */
 declare class TimelineLite extends gsap.core.Timeline {}
+
+/**
+ * @deprecated since 3.0.0
+ * @link https://greensock.com/3-migration/
+ */
 declare class TimelineMax extends gsap.core.Timeline {}
 
 declare module "gsap/gsap-core" {
@@ -554,9 +572,28 @@ declare module "gsap/gsap-core" {
   const _gsap: typeof gsap;  
 
   // TODO: Move to files where declared
+  /**
+   * @deprecated since 3.0.0
+   * @link https://greensock.com/3-migration/
+   */
   export class TweenLite extends gsap.core.Tween {}
+
+  /**
+   * @deprecated since 3.0.0
+   * @link https://greensock.com/3-migration/
+   */
   export class TweenMax extends gsap.core.Tween {}
+
+  /**
+   * @deprecated since 3.0.0
+   * @link https://greensock.com/3-migration/
+   */
   export class TimelineLite extends gsap.core.Timeline {}
+
+  /**
+   * @deprecated since 3.0.0
+   * @link https://greensock.com/3-migration/
+   */
   export class TimelineMax extends gsap.core.Timeline {}
 
   export {

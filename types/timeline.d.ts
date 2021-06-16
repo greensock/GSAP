@@ -113,6 +113,7 @@ declare namespace gsap.core {
      * @link https://greensock.com/docs/v3/GSAP/Timeline/currentLabel()
      */
     currentLabel(value: string): this;
+
     /**
      * Gets the closest label that is at or before the current time.
      *
@@ -136,11 +137,12 @@ declare namespace gsap.core {
      * @param {TweenTarget} targets
      * @param {TweenVars} vars
      * @param {Position} [position]
-     * @returns {Tween} Tween instance
+     * @returns {Timeline} The timeline
      * @memberof Timeline
      * @link https://greensock.com/docs/v3/GSAP/Timeline/from()
      */
     from(targets: TweenTarget, vars: TweenVars, position?: Position): this;
+
     /**
      * **Deprecated method signature.** Use the `duration` property instead.
      *
@@ -148,12 +150,12 @@ declare namespace gsap.core {
      * tl.from(".class", 1, { x: 100 }, "+=1"); // adds the tween one second after the end of the timeline
      * ```
      *
-     * @deprecated since version 2
+     * @deprecated since version 3.0.0
      * @param {TweenTarget} targets
      * @param {number} duration - The duration parameter is deprecated. Use the `duration` property instead.
      * @param {TweenVars} vars
      * @param {Position} [position]
-     * @returns {Tween} Tween instance
+     * @returns {Timeline} The timeline
      * @memberof Timeline
      * @link https://greensock.com/docs/v3/GSAP/Timeline/from()
      */
@@ -170,11 +172,12 @@ declare namespace gsap.core {
      * @param {TweenVars} fromVars
      * @param {TweenVars} toVars
      * @param {Position} [position]
-     * @returns {Tween} Tween instance
+     * @returns {Timeline} The timeline
      * @memberof Timeline
      * @link https://greensock.com/docs/v3/GSAP/Timeline/fromTo()
      */
     fromTo(targets: TweenTarget, fromVars: TweenVars, toVars: TweenVars, position?: Position): this;
+
     /**
      * **Deprecated method signature.** Use the `duration` property instead.
      *
@@ -182,13 +185,13 @@ declare namespace gsap.core {
      * tl.fromTo(".class", 1, {x: 0}, { x: 100 }, "+=1"); // adds the tween one second after the end of the timeline
      * ```
      *
-     * @deprecated since version 2
+     * @deprecated since version 3.0.0
      * @param {TweenTarget} targets
      * @param {number} duration - The duration parameter is deprecated. Use the `duration` property instead.
      * @param {TweenVars} fromVars
      * @param {TweenVars} toVars
      * @param {Position} [position]
-     * @returns {Tween} Tween instance
+     * @returns {Timeline} The timeline
      * @memberof Timeline
      * @link https://greensock.com/docs/v3/GSAP/Timeline/fromTo()
      */
@@ -361,6 +364,87 @@ declare namespace gsap.core {
     shiftChildren(amount: number, adjustLabels?: boolean, ignoreBeforeTime?: number): this;
 
     /**
+     * **Deprecated method.** Use the `.from()` method instead.
+     *
+     * @deprecated since version 3.0.0
+     * @param {TweenTarget} targets
+     * @param {TweenVars} vars
+     * @param {Position} position
+     * @returns {Timeline} The timeline
+     * @memberof Timeline
+     * @link https://greensock.com/docs/v3/GSAP/Timeline/from()
+     */
+    staggerFrom(targets: TweenTarget, vars: TweenVars, position?: Position): this;
+
+     /**
+      * **Deprecated method.** Use the `.from()` method instead.
+      * 
+      * @deprecated since version 3.0.0
+      * @param {TweenTarget} targets
+      * @param {number} duration - The duration parameter is deprecated. Use the `duration` property instead.
+      * @param {Timeline} vars
+      * @param {Position} position
+      * @returns {Timeline} The timeline
+      * @memberof Timeline
+      * @link https://greensock.com/docs/v3/GSAP/Timeline/from()
+      */
+     staggerFrom(targets: TweenTarget, duration: number, vars: TweenVars, position?: Position): this;
+
+     /**
+     * **Deprecated method.** Use the `.fromTo()` method instead.
+     *
+     * @deprecated since version 3.0.0
+     * @param {TweenTarget} targets
+     * @param {TweenVars} vars
+     * @param {Position} position
+     * @returns {Timeline} The timeline
+     * @memberof Timeline
+     * @link https://greensock.com/docs/v3/GSAP/Timeline/fromTo()
+     */
+    staggerFromTo(targets: TweenTarget, fromVars: TweenVars, toVars: TweenVars, position?: Position): this;
+
+    /**
+     * **Deprecated method.** Use the `.fromTo()` method instead.
+     * 
+     * @deprecated since version 3.0.0
+     * @param {TweenTarget} targets
+     * @param {number} duration - The duration parameter is deprecated. Use the `duration` property instead.
+     * @param {Timeline} vars
+     * @param {Position} position
+     * @returns {Timeline} The timeline
+     * @memberof Timeline
+     * @link https://greensock.com/docs/v3/GSAP/Timeline/fromTo()
+     */
+    staggerFromTo(targets: TweenTarget, duration: number, fromVars: TweenVars, toVars: TweenVars, position?: Position): this;
+
+    /**
+     * **Deprecated method.** Use the `.to()` method instead.
+     *
+     * @deprecated since version 3.0.0
+     * @param {TweenTarget} targets
+     * @param {TweenVars} vars
+     * @param {Position} position
+     * @returns {Timeline} The timeline
+     * @memberof Timeline
+     * @link https://greensock.com/docs/v3/GSAP/Timeline/to()
+     */
+    staggerTo(targets: TweenTarget, vars: TweenVars, position?: Position): this;
+
+    /**
+     * **Deprecated method.** Use the `.to()` method instead.
+     * 
+     * @deprecated since version 3.0.0
+     * @param {TweenTarget} targets
+     * @param {number} duration - The duration parameter is deprecated. Use the `duration` property instead.
+     * @param {Timeline} vars
+     * @param {Position} position
+     * @returns {Timeline} The timeline
+     * @memberof Timeline
+     * @link https://greensock.com/docs/v3/GSAP/Timeline/to()
+     */
+    staggerTo(targets: TweenTarget, duration: number, vars: TweenVars, position?: Position): this;
+
+    /**
      * Creates a tween going TO the given values.
      *
      * ```js
@@ -375,13 +459,14 @@ declare namespace gsap.core {
      * @link https://greensock.com/docs/v3/GSAP/Timeline/to()
      */
     to(targets: TweenTarget, vars: TweenVars, position?: Position): this;
+
     /**
      * **Deprecated method signature.** Use the `duration` property instead.
      * 
      * ```js
      * tl.to(".class", 1, {x: 100}, 1);
      * ```
-     * @deprecated since version 2
+     * @deprecated since version 3.0.0
      * @param {TweenTarget} targets
      * @param {number} duration - The duration parameter is deprecated. Use the `duration` property instead.
      * @param {Timeline} vars

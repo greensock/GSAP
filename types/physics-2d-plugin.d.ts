@@ -1,11 +1,11 @@
 declare namespace Physics2DPlugin {
   interface Vars {
-    acceleration?: number;
-    accelerationAngle?: number;
-    angle?: number;
-    friction?: number;
-    gravity?: number;
-    velocity?: number;
+    acceleration?: gsap.TweenValue;
+    accelerationAngle?: gsap.TweenValue;
+    angle?: gsap.TweenValue;
+    friction?: gsap.TweenValue;
+    gravity?: gsap.TweenValue;
+    velocity?: gsap.TweenValue;
     xProp?: string;
     yProp?: string;
   }

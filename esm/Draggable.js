@@ -3,7 +3,7 @@ function _assertThisInitialized(self) { if (self === void 0) { throw new Referen
 function _inheritsLoose(subClass, superClass) { subClass.prototype = Object.create(superClass.prototype); subClass.prototype.constructor = subClass; subClass.__proto__ = superClass; }
 
 /*!
- * Draggable 3.6.1
+ * Draggable 3.7.0
  * https://greensock.com
  *
  * @license Copyright 2008-2021, GreenSock. All rights reserved.
@@ -1717,7 +1717,7 @@ export var Draggable = /*#__PURE__*/function (_EventDispatcher) {
       hasDragCallback = !!(vars.onDrag || self._listeners.drag);
       hasMoveCallback = !!(vars.onMove || self._listeners.move);
 
-      if (!rotationMode && (vars.cursor !== false || vars.activeCursor)) {
+      if (vars.cursor !== false || vars.activeCursor) {
         i = triggers.length;
 
         while (--i > -1) {
@@ -1770,8 +1770,8 @@ export var Draggable = /*#__PURE__*/function (_EventDispatcher) {
 
       if (touchEventTarget && allowNativeTouchScrolling && !touchDragAxis) {
         //Android browsers force us to decide on the first "touchmove" event if we should allow the default (scrolling) behavior or preventDefault(). Otherwise, a "touchcancel" will be fired and then no "touchmove" or "touchend" will fire during the scrolling (no good).
-        _point1.x = e.pageX;
-        _point1.y = e.pageY;
+        _point1.x = e.pageX - (isFixed ? _getDocScrollLeft(ownerDoc) : 0);
+        _point1.y = e.pageY - (isFixed ? _getDocScrollTop(ownerDoc) : 0);
         matrix && matrix.apply(_point1, _point1);
         pointerX = _point1.x;
         pointerY = _point1.y;
@@ -2030,12 +2030,10 @@ export var Draggable = /*#__PURE__*/function (_EventDispatcher) {
 
       _removeFromRenderQueue(render);
 
-      if (!rotationMode) {
-        i = triggers.length;
+      i = triggers.length;
 
-        while (--i > -1) {
-          _setStyle(triggers[i], "cursor", vars.cursor || (vars.cursor !== false ? _defaultCursor : null));
-        }
+      while (--i > -1) {
+        _setStyle(triggers[i], "cursor", vars.cursor || (vars.cursor !== false ? _defaultCursor : null));
       }
 
       _dragCount--;
@@ -2400,7 +2398,7 @@ export var Draggable = /*#__PURE__*/function (_EventDispatcher) {
           i,
           trigger;
 
-      if (!rotationMode && vars.cursor !== false) {
+      if (vars.cursor !== false) {
         setVars.cursor = vars.cursor || _defaultCursor;
       }
 
@@ -2461,15 +2459,11 @@ export var Draggable = /*#__PURE__*/function (_EventDispatcher) {
 
     _this2.disable = function (type) {
       var dragging = self.isDragging,
-          i,
+          i = triggers.length,
           trigger;
 
-      if (!rotationMode) {
-        i = triggers.length;
-
-        while (--i > -1) {
-          _setStyle(triggers[i], "cursor", null);
-        }
+      while (--i > -1) {
+        _setStyle(triggers[i], "cursor", null);
       }
 
       if (type !== "soft") {
@@ -2646,6 +2640,6 @@ _setDefaults(Draggable.prototype, {
 });
 
 Draggable.zIndex = 1000;
-Draggable.version = "3.6.1";
+Draggable.version = "3.7.0";
 _getGSAP() && gsap.registerPlugin(Draggable);
 export { Draggable as default };

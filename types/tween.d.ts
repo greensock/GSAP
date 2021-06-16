@@ -8,13 +8,182 @@ declare namespace gsap.core {
     constructor(targets: TweenTarget, vars: TweenVars, time?: number);
     constructor(targets: TweenTarget, duration: number, vars: TweenVars);
     
+    /**
+     * **Deprecated method.** Use `gsap.to()` instead.
+     * 
+     * @deprecated since 3.0.0
+     * @static
+     * @param {TweenTarget} targets
+     * @param {number} duration
+     * @param {TweenVars} vars
+     * @returns {Tween} Tween instance
+     * @memberof Tween
+     * @link https://greensock.com/docs/v3/GSAP/gsap.to()
+     */
     static to(targets: TweenTarget, duration: number, vars: TweenVars): Tween;
+
+    /**
+     * **Deprecated method.** Use `gsap.to()` instead.
+     * 
+     * @deprecated since 3.0.0
+     * @static
+     * @param {TweenTarget} targets
+     * @param {TweenVars} vars
+     * @returns {Tween}  Tween instance
+     * @memberof Tween
+     * @link https://greensock.com/docs/v3/GSAP/gsap.to()
+     */
     static to(targets: TweenTarget, vars: TweenVars): Tween;
+
+    /**
+     * **Deprecated method.** Use `gsap.from()` instead.
+     * 
+     * @deprecated since 3.0.0
+     * @static
+     * @param {TweenTarget} targets
+     * @param {number} duration
+     * @param {TweenVars} vars
+     * @returns {Tween} Tween instance
+     * @memberof Tween
+     * @link https://greensock.com/docs/v3/GSAP/gsap.from()
+     */
     static from(targets: TweenTarget, duration: number, vars: TweenVars): Tween;
+
+    /**
+     * **Deprecated method.** Use `gsap.from()` instead.
+     * 
+     * @deprecated since 3.0.0
+     * @static
+     * @param {TweenTarget} targets
+     * @param {TweenVars} vars
+     * @returns {Tween} Tween instance
+     * @memberof Tween
+     * @link https://greensock.com/docs/v3/GSAP/gsap.from()
+     */
     static from(targets: TweenTarget, vars: TweenVars): Tween;
+
+    /**
+     * **Deprecated method.** Use `gsap.fromTo()` instead.
+     * 
+     * @deprecated since 3.0.0
+     * @static
+     * @param {TweenTarget} targets
+     * @param {number} duration
+     * @param {TweenVars} fromVars
+     * @param {TweenVars} toVars
+     * @returns {Tween} Tween instance
+     * @memberof Tween
+     * @link https://greensock.com/docs/v3/GSAP/gsap.fromTo()
+     */
     static fromTo(targets: TweenTarget, duration: number, fromVars: TweenVars, toVars: TweenVars): Tween;
+
+    /**
+     * **Deprecated method.** Use `gsap.fromTo()` instead.
+     * 
+     * @deprecated since 3.0.0
+     * @static
+     * @param {TweenTarget} targets
+     * @param {TweenVars} fromVars
+     * @param {TweenVars} toVars
+     * @returns {Tween} Tween instance
+     * @memberof Tween
+     * @link https://greensock.com/docs/v3/GSAP/gsap.fromTo()
+     */
     static fromTo(targets: TweenTarget, fromVars: TweenVars, toVars: TweenVars): Tween;
+
+    /**
+     * **Deprecated method.** Use `gsap.set()` instead.
+     * 
+     * @deprecated since 3.0.0
+     * @static
+     * @param {TweenTarget} targets
+     * @param {TweenVars} vars
+     * @returns {Tween} Tween instance
+     * @memberof Tween
+     * @link https://greensock.com/docs/v3/GSAP/gsap.set()
+     */
     static set(targets: TweenTarget, vars: TweenVars): Tween;
+
+    /**
+     * **Deprecated method.** Use `gsap.from()` instead.
+     * 
+     * @deprecated since 3.0.0
+     * @static
+     * @param {TweenTarget} targets
+     * @param {number} duration
+     * @param {TweenVars} vars
+     * @returns {Tween} Tween instance
+     * @memberof Tween
+     * @link https://greensock.com/docs/v3/GSAP/gsap.from()
+     */
+    static staggerFrom(targets: TweenTarget, duration: number, vars: TweenVars): Tween;
+
+    /**
+     * **Deprecated method.** Use `gsap.from()` instead.
+     * 
+     * @deprecated since 3.0.0
+     * @static
+     * @param {TweenTarget} targets
+     * @param {TweenVars} vars
+     * @returns {Tween} Tween instance
+     * @memberof Tween
+     * @link https://greensock.com/docs/v3/GSAP/gsap.from()
+     */
+    static staggerFrom(targets: TweenTarget, vars: TweenVars): Tween;
+
+    /**
+     * **Deprecated method.** Use `gsap.fromTo()` instead.
+     * 
+     * @deprecated since 3.0.0
+     * @static
+     * @param {TweenTarget} targets
+     * @param {number} duration
+     * @param {TweenVars} vars
+     * @returns {Tween} Tween instance
+     * @memberof Tween
+     * @link https://greensock.com/docs/v3/GSAP/gsap.fromTo()
+     */
+    static staggerFromTo(targets: TweenTarget, duration: number, fromVars: TweenVars, toVars: TweenVars): Tween;
+
+    /**
+     * **Deprecated method.** Use `gsap.fromTo()` instead.
+     * 
+     * @deprecated since 3.0.0
+     * @static
+     * @param {TweenTarget} targets
+     * @param {TweenVars} vars
+     * @returns {Tween} Tween instance
+     * @memberof Tween
+     * @link https://greensock.com/docs/v3/GSAP/gsap.fromTo()
+     */
+    static staggerFromTo(targets: TweenTarget, fromVars: TweenVars, toVars: TweenVars): Tween;
+
+    /**
+     * **Deprecated method.** Use `gsap.to()` instead.
+     * 
+     * @deprecated since 3.0.0
+     * @static
+     * @param {TweenTarget} targets
+     * @param {number} duration
+     * @param {TweenVars} vars
+     * @returns {Tween} Tween instance
+     * @memberof Tween
+     * @link https://greensock.com/docs/v3/GSAP/gsap.to()
+     */
+    static staggerTo(targets: TweenTarget, duration: number, vars: TweenVars): Tween;
+
+    /**
+     * **Deprecated method.** Use `gsap.to()` instead.
+     * 
+     * @deprecated since 3.0.0
+     * @static
+     * @param {TweenTarget} targets
+     * @param {TweenVars} vars
+     * @returns {Tween} Tween instance
+     * @memberof Tween
+     * @link https://greensock.com/docs/v3/GSAP/gsap.to()
+     */
+    static staggerTo(targets: TweenTarget, vars: TweenVars): Tween;
 
     /**
      * Kills the parts of the tween specified. 

@@ -9,6 +9,7 @@ declare namespace gsap.core {
 
     data: any;
     readonly parent: Timeline | null;
+    readonly scrollTrigger?: ScrollTrigger;
 
     constructor(vars?: object, time?: number);
 

@@ -99,7 +99,6 @@ declare namespace gsap.plugins {
   const modifiers: ModifiersPluginClass;
   const snap: SnapPluginClass;
 
-
   // Data types shared between plugins
   type RawPath = number[][]; 
   type Matrix2D = { a: number, b: number, c: number, d: number, e: number, f: number};

@@ -5,7 +5,7 @@
 }(this, (function (exports) { 'use strict';
 
 	/*!
-	 * ScrollToPlugin 3.6.1
+	 * ScrollToPlugin 3.7.0
 	 * https://greensock.com
 	 *
 	 * @license Copyright 2008-2021, GreenSock. All rights reserved.
@@ -127,7 +127,7 @@
 	};
 
 	var ScrollToPlugin = {
-	  version: "3.6.1",
+	  version: "3.7.0",
 	  name: "scrollTo",
 	  rawVars: 1,
 	  register: function register(core) {
@@ -137,7 +137,8 @@
 	  },
 	  init: function init(target, value, tween, index, targets) {
 	    _coreInitted || _initCore();
-	    var data = this;
+	    var data = this,
+	        snapType = gsap.getProperty(target, "scrollSnapType");
 	    data.isWin = target === _window;
 	    data.target = target;
 	    data.tween = tween;
@@ -148,6 +149,12 @@
 	    data.getY = _buildGetter(target, "y");
 	    data.x = data.xPrev = data.getX();
 	    data.y = data.yPrev = data.getY();
+
+	    if (snapType && snapType !== "none") {
+	      data.snap = 1;
+	      data.snapInline = target.style.scrollSnapType;
+	      target.style.scrollSnapType = "none";
+	    }
 
 	    if (value.x != null) {
 	      data.add(data, "x", data.x, _parseVal(value.x, target, "x", data.x, value.offsetX || 0), index, targets);
@@ -173,6 +180,8 @@
 	        xPrev = data.xPrev,
 	        yPrev = data.yPrev,
 	        isWin = data.isWin,
+	        snap = data.snap,
+	        snapInline = data.snapInline,
 	        x,
 	        y,
 	        yDif,
@@ -218,6 +227,16 @@
 	    } else {
 	      data.skipY || (target.scrollTop = data.y);
 	      data.skipX || (target.scrollLeft = data.x);
+	    }
+
+	    if (snap && (ratio === 1 || ratio === 0)) {
+	      y = target.scrollTop;
+	      x = target.scrollLeft;
+	      snapInline ? target.style.scrollSnapType = snapInline : target.style.removeProperty("scroll-snap-type");
+	      target.scrollTop = y + 1;
+	      target.scrollLeft = x + 1;
+	      target.scrollTop = y;
+	      target.scrollLeft = x;
 	    }
 
 	    data.xPrev = data.x;

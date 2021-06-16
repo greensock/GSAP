@@ -1,5 +1,5 @@
 /*!
- * ScrollToPlugin 3.6.1
+ * ScrollToPlugin 3.7.0
  * https://greensock.com
  *
  * @license Copyright 2008-2021, GreenSock. All rights reserved.
@@ -125,7 +125,7 @@ var gsap,
 };
 
 export var ScrollToPlugin = {
-  version: "3.6.1",
+  version: "3.7.0",
   name: "scrollTo",
   rawVars: 1,
   register: function register(core) {
@@ -135,7 +135,8 @@ export var ScrollToPlugin = {
   },
   init: function init(target, value, tween, index, targets) {
     _coreInitted || _initCore();
-    var data = this;
+    var data = this,
+        snapType = gsap.getProperty(target, "scrollSnapType");
     data.isWin = target === _window;
     data.target = target;
     data.tween = tween;
@@ -146,6 +147,13 @@ export var ScrollToPlugin = {
     data.getY = _buildGetter(target, "y");
     data.x = data.xPrev = data.getX();
     data.y = data.yPrev = data.getY();
+
+    if (snapType && snapType !== "none") {
+      // disable scroll snapping to avoid strange behavior
+      data.snap = 1;
+      data.snapInline = target.style.scrollSnapType;
+      target.style.scrollSnapType = "none";
+    }
 
     if (value.x != null) {
       data.add(data, "x", data.x, _parseVal(value.x, target, "x", data.x, value.offsetX || 0), index, targets);
@@ -171,6 +179,8 @@ export var ScrollToPlugin = {
         xPrev = data.xPrev,
         yPrev = data.yPrev,
         isWin = data.isWin,
+        snap = data.snap,
+        snapInline = data.snapInline,
         x,
         y,
         yDif,
@@ -218,6 +228,17 @@ export var ScrollToPlugin = {
     } else {
       data.skipY || (target.scrollTop = data.y);
       data.skipX || (target.scrollLeft = data.x);
+    }
+
+    if (snap && (ratio === 1 || ratio === 0)) {
+      y = target.scrollTop;
+      x = target.scrollLeft;
+      snapInline ? target.style.scrollSnapType = snapInline : target.style.removeProperty("scroll-snap-type");
+      target.scrollTop = y + 1; // bug in Safari causes the element to totally reset its scroll position when scroll-snap-type changes, so we need to set it to a slightly different value and then back again to work around this bug.
+
+      target.scrollLeft = x + 1;
+      target.scrollTop = y;
+      target.scrollLeft = x;
     }
 
     data.xPrev = data.x;

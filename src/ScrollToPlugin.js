@@ -1,5 +1,5 @@
 /*!
- * ScrollToPlugin 3.6.1
+ * ScrollToPlugin 3.7.0
  * https://greensock.com
  *
  * @license Copyright 2008-2021, GreenSock. All rights reserved.
@@ -76,7 +76,7 @@ let gsap, _coreInitted, _window, _docEl, _body, _toArray, _config,
 
 
 export const ScrollToPlugin = {
-	version: "3.6.1",
+	version: "3.7.0",
 	name: "scrollTo",
 	rawVars: 1,
 	register(core) {
@@ -85,7 +85,8 @@ export const ScrollToPlugin = {
 	},
 	init(target, value, tween, index, targets) {
 		_coreInitted || _initCore();
-		let data = this;
+		let data = this,
+			snapType = gsap.getProperty(target, "scrollSnapType");
 		data.isWin = (target === _window);
 		data.target = target;
 		data.tween = tween;
@@ -96,6 +97,11 @@ export const ScrollToPlugin = {
 		data.getY = _buildGetter(target, "y");
 		data.x = data.xPrev = data.getX();
 		data.y = data.yPrev = data.getY();
+		if (snapType && snapType !== "none") { // disable scroll snapping to avoid strange behavior
+			data.snap = 1;
+			data.snapInline = target.style.scrollSnapType;
+			target.style.scrollSnapType = "none";
+		}
 		if (value.x != null) {
 			data.add(data, "x", data.x, _parseVal(value.x, target, "x", data.x, value.offsetX || 0), index, targets);
 			data._props.push("scrollTo_x");
@@ -111,7 +117,7 @@ export const ScrollToPlugin = {
 	},
 	render(ratio, data) {
 		let pt = data._pt,
-			{ target, tween, autoKill, xPrev, yPrev, isWin } = data,
+			{ target, tween, autoKill, xPrev, yPrev, isWin, snap, snapInline } = data,
 			x, y, yDif, xDif, threshold;
 		while (pt) {
 			pt.r(ratio, pt.d);
@@ -146,6 +152,15 @@ export const ScrollToPlugin = {
 		} else {
 			data.skipY || (target.scrollTop = data.y);
 			data.skipX || (target.scrollLeft = data.x);
+		}
+		if (snap && (ratio === 1 || ratio === 0)) {
+			y = target.scrollTop;
+			x = target.scrollLeft;
+			snapInline ? (target.style.scrollSnapType = snapInline) : target.style.removeProperty("scroll-snap-type");
+			target.scrollTop = y + 1; // bug in Safari causes the element to totally reset its scroll position when scroll-snap-type changes, so we need to set it to a slightly different value and then back again to work around this bug.
+			target.scrollLeft = x + 1;
+			target.scrollTop = y;
+			target.scrollLeft = x;
 		}
 		data.xPrev = data.x;
 		data.yPrev = data.y;

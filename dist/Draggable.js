@@ -1998,7 +1998,7 @@
         hasDragCallback = !!(vars.onDrag || self._listeners.drag);
         hasMoveCallback = !!(vars.onMove || self._listeners.move);
 
-        if (!rotationMode && (vars.cursor !== false || vars.activeCursor)) {
+        if (vars.cursor !== false || vars.activeCursor) {
           i = triggers.length;
 
           while (--i > -1) {
@@ -2044,8 +2044,8 @@
         }
 
         if (touchEventTarget && allowNativeTouchScrolling && !touchDragAxis) {
-          _point1.x = e.pageX;
-          _point1.y = e.pageY;
+          _point1.x = e.pageX - (isFixed ? _getDocScrollLeft$1(ownerDoc) : 0);
+          _point1.y = e.pageY - (isFixed ? _getDocScrollTop$1(ownerDoc) : 0);
           matrix && matrix.apply(_point1, _point1);
           pointerX = _point1.x;
           pointerY = _point1.y;
@@ -2299,12 +2299,10 @@
 
         _removeFromRenderQueue(render);
 
-        if (!rotationMode) {
-          i = triggers.length;
+        i = triggers.length;
 
-          while (--i > -1) {
-            _setStyle(triggers[i], "cursor", vars.cursor || (vars.cursor !== false ? _defaultCursor : null));
-          }
+        while (--i > -1) {
+          _setStyle(triggers[i], "cursor", vars.cursor || (vars.cursor !== false ? _defaultCursor : null));
         }
 
         _dragCount--;
@@ -2653,7 +2651,7 @@
             i,
             trigger;
 
-        if (!rotationMode && vars.cursor !== false) {
+        if (vars.cursor !== false) {
           setVars.cursor = vars.cursor || _defaultCursor;
         }
 
@@ -2711,15 +2709,11 @@
 
       _this2.disable = function (type) {
         var dragging = self.isDragging,
-            i,
+            i = triggers.length,
             trigger;
 
-        if (!rotationMode) {
-          i = triggers.length;
-
-          while (--i > -1) {
-            _setStyle(triggers[i], "cursor", null);
-          }
+        while (--i > -1) {
+          _setStyle(triggers[i], "cursor", null);
         }
 
         if (type !== "soft") {
@@ -2894,7 +2888,7 @@
   });
 
   Draggable.zIndex = 1000;
-  Draggable.version = "3.6.1";
+  Draggable.version = "3.7.0";
   _getGSAP() && gsap.registerPlugin(Draggable);
 
   exports.Draggable = Draggable;

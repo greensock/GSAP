@@ -267,6 +267,7 @@ declare namespace MotionPath {
     start?: number;
     type?: string;
     useRadians?: boolean;
+    fromCurrent?: boolean;
   }
 }
 

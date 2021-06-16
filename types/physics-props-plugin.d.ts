@@ -4,9 +4,9 @@ declare namespace PhysicsPropsPlugin {
   }
 
   interface Values {
-    acceleration?: number;
-    friction?: number;
-    velocity?: number;
+    acceleration?: gsap.TweenValue;
+    friction?: gsap.TweenValue;
+    velocity?: gsap.TweenValue;
   }
 }
 

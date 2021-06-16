@@ -1,5 +1,5 @@
 /*!
- * matrix 3.6.1
+ * matrix 3.7.0
  * https://greensock.com
  *
  * Copyright 2008-2021, GreenSock. All rights reserved.

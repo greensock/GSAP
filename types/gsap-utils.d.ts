@@ -21,14 +21,18 @@ declare namespace gsap.utils {
     radius: number;
   }
 
-  type toArrayValue = string | object | Element | null;
+  interface SelectorFunc {
+    <K extends keyof HTMLElementTagNameMap>(selectorText: string): Array<HTMLElementTagNameMap[K]>;
+    <K extends keyof SVGElementTagNameMap>(selectorText: string): Array<SVGElementTagNameMap[K]>;
+    <E extends Element = Element>(selectorText: string): Array<E>;
+  }
 
   /**
    * Prefixes the provided CSS property if necessary. Returns null if the property isn't supported at all.
    * 
    * ```js
    * // The following may return "filter", "WebkitFilter", or "MozFilter" depending on the browser
-   * const filterProperty = gsap.utils.checkPrefix("filter");
+   * let filterProperty = gsap.utils.checkPrefix("filter");
    * ```
    *
    * @param {string} property
@@ -284,6 +288,21 @@ declare namespace gsap.utils {
   function random<T, U extends boolean>(array: T[], returnFunction?: U): U extends true ? () => T : T;
 
   /**
+   * Returns a selector function that is scoped to a particular Element.
+   *
+   * ```js
+   * const q = gsap.utils.selector("#id");
+   * const q = gsap.utils.selector(myElement);
+   * gsap.to(q(".class"), {x: 100});
+   * ```
+   *
+   * @param {Element | object | string} scope
+   * @returns {SelectorFunc} A selector function
+   * @memberof gsap.utils
+   */
+  function selector(scope: Element | object | string | null): SelectorFunc;
+
+  /**
    * Takes an array and randomly shuffles it, returning the same (but shuffled) array.
    * 
    * ```js
@@ -357,25 +376,22 @@ declare namespace gsap.utils {
   function splitColor(color: string, hsl?: boolean): [number, number, number] | [number, number, number, number];
 
   /**
-   * Converts almost any array-like object into a flat Array.
+   * Converts almost anything into a flat Array.
    * 
    * ```js
-   * var targets = gsap.utils.toArray(".class"); 
-   * var targets = gsap.utils.toArray(myElement); 
-   * var targets = gsap.utils.toArray($(".class")); 
-   * var targets = gsap.utils.toArray(document.querySelectorAll(".class1"), ".class2", rawElement); 
+   * const targets = gsap.utils.toArray(".class");
+   * const targets = gsap.utils.toArray(myElement);
+   * const targets = gsap.utils.toArray($(".class"));
+   * const targets = gsap.utils.toArray([".class1", ".class2"]);
    * ```
    *
-   * @param {toArrayValue} value
+   * @param {string | object | Element | null} value
+   * @param {object} [scope]
    * @param {boolean} [leaveStrings]
-   * @returns {T[]} The converted array
+   * @returns {T[]} The converted Array
    * @memberof gsap.utils
    */
-  function toArray<T>(value: toArrayValue, leaveStrings?: boolean): T[];
-  function toArray<T>(value1: toArrayValue, value2: toArrayValue, leaveStrings?: boolean): T[];
-  function toArray<T>(value1: toArrayValue, value2: toArrayValue, value3: toArrayValue, leaveStrings?: boolean): T[];
-  function toArray<T>(value1: toArrayValue, value2: toArrayValue, value3: toArrayValue, value4: toArrayValue, leaveStrings?: boolean): T[];
-  function toArray<T>(value1: toArrayValue, value2: toArrayValue, value3: toArrayValue, value4: toArrayValue, value5: toArrayValue, leaveStrings?: boolean): T[];
+  function toArray<T>(value: string | object | Element | null, scope?: object | null, leaveStrings?: boolean): T[];
 
   /**
    * Ensures that a specific unit gets applied.
@@ -481,6 +497,7 @@ declare module "gsap/gsap-core" {
   export const normalize: typeof gsap.utils.normalize;
   export const pipe: typeof gsap.utils.pipe;
   export const random: typeof gsap.utils.random;
+  export const selector: typeof gsap.utils.selector;
   export const shuffle: typeof gsap.utils.shuffle;
   export const snap: typeof gsap.utils.snap;
   export const splitColor: typeof gsap.utils.splitColor;
