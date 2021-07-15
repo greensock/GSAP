@@ -3,7 +3,7 @@ function _assertThisInitialized(self) { if (self === void 0) { throw new Referen
 function _inheritsLoose(subClass, superClass) { subClass.prototype = Object.create(superClass.prototype); subClass.prototype.constructor = subClass; subClass.__proto__ = superClass; }
 
 /*!
- * Draggable 3.7.0
+ * Draggable 3.7.1
  * https://greensock.com
  *
  * @license Copyright 2008-2021, GreenSock. All rights reserved.
@@ -990,6 +990,7 @@ export var Draggable = /*#__PURE__*/function (_EventDispatcher) {
         clickDispatch,
         trustedClickDispatch,
         isPreventingDefault,
+        innerMatrix,
         onContextMenu = function onContextMenu(e) {
       //used to prevent long-touch from triggering a context menu.
       // (self.isPressed && e.which < 2) && self.endDrag() // previously ended drag when context menu was triggered, but instead we should just stop propagation and prevent the default event behavior.
@@ -1535,6 +1536,8 @@ export var Draggable = /*#__PURE__*/function (_EventDispatcher) {
         setPointerPosition(self.pointerX, self.pointerY);
         render(true);
       }
+
+      innerMatrix = getGlobalMatrix(target);
 
       if (scrollProxy) {
         calculateBounds();
@@ -2356,6 +2359,24 @@ export var Draggable = /*#__PURE__*/function (_EventDispatcher) {
     };
 
     _this2.update = function (applyBounds, sticky, ignoreExternalChanges) {
+      if (sticky && self.isPressed) {
+        // in case the element was repositioned in the document flow, thus its x/y may be identical but its position is actually quite different.
+        var m = getGlobalMatrix(target),
+            p = innerMatrix.apply({
+          x: self.x - startElementX,
+          y: self.y - startElementY
+        }),
+            m2 = getGlobalMatrix(target.parentNode, true);
+        m2.apply({
+          x: m.e - p.x,
+          y: m.f - p.y
+        }, p);
+        self.x -= p.x - m2.e;
+        self.y -= p.y - m2.f;
+        render(true);
+        recordStartPositions();
+      }
+
       var x = self.x,
           y = self.y;
       updateMatrix(!sticky);
@@ -2640,6 +2661,6 @@ _setDefaults(Draggable.prototype, {
 });
 
 Draggable.zIndex = 1000;
-Draggable.version = "3.7.0";
+Draggable.version = "3.7.1";
 _getGSAP() && gsap.registerPlugin(Draggable);
 export { Draggable as default };

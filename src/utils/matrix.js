@@ -1,5 +1,5 @@
 /*!
- * matrix 3.7.0
+ * matrix 3.7.1
  * https://greensock.com
  *
  * Copyright 2008-2021, GreenSock. All rights reserved.
@@ -9,7 +9,7 @@
 */
 /* eslint-disable */
 
-let _doc, _win, _docElement, _body,	_divContainer, _svgContainer, _identityMatrix,
+let _doc, _win, _docElement, _body,	_divContainer, _svgContainer, _identityMatrix, _gEl,
 	_transformProp = "transform",
 	_transformOriginProp = _transformProp + "Origin",
 	_hasOffsetBug,
@@ -26,6 +26,9 @@ let _doc, _win, _docElement, _body,	_divContainer, _svgContainer, _identityMatri
 			_doc = doc;
 			_docElement = doc.documentElement;
 			_body = doc.body;
+			_gEl = _doc.createElementNS("http://www.w3.org/2000/svg", "g");
+			// prevent any existing CSS from transforming it
+			_gEl.style.transform = "none";
 			// now test for the offset reporting bug. Use feature detection instead of browser sniffing to make things more bulletproof and future-proof. Hopefully Safari will fix their bug soon but it's 2020 and it's still not fixed.
 			let d1 = doc.createElement("div"),
 				d2 = doc.createElement("div");
@@ -122,6 +125,19 @@ let _doc, _win, _docElement, _body,	_divContainer, _svgContainer, _identityMatri
 		}
 		return c;
 	},
+	_getCTM = svg => {
+		let m = svg.getCTM(),
+			transform;
+		if (!m) { // Firefox returns null for getCTM() on root <svg> elements, so this is a workaround using a <g> that we temporarily append.
+			transform = svg.style[_transformProp];
+			svg.style[_transformProp] = "none"; // a bug in Firefox causes css transforms to contaminate the getCTM()
+			svg.appendChild(_gEl);
+			m = _gEl.getCTM();
+			svg.removeChild(_gEl);
+			transform ? (svg.style[_transformProp] = transform) : svg.style.removeProperty(_transformProp.replace(/([A-Z])/g, "-$1").toLowerCase());
+		}
+		return m;
+	},
 	_placeSiblings = (element, adjustGOffset) => {
 		let svg = _svgOwner(element),
 			isRootSVG = element === svg,
@@ -134,16 +150,17 @@ let _doc, _win, _docElement, _body,	_divContainer, _svgContainer, _identityMatri
 		siblings.length || siblings.push(_createSibling(element, 1), _createSibling(element, 2), _createSibling(element, 3));
 		container = svg ? _svgContainer : _divContainer;
 		if (svg) {
-			b = isRootSVG ? {x:0, y:0} : element.getBBox();
-			m = element.transform ? element.transform.baseVal : {}; // IE11 doesn't follow the spec.
-			if (m.numberOfItems) {
-				m = m.numberOfItems > 1 ? _consolidate(m) : m.getItem(0).matrix; // don't call m.consolidate().matrix because a bug in Firefox makes pointer events not work when consolidate() is called on the same tick as getBoundingClientRect()! See https://greensock.com/forums/topic/23248-touch-is-not-working-on-draggable-in-firefox-windows-v324/?tab=comments#comment-109800
+			if (isRootSVG) {
+				b = _getCTM(element);
+				x = -b.e / b.a;
+				y = -b.f / b.d;
+				m = _identityMatrix;
+			} else {
+				b = element.getBBox();
+				m = element.transform ? element.transform.baseVal : {}; // IE11 doesn't follow the spec.
+				m = !m.numberOfItems ? _identityMatrix : m.numberOfItems > 1 ? _consolidate(m) : m.getItem(0).matrix; // don't call m.consolidate().matrix because a bug in Firefox makes pointer events not work when consolidate() is called on the same tick as getBoundingClientRect()! See https://greensock.com/forums/topic/23248-touch-is-not-working-on-draggable-in-firefox-windows-v324/?tab=comments#comment-109800
 				x = m.a * b.x + m.c * b.y;
 				y = m.b * b.x + m.d * b.y;
-			} else {
-				m = _identityMatrix;
-				x = b.x;
-				y = b.y;
 			}
 			if (adjustGOffset && element.tagName.toLowerCase() === "g") {
 				x = y = 0;
@@ -164,7 +181,7 @@ let _doc, _win, _docElement, _body,	_divContainer, _svgContainer, _identityMatri
 				}
 			}
 			cs = _win.getComputedStyle(element);
-			if (cs.position !== "absolute") {
+			if (cs.position !== "absolute" && cs.position !== "fixed") {
 				m = element.offsetParent;
 				while (parent && parent !== m) { // if there's an ancestor element between the element and its offsetParent that's scrolled, we must factor that in.
 					x += parent.scrollLeft || 0;
@@ -292,7 +309,7 @@ export function getGlobalMatrix(element, inverse, adjustGOffset, includeScrollIn
 	return inverse ? m.inverse() : m;
 }
 
-export { _getDocScrollTop, _getDocScrollLeft, _setDoc };
+export { _getDocScrollTop, _getDocScrollLeft, _setDoc, _isFixed, _getCTM };
 
 // export function getMatrix(element) {
 // 	_doc || _setDoc(element);

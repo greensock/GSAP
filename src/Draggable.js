@@ -1,5 +1,5 @@
 /*!
- * Draggable 3.7.0
+ * Draggable 3.7.1
  * https://greensock.com
  *
  * @license Copyright 2008-2021, GreenSock. All rights reserved.
@@ -687,7 +687,7 @@ export class Draggable extends EventDispatcher {
 			isFixed = _isFixed(target),
 			getPropAsNum = (property, unit) => parseFloat(gsCache.get(target, property, unit)),
 			ownerDoc = target.ownerDocument || _doc,
-			enabled, scrollProxy, startPointerX, startPointerY, startElementX, startElementY, hasBounds, hasDragCallback, hasMoveCallback, maxX, minX, maxY, minY, touch, touchID, rotationOrigin, dirty, old, snapX, snapY, snapXY, isClicking, touchEventTarget, matrix, interrupted, allowNativeTouchScrolling, touchDragAxis, isDispatching, clickDispatch, trustedClickDispatch, isPreventingDefault,
+			enabled, scrollProxy, startPointerX, startPointerY, startElementX, startElementY, hasBounds, hasDragCallback, hasMoveCallback, maxX, minX, maxY, minY, touch, touchID, rotationOrigin, dirty, old, snapX, snapY, snapXY, isClicking, touchEventTarget, matrix, interrupted, allowNativeTouchScrolling, touchDragAxis, isDispatching, clickDispatch, trustedClickDispatch, isPreventingDefault, innerMatrix,
 
 			onContextMenu = e => { //used to prevent long-touch from triggering a context menu.
 				// (self.isPressed && e.which < 2) && self.endDrag() // previously ended drag when context menu was triggered, but instead we should just stop propagation and prevent the default event behavior.
@@ -1113,6 +1113,7 @@ export class Draggable extends EventDispatcher {
 					setPointerPosition(self.pointerX, self.pointerY);
 					render(true);
 				}
+				innerMatrix = getGlobalMatrix(target);
 				if (scrollProxy) {
 					calculateBounds();
 					startElementY = scrollProxy.top();
@@ -1706,6 +1707,16 @@ export class Draggable extends EventDispatcher {
 		};
 
 		this.update = (applyBounds, sticky, ignoreExternalChanges) => {
+			if (sticky && self.isPressed) { // in case the element was repositioned in the document flow, thus its x/y may be identical but its position is actually quite different.
+				let m = getGlobalMatrix(target),
+					p = innerMatrix.apply({x: self.x - startElementX, y: self.y - startElementY}),
+					m2 = getGlobalMatrix(target.parentNode, true);
+				m2.apply({x: m.e - p.x, y: m.f - p.y}, p);
+				self.x -= p.x - m2.e;
+				self.y -= p.y - m2.f;
+				render(true);
+				recordStartPositions();
+			}
 			let { x, y } = self;
 			updateMatrix(!sticky);
 			if (applyBounds) {
@@ -1903,7 +1914,7 @@ export class Draggable extends EventDispatcher {
 _setDefaults(Draggable.prototype, {pointerX:0, pointerY: 0, startX: 0, startY: 0, deltaX: 0, deltaY: 0, isDragging: false, isPressed: false});
 
 Draggable.zIndex = 1000;
-Draggable.version = "3.7.0";
+Draggable.version = "3.7.1";
 
 _getGSAP() && gsap.registerPlugin(Draggable);
 

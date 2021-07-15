@@ -47,6 +47,18 @@
 	    return 1;
 	  }
 	},
+	    _getSampleIndex = function _getSampleIndex(samples, length, progress) {
+	  var l = samples.length,
+	      i = ~~(progress * l);
+
+	  if (samples[i] > length) {
+	    while (--i && samples[i] > length) {}
+	  } else {
+	    while (samples[++i] < length && i < l) {}
+	  }
+
+	  return i;
+	},
 	    _reverseRawPath = function _reverseRawPath(rawPath, skipOuter) {
 	  var i = rawPath.length;
 	  skipOuter || rawPath.reverse();
@@ -426,7 +438,7 @@
 	    y2 = segment[j + 1] - y1;
 	    xd = xd1 = yd = yd1 = 0;
 
-	    if (_abs(x4) < 1e-5 && _abs(y4) < 1e-5 && _abs(x2) + _abs(y2) < 1e-5) {
+	    if (_abs(x4) < .01 && _abs(y4) < .01 && _abs(x2) + _abs(y2) < .01) {
 	      if (segment.length > 8) {
 	        segment.splice(j, 6);
 	        j -= 6;
@@ -464,10 +476,13 @@
 	  if (samples.length && min) {
 	    segment.totalLength = segLength = samples[samples.length - 1] || 0;
 	    segment.minLength = min;
-	    l = lengthIndex = 0;
 
-	    for (i = 0; i < segLength; i += min) {
-	      lookup[l++] = samples[lengthIndex] < i ? ++lengthIndex : lengthIndex;
+	    if (segLength / min < 9999) {
+	      l = lengthIndex = 0;
+
+	      for (i = 0; i < segLength; i += min) {
+	        lookup[l++] = samples[lengthIndex] < i ? ++lengthIndex : lengthIndex;
+	      }
 	    }
 	  } else {
 	    segment.totalLength = samples[0] = 0;
@@ -560,7 +575,7 @@
 	    samples = segment.samples;
 	    resolution = segment.resolution;
 	    length = segment.totalLength * progress;
-	    i = segment.lookup[~~(length / segment.minLength)] || 0;
+	    i = segment.lookup.length ? segment.lookup[~~(length / segment.minLength)] || 0 : _getSampleIndex(samples, length, progress);
 	    min = i ? samples[i - 1] : 0;
 	    max = samples[i];
 
@@ -623,7 +638,7 @@
 	  samples = segment.samples;
 	  resolution = segment.resolution;
 	  length = segment.totalLength * progress;
-	  i = segment.lookup[progress < 1 ? ~~(length / segment.minLength) : segment.lookup.length - 1] || 0;
+	  i = segment.lookup.length ? segment.lookup[progress < 1 ? ~~(length / segment.minLength) : segment.lookup.length - 1] || 0 : _getSampleIndex(samples, length, progress);
 	  min = i ? samples[i - 1] : 0;
 	  max = samples[i];
 
@@ -1094,6 +1109,7 @@
 	    _divContainer,
 	    _svgContainer,
 	    _identityMatrix,
+	    _gEl,
 	    _transformProp = "transform",
 	    _transformOriginProp = _transformProp + "Origin",
 	    _hasOffsetBug,
@@ -1114,6 +1130,8 @@
 	    _doc = doc;
 	    _docElement = doc.documentElement;
 	    _body = doc.body;
+	    _gEl = _doc.createElementNS("http://www.w3.org/2000/svg", "g");
+	    _gEl.style.transform = "none";
 	    var d1 = doc.createElement("div"),
 	        d2 = doc.createElement("div");
 
@@ -1214,6 +1232,21 @@
 
 	  return c;
 	},
+	    _getCTM = function _getCTM(svg) {
+	  var m = svg.getCTM(),
+	      transform;
+
+	  if (!m) {
+	    transform = svg.style[_transformProp];
+	    svg.style[_transformProp] = "none";
+	    svg.appendChild(_gEl);
+	    m = _gEl.getCTM();
+	    svg.removeChild(_gEl);
+	    transform ? svg.style[_transformProp] = transform : svg.style.removeProperty(_transformProp.replace(/([A-Z])/g, "-$1").toLowerCase());
+	  }
+
+	  return m;
+	},
 	    _placeSiblings = function _placeSiblings(element, adjustGOffset) {
 	  var svg = _svgOwner(element),
 	      isRootSVG = element === svg,
@@ -1234,20 +1267,17 @@
 	  container = svg ? _svgContainer : _divContainer;
 
 	  if (svg) {
-	    b = isRootSVG ? {
-	      x: 0,
-	      y: 0
-	    } : element.getBBox();
-	    m = element.transform ? element.transform.baseVal : {};
-
-	    if (m.numberOfItems) {
-	      m = m.numberOfItems > 1 ? _consolidate(m) : m.getItem(0).matrix;
+	    if (isRootSVG) {
+	      b = _getCTM(element);
+	      x = -b.e / b.a;
+	      y = -b.f / b.d;
+	      m = _identityMatrix;
+	    } else {
+	      b = element.getBBox();
+	      m = element.transform ? element.transform.baseVal : {};
+	      m = !m.numberOfItems ? _identityMatrix : m.numberOfItems > 1 ? _consolidate(m) : m.getItem(0).matrix;
 	      x = m.a * b.x + m.c * b.y;
 	      y = m.b * b.x + m.d * b.y;
-	    } else {
-	      m = _identityMatrix;
-	      x = b.x;
-	      y = b.y;
 	    }
 
 	    if (adjustGOffset && element.tagName.toLowerCase() === "g") {
@@ -1274,7 +1304,7 @@
 
 	    cs = _win.getComputedStyle(element);
 
-	    if (cs.position !== "absolute") {
+	    if (cs.position !== "absolute" && cs.position !== "fixed") {
 	      m = element.offsetParent;
 
 	      while (parent && parent !== m) {
@@ -1429,7 +1459,7 @@
 	}
 
 	/*!
-	 * MotionPathPlugin 3.7.0
+	 * MotionPathPlugin 3.7.1
 	 * https://greensock.com
 	 *
 	 * @license Copyright 2008-2021, GreenSock. All rights reserved.
@@ -1626,7 +1656,7 @@
 	};
 
 	var MotionPathPlugin = {
-	  version: "3.7.0",
+	  version: "3.7.1",
 	  name: "motionPath",
 	  register: function register(core, Plugin, propTween) {
 	    gsap = core;

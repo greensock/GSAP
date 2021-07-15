@@ -1,5 +1,5 @@
 /*!
- * paths 3.7.0
+ * paths 3.7.1
  * https://greensock.com
  *
  * Copyright 2008-2021, GreenSock. All rights reserved.
@@ -52,6 +52,19 @@ _round = function _round(value) {
     segment.splice(0, i + shift);
     return 1;
   }
+},
+    _getSampleIndex = function _getSampleIndex(samples, length, progress) {
+  // slightly slower way than doing this (when there's no lookup): segment.lookup[progress < 1 ? ~~(length / segment.minLength) : segment.lookup.length - 1] || 0;
+  var l = samples.length,
+      i = ~~(progress * l);
+
+  if (samples[i] > length) {
+    while (--i && samples[i] > length) {}
+  } else {
+    while (samples[++i] < length && i < l) {}
+  }
+
+  return i;
 },
     _reverseRawPath = function _reverseRawPath(rawPath, skipOuter) {
   var i = rawPath.length;
@@ -456,7 +469,7 @@ function measureSegment(segment, startIndex, bezierQty) {
     y2 = segment[j + 1] - y1;
     xd = xd1 = yd = yd1 = 0;
 
-    if (_abs(x4) < 1e-5 && _abs(y4) < 1e-5 && _abs(x2) + _abs(y2) < 1e-5) {
+    if (_abs(x4) < .01 && _abs(y4) < .01 && _abs(x2) + _abs(y2) < .01) {
       //dump points that are sufficiently close (basically right on top of each other, making a bezier super tiny or 0 length)
       if (segment.length > 8) {
         segment.splice(j, 6);
@@ -495,10 +508,14 @@ function measureSegment(segment, startIndex, bezierQty) {
   if (samples.length && min) {
     segment.totalLength = segLength = samples[samples.length - 1] || 0;
     segment.minLength = min;
-    l = lengthIndex = 0;
 
-    for (i = 0; i < segLength; i += min) {
-      lookup[l++] = samples[lengthIndex] < i ? ++lengthIndex : lengthIndex;
+    if (segLength / min < 9999) {
+      // if the lookup would require too many values (memory problem), we skip this and instead we use a loop to lookup values directly in the samples Array
+      l = lengthIndex = 0;
+
+      for (i = 0; i < segLength; i += min) {
+        lookup[l++] = samples[lengthIndex] < i ? ++lengthIndex : lengthIndex;
+      }
     }
   } else {
     segment.totalLength = samples[0] = 0;
@@ -600,7 +617,7 @@ function getProgressData(rawPath, progress, decoratee, pushToNextIfAtEnd) {
     resolution = segment.resolution; //how many samples per cubic bezier chunk
 
     length = segment.totalLength * progress;
-    i = segment.lookup[~~(length / segment.minLength)] || 0;
+    i = segment.lookup.length ? segment.lookup[~~(length / segment.minLength)] || 0 : _getSampleIndex(samples, length, progress);
     min = i ? samples[i - 1] : 0;
     max = samples[i];
 
@@ -664,7 +681,7 @@ export function getPositionOnPath(rawPath, progress, includeAngle, point) {
   samples = segment.samples;
   resolution = segment.resolution;
   length = segment.totalLength * progress;
-  i = segment.lookup[progress < 1 ? ~~(length / segment.minLength) : segment.lookup.length - 1] || 0;
+  i = segment.lookup.length ? segment.lookup[progress < 1 ? ~~(length / segment.minLength) : segment.lookup.length - 1] || 0 : _getSampleIndex(samples, length, progress);
   min = i ? samples[i - 1] : 0;
   max = samples[i];
 

@@ -1,5 +1,5 @@
 /*!
- * ScrollTrigger 3.7.0
+ * ScrollTrigger 3.7.1
  * https://greensock.com
  *
  * @license Copyright 2008-2021, GreenSock. All rights reserved.
@@ -246,11 +246,13 @@ let gsap, _coreInitted, _win, _doc, _docEl, _body, _root, _resizeDelay, _raf, _r
 		media && _revertRecorded(media);
 		media || _dispatch("revert");
 	},
+	_refreshingAll,
 	_refreshAll = (force, skipRevert) => {
 		if (_lastScrollTime && !force) {
 			_addListener(ScrollTrigger, "scrollEnd", _softRefresh);
 			return;
 		}
+		_refreshingAll = true;
 		let refreshInits = _dispatch("refreshInit");
 		_sort && ScrollTrigger.sort();
 		skipRevert || _revertAll();
@@ -258,37 +260,40 @@ let gsap, _coreInitted, _win, _doc, _docEl, _body, _root, _resizeDelay, _raf, _r
 		refreshInits.forEach(result => result && result.render && result.render(-1)); // if the onRefreshInit() returns an animation (typically a gsap.set()), revert it. This makes it easy to put things in a certain spot before refreshing for measurement purposes, and then put things back.
 		_scrollers.forEach(obj => typeof(obj) === "function" && (obj.rec = 0)); // zero-out all the recorded scroll positions. Don't use _triggers because if, for example, .matchMedia() is used to create some ScrollTriggers and then the user resizes and it removes ALL ScrollTriggers, and then go back to a size where there are ScrollTriggers, it would have kept the position(s) saved from the initial state.
 		_resizeDelay.pause();
+		_refreshingAll = false;
 		_dispatch("refresh");
 	},
 	_lastScroll = 0,
 	_direction = 1,
 	_updateAll = () => {
-		let l = _triggers.length,
-			time = _getTime(),
-			recordVelocity = time - _time1 >= 50,
-			scroll = l && _triggers[0].scroll();
-		_direction = _lastScroll > scroll ? -1 : 1;
-		_lastScroll = scroll;
-		if (recordVelocity) {
-			if (_lastScrollTime && !_pointerIsDown && time - _lastScrollTime > 200) {
-				_lastScrollTime = 0;
-				_dispatch("scrollEnd");
+		if (!_refreshingAll) {
+			let l = _triggers.length,
+				time = _getTime(),
+				recordVelocity = time - _time1 >= 50,
+				scroll = l && _triggers[0].scroll();
+			_direction = _lastScroll > scroll ? -1 : 1;
+			_lastScroll = scroll;
+			if (recordVelocity) {
+				if (_lastScrollTime && !_pointerIsDown && time - _lastScrollTime > 200) {
+					_lastScrollTime = 0;
+					_dispatch("scrollEnd");
+				}
+				_time2 = _time1;
+				_time1 = time;
 			}
-			_time2 = _time1;
-			_time1 = time;
+			if (_direction < 0) {
+				_i = l;
+				while (_i-- > 0) {
+					_triggers[_i] && _triggers[_i].update(0, recordVelocity);
+				}
+				_direction = 1;
+			} else {
+				for (_i = 0; _i < l; _i++) {
+					_triggers[_i] && _triggers[_i].update(0, recordVelocity);
+				}
+			}
+			_request = 0;
 		}
-		if (_direction < 0) {
-			_i = l;
-			while (_i-- > 0) {
-				_triggers[_i] && _triggers[_i].update(0, recordVelocity);
-			}
-			_direction = 1;
-		} else {
-			for (_i = 0; _i < l; _i++) {
-				_triggers[_i] && _triggers[_i].update(0, recordVelocity);
-			}
-		}
-		_request = 0;
 	},
 	_propNamesToCopy = [_left, _top, _bottom, _right, _margin + _Bottom, _margin + _Right, _margin + _Top, _margin + _Left, "display", "flexShrink", "float", "zIndex", "grid-column-start", "grid-column-end", "grid-row-start", "grid-row-end", "grid-area", "justify-self", "align-self", "place-self"],
 	_stateProps = _propNamesToCopy.concat([_width, _height, "boxSizing", "max" + _Width, "max" + _Height, "position", _margin, _padding, _padding + _Top, _padding + _Right, _padding + _Bottom, _padding + _Left]),
@@ -462,7 +467,7 @@ let gsap, _coreInitted, _win, _doc, _docEl, _body, _root, _resizeDelay, _raf, _r
 				return tween;
 			};
 		scroller[prop] = getScroll;
-		scroller.addEventListener("wheel", () => getTween.tween && getTween.tween.kill() && (getTween.tween = 0)); // Windows machines handle mousewheel scrolling in chunks (like "3 lines per scroll") meaning the typical strategy for cancelling the scroll isn't as sensitive. It's much more likely to match one of the previous 2 scroll event positions. So we kill any snapping as soon as there's a wheel event.
+		scroller.addEventListener("wheel", () => getTween.tween && getTween.tween.kill() && (getTween.tween = 0), {passive: true}); // Windows machines handle mousewheel scrolling in chunks (like "3 lines per scroll") meaning the typical strategy for cancelling the scroll isn't as sensitive. It's much more likely to match one of the previous 2 scroll event positions. So we kill any snapping as soon as there's a wheel event.
 		return getTween;
 	};
 
@@ -530,7 +535,9 @@ export class ScrollTrigger {
 		}
 		_triggers.push(self);
 		if (snap) {
-			_isObject(snap) || (snap = {snapTo: snap});
+			if (!_isObject(snap) || snap.push) {
+				snap = {snapTo: snap};
+			}
 			("scrollBehavior" in _body.style) && gsap.set(isViewport ? [_body, _docEl] : scroller, {scrollBehavior: "auto"}); // smooth scrolling doesn't work with snap.
 			snapFunc = _isFunction(snap.snapTo) ? snap.snapTo : snap.snapTo === "labels" ? _getClosestLabel(animation) : snap.snapTo === "labelsDirectional" ? _getLabelAtDirection(animation) : gsap.utils.snap(snap.snapTo);
 			snapDurClamp = snap.duration || {min: 0.1, max: 2};
@@ -916,6 +923,12 @@ export class ScrollTrigger {
 			let i = _triggers.indexOf(self);
 			_triggers.splice(i, 1);
 			i === _i && _direction > 0 && _i--; // if we're in the middle of a refresh() or update(), splicing would cause skips in the index, so adjust...
+
+			// if no other ScrollTrigger instances of the same scroller are found, wipe out any recorded scroll position. Otherwise, in a single page application, for example, it could maintain scroll position when it really shouldn't.
+			i = 0;
+			_triggers.forEach(t => t.scroller === self.scroller && (i = 1));
+			i || (self.scroll.rec = 0);
+
 			if (animation) {
 				animation.scrollTrigger = null;
 				revert && animation.render(-1);
@@ -1055,9 +1068,23 @@ export class ScrollTrigger {
 		query >= 0 && _media.splice(query, 4);
 	}
 
+	// static isInViewport(element, ratio, horizontal) {
+	// 	let bounds = (_isString(element) ? _toArray(element)[0] : element).getBoundingClientRect(),
+	// 		offset = bounds[horizontal ? "width" : "height"] * ratio || 0;
+	// 	return horizontal ? bounds.right - offset > 0 && bounds.left + offset < _win.innerWidth : bounds.bottom - offset > 0 && bounds.top + offset < _win.innerHeight;
+	// }
+	//
+	// static positionInViewport(element, referencePoint, horizontal) {
+	// 	_isString(element) && (element = _toArray(element)[0]);
+	// 	let bounds = element.getBoundingClientRect(),
+	// 		size = bounds[horizontal ? "width" : "height"],
+	// 		offset = referencePoint == null ? size / 2 : ((referencePoint in _keywords) ? _keywords[referencePoint] * size : ~referencePoint.indexOf("%") ? parseFloat(referencePoint) * size / 100 : parseFloat(referencePoint) || 0);
+	// 	return horizontal ? (bounds.left + offset) / _win.innerWidth : (bounds.top + offset) / _win.innerHeight;
+	// }
+
 }
 
-ScrollTrigger.version = "3.7.0";
+ScrollTrigger.version = "3.7.1";
 ScrollTrigger.saveStyles = targets => targets ? _toArray(targets).forEach(target => { // saved styles are recorded in a consecutive alternating Array, like [element, cssText, transform attribute, cache, matchMedia, ...]
 	if (target && target.style) {
 		let i = _savedStyles.indexOf(target);

@@ -5,7 +5,7 @@
 }(this, (function (exports) { 'use strict';
 
 	/*!
-	 * ScrollTrigger 3.7.0
+	 * ScrollTrigger 3.7.1
 	 * https://greensock.com
 	 *
 	 * @license Copyright 2008-2021, GreenSock. All rights reserved.
@@ -447,12 +447,15 @@
 	  media && _revertRecorded(media);
 	  media || _dispatch("revert");
 	},
+	    _refreshingAll,
 	    _refreshAll = function _refreshAll(force, skipRevert) {
 	  if (_lastScrollTime && !force) {
 	    _addListener(ScrollTrigger, "scrollEnd", _softRefresh);
 
 	    return;
 	  }
+
+	  _refreshingAll = true;
 
 	  var refreshInits = _dispatch("refreshInit");
 
@@ -473,45 +476,49 @@
 
 	  _resizeDelay.pause();
 
+	  _refreshingAll = false;
+
 	  _dispatch("refresh");
 	},
 	    _lastScroll = 0,
 	    _direction = 1,
 	    _updateAll = function _updateAll() {
-	  var l = _triggers.length,
-	      time = _getTime(),
-	      recordVelocity = time - _time1 >= 50,
-	      scroll = l && _triggers[0].scroll();
+	  if (!_refreshingAll) {
+	    var l = _triggers.length,
+	        time = _getTime(),
+	        recordVelocity = time - _time1 >= 50,
+	        scroll = l && _triggers[0].scroll();
 
-	  _direction = _lastScroll > scroll ? -1 : 1;
-	  _lastScroll = scroll;
+	    _direction = _lastScroll > scroll ? -1 : 1;
+	    _lastScroll = scroll;
 
-	  if (recordVelocity) {
-	    if (_lastScrollTime && !_pointerIsDown && time - _lastScrollTime > 200) {
-	      _lastScrollTime = 0;
+	    if (recordVelocity) {
+	      if (_lastScrollTime && !_pointerIsDown && time - _lastScrollTime > 200) {
+	        _lastScrollTime = 0;
 
-	      _dispatch("scrollEnd");
+	        _dispatch("scrollEnd");
+	      }
+
+	      _time2 = _time1;
+	      _time1 = time;
 	    }
 
-	    _time2 = _time1;
-	    _time1 = time;
+	    if (_direction < 0) {
+	      _i = l;
+
+	      while (_i-- > 0) {
+	        _triggers[_i] && _triggers[_i].update(0, recordVelocity);
+	      }
+
+	      _direction = 1;
+	    } else {
+	      for (_i = 0; _i < l; _i++) {
+	        _triggers[_i] && _triggers[_i].update(0, recordVelocity);
+	      }
+	    }
+
+	    _request = 0;
 	  }
-
-	  if (_direction < 0) {
-	    _i = l;
-
-	    while (_i-- > 0) {
-	      _triggers[_i] && _triggers[_i].update(0, recordVelocity);
-	    }
-
-	    _direction = 1;
-	  } else {
-	    for (_i = 0; _i < l; _i++) {
-	      _triggers[_i] && _triggers[_i].update(0, recordVelocity);
-	    }
-	  }
-
-	  _request = 0;
 	},
 	    _propNamesToCopy = [_left, _top, _bottom, _right, _margin + _Bottom, _margin + _Right, _margin + _Top, _margin + _Left, "display", "flexShrink", "float", "zIndex", "grid-column-start", "grid-column-end", "grid-row-start", "grid-row-end", "grid-area", "justify-self", "align-self", "place-self"],
 	    _stateProps = _propNamesToCopy.concat([_width, _height, "boxSizing", "max" + _Width, "max" + _Height, "position", _margin, _padding, _padding + _Top, _padding + _Right, _padding + _Bottom, _padding + _Left]),
@@ -725,6 +732,8 @@
 	  scroller[prop] = getScroll;
 	  scroller.addEventListener("wheel", function () {
 	    return getTween.tween && getTween.tween.kill() && (getTween.tween = 0);
+	  }, {
+	    passive: true
 	  });
 	  return getTween;
 	};
@@ -856,9 +865,12 @@
 	    _triggers.push(self);
 
 	    if (snap) {
-	      _isObject(snap) || (snap = {
-	        snapTo: snap
-	      });
+	      if (!_isObject(snap) || snap.push) {
+	        snap = {
+	          snapTo: snap
+	        };
+	      }
+
 	      "scrollBehavior" in _body.style && gsap.set(isViewport ? [_body, _docEl] : scroller, {
 	        scrollBehavior: "auto"
 	      });
@@ -1352,6 +1364,13 @@
 	      _triggers.splice(i, 1);
 
 	      i === _i && _direction > 0 && _i--;
+	      i = 0;
+
+	      _triggers.forEach(function (t) {
+	        return t.scroller === self.scroller && (i = 1);
+	      });
+
+	      i || (self.scroll.rec = 0);
 
 	      if (animation) {
 	        animation.scrollTrigger = null;
@@ -1544,7 +1563,7 @@
 
 	  return ScrollTrigger;
 	}();
-	ScrollTrigger.version = "3.7.0";
+	ScrollTrigger.version = "3.7.1";
 
 	ScrollTrigger.saveStyles = function (targets) {
 	  return targets ? _toArray(targets).forEach(function (target) {

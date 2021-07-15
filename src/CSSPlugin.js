@@ -1,5 +1,5 @@
 /*!
- * CSSPlugin 3.7.0
+ * CSSPlugin 3.7.1
  * https://greensock.com
  *
  * Copyright 2008-2021, GreenSock. All rights reserved.

@@ -25,6 +25,7 @@
       _divContainer,
       _svgContainer,
       _identityMatrix,
+      _gEl,
       _transformProp = "transform",
       _transformOriginProp = _transformProp + "Origin",
       _hasOffsetBug,
@@ -45,6 +46,8 @@
       _doc = doc;
       _docElement = doc.documentElement;
       _body = doc.body;
+      _gEl = _doc.createElementNS("http://www.w3.org/2000/svg", "g");
+      _gEl.style.transform = "none";
       var d1 = doc.createElement("div"),
           d2 = doc.createElement("div");
 
@@ -145,6 +148,21 @@
 
     return c;
   },
+      _getCTM = function _getCTM(svg) {
+    var m = svg.getCTM(),
+        transform;
+
+    if (!m) {
+      transform = svg.style[_transformProp];
+      svg.style[_transformProp] = "none";
+      svg.appendChild(_gEl);
+      m = _gEl.getCTM();
+      svg.removeChild(_gEl);
+      transform ? svg.style[_transformProp] = transform : svg.style.removeProperty(_transformProp.replace(/([A-Z])/g, "-$1").toLowerCase());
+    }
+
+    return m;
+  },
       _placeSiblings = function _placeSiblings(element, adjustGOffset) {
     var svg = _svgOwner(element),
         isRootSVG = element === svg,
@@ -165,20 +183,17 @@
     container = svg ? _svgContainer : _divContainer;
 
     if (svg) {
-      b = isRootSVG ? {
-        x: 0,
-        y: 0
-      } : element.getBBox();
-      m = element.transform ? element.transform.baseVal : {};
-
-      if (m.numberOfItems) {
-        m = m.numberOfItems > 1 ? _consolidate(m) : m.getItem(0).matrix;
+      if (isRootSVG) {
+        b = _getCTM(element);
+        x = -b.e / b.a;
+        y = -b.f / b.d;
+        m = _identityMatrix;
+      } else {
+        b = element.getBBox();
+        m = element.transform ? element.transform.baseVal : {};
+        m = !m.numberOfItems ? _identityMatrix : m.numberOfItems > 1 ? _consolidate(m) : m.getItem(0).matrix;
         x = m.a * b.x + m.c * b.y;
         y = m.b * b.x + m.d * b.y;
-      } else {
-        m = _identityMatrix;
-        x = b.x;
-        y = b.y;
       }
 
       if (adjustGOffset && element.tagName.toLowerCase() === "g") {
@@ -205,7 +220,7 @@
 
       cs = _win.getComputedStyle(element);
 
-      if (cs.position !== "absolute") {
+      if (cs.position !== "absolute" && cs.position !== "fixed") {
         m = element.offsetParent;
 
         while (parent && parent !== m) {
@@ -1306,6 +1321,7 @@
           clickDispatch,
           trustedClickDispatch,
           isPreventingDefault,
+          innerMatrix,
           onContextMenu = function onContextMenu(e) {
         _preventDefault(e);
 
@@ -1838,6 +1854,8 @@
           setPointerPosition(self.pointerX, self.pointerY);
           render(true);
         }
+
+        innerMatrix = getGlobalMatrix(target);
 
         if (scrollProxy) {
           calculateBounds();
@@ -2609,6 +2627,23 @@
       };
 
       _this2.update = function (applyBounds, sticky, ignoreExternalChanges) {
+        if (sticky && self.isPressed) {
+          var m = getGlobalMatrix(target),
+              p = innerMatrix.apply({
+            x: self.x - startElementX,
+            y: self.y - startElementY
+          }),
+              m2 = getGlobalMatrix(target.parentNode, true);
+          m2.apply({
+            x: m.e - p.x,
+            y: m.f - p.y
+          }, p);
+          self.x -= p.x - m2.e;
+          self.y -= p.y - m2.f;
+          render(true);
+          recordStartPositions();
+        }
+
         var x = self.x,
             y = self.y;
         updateMatrix(!sticky);
@@ -2888,7 +2923,7 @@
   });
 
   Draggable.zIndex = 1000;
-  Draggable.version = "3.7.0";
+  Draggable.version = "3.7.1";
   _getGSAP() && gsap.registerPlugin(Draggable);
 
   exports.Draggable = Draggable;
