@@ -57,7 +57,7 @@
 	    while (samples[++i] < length && i < l) {}
 	  }
 
-	  return i;
+	  return i < l ? i : l - 1;
 	},
 	    _reverseRawPath = function _reverseRawPath(rawPath, skipOuter) {
 	  var i = rawPath.length;
@@ -1245,7 +1245,7 @@
 	    transform ? svg.style[_transformProp] = transform : svg.style.removeProperty(_transformProp.replace(/([A-Z])/g, "-$1").toLowerCase());
 	  }
 
-	  return m;
+	  return m || _identityMatrix.clone();
 	},
 	    _placeSiblings = function _placeSiblings(element, adjustGOffset) {
 	  var svg = _svgOwner(element),
@@ -1459,7 +1459,7 @@
 	}
 
 	/*!
-	 * MotionPathPlugin 3.7.1
+	 * MotionPathPlugin 3.8.0
 	 * https://greensock.com
 	 *
 	 * @license Copyright 2008-2021, GreenSock. All rights reserved.
@@ -1525,29 +1525,26 @@
 	    _emptyFunc = function _emptyFunc(v) {
 	  return v;
 	},
-	    _numExp = /[-+\.]*\d+[\.e\-\+]*\d*[e\-\+]*\d*/g,
+	    _numExp = /[-+\.]*\d+\.?(?:e-|e\+)?\d*/g,
 	    _originToPoint = function _originToPoint(element, origin, parentMatrix) {
 	  var m = getGlobalMatrix(element),
-	      svg,
-	      x,
-	      y;
+	      x = 0,
+	      y = 0,
+	      svg;
 
 	  if ((element.tagName + "").toLowerCase() === "svg") {
 	    svg = element.viewBox.baseVal;
-	    x = svg.x;
-	    y = svg.y;
 	    svg.width || (svg = {
 	      width: +element.getAttribute("width"),
 	      height: +element.getAttribute("height")
 	    });
 	  } else {
 	    svg = origin && element.getBBox && element.getBBox();
-	    x = y = 0;
 	  }
 
 	  if (origin && origin !== "auto") {
-	    x += origin.push ? origin[0] * (svg ? svg.width : element.offsetWidth || 0) : origin.x;
-	    y += origin.push ? origin[1] * (svg ? svg.height : element.offsetHeight || 0) : origin.y;
+	    x = origin.push ? origin[0] * (svg ? svg.width : element.offsetWidth || 0) : origin.x;
+	    y = origin.push ? origin[1] * (svg ? svg.height : element.offsetHeight || 0) : origin.y;
 	  }
 
 	  return parentMatrix.apply(x || y ? m.apply({
@@ -1656,7 +1653,7 @@
 	};
 
 	var MotionPathPlugin = {
-	  version: "3.7.1",
+	  version: "3.8.0",
 	  name: "motionPath",
 	  register: function register(core, Plugin, propTween) {
 	    gsap = core;

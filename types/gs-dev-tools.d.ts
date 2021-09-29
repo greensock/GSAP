@@ -59,3 +59,22 @@ declare module "gsap/dist/GSDevTools" {
 declare module "gsap/all" {
   export * from "gsap/GSDevTools";
 }
+
+declare module "gsap-trial/GSDevTools" {
+  export * from "gsap/GSDevTools";
+  export { GSDevTools as default } from "gsap/GSDevTools";
+}
+
+declare module "gsap-trial/src/GSDevTools" {
+  export * from "gsap/GSDevTools";
+  export { GSDevTools as default } from "gsap/GSDevTools";
+}
+
+declare module "gsap-trial/dist/GSDevTools" {
+  export * from "gsap/GSDevTools";
+  export { GSDevTools as default } from "gsap/GSDevTools";
+}
+
+declare module "gsap-trial/all" {
+  export * from "gsap/GSDevTools";
+}

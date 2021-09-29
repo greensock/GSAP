@@ -89,3 +89,38 @@ declare module "gsap/src/all" {
   export * from "gsap/all";
   export { gsap as default } from "gsap/all";
 }
+
+declare module "gsap-trial" {
+  export * from "gsap/gsap-core";
+  export { gsap as default } from "gsap/gsap-core";
+}
+
+declare module "gsap-trial/src" {
+  export * from "gsap";
+  export { gsap as default } from "gsap";
+}
+
+declare module "gsap-trial/src/index" {
+  export * from "gsap";
+  export { gsap as default } from "gsap";
+}
+
+declare module "gsap-trial/dist" {
+  export * from "gsap";
+  export { gsap as default } from "gsap";
+}
+
+declare module "gsap-trial/dist/gsap" {
+  export * from "gsap";
+  export { gsap as default } from "gsap";
+}
+
+declare module "gsap-trial/all" {
+  export * from "gsap";
+  export { gsap as default } from "gsap";
+}
+
+declare module "gsap-trial/src/all" {
+  export * from "gsap/all";
+  export { gsap as default } from "gsap/all";
+}

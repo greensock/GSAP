@@ -321,22 +321,22 @@ declare namespace Draggable {
   type TestObject = gsap.DOMTarget | Event | Rectangle;
 
   interface BoundsMinMax {
-    minX: number;
-    minY: number;
-    maxX: number;
-    maxY: number;
+    minX?: number;
+    minY?: number;
+    maxX?: number;
+    maxY?: number;
   }
 
   interface BoundsRectangle {
-    height: number;
-    left: number;
-    top: number;
-    width: number;
+    height?: number;
+    left?: number;
+    top?: number;
+    width?: number;
   }
 
   interface BoundsRotation {
-    minRotation: number;
-    maxRotation: number;
+    minRotation?: number;
+    maxRotation?: number;
   }
 
   interface Rectangle {
@@ -428,5 +428,24 @@ declare module "gsap/dist/Draggable" {
 }
 
 declare module "gsap/all" {
+  export * from "gsap/Draggable";
+}
+
+declare module "gsap-trial/Draggable" {
+  export * from "gsap/Draggable";
+  export { Draggable as default } from "gsap/Draggable";
+}
+
+declare module "gsap-trial/src/Draggable" {
+  export * from "gsap/Draggable";
+  export { Draggable as default } from "gsap/Draggable";
+}
+
+declare module "gsap-trial/dist/Draggable" {
+  export * from "gsap/Draggable";
+  export { Draggable as default } from "gsap/Draggable";
+}
+
+declare module "gsap-trial/all" {
   export * from "gsap/Draggable";
 }

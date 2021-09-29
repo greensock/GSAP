@@ -1,5 +1,5 @@
 /*!
- * matrix 3.7.1
+ * matrix 3.8.0
  * https://greensock.com
  *
  * Copyright 2008-2021, GreenSock. All rights reserved.
@@ -136,7 +136,7 @@ let _doc, _win, _docElement, _body,	_divContainer, _svgContainer, _identityMatri
 			svg.removeChild(_gEl);
 			transform ? (svg.style[_transformProp] = transform) : svg.style.removeProperty(_transformProp.replace(/([A-Z])/g, "-$1").toLowerCase());
 		}
-		return m;
+		return m || _identityMatrix.clone(); // Firefox will still return null if the <svg> has a width/height of 0 in the browser.
 	},
 	_placeSiblings = (element, adjustGOffset) => {
 		let svg = _svgOwner(element),

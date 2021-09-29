@@ -606,3 +606,13 @@ declare module "gsap/src/gsap-core" {
   export * from "gsap/gsap-core";
   export { gsap as default } from "gsap/gsap-core";
 }
+
+declare module "gsap-trial/gsap-core" {
+  export * from "gsap/gsap-core";
+  export { gsap as default } from "gsap/gsap-core";
+}
+
+declare module "gsap-trial/src/gsap-core" {
+  export * from "gsap/gsap-core";
+  export { gsap as default } from "gsap/gsap-core";
+}

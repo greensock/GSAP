@@ -1,5 +1,5 @@
 /*!
- * strings: 3.7.1
+ * strings: 3.8.0
  * https://greensock.com
  *
  * Copyright 2008-2021, GreenSock. All rights reserved.
@@ -29,13 +29,20 @@ export function getText(e) {
 
   return result;
 }
-export function splitInnerHTML(element, delimiter, trim) {
+export function splitInnerHTML(element, delimiter, trim, preserveSpaces) {
   var node = element.firstChild,
-      result = [];
+      result = [],
+      s;
 
   while (node) {
     if (node.nodeType === 3) {
-      result.push.apply(result, emojiSafeSplit((node.nodeValue + "").replace(/^\n+/g, "").replace(/\s+/g, " "), delimiter, trim));
+      s = (node.nodeValue + "").replace(/^\n+/g, "");
+
+      if (!preserveSpaces) {
+        s = s.replace(/\s+/g, " ");
+      }
+
+      result.push.apply(result, emojiSafeSplit(s, delimiter, trim, preserveSpaces));
     } else if ((node.nodeName + "").toLowerCase() === "br") {
       result[result.length - 1] += "<br>";
     } else {
@@ -61,7 +68,7 @@ let _emoji = "[\uE000-\uF8FF]|\uD83C[\uDC00-\uDFFF]|\uD83D[\uDC00-\uDFFF]|[\u269
 	};
  */
 
-export function emojiSafeSplit(text, delimiter, trim) {
+export function emojiSafeSplit(text, delimiter, trim, preserveSpaces) {
   text += ""; // make sure it's cast as a string. Someone may pass in a number.
 
   if (trim) {
@@ -89,7 +96,7 @@ export function emojiSafeSplit(text, delimiter, trim) {
       i += j - 1;
     }
 
-    result.push(character === ">" ? "&gt;" : character === "<" ? "&lt;" : character);
+    result.push(character === ">" ? "&gt;" : character === "<" ? "&lt;" : preserveSpaces && character === " " && (text.charAt(i - 1) === " " || text.charAt(i + 1) === " ") ? "&nbsp;" : character);
   }
 
   return result;

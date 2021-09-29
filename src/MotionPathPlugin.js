@@ -1,5 +1,5 @@
 /*!
- * MotionPathPlugin 3.7.1
+ * MotionPathPlugin 3.8.0
  * https://greensock.com
  *
  * @license Copyright 2008-2021, GreenSock. All rights reserved.
@@ -39,6 +39,21 @@ let _xProps = "x,translateX,left,marginLeft,xPercent".split(","),
 			y = (segment[i+1] += y);
 		}
 	},
+	// feed in an array of quadratic bezier points like [{x: 0, y: 0}, ...] and it'll convert it to cubic bezier
+	// _quadToCubic = points => {
+	// 	let cubic = [],
+	// 		l = points.length - 1,
+	// 		i = 1,
+	// 		a, b, c;
+	// 	for (; i < l; i+=2) {
+	// 		a = points[i-1];
+	// 		b = points[i];
+	// 		c = points[i+1];
+	// 		cubic.push(a, {x: (2 * b.x + a.x) / 3, y: (2 * b.y + a.y) / 3}, {x: (2 * b.x + c.x) / 3, y: (2 * b.y + c.y) / 3});
+	// 	}
+	// 	cubic.push(points[l]);
+	// 	return cubic;
+	// },
 	_segmentToRawPath = (plugin, segment, target, x, y, slicer, vars, unitX, unitY) => {
 		if (vars.type === "cubic") {
 			segment = [segment];
@@ -54,22 +69,21 @@ let _xProps = "x,translateX,left,marginLeft,xPercent".split(","),
 		return cacheRawPathMeasurements(segment, vars.resolution || (vars.curviness === 0 ? 20 : 12)); //when curviness is 0, it creates control points right on top of the anchors which makes it more sensitive to resolution, thus we change the default accordingly.
 	},
 	_emptyFunc = v => v,
-	_numExp = /[-+\.]*\d+[\.e\-\+]*\d*[e\-\+]*\d*/g,
+	_numExp = /[-+\.]*\d+\.?(?:e-|e\+)?\d*/g,
 	_originToPoint = (element, origin, parentMatrix) => { // origin is an array of normalized values (0-1) in relation to the width/height, so [0.5, 0.5] would be the center. It can also be "auto" in which case it will be the top left unless it's a <path>, when it will start at the beginning of the path itself.
 		let m = getGlobalMatrix(element),
-			svg, x, y;
+			x = 0,
+			y = 0,
+			svg;
 		if ((element.tagName + "").toLowerCase() === "svg") {
 			svg = element.viewBox.baseVal;
-			x = svg.x;
-			y = svg.y;
 			svg.width || (svg = {width: +element.getAttribute("width"), height: +element.getAttribute("height")});
 		} else {
 			svg = origin && element.getBBox && element.getBBox();
-			x = y = 0;
 		}
 		if (origin && origin !== "auto") {
-			x += origin.push ? origin[0] * (svg ? svg.width : element.offsetWidth || 0) : origin.x;
-			y += origin.push ? origin[1] * (svg ? svg.height : element.offsetHeight || 0) : origin.y;
+			x = origin.push ? origin[0] * (svg ? svg.width : element.offsetWidth || 0) : origin.x;
+			y = origin.push ? origin[1] * (svg ? svg.height : element.offsetHeight || 0) : origin.y;
 		}
 		return parentMatrix.apply( x || y ? m.apply({x: x, y: y}) : {x: m.e, y: m.f} );
 	},
@@ -140,7 +154,7 @@ let _xProps = "x,translateX,left,marginLeft,xPercent".split(","),
 
 
 export const MotionPathPlugin = {
-	version: "3.7.1",
+	version: "3.8.0",
 	name: "motionPath",
 	register(core, Plugin, propTween) {
 		gsap = core;

@@ -45,3 +45,22 @@ declare module "gsap/dist/EaselPlugin" {
 declare module "gsap/all" {
   export * from "gsap/EaselPlugin";
 }
+
+declare module "gsap-trial/EaselPlugin" {
+  export * from "gsap/EaselPlugin";
+  export { EaselPlugin as default } from "gsap/EaselPlugin";
+}
+
+declare module "gsap-trial/src/EaselPlugin" {
+  export * from "gsap/EaselPlugin";
+  export { EaselPlugin as default } from "gsap/EaselPlugin";
+}
+
+declare module "gsap-trial/dist/EaselPlugin" {
+  export * from "gsap/EaselPlugin";
+  export { EaselPlugin as default } from "gsap/EaselPlugin";
+}
+
+declare module "gsap-trial/all" {
+  export * from "gsap/EaselPlugin";
+}

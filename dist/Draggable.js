@@ -161,7 +161,7 @@
       transform ? svg.style[_transformProp] = transform : svg.style.removeProperty(_transformProp.replace(/([A-Z])/g, "-$1").toLowerCase());
     }
 
-    return m;
+    return m || _identityMatrix.clone();
   },
       _placeSiblings = function _placeSiblings(element, adjustGOffset) {
     var svg = _svgOwner(element),
@@ -2203,7 +2203,9 @@
           if (snapY) {
             y = _round(snapY(y));
           }
-        } else if (hasBounds) {
+        }
+
+        if (hasBounds) {
           if (x > maxX) {
             x = maxX + Math.round((x - maxX) * edgeTolerance);
           } else if (x < minX) {
@@ -2429,8 +2431,8 @@
       },
           onClick = function onClick(e) {
         var time = _getTime(),
-            recentlyClicked = time - clickTime < 40,
-            recentlyDragged = time - dragEndTime < 40,
+            recentlyClicked = time - clickTime < 100,
+            recentlyDragged = time - dragEndTime < 50,
             alreadyDispatched = recentlyClicked && clickDispatch === clickTime,
             defaultPrevented = self.pointerEvent && self.pointerEvent.defaultPrevented,
             alreadyDispatchedTrusted = recentlyClicked && trustedClickDispatch === clickTime,
@@ -2923,7 +2925,7 @@
   });
 
   Draggable.zIndex = 1000;
-  Draggable.version = "3.7.1";
+  Draggable.version = "3.8.0";
   _getGSAP() && gsap.registerPlugin(Draggable);
 
   exports.Draggable = Draggable;

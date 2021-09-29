@@ -1,5 +1,5 @@
 /*!
- * EasePack 3.7.1
+ * EasePack 3.8.0
  * https://greensock.com
  *
  * @license Copyright 2008-2021, GreenSock. All rights reserved.
@@ -155,7 +155,7 @@ export const EasePack = {
 
 for (let p in EasePack) {
 	EasePack[p].register = _initCore;
-	EasePack[p].version = "3.7.1";
+	EasePack[p].version = "3.8.0";
 }
 
 _getGSAP() && gsap.registerPlugin(SlowMo);

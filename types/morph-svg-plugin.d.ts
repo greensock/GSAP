@@ -131,3 +131,22 @@ declare module "gsap/src/MorphSVGPlugin" {
 declare module "gsap/all" {
   export * from "gsap/MorphSVGPlugin";
 }
+
+declare module "gsap-trial/MorphSVGPlugin" {
+  export * from "gsap/MorphSVGPlugin";
+  export { MorphSVGPlugin as default } from "gsap/MorphSVGPlugin";
+}
+
+declare module "gsap-trial/dist/MorphSVGPlugin" {
+  export * from "gsap/MorphSVGPlugin";
+  export { MorphSVGPlugin as default } from "gsap/MorphSVGPlugin";
+}
+
+declare module "gsap-trial/src/MorphSVGPlugin" {
+  export * from "gsap/MorphSVGPlugin";
+  export { MorphSVGPlugin as default } from "gsap/MorphSVGPlugin";
+}
+
+declare module "gsap-trial/all" {
+  export * from "gsap/MorphSVGPlugin";
+}

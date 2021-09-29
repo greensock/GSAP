@@ -1,5 +1,5 @@
 /*!
- * TextPlugin 3.7.1
+ * TextPlugin 3.8.0
  * https://greensock.com
  *
  * @license Copyright 2008-2021, GreenSock. All rights reserved.
@@ -16,7 +16,7 @@ let gsap, _tempDiv,
 
 
 export const TextPlugin = {
-	version:"3.7.1",
+	version:"3.8.0",
 	name:"text",
 	init(target, value, tween) {
 		let i = target.nodeName.toUpperCase(),
@@ -35,7 +35,7 @@ export const TextPlugin = {
 			return;
 		}
 		data.delimiter = value.delimiter || "";
-		original = splitInnerHTML(target, data.delimiter);
+		original = splitInnerHTML(target, data.delimiter, false, value.preserveSpaces);
 		if (!_tempDiv) {
 			_tempDiv = document.createElement("div");
 		}

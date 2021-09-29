@@ -117,3 +117,22 @@ declare module "gsap/dist/PixiPlugin" {
 declare module "gsap/all" {
   export * from "gsap/PixiPlugin";
 }
+
+declare module "gsap-trial/PixiPlugin" {
+  export * from "gsap/PixiPlugin";
+  export { PixiPlugin as default } from "gsap/PixiPlugin";
+}
+
+declare module "gsap-trial/src/PixiPlugin" {
+  export * from "gsap/PixiPlugin";
+  export { PixiPlugin as default } from "gsap/PixiPlugin";
+}
+
+declare module "gsap-trial/dist/PixiPlugin" {
+  export * from "gsap/PixiPlugin";
+  export { PixiPlugin as default } from "gsap/PixiPlugin";
+}
+
+declare module "gsap-trial/all" {
+  export * from "gsap/PixiPlugin";
+}

@@ -3,7 +3,7 @@ function _assertThisInitialized(self) { if (self === void 0) { throw new Referen
 function _inheritsLoose(subClass, superClass) { subClass.prototype = Object.create(superClass.prototype); subClass.prototype.constructor = subClass; subClass.__proto__ = superClass; }
 
 /*!
- * Draggable 3.7.1
+ * Draggable 3.8.0
  * https://greensock.com
  *
  * @license Copyright 2008-2021, GreenSock. All rights reserved.
@@ -1915,7 +1915,9 @@ export var Draggable = /*#__PURE__*/function (_EventDispatcher) {
         if (snapY) {
           y = _round(snapY(y));
         }
-      } else if (hasBounds) {
+      }
+
+      if (hasBounds) {
         if (x > maxX) {
           x = maxX + Math.round((x - maxX) * edgeTolerance);
         } else if (x < minX) {
@@ -2155,8 +2157,8 @@ export var Draggable = /*#__PURE__*/function (_EventDispatcher) {
         onClick = function onClick(e) {
       //this was a huge pain in the neck to align all the various browsers and their behaviors. Chrome, Firefox, Safari, Opera, Android, and Microsoft Edge all handle events differently! Some will only trigger native behavior (like checkbox toggling) from trusted events. Others don't even support isTrusted, but require 2 events to flow through before triggering native behavior. Edge treats everything as trusted but also mandates that 2 flow through to trigger the correct native behavior.
       var time = _getTime(),
-          recentlyClicked = time - clickTime < 40,
-          recentlyDragged = time - dragEndTime < 40,
+          recentlyClicked = time - clickTime < 100,
+          recentlyDragged = time - dragEndTime < 50,
           alreadyDispatched = recentlyClicked && clickDispatch === clickTime,
           defaultPrevented = self.pointerEvent && self.pointerEvent.defaultPrevented,
           alreadyDispatchedTrusted = recentlyClicked && trustedClickDispatch === clickTime,
@@ -2661,6 +2663,6 @@ _setDefaults(Draggable.prototype, {
 });
 
 Draggable.zIndex = 1000;
-Draggable.version = "3.7.1";
+Draggable.version = "3.8.0";
 _getGSAP() && gsap.registerPlugin(Draggable);
 export { Draggable as default };
