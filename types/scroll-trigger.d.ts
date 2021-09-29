@@ -9,7 +9,8 @@ declare class ScrollTrigger {
 
   static readonly version: string;
 
-  readonly animation?: gsap.core.Animation;
+  readonly animation?: gsap.core.Animation | null;
+  readonly callbackAnimation?: gsap.core.Animation | null;
   readonly direction: number;
   readonly end: number;
   readonly isActive: boolean;
@@ -23,10 +24,10 @@ declare class ScrollTrigger {
   /**
    * Creates an instance of ScrollTrigger.
    * @param {ScrollTrigger.StaticVars} vars
-   * @param {gsap.core.Animation} [animaiton]
+   * @param {gsap.core.Animation} [animation]
    * @memberof ScrollTrigger
    */
-  constructor(vars: ScrollTrigger.StaticVars, animaiton?:  gsap.core.Animation);
+  constructor(vars: ScrollTrigger.StaticVars, animation?:  gsap.core.Animation);
 
   /**
    * Attach a new event listener to a ScrollTrigger event.
@@ -41,7 +42,7 @@ declare class ScrollTrigger {
    * @memberof ScrollTrigger
    * @link https://greensock.com/docs/v3/Plugins/ScrollTrigger/static.addEventListener()
    */
-  static addEventListener(event: "scrollStart" | "scrollEnd" | "refreshInit" | "refresh", callback: gsap.Callback): void;
+  static addEventListener(event: "scrollStart" | "scrollEnd" | "refreshInit" | "refresh" | "matchMedia", callback: gsap.Callback): void;
 
   /**
    * Creates a coordinated group of ScrollTriggers (one for each target element) that batch their callbacks within a certain interval
@@ -74,11 +75,24 @@ declare class ScrollTrigger {
    * ```
    *
    * @static
-   * @param {string} name
+   * @param {string} [name]
    * @memberof ScrollTrigger
    * @link https://greensock.com/docs/v3/Plugins/ScrollTrigger/static.clearMatchMedia()
    */
   static clearMatchMedia(name?: string): void;
+
+  /**
+   * Clears any recorded scroll position data.
+   *
+   * ```js
+   * ScrollTrigger.clearScrollMemory();
+   * ```
+   *
+   * @static
+   * @memberof ScrollTrigger
+   * @link https://greensock.com/docs/v3/Plugins/ScrollTrigger/static.clearScrollMemory()
+   */
+  static clearScrollMemory(): void;
 
   /**
    * Configure ScrollTrigger
@@ -180,6 +194,23 @@ declare class ScrollTrigger {
   static getScrollFunc(element: gsap.DOMTarget | Window, horizontal?: boolean): ScrollTrigger.ScrollFunc;
 
   /**
+   * Checks if the element is in the viewport.
+   *
+   * ```js
+   * if (ScrollTrigger.isInViewport(element, 0.2)) {...};
+   * ```
+   *
+   * @static
+   * @param {Element | string} element
+   * @param {number} [ratio]
+   * @param {boolean} [horizontal]
+   * @returns {boolean} Boolean
+   * @memberof ScrollTrigger
+   * @link https://greensock.com/docs/v3/Plugins/ScrollTrigger/static.isInViewport()
+   */
+  static isInViewport(element: Element | string, ratio?: number, horizontal?: boolean): boolean;
+
+  /**
    * Find out if a ScrollTrigger-related scroller is currently scrolling.
    *
    * ```js
@@ -187,7 +218,7 @@ declare class ScrollTrigger {
    * ```
    *
    * @static
-   * @returns {boolean} Whether or not the scroller is scrolling
+   * @returns {boolean} Whether or not any scroller is scrolling
    * @memberof ScrollTrigger
    * @link https://greensock.com/docs/v3/Plugins/ScrollTrigger/static.isScrolling()
    */
@@ -228,6 +259,23 @@ declare class ScrollTrigger {
   static maxScroll(target: HTMLElement | Window, horizontal?: boolean): number;
 
   /**
+   * Returns the position of the Element in the viewport as a normalized value (0-1) where 0 is top/left and 1 is bottom/right.
+   *
+   * ```js
+   * if (ScrollTrigger.positionInViewport(element, "top")) {...};
+   * ```
+   *
+   * @static
+   * @param {Element | string} element
+   * @param {number} [referencePoint] - a number in pixels from top, percent like "20%" from top or keyword like "top"/"center"/"bottom"
+   * @param {boolean} [horizontal]
+   * @returns {number} normalized value (0-1) where 0 is top/left and 1 is bottom/right
+   * @memberof ScrollTrigger
+   * @link https://greensock.com/docs/v3/Plugins/ScrollTrigger/static.positionInViewport()
+   */
+  static positionInViewport(element: Element | string, referencePoint?: string | number, horizontal?: boolean): number;
+
+  /**
    * Recalculates the positioning of all of the ScrollTriggers on the page.
    *
    * ```js
@@ -235,7 +283,7 @@ declare class ScrollTrigger {
    * ```
    *
    * @static
-   * @param {boolean} safe
+   * @param {boolean} [safe]
    * @memberof ScrollTrigger
    * @link https://greensock.com/docs/v3/Plugins/ScrollTrigger/static.refresh()
    */
@@ -258,12 +306,12 @@ declare class ScrollTrigger {
    * ```
    *
    * @static
-   * @param {"scrollStart" | "scrollEnd" | "refreshInit" | "refresh"} event
+   * @param {"scrollStart" | "scrollEnd" | "refreshInit" | "refresh" | "matchMedia"} event
    * @param {gsap.Callback} callback
    * @memberof ScrollTrigger
    * @link https://greensock.com/docs/v3/Plugins/ScrollTrigger/static.removeEventListener()
    */
-  static removeEventListener(event: "scrollStart" | "scrollEnd" | "refreshInit" | "refresh", callback: gsap.Callback): void;
+  static removeEventListener(event: "scrollStart" | "scrollEnd" | "refreshInit" | "refresh" | "matchMedia", callback: gsap.Callback): void;
 
   /**
    * Records the current inline CSS styles for the given element(s) so they can be reverted later.
@@ -303,6 +351,23 @@ declare class ScrollTrigger {
   static scrollerProxy(scroller: gsap.DOMTarget, vars: ScrollTrigger.ScrollerProxyVars): void;
 
   /**
+   * Returns a function that will snap in a given direction where 1 is positive and -1 is negative. It will accept an increment or Array of numbers
+   *
+   * ```js
+   * let snap = ScrollTrigger.snapDirectional(5);
+   * snap(2, 1); // 5
+   * snap(8, -1); // 5
+   * snap(51, 1) // 55
+   * ```
+   *
+   * @static
+   * @param {number | number[]} incrementOrArray
+   * @memberof ScrollTrigger
+   * @link https://greensock.com/docs/v3/Plugins/ScrollTrigger/static.snapDirectional()
+   */
+  static snapDirectional(incrementOrArray: number | number[]): ScrollTrigger.SnapDirectionalFunc;
+
+  /**
    * Sorts the internal Array of ScrollTriggers by "refreshPriority" first, then by their "start" positions (or by a custom function you provide).
    *
    * ```js
@@ -310,7 +375,7 @@ declare class ScrollTrigger {
    * ```
    *
    * @static
-   * @param {Function} func
+   * @param {Function} [func]
    * @memberof ScrollTrigger
    * @link https://greensock.com/docs/v3/Plugins/ScrollTrigger/static.sort()
    */
@@ -336,8 +401,8 @@ declare class ScrollTrigger {
    * scrollTrigger.disable(true);
    * ```
    * 
-   * @param {boolean} revert
-   * @param {boolean} allowAnimation
+   * @param {boolean} [revert]
+   * @param {boolean} [allowAnimation]
    * @memberof ScrollTrigger
    * @link https://greensock.com/docs/v3/Plugins/ScrollTrigger/disable()
    */
@@ -349,11 +414,25 @@ declare class ScrollTrigger {
    * ```js
    * scrollTrigger.enable();
    * ```
-   *
+   * @param {boolean} [reset]
+   * @param {boolean} [refresh]
    * @memberof ScrollTrigger
    * @link https://greensock.com/docs/v3/Plugins/ScrollTrigger/enable()
    */
-  enable(): void;
+  enable(reset?: boolean, refresh?: boolean): void;
+
+  /**
+   * Forces any associated animation (including the callbackAnimation) to its natural end state immediately which is progress(1) if
+   * direction is 1 (forward) and progress(0) if direction is -1 (backward).
+   *
+   * ```js
+   * preventOverlaps: self => self.getTrailing().forEach(t => t.endAnimation());
+   * ```
+   *
+   * @memberof ScrollTrigger
+   * @link https://greensock.com/docs/v3/Plugins/ScrollTrigger/endAnimation()
+   */
+  endAnimation(): void;
 
   /**
    * Gets the scrub tween associated with the ScrollTrigger instance (if scrub was defined), or getTween(true) will get the snap tween (assuming snap was defined).
@@ -363,11 +442,24 @@ declare class ScrollTrigger {
    * scrub.progress(1); // immediately finish the scrub
    * ```
    *
-   * @param {boolean} snap
+   * @param {boolean} [snap]
    * @memberof ScrollTrigger
    * @link https://greensock.com/docs/v3/Plugins/ScrollTrigger/getTween()
    */
   getTween(snap?: boolean): gsap.core.Tween;
+
+  /**
+   * Returns an Array of all ScrollTriggers that precede this one in the updating order according to the current scroll direction.
+   *
+   * ```js
+   * preventOverlaps: self => self.getTrailing().forEach(t => t.endAnimation());
+   * ```
+   *
+   * @param {string | boolean} [name] optional preventOverlaps name to filter
+   * @memberof ScrollTrigger
+   * @link https://greensock.com/docs/v3/Plugins/ScrollTrigger/getTrailing()
+   */
+  getTrailing(name?: string | boolean | null): ScrollTrigger[];
 
   /**
    * Gets the current velocity of the element's scroll on which the ScrollTrigger is attached to (in pixels per second).
@@ -388,12 +480,36 @@ declare class ScrollTrigger {
    * scrollTrigger.kill();
    * ```
    *
-   * @param {boolean} reset
-   * @param {boolean} allowAnimation
+   * @param {boolean} [reset]
+   * @param {boolean} [allowAnimation]
    * @memberof ScrollTrigger
    * @link https://greensock.com/docs/v3/Plugins/ScrollTrigger/kill()
    */
   kill(reset?: boolean, allowAnimation?: boolean): void;
+
+  /**
+   * Gets the ScrollTrigger instance that's immediately after this one in the refresh order (if any)
+   *
+   * ```js
+   * scrollTrigger.next();
+   * ```
+   *
+   * @memberof ScrollTrigger
+   * @link https://greensock.com/docs/v3/Plugins/ScrollTrigger/next()
+   */
+  next(): ScrollTrigger | null;
+
+  /**
+   * Gets the ScrollTrigger instance that's immediately before this one in the refresh order (if any)
+   *
+   * ```js
+   * scrollTrigger.previous();
+   * ```
+   *
+   * @memberof ScrollTrigger
+   * @link https://greensock.com/docs/v3/Plugins/ScrollTrigger/previous()
+   */
+  previous(): ScrollTrigger | null;
 
   /**
    * Gets the scroll position of the ScrollTrigger's scroller.
@@ -429,9 +545,10 @@ declare class ScrollTrigger {
    * ```
    *
    * @param {number} position
+   * @returns {gsap.core.Tween} Tween
    * @memberof ScrollTrigger
    */
-  tweenTo(position: number): void;
+  tweenTo(position: number): gsap.core.Tween;
 }
 
 declare namespace ScrollTrigger {
@@ -451,6 +568,7 @@ declare namespace ScrollTrigger {
   type BatchCallback = (targets: Element[], triggers: ScrollTrigger[]) => any;
   type NumFunc = () => number;
   type SnapFunc = (value: number) => number;
+  type SnapDirectionalFunc = (value: number, direction?: number) => number;
   type GetterSetterNumFunc = (value?: number) => number | void;
   type GetterRectFunc = () => RectObj;
   type StartEndFunc = () => string | number;
@@ -475,6 +593,7 @@ declare namespace ScrollTrigger {
     inertia?: boolean;
     ease?: string | gsap.EaseFunction;
     snapTo?: number | number[] | "labels" | "labelsDirectional" | SnapFunc;
+    directional?: boolean;
     onInterrupt?: Callback;
     onStart?: Callback;
     onComplete?: Callback;
@@ -487,10 +606,13 @@ declare namespace ScrollTrigger {
 
   interface Vars {
     anticipatePin?: number;
+    containerAnimation?: gsap.core.Animation;
     end?: string | number | StartEndFunc;
     endTrigger?: gsap.DOMTarget;
+    fastScrollEnd?: boolean | number;
     horizontal?: boolean;
     id?: string;
+    immediateRender?: boolean; 
     invalidateOnRefresh?: boolean;
     markers?: boolean | MarkersVars;
     once?: boolean;
@@ -508,7 +630,9 @@ declare namespace ScrollTrigger {
     pinnedContainer?: gsap.DOMTarget;
     pinReparent?: boolean;
     pinSpacing?: boolean | string;
+    pinSpacer?: gsap.DOMTarget;
     pinType?: "fixed" | "transform";
+    preventOverlaps?: boolean | string | Callback;
     refreshPriority?: number;
     scroller?: gsap.DOMTarget | Window;
     scrub?: boolean | number;
@@ -528,6 +652,7 @@ declare namespace ScrollTrigger {
     batchMax?: number | NumFunc;
     anticipatePin?: number;
     end?: string | number | StartEndFunc;
+    fastScrollEnd?: boolean | number;
     horizontal?: boolean;
     once?: boolean;
     onEnter?: BatchCallback;
@@ -541,7 +666,9 @@ declare namespace ScrollTrigger {
     pin?: boolean | gsap.DOMTarget;
     pinReparent?: boolean;
     pinSpacing?: boolean | string;
+    pinSpacer?: gsap.DOMTarget;
     pinType?: "fixed" | "transform";
+    preventOverlaps?: boolean | string | Callback;
     scroller?: gsap.DOMTarget | Window;
     start?: string | number | StartEndFunc;
     toggleClass?: string | ToggleClassVars;
@@ -646,5 +773,24 @@ declare module "gsap/src/ScrollTrigger" {
 }
 
 declare module "gsap/all" {
+  export * from "gsap/ScrollTrigger";
+}
+
+declare module "gsap-trial/ScrollTrigger" {
+  export * from "gsap/ScrollTrigger";
+  export { ScrollTrigger as default } from "gsap/ScrollTrigger";
+}
+
+declare module "gsap-trial/dist/ScrollTrigger" {
+  export * from "gsap/ScrollTrigger";
+  export { ScrollTrigger as default } from "gsap/ScrollTrigger";
+}
+
+declare module "gsap-trial/src/ScrollTrigger" {
+  export * from "gsap/ScrollTrigger";
+  export { ScrollTrigger as default } from "gsap/ScrollTrigger";
+}
+
+declare module "gsap-trial/all" {
   export * from "gsap/ScrollTrigger";
 }

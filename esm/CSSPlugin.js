@@ -1,5 +1,5 @@
 /*!
- * CSSPlugin 3.7.1
+ * CSSPlugin 3.8.0
  * https://greensock.com
  *
  * Copyright 2008-2021, GreenSock. All rights reserved.
@@ -1261,6 +1261,7 @@ export var CSSPlugin = {
           startValue = typeof startAt[p] === "function" ? startAt[p].call(tween, index, target, targets) : startAt[p];
           p in _config.units && !getUnit(startValue) && (startValue += _config.units[p]); // for cases when someone passes in a unitless value like {x: 100}; if we try setting translate(100, 0px) it won't work.
 
+          _isString(startValue) && ~startValue.indexOf("random(") && (startValue = _replaceRandom(startValue));
           (startValue + "").charAt(1) === "=" && (startValue = _get(target, p)); // can't work with relative values
         } else {
           startValue = _get(target, p);
@@ -1352,7 +1353,7 @@ export var CSSPlugin = {
           this._pt = new PropTween(this._pt, isTransformRelated ? cache : style, p, startNum, relative ? relative * endNum : endNum - startNum, !isTransformRelated && (endUnit === "px" || p === "zIndex") && vars.autoRound !== false ? _renderRoundedCSSProp : _renderCSSProp);
           this._pt.u = endUnit || 0;
 
-          if (startUnit !== endUnit) {
+          if (startUnit !== endUnit && endUnit !== "%") {
             //when the tween goes all the way back to the beginning, we need to revert it to the OLD/ORIGINAL value (with those units). We record that as a "b" (beginning) property and point to a render method that handles that. (performance optimization)
             this._pt.b = startValue;
             this._pt.r = _renderCSSPropWithBeginning;

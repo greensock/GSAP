@@ -41,3 +41,13 @@ declare module "gsap/src/utils/VelocityTracker" {
   export * from "gsap/utils/VelocityTracker";
   export { VelocityTracker as default } from "gsap/utils/VelocityTracker";
 }
+
+declare module "gsap-trial/utils/VelocityTracker" {
+  export * from "gsap/utils/VelocityTracker";
+  export { VelocityTracker as default } from "gsap/utils/VelocityTracker";
+}
+
+declare module "gsap-trial/src/utils/VelocityTracker" {
+  export * from "gsap/utils/VelocityTracker";
+  export { VelocityTracker as default } from "gsap/utils/VelocityTracker";
+}

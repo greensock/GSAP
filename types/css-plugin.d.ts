@@ -569,3 +569,21 @@ declare module "gsap" {
 declare module "gsap/all" {
   export * from "gsap/CSSPlugin";
 }
+
+declare module "gsap-trial/CSSPlugin" {
+  export * from "gsap/CSSPlugin";
+  export { CSSPlugin as default } from "gsap/CSSPlugin";
+}
+
+declare module "gsap-trial/src/CSSPlugin" {
+  export * from "gsap/CSSPlugin";
+  export { CSSPlugin as default } from "gsap/CSSPlugin";
+}
+
+declare module "gsap-trial" {
+  export * from "gsap/CSSPlugin";
+}
+
+declare module "gsap-trial/all" {
+  export * from "gsap/CSSPlugin";
+}

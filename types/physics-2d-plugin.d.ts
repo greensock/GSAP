@@ -51,3 +51,22 @@ declare module "gsap/dist/Physics2DPlugin" {
 declare module "gsap/all" {
   export * from "gsap/Physics2DPlugin";
 }
+
+declare module "gsap-trial/Physics2DPlugin" {
+  export * from "gsap/Physics2DPlugin";
+  export { Physics2DPlugin as default } from "gsap/Physics2DPlugin";
+}
+
+declare module "gsap-trial/src/Physics2DPlugin" {
+  export * from "gsap/Physics2DPlugin";
+  export { Physics2DPlugin as default } from "gsap/Physics2DPlugin";
+}
+
+declare module "gsap-trial/dist/Physics2DPlugin" {
+  export * from "gsap/Physics2DPlugin";
+  export { Physics2DPlugin as default } from "gsap/Physics2DPlugin";
+}
+
+declare module "gsap-trial/all" {
+  export * from "gsap/Physics2DPlugin";
+}

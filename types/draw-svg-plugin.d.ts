@@ -68,3 +68,22 @@ declare module "gsap/dist/DrawSVGPlugin" {
 declare module "gsap/all" {
   export * from "gsap/DrawSVGPlugin";
 }
+
+declare module "gsap-trial/DrawSVGPlugin" {
+  export * from "gsap/DrawSVGPlugin";
+  export { DrawSVGPlugin as default } from "gsap/DrawSVGPlugin";
+}
+
+declare module "gsap-trial/src/DrawSVGPlugin" {
+  export * from "gsap/DrawSVGPlugin";
+  export { DrawSVGPlugin as default } from "gsap/DrawSVGPlugin";
+}
+
+declare module "gsap-trial/dist/DrawSVGPlugin" {
+  export * from "gsap/DrawSVGPlugin";
+  export { DrawSVGPlugin as default } from "gsap/DrawSVGPlugin";
+}
+
+declare module "gsap-trial/all" {
+  export * from "gsap/DrawSVGPlugin";
+}

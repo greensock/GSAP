@@ -291,3 +291,22 @@ declare module "gsap/src/MotionPathPlugin" {
 declare module "gsap/all" {
   export * from "gsap/MotionPathPlugin";
 }
+
+declare module "gsap-trial/MotionPathPlugin" {
+  export const MotionPathPlugin: gsap.plugins.MotionPathPlugin;
+  export { MotionPathPlugin as default };
+}
+
+declare module "gsap-trial/dist/MotionPathPlugin" {
+  export * from "gsap/MotionPathPlugin";
+  export { MotionPathPlugin as default } from "gsap/MotionPathPlugin";
+}
+
+declare module "gsap-trial/src/MotionPathPlugin" {
+  export * from "gsap/MotionPathPlugin";
+  export { MotionPathPlugin as default } from "gsap/MotionPathPlugin";
+}
+
+declare module "gsap-trial/all" {
+  export * from "gsap/MotionPathPlugin";
+}

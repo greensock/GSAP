@@ -52,3 +52,22 @@ declare module "gsap/dist/ScrambleTextPlugin" {
 declare module "gsap/all" {
   export * from "gsap/ScrambleTextPlugin";
 }
+
+declare module "gsap-trial/ScrambleTextPlugin" {
+  export * from "gsap/ScrambleTextPlugin";
+  export { ScrambleTextPlugin as default } from "gsap/ScrambleTextPlugin";
+}
+
+declare module "gsap-trial/src/ScrambleTextPlugin" {
+  export * from "gsap/ScrambleTextPlugin";
+  export { ScrambleTextPlugin as default } from "gsap/ScrambleTextPlugin";
+}
+
+declare module "gsap-trial/dist/ScrambleTextPlugin" {
+  export * from "gsap/ScrambleTextPlugin";
+  export { ScrambleTextPlugin as default } from "gsap/ScrambleTextPlugin";
+}
+
+declare module "gsap-trial/all" {
+  export * from "gsap/ScrambleTextPlugin";
+}

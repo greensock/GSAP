@@ -1,5 +1,5 @@
 /*!
- * matrix 3.7.1
+ * matrix 3.8.0
  * https://greensock.com
  *
  * Copyright 2008-2021, GreenSock. All rights reserved.
@@ -179,7 +179,7 @@ _divTemps = [],
     transform ? svg.style[_transformProp] = transform : svg.style.removeProperty(_transformProp.replace(/([A-Z])/g, "-$1").toLowerCase());
   }
 
-  return m;
+  return m || _identityMatrix.clone(); // Firefox will still return null if the <svg> has a width/height of 0 in the browser.
 },
     _placeSiblings = function _placeSiblings(element, adjustGOffset) {
   var svg = _svgOwner(element),

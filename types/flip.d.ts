@@ -340,3 +340,22 @@ declare module "gsap/src/Flip" {
 declare module "gsap/all" {
   export * from "gsap/Flip";
 }
+
+declare module "gsap-trial/Flip" {
+  export * from "gsap/Flip";
+  export { Flip as default } from "gsap/Flip";
+}
+
+declare module "gsap-trial/dist/Flip" {
+  export * from "gsap/Flip";
+  export { Flip as default } from "gsap/Flip";
+}
+
+declare module "gsap-trial/src/Flip" {
+  export * from "gsap/Flip";
+  export { Flip as default } from "gsap/Flip";
+}
+
+declare module "gsap-trial/all" {
+  export * from "gsap/Flip";
+}

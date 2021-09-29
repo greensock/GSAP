@@ -1,5 +1,5 @@
 /*!
- * Draggable 3.7.1
+ * Draggable 3.8.0
  * https://greensock.com
  *
  * @license Copyright 2008-2021, GreenSock. All rights reserved.
@@ -1390,7 +1390,8 @@ export class Draggable extends EventDispatcher {
 					if (snapY) {
 						y = _round(snapY(y));
 					}
-				} else if (hasBounds) {
+				}
+				if (hasBounds) {
 					if (x > maxX) {
 						x = maxX + Math.round((x - maxX) * edgeTolerance);
 					} else if (x < minX) {
@@ -1569,8 +1570,8 @@ export class Draggable extends EventDispatcher {
 
 			onClick = e => { //this was a huge pain in the neck to align all the various browsers and their behaviors. Chrome, Firefox, Safari, Opera, Android, and Microsoft Edge all handle events differently! Some will only trigger native behavior (like checkbox toggling) from trusted events. Others don't even support isTrusted, but require 2 events to flow through before triggering native behavior. Edge treats everything as trusted but also mandates that 2 flow through to trigger the correct native behavior.
 				let time = _getTime(),
-					recentlyClicked = (time - clickTime < 40),
-					recentlyDragged = (time - dragEndTime < 40),
+					recentlyClicked = (time - clickTime < 100),
+					recentlyDragged = (time - dragEndTime < 50),
 					alreadyDispatched = (recentlyClicked && clickDispatch === clickTime),
 					defaultPrevented = (self.pointerEvent && self.pointerEvent.defaultPrevented),
 					alreadyDispatchedTrusted = (recentlyClicked && trustedClickDispatch === clickTime),
@@ -1914,7 +1915,7 @@ export class Draggable extends EventDispatcher {
 _setDefaults(Draggable.prototype, {pointerX:0, pointerY: 0, startX: 0, startY: 0, deltaX: 0, deltaY: 0, isDragging: false, isPressed: false});
 
 Draggable.zIndex = 1000;
-Draggable.version = "3.7.1";
+Draggable.version = "3.8.0";
 
 _getGSAP() && gsap.registerPlugin(Draggable);
 

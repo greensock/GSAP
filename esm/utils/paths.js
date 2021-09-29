@@ -1,5 +1,5 @@
 /*!
- * paths 3.7.1
+ * paths 3.8.0
  * https://greensock.com
  *
  * Copyright 2008-2021, GreenSock. All rights reserved.
@@ -64,7 +64,7 @@ _round = function _round(value) {
     while (samples[++i] < length && i < l) {}
   }
 
-  return i;
+  return i < l ? i : l - 1;
 },
     _reverseRawPath = function _reverseRawPath(rawPath, skipOuter) {
   var i = rawPath.length;

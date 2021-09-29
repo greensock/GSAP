@@ -150,3 +150,22 @@ declare module "gsap/dist/EasePack" {
 declare module "gsap/all" {
   export * from "gsap/EasePack";
 }
+
+declare module "gsap-trial/EasePack" {
+  export * from "gsap/EasePack";
+  export { EasePack as default } from "gsap/EasePack";
+}
+
+declare module "gsap-trial/src/EasePack" {
+  export * from "gsap/EasePack";
+  export { EasePack as default } from "gsap/EasePack";
+}
+
+declare module "gsap-trial/dist/EasePack" {
+  export * from "gsap/EasePack";
+  export { EasePack as default } from "gsap/EasePack";
+}
+
+declare module "gsap-trial/all" {
+  export * from "gsap/EasePack";
+}

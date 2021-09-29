@@ -53,3 +53,22 @@ declare module "gsap/dist/CSSRulePlugin" {
 declare module "gsap/all" {
   export * from "gsap/CSSRulePlugin";
 }
+
+declare module "gsap-trial/CSSRulePlugin" {
+  export * from "gsap/CSSRulePlugin";
+  export { CSSRulePlugin as default } from "gsap/CSSRulePlugin";
+}
+
+declare module "gsap-trial/src/CSSRulePlugin" {
+  export * from "gsap/CSSRulePlugin";
+  export { CSSRulePlugin as default } from "gsap/CSSRulePlugin";
+}
+
+declare module "gsap-trial/dist/CSSRulePlugin" {
+  export * from "gsap/CSSRulePlugin";
+  export { CSSRulePlugin as default } from "gsap/CSSRulePlugin";
+}
+
+declare module "gsap-trial/all" {
+  export * from "gsap/CSSRulePlugin";
+}

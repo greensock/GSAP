@@ -70,3 +70,22 @@ declare module "gsap/dist/SplitText" {
 declare module "gsap/all" {
   export * from "gsap/SplitText";
 }
+
+declare module "gsap-trial/SplitText" {
+  export * from "gsap/SplitText";
+  export { SplitText as default } from "gsap/SplitText";
+}
+
+declare module "gsap-trial/src/SplitText" {
+  export * from "gsap/SplitText";
+  export { SplitText as default } from "gsap/SplitText";
+}
+
+declare module "gsap-trial/dist/SplitText" {
+  export * from "gsap/SplitText";
+  export { SplitText as default } from "gsap/SplitText";
+}
+
+declare module "gsap-trial/all" {
+  export * from "gsap/SplitText";
+}

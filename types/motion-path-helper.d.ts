@@ -87,3 +87,22 @@ declare module "gsap/dist/MotionPathHelper" {
 declare module "gsap/all" {
   export * from "gsap/MotionPathHelper";
 }
+
+declare module "gsap-trial/MotionPathHelper" {
+  export * from "gsap/MotionPathHelper";
+  export { MotionPathHelper as default } from "gsap/MotionPathHelper";
+}
+
+declare module "gsap-trial/src/MotionPathHelper" {
+  export * from "gsap/MotionPathHelper";
+  export { MotionPathHelper as default } from "gsap/MotionPathHelper";
+}
+
+declare module "gsap-trial/dist/MotionPathHelper" {
+  export * from "gsap/MotionPathHelper";
+  export { MotionPathHelper as default } from "gsap/MotionPathHelper";
+}
+
+declare module "gsap-trial/all" {
+  export * from "gsap/MotionPathHelper";
+}

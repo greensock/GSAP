@@ -49,3 +49,22 @@ declare module "gsap/dist/ScrollToPlugin" {
 declare module "gsap/all" {
   export * from "gsap/ScrollToPlugin";
 }
+
+declare module "gsap-trial/ScrollToPlugin" {
+  export * from "gsap/ScrollToPlugin";
+  export { ScrollToPlugin as default } from "gsap/ScrollToPlugin";
+}
+
+declare module "gsap-trial/src/ScrollToPlugin" {
+  export * from "gsap/ScrollToPlugin";
+  export { ScrollToPlugin as default } from "gsap/ScrollToPlugin";
+}
+
+declare module "gsap-trial/dist/ScrollToPlugin" {
+  export * from "gsap/ScrollToPlugin";
+  export { ScrollToPlugin as default } from "gsap/ScrollToPlugin";
+}
+
+declare module "gsap-trial/all" {
+  export * from "gsap/ScrollToPlugin";
+}

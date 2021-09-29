@@ -84,3 +84,22 @@ declare module "gsap/src/InertiaPlugin" {
 declare module "gsap/all" {
   export * from "gsap/InertiaPlugin";
 }
+
+declare module "gsap-trial/InertiaPlugin" {
+  export * from "gsap/InertiaPlugin";
+  export { InertiaPlugin as default } from "gsap/InertiaPlugin";
+}
+
+declare module "gsap-trial/dist/InertiaPlugin" {
+  export * from "gsap/InertiaPlugin";
+  export { InertiaPlugin as default } from "gsap/InertiaPlugin";
+}
+
+declare module "gsap-trial/src/InertiaPlugin" {
+  export * from "gsap/InertiaPlugin";
+  export { InertiaPlugin as default } from "gsap/InertiaPlugin";
+}
+
+declare module "gsap-trial/all" {
+  export * from "gsap/InertiaPlugin";
+}

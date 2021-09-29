@@ -1,5 +1,5 @@
 /*!
- * PixiPlugin 3.7.1
+ * PixiPlugin 3.8.0
  * https://greensock.com
  *
  * @license Copyright 2008-2021, GreenSock. All rights reserved.
@@ -9,7 +9,7 @@
 */
 /* eslint-disable */
 
-let gsap, _win, _splitColor, _coreInitted, _PIXI, PropTween, _getSetter,
+let gsap, _win, _splitColor, _coreInitted, _PIXI, PropTween, _getSetter, _isV4,
 	_windowExists = () => typeof(window) !== "undefined",
 	_getGSAP = () => gsap || (_windowExists() && (gsap = window.gsap) && gsap.registerPlugin && gsap),
 	_isFunction = value => typeof(value) === "function",
@@ -59,9 +59,7 @@ let gsap, _win, _splitColor, _coreInitted, _PIXI, PropTween, _getSetter,
 			filters = target.filters || [],
 			i = filters.length,
 			filter;
-		if (!filterClass) {
-			_warn(type + " not found. PixiPlugin.registerPIXI(PIXI)");
-		}
+		filterClass || _warn(type + " not found. PixiPlugin.registerPIXI(PIXI)");
 		while (--i > -1) {
 			if (filters[i] instanceof filterClass) {
 				return filters[i];
@@ -245,8 +243,9 @@ let gsap, _win, _splitColor, _coreInitted, _PIXI, PropTween, _getSetter,
 	_initCore = () => {
 		if (_windowExists()) {
 			_win = window;
-			gsap = _coreInitted = _getGSAP();
-			_PIXI = _PIXI || _win.PIXI;
+			gsap = _getGSAP();
+			_PIXI = _coreInitted = _PIXI || _win.PIXI;
+			_isV4 = _PIXI && _PIXI.VERSION && _PIXI.VERSION.charAt(0) === "4";
 			_splitColor = color => gsap.utils.splitColor((color + "").substr(0,2) === "0x" ? "#" + color.substr(2) : color); // some colors in PIXI are reported as "0xFF4421" instead of "#FF4421".
 		}
 	}, i, p;
@@ -260,7 +259,7 @@ for (i = 0; i < _xyContexts.length; i++) {
 
 
 export const PixiPlugin = {
-	version:"3.7.1",
+	version:"3.8.0",
 	name:"pixi",
 	register(core, Plugin, propTween) {
 		gsap = core;
@@ -272,14 +271,12 @@ export const PixiPlugin = {
 		_PIXI = pixi;
 	},
 	init(target, values, tween, index, targets) {
-		if (!_PIXI) {
-			_initCore();
-		}
-		if (!target instanceof _PIXI.DisplayObject) {
+		_PIXI || _initCore();
+		if (!_PIXI || !(target instanceof _PIXI.DisplayObject)) {
+			console.warn(target, "is not a DisplayObject or PIXI was not found. PixiPlugin.registerPIXI(PIXI);");
 			return false;
 		}
-		let isV4 = _PIXI.VERSION.charAt(0) === "4",
-			context, axis, value, colorMatrix, filter, p, padding, i, data;
+		let context, axis, value, colorMatrix, filter, p, padding, i, data;
 		for (p in values) {
 			context = _contexts[p];
 			value = values[p];
@@ -312,7 +309,7 @@ export const PixiPlugin = {
 					this._pt = new PropTween(this._pt, target, p, 0, 0, _renderDirtyCache, {g: target.geometry || target});
 					i = data.length;
 					while (--i > -1) {
-						_addColorTween(isV4 ? data[i] : data[i][p.substr(0, 4) + "Style"], isV4 ? p : "color", value, this);
+						_addColorTween(_isV4 ? data[i] : data[i][p.substr(0, 4) + "Style"], _isV4 ? p : "color", value, this);
 					}
 				} else {
 					_addColorTween(target, p, value, this);
