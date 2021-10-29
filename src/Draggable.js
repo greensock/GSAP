@@ -56,9 +56,12 @@ let gsap, _win, _doc, _docElement, _body, _tempDiv, _placeholderDiv, _coreInitte
 		let i = elements.length,
 			children;
 		while (i--) {
-			value ? (elements[i].style.touchAction = value) : elements[i].style.removeProperty("touch-action");
-			children = elements[i].children;
-			children && children.length && _setTouchActionForAllDescendants(children, value);
+			if(elements[i].style) {
+				value ? (elements[i].style.touchAction = value) : elements[i].style.removeProperty("touch-action");
+				children = elements[i].children;
+				children && children.length && _setTouchActionForAllDescendants(children, value);
+			}
+			
 		}
 	},
 	_renderQueueTick = () => _renderQueue.forEach(func => func()),
