@@ -1,5 +1,5 @@
 /*!
- * strings: 3.8.0
+ * strings: 3.9.0
  * https://greensock.com
  *
  * Copyright 2008-2021, GreenSock. All rights reserved.
@@ -46,6 +46,10 @@ export function splitInnerHTML(element, delimiter, trim, preserveSpaces) {
 			result.push(node.outerHTML);
 		}
 		node = node.nextSibling;
+	}
+	s = result.length;
+	while (s--) {
+		result[s] === "&" && result.splice(s, 1, "&amp;");
 	}
 	return result;
 }

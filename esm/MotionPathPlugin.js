@@ -1,5 +1,5 @@
 /*!
- * MotionPathPlugin 3.8.0
+ * MotionPathPlugin 3.9.0
  * https://greensock.com
  *
  * @license Copyright 2008-2021, GreenSock. All rights reserved.
@@ -214,7 +214,7 @@ _segmentToRawPath = function _segmentToRawPath(plugin, segment, target, x, y, sl
 };
 
 export var MotionPathPlugin = {
-  version: "3.8.0",
+  version: "3.9.0",
   name: "motionPath",
   register: function register(core, Plugin, propTween) {
     gsap = core;

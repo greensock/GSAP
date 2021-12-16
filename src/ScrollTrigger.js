@@ -1,5 +1,5 @@
 /*!
- * ScrollTrigger 3.8.0
+ * ScrollTrigger 3.9.0
  * https://greensock.com
  *
  * @license Copyright 2008-2021, GreenSock. All rights reserved.
@@ -9,7 +9,7 @@
 */
 /* eslint-disable */
 
-let gsap, _coreInitted, _win, _doc, _docEl, _body, _root, _resizeDelay, _raf, _request, _toArray, _clamp, _time2, _syncInterval, _refreshing, _pointerIsDown, _transformProp, _i, _prevWidth, _prevHeight, _autoRefresh, _sort, _suppressOverwrites, _ignoreResize,
+let gsap, _coreInitted, _win, _doc, _docEl, _body, _root, _resizeDelay, _toArray, _clamp, _time2, _syncInterval, _refreshing, _pointerIsDown, _transformProp, _i, _prevWidth, _prevHeight, _autoRefresh, _sort, _suppressOverwrites, _ignoreResize,
 	_limitCallbacks, // if true, we'll only trigger callbacks if the active state toggles, so if you scroll immediately past both the start and end positions of a ScrollTrigger (thus inactive to inactive), neither its onEnter nor onLeave will be called. This is useful during startup.
 	_startup = 1,
 	_proxies = [],
@@ -19,7 +19,7 @@ let gsap, _coreInitted, _win, _doc, _docEl, _body, _root, _resizeDelay, _raf, _r
 	_lastScrollTime = 0,
 	_enabled = 1,
 	_passThrough = v => v,
-	_getTarget = t => _toArray(t)[0] || (_isString(t) ? console.warn("Element not found:", t) : null),
+	_getTarget = t => _toArray(t)[0] || (_isString(t) && gsap.config().nullTargetWarn !== false ? console.warn("Element not found:", t) : null),
 	_round = value => Math.round(value * 100000) / 100000 || 0,
 	_windowExists = () => typeof(window) !== "undefined",
 	_getGSAP = () => gsap || (_windowExists() && (gsap = window.gsap) && gsap.registerPlugin && gsap),
@@ -55,8 +55,10 @@ let gsap, _coreInitted, _win, _doc, _docEl, _body, _root, _resizeDelay, _raf, _r
 	},
 	_endAnimation = (animation, reversed, pause) => animation && animation.progress(reversed ? 0 : 1) && pause && animation.pause(),
 	_callback = (self, func) => {
-		let result = func(self);
-		result && result.totalTime && (self.callbackAnimation = result);
+		if (self.enabled) {
+			let result = func(self);
+			result && result.totalTime && (self.callbackAnimation = result);
+		}
 	},
 	_abs = Math.abs,
 	_scrollLeft = "scrollLeft",
@@ -110,13 +112,13 @@ let gsap, _coreInitted, _win, _doc, _docEl, _body, _root, _resizeDelay, _raf, _r
 	_snapDirectional = snapIncrementOrArray => {
 		let snap = gsap.utils.snap(snapIncrementOrArray),
 			a = Array.isArray(snapIncrementOrArray) && snapIncrementOrArray.slice(0).sort((a, b) => a - b);
-		return a ? (value, direction) => {
+		return a ? (value, direction, threshold= 1e-3) => {
 			let i;
 			if (!direction) {
 				return snap(value);
 			}
 			if (direction > 0) {
-				value -= 1e-4; // to avoid rounding errors. If we're too strict, it might snap forward, then immediately again, and again.
+				value -= threshold; // to avoid rounding errors. If we're too strict, it might snap forward, then immediately again, and again.
 				for (i = 0; i < a.length; i++) {
 					if (a[i] >= value) {
 						return a[i];
@@ -125,7 +127,7 @@ let gsap, _coreInitted, _win, _doc, _docEl, _body, _root, _resizeDelay, _raf, _r
 				return a[i-1];
 			} else {
 				i = a.length;
-				value += 1e-4;
+				value += threshold;
 				while (i--) {
 					if (a[i] <= value) {
 						return a[i];
@@ -133,9 +135,9 @@ let gsap, _coreInitted, _win, _doc, _docEl, _body, _root, _resizeDelay, _raf, _r
 				}
 			}
 			return a[0];
-		} : (value, direction) => {
+		} : (value, direction, threshold= 1e-3) => {
 			let snapped = snap(value);
-			return !direction || Math.abs(snapped - value) < 0.001 || ((snapped - value < 0) === direction < 0) ? snapped : snap(direction < 0 ? value - snapIncrementOrArray : value + snapIncrementOrArray);
+			return !direction || Math.abs(snapped - value) < threshold || ((snapped - value < 0) === direction < 0) ? snapped : snap(direction < 0 ? value - snapIncrementOrArray : value + snapIncrementOrArray);
 		};
 	},
 	_getLabelAtDirection = timeline => (value, st) => _snapDirectional(_getLabelRatioArray(timeline))(value, st.direction),
@@ -191,16 +193,11 @@ let gsap, _coreInitted, _win, _doc, _docEl, _body, _root, _resizeDelay, _raf, _r
 	},
 	_triggers = [],
 	_ids = {},
-	_sync = () => _getTime() - _lastScrollTime > 20 && _updateAll(),
-	_onScroll = () => {
-		let time = _getTime();
-		if (_lastScrollTime !== time) {
-			_updateAll();
-			_lastScrollTime || _dispatch("scrollStart");
-			_lastScrollTime = time;
-		} else if (!_request) {
-			_request = _raf(_updateAll);
-		}
+	_sync = () => _getTime() - _lastScrollTime > 34 && _updateAll(),
+	_onScroll = () => { // previously, we tried to optimize performance by batching/deferring to the next requestAnimationFrame(), but discovered that Safari has a few bugs that make this unworkable (especially on iOS). See https://codepen.io/GreenSock/pen/16c435b12ef09c38125204818e7b45fc?editors=0010
+		_updateAll();
+		_lastScrollTime || _dispatch("scrollStart");
+		_lastScrollTime = _getTime();
 	},
 	_onResize = () => !_refreshing && !_ignoreResize && !_doc.fullscreenElement && _resizeDelay.restart(true), // ignore resizes triggered by refresh()
 	_listeners = {},
@@ -273,6 +270,7 @@ let gsap, _coreInitted, _win, _doc, _docEl, _body, _root, _resizeDelay, _raf, _r
 		_sort && ScrollTrigger.sort();
 		skipRevert || _revertAll();
 		_triggers.forEach(t => t.refresh()) // don't loop with _i because during a refresh() someone could call ScrollTrigger.update() which would iterate through _i resulting in a skip.
+		_triggers.forEach(t => t.vars.end === "max" && t.setPositions(t.start, _maxScroll(t.scroller, t._dir))); // the scroller's max scroll position may change after all the ScrollTriggers refreshed (like pinning could push it down), so we need to loop back and correct any with end: "max".
 		refreshInits.forEach(result => result && result.render && result.render(-1)); // if the onRefreshInit() returns an animation (typically a gsap.set()), revert it. This makes it easy to put things in a certain spot before refreshing for measurement purposes, and then put things back.
 		_clearScrollMemory();
 		_resizeDelay.pause();
@@ -308,10 +306,9 @@ let gsap, _coreInitted, _win, _doc, _docEl, _body, _root, _resizeDelay, _raf, _r
 					_triggers[_i] && _triggers[_i].update(0, recordVelocity);
 				}
 			}
-			_request = 0;
 		}
 	},
-	_propNamesToCopy = [_left, _top, _bottom, _right, _margin + _Bottom, _margin + _Right, _margin + _Top, _margin + _Left, "display", "flexShrink", "float", "zIndex", "grid-column-start", "grid-column-end", "grid-row-start", "grid-row-end", "grid-area", "justify-self", "align-self", "place-self"],
+	_propNamesToCopy = [_left, _top, _bottom, _right, _margin + _Bottom, _margin + _Right, _margin + _Top, _margin + _Left, "display", "flexShrink", "float", "zIndex", "gridColumnStart", "gridColumnEnd", "gridRowStart", "gridRowEnd", "gridArea", "justifySelf", "alignSelf", "placeSelf", "order"],
 	_stateProps = _propNamesToCopy.concat([_width, _height, "boxSizing", "max" + _Width, "max" + _Height, "position", _margin, _padding, _padding + _Top, _padding + _Right, _padding + _Bottom, _padding + _Left]),
 	_swapPinOut = (pin, spacer, state) => {
 		_setState(state);
@@ -338,7 +335,7 @@ let gsap, _coreInitted, _win, _doc, _docEl, _body, _root, _resizeDelay, _raf, _r
 			}
 			spacerStyle.position = cs.position === "absolute" ? "absolute" : "relative";
 			(cs.display === "inline") && (spacerStyle.display = "inline-block");
-			pinStyle[_bottom] = pinStyle[_right] = "auto";
+			pinStyle[_bottom] = pinStyle[_right] = spacerStyle.flexBasis = "auto";
 			spacerStyle.overflow = "visible";
 			spacerStyle.boxSizing = "border-box";
 			spacerStyle[_width] = _getSize(pin, _horizontal) + _px;
@@ -495,7 +492,7 @@ let gsap, _coreInitted, _win, _doc, _docEl, _body, _root, _resizeDelay, _raf, _r
 				vars.modifiers = modifiers;
 				modifiers[prop] = value => {
 					value = _round(getScroll()); // round because in some [very uncommon] Windows environments, it can get reported with decimals even though it was set without.
-					if (value !== lastScroll1 && value !== lastScroll2 && Math.abs(value - lastScroll1) > 2) { // if the user scrolls, kill the tween. iOS Safari intermittently misreports the scroll position, it may be the most recently-set one or the one before that! When Safari is zoomed (CMD-+), it often misreports as 1 pixel off too! So if we set the scroll position to 125, for example, it'll actually report it as 124.
+					if (value !== lastScroll1 && value !== lastScroll2 && Math.abs(value - lastScroll1) > 2 && Math.abs(value - lastScroll2) > 2) { // if the user scrolls, kill the tween. iOS Safari intermittently misreports the scroll position, it may be the most recently-set one or the one before that! When Safari is zoomed (CMD-+), it often misreports as 1 pixel off too! So if we set the scroll position to 125, for example, it'll actually report it as 124.
 						tween.kill();
 						getTween.tween = 0;
 					} else {
@@ -512,7 +509,7 @@ let gsap, _coreInitted, _win, _doc, _docEl, _body, _root, _resizeDelay, _raf, _r
 				return tween;
 			};
 		scroller[prop] = getScroll;
-		scroller.addEventListener("wheel", () => getTween.tween && getTween.tween.kill() && (getTween.tween = 0), {passive: true}); // Windows machines handle mousewheel scrolling in chunks (like "3 lines per scroll") meaning the typical strategy for cancelling the scroll isn't as sensitive. It's much more likely to match one of the previous 2 scroll event positions. So we kill any snapping as soon as there's a wheel event.
+		_addListener(scroller, "wheel", () => getTween.tween && getTween.tween.kill() && (getTween.tween = 0)); // Windows machines handle mousewheel scrolling in chunks (like "3 lines per scroll") meaning the typical strategy for cancelling the scroll isn't as sensitive. It's much more likely to match one of the previous 2 scroll event positions. So we kill any snapping as soon as there's a wheel event.
 		return getTween;
 	};
 
@@ -557,6 +554,7 @@ export class ScrollTrigger {
 			markerEndSetter, cs, snap1, snap2, scrubTween, scrubSmooth, snapDurClamp, snapDelayedCall, prevProgress, prevScroll, prevAnimProgress, caMarkerSetter;
 
 		self.media = _creatingMedia;
+		self._dir = direction;
 		anticipatePin *= 45;
 		self.scroller = scroller;
 		self.scroll = containerAnimation ? containerAnimation.time.bind(containerAnimation) : scrollFunc;
@@ -612,6 +610,7 @@ export class ScrollTrigger {
 							data: _abs(endScroll - scroll), // record the distance so that if another snap tween occurs (conflict) we can prioritize the closest snap.
 							onInterrupt: () => snapDelayedCall.restart(true) && onInterrupt && onInterrupt(self),
 							onComplete: () => {
+								self.update();
 								lastSnap = scrollFunc();
 								snap1 = snap2 = animation && !isToggle ? animation.totalProgress() : self.progress;
 								onSnapComplete && onSnapComplete(self);
@@ -716,7 +715,7 @@ export class ScrollTrigger {
 
 			_refreshing = 1;
 			scrubTween && scrubTween.pause();
-			invalidateOnRefresh && animation && animation.progress(0).invalidate();
+			invalidateOnRefresh && animation && animation.time(-0.01, true).invalidate();
 			self.isReverted || self.revert();
 			let size = getScrollerSize(),
 				scrollerBounds = getScrollerOffsets(),
@@ -762,7 +761,9 @@ export class ScrollTrigger {
 				curPin = curTrigger.pin;
 				if (curPin && curTrigger.start - curTrigger._pinPush < start && !containerAnimation) {
 					cs = curTrigger.end - curTrigger.start;
-					(curPin === trigger || curPin === pinnedContainer) && !_isNumber(parsedStart) && (offset += cs); // numeric start values shouldn't be offset at all - treat them as absolute
+					if ((curPin === trigger || curPin === pinnedContainer) && !_isNumber(parsedStart)) { // numeric start values shouldn't be offset at all - treat them as absolute
+						offset += cs * (1 - curTrigger.progress);
+					}
 					curPin === pin && (otherPinOffset += cs);
 				}
 			}
@@ -845,7 +846,7 @@ export class ScrollTrigger {
 			self.revert(false);
 			_refreshing = 0;
 			animation && isToggle && animation._initted && animation.progress() !== prevAnimProgress && animation.progress(prevAnimProgress, true).render(animation.time(), true, true); // must force a re-render because if saveStyles() was used on the target(s), the styles could have been wiped out during the refresh().
-			if (prevProgress !== self.progress) { // ensures that the direction is set properly (when refreshing, progress is set back to 0 initially, then back again to wherever it needs to be) and that callbacks are triggered.
+			if (prevProgress !== self.progress || containerAnimation) { // ensures that the direction is set properly (when refreshing, progress is set back to 0 initially, then back again to wherever it needs to be) and that callbacks are triggered.
 				animation && !isToggle && animation.totalProgress(prevProgress, true); // to avoid issues where animation callbacks like onStart aren't triggered.
 				self.progress = prevProgress;
 				self.update(0, 0, 1);
@@ -862,6 +863,8 @@ export class ScrollTrigger {
 				scrubTween ? scrubTween.progress(1) : (!animation.paused() ? _endAnimation(animation, animation.reversed()) : isToggle || _endAnimation(animation, self.direction < 0, 1));
 			}
 		};
+
+		self.labelToScroll = label => animation && animation.labels && ((start || self.refresh() || start) + (animation.labels[label] / animation.duration()) * change) || 0;
 
 		self.getTrailing = name => {
 			let i = _triggers.indexOf(self),
@@ -994,6 +997,17 @@ export class ScrollTrigger {
 
 		self.getTween = snap => snap && tweenTo ? tweenTo.tween : scrubTween;
 
+		self.setPositions = (newStart, newEnd) => { // doesn't persist after refresh()! Intended to be a way to override values that were set during refresh(), like you could set it in onRefresh()
+			if (pin) {
+				pinStart += newStart - start;
+				pinChange += (newEnd - newStart) - change;
+			}
+			self.start = start = newStart;
+			self.end = end = newEnd;
+			change = newEnd - newStart;
+			self.update();
+		}
+
 		self.disable = (reset, allowAnimation) => {
 			if (self.enabled) {
 				reset !== false && self.revert();
@@ -1024,7 +1038,7 @@ export class ScrollTrigger {
 			scrubTween && scrubTween.kill();
 			id && (delete _ids[id]);
 			let i = _triggers.indexOf(self);
-			_triggers.splice(i, 1);
+			i >= 0 && _triggers.splice(i, 1);
 			i === _i && _direction > 0 && _i--; // if we're in the middle of a refresh() or update(), splicing would cause skips in the index, so adjust...
 
 			// if no other ScrollTrigger instances of the same scroller are found, wipe out any recorded scroll position. Otherwise, in a single page application, for example, it could maintain scroll position when it really shouldn't.
@@ -1066,7 +1080,6 @@ export class ScrollTrigger {
 				_suppressOverwrites = gsap.core.suppressOverwrites || _passThrough;
 				gsap.core.globals("ScrollTrigger", ScrollTrigger); // must register the global manually because in Internet Explorer, functions (classes) don't have a "name" property.
 				if (_body) {
-					_raf = _win.requestAnimationFrame || (f => setTimeout(f, 16));
 					_addListener(_win, "wheel", _onScroll);
 					_root = [_win, _doc, _docEl, _body];
 					_addListener(_doc, "scroll", _onScroll); // some browsers (like Chrome), the window stops dispatching scroll events on the window if you scroll really fast, but it's consistent on the document!
@@ -1107,9 +1120,12 @@ export class ScrollTrigger {
 	}
 
 	static defaults(config) {
-		for (let p in config) {
-			_defaults[p] = config[p];
+		if (config) {
+			for (let p in config) {
+				_defaults[p] = config[p];
+			}
 		}
+		return _defaults;
 	}
 
 	static kill() {
@@ -1134,7 +1150,9 @@ export class ScrollTrigger {
 		if (~i) {
 			_scrollers.splice(i, isViewport ? 6 : 2);
 		}
-		isViewport ? _proxies.unshift(_win, vars, _body, vars, _docEl, vars) : _proxies.unshift(t, vars);
+		if (vars) {
+			isViewport ? _proxies.unshift(_win, vars, _body, vars, _docEl, vars) : _proxies.unshift(t, vars);
+		}
 	}
 
 	static matchMedia(vars) { // _media is populated in the following order: mediaQueryString, onMatch, onUnmatch, isMatched. So if there are two media queries, the Array would have a length of 8
@@ -1187,7 +1205,7 @@ export class ScrollTrigger {
 
 }
 
-ScrollTrigger.version = "3.8.0";
+ScrollTrigger.version = "3.9.0";
 ScrollTrigger.saveStyles = targets => targets ? _toArray(targets).forEach(target => { // saved styles are recorded in a consecutive alternating Array, like [element, cssText, transform attribute, cache, matchMedia, ...]
 	if (target && target.style) {
 		let i = _savedStyles.indexOf(target);

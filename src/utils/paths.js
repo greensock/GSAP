@@ -1,5 +1,5 @@
 /*!
- * paths 3.8.0
+ * paths 3.9.0
  * https://greensock.com
  *
  * Copyright 2008-2021, GreenSock. All rights reserved.
@@ -293,7 +293,7 @@ export function sliceRawPath(rawPath, start, end) {
 				}
 			}
 		}
-		if (1 - (end - start) < 1e-5) {
+		if (Math.abs(1 - (end - start)) < 1e-5) {
 			eSegIndex = sSegIndex - 1;
 		} else if (!e.t && eSegIndex) {
 			eSegIndex--;

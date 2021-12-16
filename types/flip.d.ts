@@ -1,6 +1,21 @@
 declare class Flip {
 
   static readonly version: string;
+
+  /**
+   * Gets the FlipBatch associated with the provided id ("default" by default); if one hasn't be created/registered yet, a new one is returned and registered.
+   *
+   * ```js
+   * let batch = Flip.batch("id");
+   * ```
+   *
+   * @static
+   * @param {string} [id]
+   * @returns {FlipBatch} the FlipBatch (if one isn't registered, a new one is created/registered and returned)
+   * @memberof Flip
+   * @link https://greensock.com/docs/v3/Plugins/Flip/static.batch()
+   */
+  static batch(id?: string): FlipBatch;
   
   /**
    * Gets the matrix to convert points from one element's local coordinates into a
@@ -51,10 +66,10 @@ declare class Flip {
    * @param {gsap.DOMTarget} fromElement
    * @param {(gsap.DOMTarget | Flip.FlipState)} toElement
    * @param {Flip.FitVars} [vars]
-   * @returns {(object | null)}
+   * @returns {(gsap.core.Tween | object | null)}
    * @memberof Flip
    */
-  static fit(fromElement: gsap.DOMTarget, toElement: gsap.DOMTarget | Flip.FlipState, vars?: Flip.FitVars): object | null;
+  static fit(fromElement: gsap.DOMTarget, toElement: gsap.DOMTarget | Flip.FlipState, vars?: Flip.FitVars): gsap.core.Tween | object | null;
 
   /**
    * Animates the targets from the provided state to their current state (position/size).
@@ -78,7 +93,7 @@ declare class Flip {
   static from(state: Flip.FlipState, vars?: Flip.FromToVars): gsap.core.Timeline;
 
   /**
-   * Captures information about the current state of the targets so that they can be Flipped later.
+   * Captures information about the current state of the targets so that they can be flipped later.
    * 
    * ```js
    * let state = Flip.getState(".my-class, .another-class", {props: "backgroundColor,color", simple: true});
@@ -125,6 +140,21 @@ declare class Flip {
   static isFlipping(target: gsap.DOMTarget): boolean;
 
   /**
+   * Immediately kills any Flip animations that are running on the target(s) provided, completing them as well (unless "complete" parameter is explicitly false).
+   *
+   * ```js
+   * Flip.killFlipsOf(".box");
+   * ```
+   *
+   * @static
+   * @param {gsap.DOMTarget} targets
+   * @param {boolean} complete
+   * @memberof Flip
+   * @link https://greensock.com/docs/v3/Plugins/Flip/static.killFlipsOf()
+   */
+  static killFlipsOf(targets: gsap.DOMTarget, complete?: boolean): void;
+
+  /**
    * Sets all of the provided target elements to position: absolute while retaining their current positioning.
    *
    * ```js
@@ -137,7 +167,7 @@ declare class Flip {
    * @memberof Flip
    * @link https://greensock.com/docs/v3/Plugins/Flip/static.makeAbsolute()
    */
-  static makeAbsolute(targets: gsap.DOMTarget): Element[];
+  static makeAbsolute(targets: gsap.DOMTarget | Flip.FlipState[]): Element[];
 
   /**
    * Animates the targets from the current state to the provided state.
@@ -176,13 +206,15 @@ declare namespace Flip {
 
   type EnterOrLeaveCallback = (elements: Element[]) => any;
   type SpinFunction = (index: number, element: Element, targets: Element[]) => number;
-  
+  type LoadStateFunction = (load: Function) => any;
+  type BatchActionFunction = (self: FlipBatchAction) => any;
+
   interface TweenVarOverrides {
     scale?: boolean;
   }
 
   interface AnimationVars extends OverrideProps<gsap.TweenVars, TweenVarOverrides> {
-    absolute?: boolean;
+    absolute?: boolean | gsap.DOMTarget;
     simple?: boolean;
     props?: string;
   }
@@ -192,7 +224,16 @@ declare namespace Flip {
     props?: string;
   }
 
+  interface StateCompare {
+    changed: Element[];
+    unchanged: Element[];
+    enter: Element[];
+    leave: Element[];
+  }
+
   interface FromToVars extends AnimationVars {
+    absoluteOnLeave?: boolean;
+    prune?: boolean;
     fade?: boolean;
     nested?: boolean;
     onEnter?: EnterOrLeaveCallback;
@@ -218,9 +259,20 @@ declare namespace Flip {
     fitChild?: gsap.DOMTarget;
     getVars?: boolean;
   }
+
+  interface BatchActionConfig {
+    getState?: BatchActionFunction;
+    loadState?: LoadStateFunction;
+    setState?: BatchActionFunction;
+    animate?: BatchActionFunction;
+    onEnter?: EnterOrLeaveCallback;
+    onLeave?: EnterOrLeaveCallback;
+    onStart?: BatchActionFunction;
+    onComplete?: BatchActionFunction;
+    once?: boolean;
+  }
   
   class ElementState {
-
     readonly bounds: DOMRect;
     readonly cache: object;
     readonly display: string;
@@ -231,7 +283,7 @@ declare namespace Flip {
     readonly isVisible: boolean;
     readonly matrix: gsap.plugins.Matrix2D;
     readonly opacity: number;
-    readonly parent: Element;
+    readonly parent: Element | null;
     readonly position: string;
     readonly rotation: number;
     readonly scaleX: number;
@@ -241,25 +293,163 @@ declare namespace Flip {
     readonly width: number;
     readonly x: number;
     readonly y: number;
+
+    isDifferent(elState: ElementState): boolean;
   }
 
   class FlipState {
-
     readonly alt: object;
     readonly elementStates: ElementState[];
     readonly idLookup: object;
-    readonly props: string;
+    readonly props: string | null;
     readonly simple: boolean;
     readonly targets: Element[];
 
-    update(): void;
+    add(state: FlipState): FlipState;
+    clear(): FlipState;
+    compare(state: FlipState): StateCompare;
+    update(soft?: boolean): FlipState;
     fit(state: FlipState, scale?: boolean, nested?: boolean): this;
     recordInlineStyles(): void;
-    completeFlips(): void;
+    interrupt(soft?: boolean): void;
     getProperty(element: string | Element, property: string): any;
     getElementState(element: Element): ElementState;
-    makeAbsolute(): void;
+    makeAbsolute(): Element[];
   }
+}
+
+declare class FlipBatchAction {
+  readonly batch: FlipBatch;
+  readonly state: any;
+  readonly states: Flip.FlipState[];
+  readonly timeline: gsap.core.Timeline;
+  readonly targets: any;
+  readonly vars: Flip.BatchActionConfig;
+
+  /**
+   * Searches the state objects that were captured inside the action's getState() on its most recent call, and returns the first one it finds that matches the provided data-flip-id value.
+   *
+   * ```js
+   * let state = action.getStateById("box1");
+   * ```
+   * @param {string} id
+   * @memberof FlipBatchAction
+   */
+  getStateById(id: string): Flip.FlipState | null;
+
+  /**
+   * Kills the batch action, removing it from its batch.
+   *
+   * @memberof FlipBatchAction
+   */
+  kill(): FlipBatchAction;
+}
+
+declare class FlipBatch {
+  readonly actions: FlipBatchAction[];
+  readonly state: Flip.FlipState;
+  readonly timeline: gsap.core.Timeline;
+  readonly id: string;
+  data: any;
+
+  /**
+   * Adds a Flip action to the batch so that MULTIPLE Flips can be combined and run each of their steps together (getState(), loadState(), setState(), animate())
+   *
+   * ```js
+   * batch.add({
+   *     getState: self => Flip.getState(targets),
+   *     loadState: done => done(),
+   *     setState: self => app.classList.toggle("active"),
+   *     animate: self => {
+   *       Flip.from(self.state, {ease: "power1.inOut"});
+   *     },
+   *     onStart: startCallback,
+   *     onComplete: completeCallback,
+   *     onEnter: elements => console.log("entering", elements),
+   *     onLeave: elements => console.log("leaving", elements),
+   *     once: true
+   * });
+   * ```
+   *
+   * @param {BatchActionConfig | Function} config
+   * @returns {FlipBatchAction} A FlipBatchAction
+   * @memberof FlipBatch
+   */
+  add(config: Flip.BatchActionConfig | Function): FlipBatchAction;
+
+
+  /**
+   * Flushes the batch.state (merged) object and removes all actions (unless stateOnly parameter is true)
+   *
+   * ```js
+   * batch.clear(true);
+   * ```
+   *
+   * @param {boolean} stateOnly
+   * @returns {FlipBatch} self
+   * @memberof FlipBatch
+   */
+  clear(stateOnly?: boolean): FlipBatch;
+
+
+  /**
+   * Calls getState() on all actions in this batch (any that are defined at least), optionally merging the results into batch.state
+   *
+   * ```js
+   * batch.getState(true);
+   * ```
+   *
+   * @param {boolean} merge (false by default)
+   * @returns {FlipBatch} self
+   * @memberof FlipBatch
+   */
+  getState(merge?: boolean): FlipBatch;
+
+  /**
+   * Searches the state objects that were captured inside ANY of this batch actions' most recent getState() call, and returns the first one it finds that matches the provided data-flip-id value.
+   *
+   * ```js
+   * let state = batch.getStateById("box1");
+   * ```
+   * @param {string} id
+   * @memberof FlipBatch
+   */
+  getStateById(id: string): Flip.FlipState | null;
+
+  /**
+   * Kills the batch, unregistering it internally and making it available for garbage collection. Also clears all actions and flushes the batch.state (merged) object.
+   *
+   * @memberof FlipBatch
+   */
+  kill(): FlipBatchAction;
+
+  /**
+   * Removes a particular action from the batch.
+   *
+   * ```js
+   * batch.remove(action);
+   * ```
+   *
+   * @param {FlipBatchAction} action
+   * @returns {FlipBatch} self
+   * @memberof FlipBatch
+   */
+  remove(action: FlipBatchAction): FlipBatch;
+
+  /**
+   * Executes all actions in the batch in the proper order: getState() (unless skipGetState is true), loadState(), setState(), and animate()
+   *
+   * ```js
+   * batch.run(true);
+   * ```
+   *
+   * @param {boolean} skipGetState
+   * @param {boolean} merge
+   * @returns {FlipBatch} self
+   * @memberof FlipBatch
+   */
+  run(skipGetState?: boolean, merge?: boolean): FlipBatch;
+
 }
 
 declare namespace gsap {

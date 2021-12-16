@@ -11,14 +11,14 @@ GSAP is a robust JavaScript toolset that turns developers into animation superhe
 
 GSAP is completely flexible; sprinkle it wherever you want. **Zero dependencies.**
 
-There are many optional <a href="https://greensock.com/gsap-plugins/">plugins</a> and <a href="https://greensock.com/ease-visualizer/">easing</a> functions for achieving advanced effects easily like <a href="https://greensock.com/docs/v3/Plugins/ScrollTrigger">scrolling</a>, <a href="https://greensock.com/morphsvg">morphing</a>, or animating along a <a href="https://greensock.com/docs/v3/Plugins/MotionPathPlugin">motion path</a>. 
+There are many optional <a href="https://greensock.com/gsap-plugins/">plugins</a> and <a href="https://greensock.com/ease-visualizer/">easing</a> functions for achieving advanced effects easily like <a href="https://greensock.com/docs/v3/Plugins/ScrollTrigger">scrolling</a>, <a href="https://greensock.com/morphsvg">morphing</a>, animating along a <a href="https://greensock.com/docs/v3/Plugins/MotionPathPlugin">motion path</a> or <a href="https://greensock.com/docs/v3/Plugins/Flip">FLIP</a> animations. 
 
 ## Docs &amp; Installation
 View the <a href="https://greensock.com/docs">full documentation here</a>, including an <a href="https://greensock.com/install">installation guide</a> with videos.
 
 ### CDN
 ```html
-<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.8.0/gsap.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.9.0/gsap.min.js"></script>
 ```
 Click the green "Get GSAP Now" button at <a href="https://greensock.com/?download=GSAP-JS">greensock.com</a> for more options and installation instructions, including CDN URLs for various plugins. 
 
@@ -30,20 +30,21 @@ See the <a href="https://greensock.com/docs/v3/Installation#npm">guide to using 
 ```javascript
 npm install gsap
 ```
-The default (main) file is **gsap.js** which includes most of the eases as well as the core plugins like CSSPlugin, AttrPlugin, SnapPlugin, ModifiersPlugin, and all of the <a href="https://greensock.com/docs/v3/GSAP/UtilityMethods">utility methods</a> like interpolate(), mapRange(), etc. 
+The default (main) file is **gsap.js** which includes most of the eases as well as the core plugins like CSSPlugin, AttrPlugin, SnapPlugin, ModifiersPlugin, and all of the <a href="https://greensock.com/docs/v3/GSAP/UtilityMethods">utility methods</a> like <a href="https://greensock.com/docs/v3/GSAP/UtilityMethods/interpolate()">interpolate()</a>, <a href="https://greensock.com/docs/v3/GSAP/UtilityMethods/mapRange()">mapRange()</a>, etc. 
 ```javascript
 // typical import
 import gsap from "gsap";
 
-// or get other plugins:
+// get other plugins:
 import ScrollTrigger from "gsap/ScrollTrigger";
+import Flip from "gsap/Flip";
 import Draggable from "gsap/Draggable";
 
-// or all tools are exported from the "all" file (excluding bonus plugins):
+// or all tools are exported from the "all" file (excluding members-only plugins):
 import { gsap, ScrollTrigger, Draggable, MotionPathPlugin } from "gsap/all";
 
 // don't forget to register plugins
-gsap.registerPlugin(ScrollTrigger, Draggable, MotionPathPlugin); 
+gsap.registerPlugin(ScrollTrigger, Draggable, Flip, MotionPathPlugin); 
 ```
 The NPM files are ES modules, but there's also a /dist/ directory with <a href="https://www.davidbcalhoun.com/2014/what-is-amd-commonjs-and-umd/">UMD</a> files for extra compatibility.
 
@@ -68,18 +69,21 @@ If you're looking to do scroll-driven animations, GSAP's <a href="https://greens
 * <a href="https://greensock.com/docs/">Docs</a>
 * <a href="https://greensock.com/cheatsheet">Cheat sheet</a>
 * <a href="https://greensock.com/forums/">Forums</a>
+* <a href="https://greensock.com/ease-visualizer/">Ease Visualizer</a>
 * <a href="https://greensock.com/showcase">Showcase</a>
 * <a href="https://greensock.com/why-gsap/">Why GSAP?</a> (convince your boss)
 * <a href="https://greensock.com/stagger">Staggering animations in GSAP 3</a>
 * <a href="https://greensock.com/draggable/">Draggable</a>
 * <a href="https://greensock.com/club/">Club GreenSock</a> (get access to bonus plugins not in this repository)
 
-### Get CustomEase for free
-Sign up for a free GreenSock account to gain access to <a href="https://greensock.com/customease/">CustomEase</a> which lets you create literally any ease imaginable (unlimited control points). It's in the <a href="https://greensock.com/install">download zip at GreenSock.com</a> (when you're logged in). 
-
 ### What is Club GreenSock? (video)
 
 [![What is Club GreenSock?](http://greensock.com/_img/github/thumb-what-is-club-greensock-small.jpg)](http://www.youtube.com/watch?v=Ome_KnloOhs)
+
+There are 3 main reasons anyone signs up for <a href="https://greensock.com/club">Club GreenSock</a>: 
+* To get access to the incredibly helpful <a href="https://greensock.com/club">members-only plugins</a> like MorphSVGPlugin, SplitText, etc.
+* To get the special <a href="https://greensock.com/licensing/">commercial license</a> ("Business Green" - only necessary if multiple customers are being charged for something that uses GreenSock technology).
+* To support ongoing development efforts and **cheer us on**.
 
 <a href="https://greensock.com/club/">Sign up</a> anytime.
 
@@ -87,8 +91,8 @@ Sign up for a free GreenSock account to gain access to <a href="https://greensoc
 
 <a href="https://greensock.com/gsdevtools/">GSDevTools</a> adds a visual UI for controlling your GSAP animations which can significantly boost your workflow and productivity. (<a href="https://greensock.com/club">Club GreenSock</a> membership required, not included in this repository).
 
-### Try all bonus plugins for free on Codepen
-<a href="https://codepen.io/GreenSock/full/OPqpRJ">https://codepen.io/GreenSock/full/OPqpRJ</a>
+### Try all bonus plugins for free!
+<a href="https://greensock.com/try-plugins">https://greensock.com/try-plugins</a>
 
 ### Need help?
 <a href="https://greensock.com/forums/">GreenSock forums</a> are an excellent resource for learning and getting your questions answered. Report any bugs there too please (it's also okay to <a href="https://github.com/greensock/GSAP/issues">file an issue on Github</a> if you prefer).

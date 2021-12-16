@@ -19,7 +19,7 @@
   }
 
   /*!
-   * GSAP 3.8.0
+   * GSAP 3.9.0
    * https://greensock.com
    *
    * @license Copyright 2008-2021, GreenSock. All rights reserved.
@@ -191,10 +191,12 @@
 
     return obj;
   },
-      _setKeyframeDefaults = function _setKeyframeDefaults(obj, defaults) {
-    for (var p in defaults) {
-      p in obj || p === "duration" || p === "ease" || (obj[p] = defaults[p]);
-    }
+      _setKeyframeDefaults = function _setKeyframeDefaults(excludeDuration) {
+    return function (obj, defaults) {
+      for (var p in defaults) {
+        p in obj || p === "duration" && excludeDuration || p === "ease" || (obj[p] = defaults[p]);
+      }
+    };
   },
       _merge = function _merge(base, toMerge) {
     for (var p in toMerge) {
@@ -222,7 +224,7 @@
   },
       _inheritDefaults = function _inheritDefaults(vars) {
     var parent = vars.parent || _globalTimeline,
-        func = vars.keyframes ? _setKeyframeDefaults : _setDefaults;
+        func = vars.keyframes ? _setKeyframeDefaults(_isArray(vars.keyframes)) : _setDefaults;
 
     if (_isNotFalse(vars.inherit)) {
       while (parent) {
@@ -433,10 +435,9 @@
     if (repeatDelay && tween._repeat) {
       tTime = _clamp(0, tween._tDur, totalTime);
       iteration = _animationCycle(tTime, repeatDelay);
-      prevIteration = _animationCycle(tween._tTime, repeatDelay);
       tween._yoyo && iteration & 1 && (ratio = 1 - ratio);
 
-      if (iteration !== prevIteration) {
+      if (iteration !== _animationCycle(tween._tTime, repeatDelay)) {
         prevRatio = 1 - ratio;
         tween.vars.repeatRefresh && tween._initted && tween.invalidate();
       }
@@ -485,7 +486,7 @@
       child = animation._first;
 
       while (child && child._start <= time) {
-        if (!child._dur && child.data === "isPause" && child._start > prevTime) {
+        if (child.data === "isPause" && child._start > prevTime) {
           return child;
         }
 
@@ -495,7 +496,7 @@
       child = animation._last;
 
       while (child && child._start >= time) {
-        if (!child._dur && child.data === "isPause" && child._start < prevTime) {
+        if (child.data === "isPause" && child._start < prevTime) {
           return child;
         }
 
@@ -510,7 +511,7 @@
     totalProgress && !leavePlayhead && (animation._time *= dur / animation._dur);
     animation._dur = dur;
     animation._tDur = !repeat ? dur : repeat < 0 ? 1e10 : _roundPrecise(dur * (repeat + 1) + animation._rDelay * repeat);
-    totalProgress && !leavePlayhead ? _alignPlayhead(animation, animation._tTime = animation._tDur * totalProgress) : animation.parent && _setEnd(animation);
+    totalProgress > 0 && !leavePlayhead ? _alignPlayhead(animation, animation._tTime = animation._tDur * totalProgress) : animation.parent && _setEnd(animation);
     skipUncache || _uncache(animation.parent, animation);
     return animation;
   },
@@ -587,14 +588,8 @@
       _clamp = function _clamp(min, max, value) {
     return value < min ? min : value > max ? max : value;
   },
-      getUnit = function getUnit(value) {
-    if (typeof value !== "string") {
-      return "";
-    }
-
-    var v = _unitExp.exec(value);
-
-    return v ? value.substr(v.index + v[0].length) : "";
+      getUnit = function getUnit(value, v) {
+    return !_isString(value) || !(v = _unitExp.exec(value)) ? "" : value.substr(v.index + v[0].length);
   },
       clamp = function clamp(min, max, value) {
     return _conditionalReturn(value, function (v) {
@@ -686,7 +681,7 @@
 
         distances = cache[l] = [];
         originX = ratios ? Math.min(wrapAt, l) * ratioX - .5 : from % wrapAt;
-        originY = ratios ? l * ratioY / wrapAt - .5 : from / wrapAt | 0;
+        originY = wrapAt === _bigNum ? 0 : ratios ? l * ratioY / wrapAt - .5 : from / wrapAt | 0;
         max = 0;
         min = _bigNum;
 
@@ -1008,7 +1003,7 @@
     transparent: [_255, _255, _255, 0]
   },
       _hue = function _hue(h, m1, m2) {
-    h = h < 0 ? h + 1 : h > 1 ? h - 1 : h;
+    h += h < 0 ? 1 : h > 1 ? -1 : 0;
     return (h * 6 < 1 ? m1 + (m2 - m1) * h * 6 : h < .5 ? m2 : h * 3 < 2 ? m1 + (m2 - m1) * (2 / 3 - h) * 6 : m1) * _255 + .5 | 0;
   },
       splitColor = function splitColor(v, toHSL, forceAlpha) {
@@ -1271,8 +1266,7 @@
 
         _wake();
       },
-      remove: function remove(callback) {
-        var i;
+      remove: function remove(callback, i) {
         ~(i = _listeners.indexOf(callback)) && _listeners.splice(i, 1) && _i >= i && _i--;
       },
       _listeners: _listeners
@@ -2648,11 +2642,11 @@
 
     tween._from = !tl && !!vars.runBackwards;
 
-    if (!tl) {
+    if (!tl || keyframes && !vars.stagger) {
       harness = targets[0] ? _getCache(targets[0]).harness : 0;
       harnessVars = harness && vars[harness.prop];
       cleanVars = _copyExcluding(vars, _reservedProps);
-      prevStartAt && prevStartAt.render(-1, true).kill();
+      prevStartAt && _removeFromParent(prevStartAt.render(-1, true));
 
       if (startAt) {
         _removeFromParent(tween._startAt = Tween.set(targets, _setDefaults({
@@ -2699,6 +2693,7 @@
           _removeFromParent(tween._startAt = Tween.set(targets, p));
 
           time < 0 && tween._startAt.render(-1, true);
+          tween._zTime = time;
 
           if (!immediateRender) {
             _initTween(tween._startAt, _tinyNum);
@@ -2758,6 +2753,7 @@
 
     tween._onUpdate = onUpdate;
     tween._initted = (!tween._op || tween._pt) && !overwritten;
+    keyframes && time <= 0 && tl.render(_bigNum, true, true);
   },
       _addAliasesToVars = function _addAliasesToVars(targets, vars) {
     var harness = targets[0] ? _getCache(targets[0]).harness : 0,
@@ -2786,11 +2782,40 @@
 
     return copy;
   },
+      _parseKeyframe = function _parseKeyframe(prop, obj, allProps, easeEach) {
+    var ease = obj.ease || easeEach || "power1.inOut",
+        p,
+        a;
+
+    if (_isArray(obj)) {
+      a = allProps[prop] || (allProps[prop] = []);
+      obj.forEach(function (value, i) {
+        return a.push({
+          t: i / (obj.length - 1) * 100,
+          v: value,
+          e: ease
+        });
+      });
+    } else {
+      for (p in obj) {
+        a = allProps[p] || (allProps[p] = []);
+        p === "ease" || a.push({
+          t: parseFloat(prop),
+          v: obj[p],
+          e: ease
+        });
+      }
+    }
+  },
       _parseFuncOrString = function _parseFuncOrString(value, tween, i, target, targets) {
     return _isFunction(value) ? value.call(tween, i, target, targets) : _isString(value) && ~value.indexOf("random(") ? _replaceRandom(value) : value;
   },
       _staggerTweenProps = _callbackNames + "repeat,repeatDelay,yoyo,repeatRefresh,yoyoEase",
-      _staggerPropsToSkip = (_staggerTweenProps + ",id,stagger,delay,duration,paused,scrollTrigger").split(",");
+      _staggerPropsToSkip = {};
+
+  _forEachName(_staggerTweenProps + ",id,stagger,delay,duration,paused,scrollTrigger", function (name) {
+    return _staggerPropsToSkip[name] = 1;
+  });
 
   var Tween = function (_Animation2) {
     _inheritsLoose(Tween, _Animation2);
@@ -2839,21 +2864,9 @@
         tl.parent = tl._dp = _assertThisInitialized(_this3);
         tl._start = 0;
 
-        if (keyframes) {
-          _inheritDefaults(_setDefaults(tl.vars.defaults, {
-            ease: "none"
-          }));
-
-          stagger ? parsedTargets.forEach(function (t, i) {
-            return keyframes.forEach(function (frame, j) {
-              return tl.to(t, frame, j ? ">" : i * stagger);
-            });
-          }) : keyframes.forEach(function (frame) {
-            return tl.to(parsedTargets, frame, ">");
-          });
-        } else {
+        if (stagger || _isFuncOrString(duration) || _isFuncOrString(delay)) {
           l = parsedTargets.length;
-          staggerFunc = stagger ? distribute(stagger) : _emptyFunc;
+          staggerFunc = stagger && distribute(stagger);
 
           if (_isObject(stagger)) {
             for (p in stagger) {
@@ -2865,14 +2878,7 @@
           }
 
           for (i = 0; i < l; i++) {
-            copy = {};
-
-            for (p in vars) {
-              if (_staggerPropsToSkip.indexOf(p) < 0) {
-                copy[p] = vars[p];
-              }
-            }
-
+            copy = _copyExcluding(vars, _staggerPropsToSkip);
             copy.stagger = 0;
             yoyoEase && (copy.yoyoEase = yoyoEase);
             staggerVarsToMerge && _merge(copy, staggerVarsToMerge);
@@ -2886,10 +2892,55 @@
               copy.delay = 0;
             }
 
-            tl.to(curTarget, copy, staggerFunc(i, curTarget, parsedTargets));
+            tl.to(curTarget, copy, staggerFunc ? staggerFunc(i, curTarget, parsedTargets) : 0);
+            tl._ease = _easeMap.none;
           }
 
           tl.duration() ? duration = delay = 0 : _this3.timeline = 0;
+        } else if (keyframes) {
+          _inheritDefaults(_setDefaults(tl.vars.defaults, {
+            ease: "none"
+          }));
+
+          tl._ease = _parseEase(keyframes.ease || vars.ease || "none");
+          var time = 0,
+              a,
+              kf,
+              v;
+
+          if (_isArray(keyframes)) {
+            keyframes.forEach(function (frame) {
+              return tl.to(parsedTargets, frame, ">");
+            });
+          } else {
+            copy = {};
+
+            for (p in keyframes) {
+              p === "ease" || p === "easeEach" || _parseKeyframe(p, keyframes[p], copy, keyframes.easeEach);
+            }
+
+            for (p in copy) {
+              a = copy[p].sort(function (a, b) {
+                return a.t - b.t;
+              });
+              time = 0;
+
+              for (i = 0; i < a.length; i++) {
+                kf = a[i];
+                v = {
+                  ease: kf.e,
+                  duration: (kf.t - (i ? a[i - 1].t : 0)) / 100 * duration
+                };
+                v[p] = kf.v;
+                tl.to(parsedTargets, v, time);
+                time += v.duration;
+              }
+            }
+
+            tl.duration() < duration && tl.to({}, {
+              duration: duration - tl.duration()
+            });
+          }
         }
 
         duration || _this3.duration(duration = tl.duration());
@@ -3029,7 +3080,7 @@
           pt = pt._next;
         }
 
-        timeline && timeline.render(totalTime < 0 ? totalTime : !time && isYoyo ? -_tinyNum : timeline._dur * ratio, suppressEvents, force) || this._startAt && (this._zTime = totalTime);
+        timeline && timeline.render(totalTime < 0 ? totalTime : !time && isYoyo ? -_tinyNum : timeline._dur * timeline._ease(time / this._dur), suppressEvents, force) || this._startAt && (this._zTime = totalTime);
 
         if (this._onUpdate && !suppressEvents) {
           totalTime < 0 && this._startAt && this._startAt.render(totalTime, true, force);
@@ -3631,7 +3682,7 @@
       }
     }
   }, _buildModifierPlugin("roundProps", _roundModifier), _buildModifierPlugin("modifiers"), _buildModifierPlugin("snap", snap)) || _gsap;
-  Tween.version = Timeline.version = gsap.version = "3.8.0";
+  Tween.version = Timeline.version = gsap.version = "3.9.0";
   _coreReady = 1;
   _windowExists() && _wake();
   var Power0 = _easeMap.Power0,
@@ -4917,7 +4968,7 @@
     });
   })("x,y,z,scale,scaleX,scaleY,xPercent,yPercent", "rotation,rotationX,rotationY,skewX,skewY", "transform,transformOrigin,svgOrigin,force3D,smoothOrigin,transformPerspective", "0:translateX,1:translateY,2:translateZ,8:rotate,8:rotationZ,8:rotateZ,9:rotateX,10:rotateY");
 
-  _forEachName("x,y,z,top,right,bottom,left,width,height,fontSize,padding,margin,perspective", function (name) {
+  _forEachName("x,y,z,top,right,bottom,left,width,height,fontSize,padding,margin,perspective,transformPerspective", function (name) {
     _config.units[name] = "px";
   });
 

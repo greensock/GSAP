@@ -340,7 +340,7 @@
 	      }
 	    }
 
-	    if (1 - (end - start) < 1e-5) {
+	    if (Math.abs(1 - (end - start)) < 1e-5) {
 	      eSegIndex = sSegIndex - 1;
 	    } else if (!e.t && eSegIndex) {
 	      eSegIndex--;
@@ -1459,7 +1459,7 @@
 	}
 
 	/*!
-	 * MotionPathPlugin 3.8.0
+	 * MotionPathPlugin 3.9.0
 	 * https://greensock.com
 	 *
 	 * @license Copyright 2008-2021, GreenSock. All rights reserved.
@@ -1653,7 +1653,7 @@
 	};
 
 	var MotionPathPlugin = {
-	  version: "3.8.0",
+	  version: "3.9.0",
 	  name: "motionPath",
 	  register: function register(core, Plugin, propTween) {
 	    gsap = core;

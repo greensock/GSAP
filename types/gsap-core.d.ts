@@ -145,7 +145,7 @@ declare namespace gsap {
     endArray?: any[];
     immediateRender?: boolean;    
     lazy?: boolean;
-    keyframes?: TweenVars[];
+    keyframes?: TweenVars[] | object;
     onInterrupt?: Callback;
     onInterruptParams?: any[];
     overwrite?: "auto" | boolean;

@@ -1,5 +1,5 @@
 /*!
- * GSAP 3.8.0
+ * GSAP 3.9.0
  * https://greensock.com
  *
  * @license Copyright 2008-2021, GreenSock. All rights reserved.
@@ -117,9 +117,9 @@ let _config = {
 		}
 		return obj;
 	},
-	_setKeyframeDefaults = (obj, defaults) => {
+	_setKeyframeDefaults = excludeDuration => (obj, defaults) => {
 		for (let p in defaults) {
-			(p in obj) || p === "duration" || p === "ease" || (obj[p] = defaults[p]);
+			(p in obj) || (p === "duration" && excludeDuration) || p === "ease" || (obj[p] = defaults[p]);
 		}
 	},
 	_merge = (base, toMerge) => {
@@ -144,7 +144,7 @@ let _config = {
 	},
 	_inheritDefaults = vars => {
 		let parent = vars.parent || _globalTimeline,
-			func = vars.keyframes ? _setKeyframeDefaults : _setDefaults;
+			func = vars.keyframes ? _setKeyframeDefaults(_isArray(vars.keyframes)) : _setDefaults;
 		if (_isNotFalse(vars.inherit)) {
 			while (parent) {
 				func(vars, parent.vars.defaults);
@@ -303,9 +303,8 @@ let _config = {
 		if (repeatDelay && tween._repeat) { // in case there's a zero-duration tween that has a repeat with a repeatDelay
 			tTime = _clamp(0, tween._tDur, totalTime);
 			iteration = _animationCycle(tTime, repeatDelay);
-			prevIteration = _animationCycle(tween._tTime, repeatDelay);
 			tween._yoyo && (iteration & 1) && (ratio = 1 - ratio);
-			if (iteration !== prevIteration) {
+			if (iteration !== _animationCycle(tween._tTime, repeatDelay)) { // if iteration changed
 				prevRatio = 1 - ratio;
 				tween.vars.repeatRefresh && tween._initted && tween.invalidate();
 			}
@@ -345,7 +344,7 @@ let _config = {
 		if (time > prevTime) {
 			child = animation._first;
 			while (child && child._start <= time) {
-				if (!child._dur && child.data === "isPause" && child._start > prevTime) {
+				if (child.data === "isPause" && child._start > prevTime) {
 					return child;
 				}
 				child = child._next;
@@ -353,7 +352,7 @@ let _config = {
 		} else {
 			child = animation._last;
 			while (child && child._start >= time) {
-				if (!child._dur && child.data === "isPause" && child._start < prevTime) {
+				if (child.data === "isPause" && child._start < prevTime) {
 					return child;
 				}
 				child = child._prev;
@@ -367,7 +366,7 @@ let _config = {
 		totalProgress && !leavePlayhead && (animation._time *= dur / animation._dur);
 		animation._dur = dur;
 		animation._tDur = !repeat ? dur : repeat < 0 ? 1e10 : _roundPrecise(dur * (repeat + 1) + (animation._rDelay * repeat));
-		totalProgress && !leavePlayhead ? _alignPlayhead(animation, (animation._tTime = animation._tDur * totalProgress)) : animation.parent && _setEnd(animation);
+		totalProgress > 0 && !leavePlayhead ? _alignPlayhead(animation, (animation._tTime = animation._tDur * totalProgress)) : animation.parent && _setEnd(animation);
 		skipUncache || _uncache(animation.parent, animation);
 		return animation;
 	},
@@ -419,13 +418,7 @@ let _config = {
 	},
 	_conditionalReturn = (value, func) => value || value === 0 ? func(value) : func,
 	_clamp = (min, max, value) => value < min ? min : value > max ? max : value,
-	getUnit = value => {
-		if (typeof(value) !== "string") {
-			return "";
-		}
-		let v = _unitExp.exec(value);
-		return v ? value.substr(v.index + v[0].length) : "";
-	}, // note: protect against padded numbers as strings, like "100.100". That shouldn't return "00" as the unit. If it's numeric, return no unit.
+	getUnit = (value, v) => !_isString(value) || !(v = _unitExp.exec(value)) ? "" : value.substr(v.index + v[0].length), // note: protect against padded numbers as strings, like "100.100". That shouldn't return "00" as the unit. If it's numeric, return no unit.
 	clamp = (min, max, value) => _conditionalReturn(value, v => _clamp(min, max, v)),
 	_slice = [].slice,
 	_isArrayLike = (value, nonEmpty) => value && (_isObject(value) && "length" in value && ((!nonEmpty && !value.length) || ((value.length - 1) in value && _isObject(value[0]))) && !value.nodeType && value !== _win),
@@ -474,7 +467,7 @@ let _config = {
 				}
 				distances = cache[l] = [];
 				originX = ratios ? (Math.min(wrapAt, l) * ratioX) - .5 : from % wrapAt;
-				originY = ratios ? l * ratioY / wrapAt - .5 : (from / wrapAt) | 0;
+				originY = wrapAt === _bigNum ? 0 : ratios ? l * ratioY / wrapAt - .5 : (from / wrapAt) | 0;
 				max = 0;
 				min = _bigNum;
 				for (j = 0; j < l; j++) {
@@ -713,9 +706,12 @@ let _config = {
 		cyan:[0,_255,_255],
 		transparent:[_255,_255,_255,0]
 	},
+	// possible future idea to replace the hard-coded color name values - put this in the ticker.wake() where we set the _doc:
+	// let ctx = _doc.createElement("canvas").getContext("2d");
+	// _forEachName("aqua,lime,silver,black,maroon,teal,blue,navy,white,olive,yellow,orange,gray,purple,green,red,pink,cyan", color => {ctx.fillStyle = color; _colorLookup[color] = splitColor(ctx.fillStyle)});
 	_hue = (h, m1, m2) => {
-		h = (h < 0) ? h + 1 : (h > 1) ? h - 1 : h;
-		return ((((h * 6 < 1) ? m1 + (m2 - m1) * h * 6 : (h < .5) ? m2 : (h * 3 < 2) ? m1 + (m2 - m1) * (2 / 3 - h) * 6 : m1) * _255) + .5) | 0;
+		h += h < 0 ? 1 : h > 1 ? -1 : 0;
+		return ((((h * 6 < 1) ? m1 + (m2 - m1) * h * 6 : h < .5 ? m2 : (h * 3 < 2) ? m1 + (m2 - m1) * (2 / 3 - h) * 6 : m1) * _255) + .5) | 0;
 	},
 	splitColor = (v, toHSL, forceAlpha) => {
 		let a = !v ? _colorLookup.black : _isNumber(v) ? [v >> 16, (v >> 8) & _255, v & _255] : 0,
@@ -773,7 +769,7 @@ let _config = {
 			} else {
 				d = max - min;
 				s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
-				h = (max === r) ? (g - b) / d + (g < b ? 6 : 0) : (max === g) ? (b - r) / d + 2 : (r - g) / d + 4;
+				h = max === r ? (g - b) / d + (g < b ? 6 : 0) : max === g ? (b - r) / d + 2 : (r - g) / d + 4;
 				h *= 60;
 			}
 			a[0] = ~~(h + .5);
@@ -941,8 +937,7 @@ let _config = {
 				_listeners.indexOf(callback) < 0 && _listeners.push(callback);
 				_wake();
 			},
-			remove(callback) {
-				let i;
+			remove(callback, i) {
 				~(i = _listeners.indexOf(callback)) && _listeners.splice(i, 1) && _i >= i && _i--;
 			},
 			_listeners:_listeners
@@ -1045,7 +1040,7 @@ let _config = {
 	},
 	_configBack = (type, overshoot = 1.70158) => {
 		let easeOut = p => p ? ((--p) * p * ((overshoot + 1) * p + overshoot) + 1) : 0,
-			ease = (type === "out") ? easeOut : (type === "in") ? p => 1 - easeOut(1 - p) : _easeInOutFromOut(easeOut);
+			ease = type === "out" ? easeOut : type === "in" ? p => 1 - easeOut(1 - p) : _easeInOutFromOut(easeOut);
 		ease.config = overshoot => _configBack(type, overshoot);
 		return ease;
 	};
@@ -2106,11 +2101,11 @@ let _addComplexStringPropTween = function(target, prop, start, end, setter, stri
 			tween._ease = yoyoEase;
 		}
 		tween._from = !tl && !!vars.runBackwards; //nested timelines should never run backwards - the backwards-ness is in the child tweens.
-		if (!tl) { //if there's an internal timeline, skip all the parsing because we passed that task down the chain.
+		if (!tl || (keyframes && !vars.stagger)) { //if there's an internal timeline, skip all the parsing because we passed that task down the chain.
 			harness = targets[0] ? _getCache(targets[0]).harness : 0;
 			harnessVars = harness && vars[harness.prop]; //someone may need to specify CSS-specific values AND non-CSS values, like if the element has an "x" property plus it's a standard DOM element. We allow people to distinguish by wrapping plugin-specific stuff in a css:{} object for example.
 			cleanVars = _copyExcluding(vars, _reservedProps);
-			prevStartAt && prevStartAt.render(-1, true).kill();
+			prevStartAt && _removeFromParent(prevStartAt.render(-1, true));
 			if (startAt) {
 				_removeFromParent(tween._startAt = Tween.set(targets, _setDefaults({data: "isStart", overwrite: false, parent: parent, immediateRender: true, lazy: _isNotFalse(lazy), startAt: null, delay: 0, onUpdate: onUpdate, onUpdateParams: onUpdateParams, callbackScope: callbackScope, stagger: 0}, startAt))); //copy the properties/values into a new object to avoid collisions, like var to = {x:0}, from = {x:500}; timeline.fromTo(e, from, to).fromTo(e, to, from);
 				(time < 0 && !immediateRender && !autoRevert) && tween._startAt.render(-1, true); // rare edge case, like if a render is forced in the negative direction of a non-initted tween.
@@ -2146,6 +2141,7 @@ let _addComplexStringPropTween = function(target, prop, start, end, setter, stri
 					harnessVars && (p[harness.prop] = harnessVars); // in case someone does something like .from(..., {css:{}})
 					_removeFromParent(tween._startAt = Tween.set(targets, p));
 					(time < 0) && tween._startAt.render(-1, true); // rare edge case, like if a render is forced in the negative direction of a non-initted from() tween.
+					tween._zTime = time;
 					if (!immediateRender) {
 						_initTween(tween._startAt, _tinyNum); //ensures that the initial values are recorded
 					} else if (!time) {
@@ -2189,6 +2185,7 @@ let _addComplexStringPropTween = function(target, prop, start, end, setter, stri
 		}
 		tween._onUpdate = onUpdate;
 		tween._initted = (!tween._op || tween._pt) && !overwritten; // if overwrittenProps resulted in the entire tween being killed, do NOT flag it as initted or else it may render for one tick.
+		(keyframes && time <= 0) && tl.render(_bigNum, true, true); // if there's a 0% keyframe, it'll render in the "before" state for any staggered/delayed animations thus when the following tween initializes, it'll use the "before" state instead of the "after" state as the initial values.
 	},
 	_addAliasesToVars = (targets, vars) => {
 		let harness = targets[0] ? _getCache(targets[0]).harness : 0,
@@ -2210,9 +2207,25 @@ let _addComplexStringPropTween = function(target, prop, start, end, setter, stri
 		}
 		return copy;
 	},
+	// parses multiple formats, like {"0%": {x: 100}, {"50%": {x: -20}} and { x: {"0%": 100, "50%": -20} }, and an "ease" can be set on any object. We populate an "allProps" object with an Array for each property, like {x: [{}, {}], y:[{}, {}]} with data for each property tween. The objects have a "t" (time), "v", (value), and "e" (ease) property. This allows us to piece together a timeline later.
+	_parseKeyframe = (prop, obj, allProps, easeEach) => {
+		let ease = obj.ease || easeEach || "power1.inOut",
+			p, a;
+		if (_isArray(obj)) {
+			a = allProps[prop] || (allProps[prop] = []);
+			// t = time (out of 100), v = value, e = ease
+			obj.forEach((value, i) => a.push({t: i / (obj.length - 1) * 100, v: value, e: ease}));
+		} else {
+			for (p in obj) {
+				a = allProps[p] || (allProps[p] = []);
+				p === "ease" || a.push({t: parseFloat(prop), v: obj[p], e: ease});
+			}
+		}
+	},
 	_parseFuncOrString = (value, tween, i, target, targets) => (_isFunction(value) ? value.call(tween, i, target, targets) : (_isString(value) && ~value.indexOf("random(")) ? _replaceRandom(value) : value),
 	_staggerTweenProps = _callbackNames + "repeat,repeatDelay,yoyo,repeatRefresh,yoyoEase",
-	_staggerPropsToSkip = (_staggerTweenProps + ",id,stagger,delay,duration,paused,scrollTrigger").split(",");
+	_staggerPropsToSkip = {};
+_forEachName(_staggerTweenProps + ",id,stagger,delay,duration,paused,scrollTrigger", name => _staggerPropsToSkip[name] = 1);
 
 
 
@@ -2264,12 +2277,9 @@ export class Tween extends Animation {
 			tl.kill();
 			tl.parent = tl._dp = this;
 			tl._start = 0;
-			if (keyframes) {
-				_inheritDefaults(_setDefaults(tl.vars.defaults, {ease:"none"}));
-				stagger ? parsedTargets.forEach((t, i) => keyframes.forEach((frame, j) => tl.to(t, frame, j ? ">" : i * stagger))) : keyframes.forEach(frame => tl.to(parsedTargets, frame, ">"));
-			} else {
+			if (stagger || _isFuncOrString(duration) || _isFuncOrString(delay)) {
 				l = parsedTargets.length;
-				staggerFunc = stagger ? distribute(stagger) : _emptyFunc;
+				staggerFunc = stagger && distribute(stagger);
 				if (_isObject(stagger)) { //users can pass in callbacks like onStart/onComplete in the stagger object. These should fire with each individual tween.
 					for (p in stagger) {
 						if (~_staggerTweenProps.indexOf(p)) {
@@ -2279,12 +2289,7 @@ export class Tween extends Animation {
 					}
 				}
 				for (i = 0; i < l; i++) {
-					copy = {};
-					for (p in vars) {
-						if (_staggerPropsToSkip.indexOf(p) < 0) {
-							copy[p] = vars[p];
-						}
-					}
+					copy = _copyExcluding(vars, _staggerPropsToSkip);
 					copy.stagger = 0;
 					yoyoEase && (copy.yoyoEase = yoyoEase);
 					staggerVarsToMerge && _merge(copy, staggerVarsToMerge);
@@ -2297,9 +2302,35 @@ export class Tween extends Animation {
 						this._start += delay;
 						copy.delay = 0;
 					}
-					tl.to(curTarget, copy, staggerFunc(i, curTarget, parsedTargets));
+					tl.to(curTarget, copy, staggerFunc ? staggerFunc(i, curTarget, parsedTargets) : 0);
+					tl._ease = _easeMap.none;
 				}
 				tl.duration() ? (duration = delay = 0) : (this.timeline = 0); // if the timeline's duration is 0, we don't need a timeline internally!
+			} else if (keyframes) {
+				_inheritDefaults(_setDefaults(tl.vars.defaults, {ease:"none"}));
+				tl._ease = _parseEase(keyframes.ease || vars.ease || "none");
+				let time = 0,
+					a, kf, v;
+				if (_isArray(keyframes)) {
+					keyframes.forEach(frame => tl.to(parsedTargets, frame, ">"));
+				} else {
+					copy = {};
+					for (p in keyframes) {
+						p === "ease" || p === "easeEach" || _parseKeyframe(p, keyframes[p], copy, keyframes.easeEach);
+					}
+					for (p in copy) {
+						a = copy[p].sort((a, b) => a.t - b.t);
+						time = 0;
+						for (i = 0; i < a.length; i++) {
+							kf = a[i];
+							v = {ease: kf.e, duration: (kf.t - (i ? a[i - 1].t : 0)) / 100 * duration};
+							v[p] = kf.v;
+							tl.to(parsedTargets, v, time);
+							time += v.duration;
+						}
+					}
+					tl.duration() < duration && tl.to({}, {duration: duration - tl.duration()}); // in case keyframes didn't go to 100%
+				}
 			}
 			duration || this.duration((duration = tl.duration()));
 
@@ -2399,14 +2430,12 @@ export class Tween extends Animation {
 					return this;
 				}
 			}
-
 			pt = this._pt;
 			while (pt) {
 				pt.r(ratio, pt.d);
 				pt = pt._next;
 			}
-
-			(timeline && timeline.render(totalTime < 0 ? totalTime : !time && isYoyo ? -_tinyNum : timeline._dur * ratio, suppressEvents, force)) || (this._startAt && (this._zTime = totalTime));
+			(timeline && timeline.render(totalTime < 0 ? totalTime : !time && isYoyo ? -_tinyNum : timeline._dur * timeline._ease(time / this._dur), suppressEvents, force)) || (this._startAt && (this._zTime = totalTime));
 
 			if (this._onUpdate && !suppressEvents) {
 				totalTime < 0 && this._startAt && this._startAt.render(totalTime, true, force); //note: for performance reasons, we tuck this conditional logic inside less traveled areas (most tweens don't have an onUpdate). We'd just have it at the end before the onComplete, but the values should be updated before any onUpdate is called, so we ALSO put it here and then if it's not called, we do so later near the onComplete.
@@ -2885,7 +2914,7 @@ export const gsap = _gsap.registerPlugin({
 	_buildModifierPlugin("snap", snap)
 ) || _gsap; //to prevent the core plugins from being dropped via aggressive tree shaking, we must include them in the variable declaration in this way.
 
-Tween.version = Timeline.version = gsap.version = "3.8.0";
+Tween.version = Timeline.version = gsap.version = "3.9.0";
 _coreReady = 1;
 _windowExists() && _wake();
 

@@ -1687,8 +1687,8 @@
             self.maxY = maxY = bounds.maxY;
           } else {
             targetBounds = _getBounds(target, target.parentNode);
-            self.minX = minX = Math.round(getPropAsNum(xProp, "px") + bounds.left - targetBounds.left - 0.5);
-            self.minY = minY = Math.round(getPropAsNum(yProp, "px") + bounds.top - targetBounds.top - 0.5);
+            self.minX = minX = Math.round(getPropAsNum(xProp, "px") + bounds.left - targetBounds.left);
+            self.minY = minY = Math.round(getPropAsNum(yProp, "px") + bounds.top - targetBounds.top);
             self.maxX = maxX = Math.round(minX + (bounds.width - targetBounds.width));
             self.maxY = maxY = Math.round(minY + (bounds.height - targetBounds.height));
           }
@@ -2925,7 +2925,7 @@
   });
 
   Draggable.zIndex = 1000;
-  Draggable.version = "3.8.0";
+  Draggable.version = "3.9.0";
   _getGSAP() && gsap.registerPlugin(Draggable);
 
   exports.Draggable = Draggable;

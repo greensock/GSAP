@@ -1,5 +1,5 @@
 /*!
- * CSSPlugin 3.8.0
+ * CSSPlugin 3.9.0
  * https://greensock.com
  *
  * Copyright 2008-2021, GreenSock. All rights reserved.
@@ -1410,7 +1410,7 @@ gsap.utils.checkPrefix = _checkPropPrefix;
   });
 })("x,y,z,scale,scaleX,scaleY,xPercent,yPercent", "rotation,rotationX,rotationY,skewX,skewY", "transform,transformOrigin,svgOrigin,force3D,smoothOrigin,transformPerspective", "0:translateX,1:translateY,2:translateZ,8:rotate,8:rotationZ,8:rotateZ,9:rotateX,10:rotateY");
 
-_forEachName("x,y,z,top,right,bottom,left,width,height,fontSize,padding,margin,perspective", function (name) {
+_forEachName("x,y,z,top,right,bottom,left,width,height,fontSize,padding,margin,perspective,transformPerspective", function (name) {
   _config.units[name] = "px";
 });
 

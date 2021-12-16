@@ -1,5 +1,5 @@
 /*!
- * TextPlugin 3.8.0
+ * TextPlugin 3.9.0
  * https://greensock.com
  *
  * @license Copyright 2008-2021, GreenSock. All rights reserved.
@@ -18,7 +18,7 @@ var gsap,
 };
 
 export var TextPlugin = {
-  version: "3.8.0",
+  version: "3.9.0",
   name: "text",
   init: function init(target, value, tween) {
     var i = target.nodeName.toUpperCase(),
@@ -144,7 +144,7 @@ export var TextPlugin = {
         applyOld,
         str;
 
-    if (hasClass) {
+    if (hasClass && ratio) {
       applyNew = newClass && i;
       applyOld = oldClass && i !== l;
       str = (applyNew ? "<span class='" + newClass + "'>" : "") + text.slice(0, i).join(delimiter) + (applyNew ? "</span>" : "") + (applyOld ? "<span class='" + oldClass + "'>" : "") + delimiter + original.slice(i).join(delimiter) + (applyOld ? "</span>" : "");
