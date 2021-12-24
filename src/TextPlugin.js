@@ -47,6 +47,7 @@ export const TextPlugin = {
 			original = text;
 			text = i;
 		}
+		data.reverse = value.reverse;
 		data.hasClass = !!(value.newClass || value.oldClass);
 		data.newClass = value.newClass;
 		data.oldClass = value.oldClass;
@@ -97,16 +98,24 @@ export const TextPlugin = {
 		if (data.from) {
 			ratio = 1 - ratio;
 		}
-		let { text, hasClass, newClass, oldClass, delimiter, target, fillChar, original } = data,
+		let { text, hasClass, newClass, oldClass, delimiter, target, fillChar, original ,reverse} = data,
 			l = text.length,
 			i = (ratio * l + 0.5) | 0,
-			applyNew, applyOld, str;
+			applyNew, applyOld, str,addStr;
+		
+		if(reverse){
+			addStr = original.slice(0,original.length - i)
+		}else{
+			addStr = original.slice(i).join(delimiter)
+		}
+		
+		
 		if (hasClass && ratio) {
 			applyNew = (newClass && i);
 			applyOld = (oldClass && i !== l);
-			str = (applyNew ? "<span class='" + newClass + "'>" : "") + text.slice(0, i).join(delimiter) + (applyNew ? "</span>" : "") + (applyOld ? "<span class='" + oldClass + "'>" : "") + delimiter + original.slice(i).join(delimiter) + (applyOld ? "</span>" : "");
+			str = (applyNew ? "<span class='" + newClass + "'>" : "") + text.slice(0, i).join(delimiter) + (applyNew ? "</span>" : "") + (applyOld ? "<span class='" + oldClass + "'>" : "") + delimiter + addStr + (applyOld ? "</span>" : "");
 		} else {
-			str = text.slice(0, i).join(delimiter) + delimiter + original.slice(i).join(delimiter);
+			str = text.slice(0, i).join(delimiter) + delimiter + addStr;
 		}
 		if (data.svg) { //SVG text elements don't have an "innerHTML" in Microsoft browsers.
 			target.textContent = str;
