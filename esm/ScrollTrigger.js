@@ -1,5 +1,5 @@
 /*!
- * ScrollTrigger 3.9.0
+ * ScrollTrigger 3.9.1
  * https://greensock.com
  *
  * @license Copyright 2008-2021, GreenSock. All rights reserved.
@@ -1802,7 +1802,7 @@ export var ScrollTrigger = /*#__PURE__*/function () {
 
   return ScrollTrigger;
 }();
-ScrollTrigger.version = "3.9.0";
+ScrollTrigger.version = "3.9.1";
 
 ScrollTrigger.saveStyles = function (targets) {
   return targets ? _toArray(targets).forEach(function (target) {

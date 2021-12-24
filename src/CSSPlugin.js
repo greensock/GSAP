@@ -1,5 +1,5 @@
 /*!
- * CSSPlugin 3.9.0
+ * CSSPlugin 3.9.1
  * https://greensock.com
  *
  * Copyright 2008-2021, GreenSock. All rights reserved.
@@ -917,8 +917,8 @@ export const CSSPlugin = {
 			} else if (type !== "undefined") {
 				if (startAt && p in startAt) { // in case someone hard-codes a complex value as the start, like top: "calc(2vh / 2)". Without this, it'd use the computed value (always in px)
 					startValue = typeof(startAt[p]) === "function" ? startAt[p].call(tween, index, target, targets) : startAt[p];
-					(p in _config.units) && !getUnit(startValue) && (startValue += _config.units[p]); // for cases when someone passes in a unitless value like {x: 100}; if we try setting translate(100, 0px) it won't work.
 					_isString(startValue) && ~startValue.indexOf("random(") && (startValue = _replaceRandom(startValue));
+					getUnit(startValue + "") || (startValue += _config.units[p] || getUnit(_get(target, p)) || ""); // for cases when someone passes in a unitless value like {x: 100}; if we try setting translate(100, 0px) it won't work.
 					(startValue + "").charAt(1) === "=" && (startValue = _get(target, p)); // can't work with relative values
 				} else {
 					startValue = _get(target, p);
@@ -1034,7 +1034,7 @@ gsap.utils.checkPrefix = _checkPropPrefix;
 		_propertyAliases[split[1]] = all[split[0]];
 	});
 })("x,y,z,scale,scaleX,scaleY,xPercent,yPercent", "rotation,rotationX,rotationY,skewX,skewY", "transform,transformOrigin,svgOrigin,force3D,smoothOrigin,transformPerspective", "0:translateX,1:translateY,2:translateZ,8:rotate,8:rotationZ,8:rotateZ,9:rotateX,10:rotateY");
-_forEachName("x,y,z,top,right,bottom,left,width,height,fontSize,padding,margin,perspective,transformPerspective", name => {_config.units[name] = "px"});
+_forEachName("x,y,z,top,right,bottom,left,width,height,fontSize,padding,margin,perspective", name => {_config.units[name] = "px"});
 
 gsap.registerPlugin(CSSPlugin);
 

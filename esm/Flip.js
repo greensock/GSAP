@@ -1,5 +1,5 @@
 /*!
- * Flip 3.9.0
+ * Flip 3.9.1
  * https://greensock.com
  *
  * @license Copyright 2008-2021, GreenSock. All rights reserved.
@@ -173,75 +173,95 @@ _callbacks = _listToArray("onStart,onUpdate,onComplete,onReverseComplete,onInter
   });
   onlyTransforms || comps.finalStates.forEach(_applyInlineStyles);
 },
-    _makeAbsolute = function _makeAbsolute(elState, fallbackNode, ignoreBatch) {
+    _absoluteProps = "paddingTop,paddingRight,paddingBottom,paddingLeft,gridArea,transition".split(","),
+    // properties that we must record just
+_makeAbsolute = function _makeAbsolute(elState, fallbackNode, ignoreBatch) {
   var element = elState.element,
       width = elState.width,
       height = elState.height,
       uncache = elState.uncache,
       getProp = elState.getProp,
       style = element.style,
+      i = 4,
       result,
-      displayIsNone;
+      displayIsNone,
+      cs;
   typeof fallbackNode !== "object" && (fallbackNode = elState);
 
-  if (getProp("position") !== "absolute") {
-    if (_batch && ignoreBatch !== 1) {
-      _batch._abs.push({
-        t: element,
-        b: elState,
-        a: elState,
-        sd: 0
-      });
+  if (_batch && ignoreBatch !== 1) {
+    _batch._abs.push({
+      t: element,
+      b: elState,
+      a: elState,
+      sd: 0
+    });
 
-      _batch._final.push(function () {
-        return (elState.cache.uncache = 1) && _applyInlineStyles(elState);
-      });
+    _batch._final.push(function () {
+      return (elState.cache.uncache = 1) && _applyInlineStyles(elState);
+    });
 
-      return element;
-    }
-
-    displayIsNone = getProp("display") === "none";
-
-    if (!elState.isVisible || displayIsNone) {
-      displayIsNone && (_recordInlineStyles(elState, ["display"]).display = fallbackNode.display);
-      elState.matrix = fallbackNode.matrix;
-      elState.width = width = elState.width || fallbackNode.width;
-      elState.height = height = elState.height || fallbackNode.height;
-    }
-
-    style.position = "absolute";
-    style.width = width + "px";
-    style.height = height + "px";
-    style.top || (style.top = "0px");
-    style.left || (style.left = "0px");
-
-    if (uncache) {
-      result = new ElementState(element);
-    } else {
-      // better performance
-      result = _copy(elState, _emptyObj);
-      result.position = "absolute";
-
-      if (elState.simple) {
-        var bounds = element.getBoundingClientRect();
-        result.matrix = new Matrix2D(1, 0, 0, 1, bounds.left + _getDocScrollLeft(), bounds.top + _getDocScrollTop());
-      } else {
-        result.matrix = getGlobalMatrix(element, false, false, true);
-      }
-    }
-
-    result = _fit(result, elState, true);
-    elState.x = _closestTenth(result.x, 0.01);
-    elState.y = _closestTenth(result.y, 0.01);
+    return element;
   }
 
+  displayIsNone = getProp("display") === "none";
+
+  if (!elState.isVisible || displayIsNone) {
+    displayIsNone && (_recordInlineStyles(elState, ["display"]).display = fallbackNode.display);
+    elState.matrix = fallbackNode.matrix;
+    elState.width = width = elState.width || fallbackNode.width;
+    elState.height = height = elState.height || fallbackNode.height;
+  }
+
+  _recordInlineStyles(elState, _absoluteProps);
+
+  cs = window.getComputedStyle(element);
+
+  while (i--) {
+    style[_absoluteProps[i]] = cs[_absoluteProps[i]]; // record paddings as px-based because if removed from grid, percentage-based ones could be altered.
+  }
+
+  style.gridArea = "1 / 1 / 1 / 1";
+  style.transition = "none";
+  style.position = "absolute";
+  style.width = width + "px";
+  style.height = height + "px";
+  style.top || (style.top = "0px");
+  style.left || (style.left = "0px");
+
+  if (uncache) {
+    result = new ElementState(element);
+  } else {
+    // better performance
+    result = _copy(elState, _emptyObj);
+    result.position = "absolute";
+
+    if (elState.simple) {
+      var bounds = element.getBoundingClientRect();
+      result.matrix = new Matrix2D(1, 0, 0, 1, bounds.left + _getDocScrollLeft(), bounds.top + _getDocScrollTop());
+    } else {
+      result.matrix = getGlobalMatrix(element, false, false, true);
+    }
+  }
+
+  result = _fit(result, elState, true);
+  elState.x = _closestTenth(result.x, 0.01);
+  elState.y = _closestTenth(result.y, 0.01);
   return element;
 },
     _filterComps = function _filterComps(comps, targets) {
   if (targets !== true) {
     targets = _toArray(targets);
     comps = comps.filter(function (c) {
-      return targets.indexOf((c.sd < 0 ? c.b : c.a).element) !== -1;
+      if (targets.indexOf((c.sd < 0 ? c.b : c.a).element) !== -1) {
+        return true;
+      } else {
+        c.t._gsap.renderTransform(1); // we must force transforms to render on anything that isn't being made position: absolute, otherwise the absolute position happens and then when animation begins it applies transforms which can create a new stacking context, throwing off positioning!
+
+
+        c.t.style.width = c.b.width + "px"; // otherwise things can collapse when contents are made position: absolute.
+
+        c.t.style.height = c.b.height + "px";
+      }
     });
   }
 
@@ -1460,7 +1480,7 @@ export var Flip = /*#__PURE__*/function () {
 
   return Flip;
 }();
-Flip.version = "3.9.0"; // function whenImagesLoad(el, func) {
+Flip.version = "3.9.1"; // function whenImagesLoad(el, func) {
 // 	let pending = [],
 // 		onLoad = e => {
 // 			pending.splice(pending.indexOf(e.target), 1);
