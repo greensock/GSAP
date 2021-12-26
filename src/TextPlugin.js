@@ -47,7 +47,7 @@ export const TextPlugin = {
 			original = text;
 			text = i;
 		}
-		data.reverse = value.reverse;
+		data.rtl = value.rtl;
 		data.hasClass = !!(value.newClass || value.oldClass);
 		data.newClass = value.newClass;
 		data.oldClass = value.oldClass;
@@ -98,12 +98,12 @@ export const TextPlugin = {
 		if (data.from) {
 			ratio = 1 - ratio;
 		}
-		let { text, hasClass, newClass, oldClass, delimiter, target, fillChar, original ,reverse} = data,
+		let { text, hasClass, newClass, oldClass, delimiter, target, fillChar, original ,rtl} = data,
 			l = text.length,
 			i = (ratio * l + 0.5) | 0,
 			applyNew, applyOld, str,addStr;
 		
-		if(reverse){
+		if(rtl){
 			addStr = original.slice(0,original.length - i).join(delimiter)
 		}else{
 			addStr = original.slice(i).join(delimiter)
