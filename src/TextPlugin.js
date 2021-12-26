@@ -104,7 +104,7 @@ export const TextPlugin = {
 			applyNew, applyOld, str,addStr;
 		
 		if(reverse){
-			addStr = original.slice(0,original.length - i)
+			addStr = original.slice(0,original.length - i).join(delimiter)
 		}else{
 			addStr = original.slice(i).join(delimiter)
 		}
