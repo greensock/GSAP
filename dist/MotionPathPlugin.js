@@ -53,6 +53,8 @@
 
 	  if (samples[i] > length) {
 	    while (--i && samples[i] > length) {}
+
+	    i < 0 && (i = 0);
 	  } else {
 	    while (samples[++i] < length && i < l) {}
 	  }
@@ -983,7 +985,7 @@
 
 	  return segment;
 	}
-	function pointsToSegment(points, curviness, cornerThreshold) {
+	function pointsToSegment(points, curviness) {
 	  _abs(points[0] - points[2]) < 1e-4 && _abs(points[1] - points[3]) < 1e-4 && (points = points.slice(2));
 	  var l = points.length - 2,
 	      x = +points[0],
@@ -996,22 +998,19 @@
 	      closed = Math.abs(points[l] - x) < 0.001 && Math.abs(points[l + 1] - y) < 0.001,
 	      prevX,
 	      prevY,
-	      angle,
-	      slope,
 	      i,
 	      dx1,
-	      dx3,
 	      dy1,
-	      dy3,
-	      d1,
-	      d2,
-	      a,
-	      b,
-	      c;
-
-	  if (isNaN(cornerThreshold)) {
-	    cornerThreshold = Math.PI / 10;
-	  }
+	      r1,
+	      r2,
+	      r3,
+	      tl,
+	      mx1,
+	      mx2,
+	      mxm,
+	      my1,
+	      my2,
+	      mym;
 
 	  if (closed) {
 	    points.push(nextX, nextY);
@@ -1041,32 +1040,27 @@
 	    dy1 = dy2;
 	    dx2 = nextX - x;
 	    dy2 = nextY - y;
-	    dx3 = nextX - prevX;
-	    dy3 = nextY - prevY;
-	    a = dx1 * dx1 + dy1 * dy1;
-	    b = dx2 * dx2 + dy2 * dy2;
-	    c = dx3 * dx3 + dy3 * dy3;
-	    angle = Math.acos((a + b - c) / _sqrt(4 * a * b));
-	    d2 = angle / Math.PI * curviness;
-	    d1 = _sqrt(a) * d2;
-	    d2 *= _sqrt(b);
+	    r1 = _sqrt(dx1 * dx1 + dy1 * dy1);
+	    r2 = _sqrt(dx2 * dx2 + dy2 * dy2);
+	    r3 = _sqrt(Math.pow(dx2 / r2 + dx1 / r1, 2) + Math.pow(dy2 / r2 + dy1 / r1, 2));
+	    tl = (r1 + r2) * curviness * 0.25 / r3;
+	    mx1 = x - (x - prevX) * (r1 ? tl / r1 : 0);
+	    mx2 = x + (nextX - x) * (r2 ? tl / r2 : 0);
+	    mxm = x - (mx1 + ((mx2 - mx1) * (r1 * 3 / (r1 + r2) + 0.5) / 4 || 0));
+	    my1 = y - (y - prevY) * (r1 ? tl / r1 : 0);
+	    my2 = y + (nextY - y) * (r2 ? tl / r2 : 0);
+	    mym = y - (my1 + ((my2 - my1) * (r1 * 3 / (r1 + r2) + 0.5) / 4 || 0));
 
 	    if (x !== prevX || y !== prevY) {
-	      if (angle > cornerThreshold) {
-	        slope = _atan2(dy3, dx3);
-	        segment.push(_round(x - _cos(slope) * d1), _round(y - _sin(slope) * d1), _round(x), _round(y), _round(x + _cos(slope) * d2), _round(y + _sin(slope) * d2));
-	      } else {
-	        slope = _atan2(dy1, dx1);
-	        segment.push(_round(x - _cos(slope) * d1), _round(y - _sin(slope) * d1));
-	        slope = _atan2(dy2, dx2);
-	        segment.push(_round(x), _round(y), _round(x + _cos(slope) * d2), _round(y + _sin(slope) * d2));
-	      }
+	      segment.push(_round(mx1 + mxm), _round(my1 + mym), _round(x), _round(y), _round(mx2 + mxm), _round(my2 + mym));
 	    }
 	  }
 
 	  x !== nextX || y !== nextY || segment.length < 4 ? segment.push(_round(nextX), _round(nextY), _round(nextX), _round(nextY)) : segment.length -= 2;
 
-	  if (closed) {
+	  if (segment.length === 2) {
+	    segment.push(x, y, x, y, x, y);
+	  } else if (closed) {
 	    segment.splice(0, 6);
 	    segment.length = segment.length - 6;
 	  }
@@ -1459,10 +1453,10 @@
 	}
 
 	/*!
-	 * MotionPathPlugin 3.9.1
+	 * MotionPathPlugin 3.10.0
 	 * https://greensock.com
 	 *
-	 * @license Copyright 2008-2021, GreenSock. All rights reserved.
+	 * @license Copyright 2008-2022, GreenSock. All rights reserved.
 	 * Subject to the terms at https://greensock.com/standard-license or for
 	 * Club GreenSock members, the agreement issued with that membership.
 	 * @author: Jack Doyle, jack@greensock.com
@@ -1653,7 +1647,7 @@
 	};
 
 	var MotionPathPlugin = {
-	  version: "3.9.1",
+	  version: "3.10.0",
 	  name: "motionPath",
 	  register: function register(core, Plugin, propTween) {
 	    gsap = core;

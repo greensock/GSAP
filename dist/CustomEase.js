@@ -355,10 +355,10 @@
 	}
 
 	/*!
-	 * CustomEase 3.9.1
+	 * CustomEase 3.10.0
 	 * https://greensock.com
 	 *
-	 * @license Copyright 2008-2021, GreenSock. All rights reserved.
+	 * @license Copyright 2008-2022, GreenSock. All rights reserved.
 	 * Subject to the terms at https://greensock.com/standard-license or for
 	 * Club GreenSock members, the agreement issued with that membership.
 	 * @author: Jack Doyle, jack@greensock.com
@@ -704,7 +704,7 @@
 	  return CustomEase;
 	}();
 	_getGSAP() && gsap.registerPlugin(CustomEase);
-	CustomEase.version = "3.9.1";
+	CustomEase.version = "3.10.0";
 
 	exports.CustomEase = CustomEase;
 	exports.default = CustomEase;

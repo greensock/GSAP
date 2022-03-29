@@ -2,6 +2,7 @@ declare namespace TextPlugin {
   interface Vars {
     value: string;
     type?: string;
+    rtl?: boolean;
     speed?: number;
     delimiter?: string;
     padSpace?: boolean;

@@ -1,8 +1,8 @@
 /*!
- * Flip 3.9.1
+ * Flip 3.10.0
  * https://greensock.com
  *
- * @license Copyright 2008-2021, GreenSock. All rights reserved.
+ * @license Copyright 2008-2022, GreenSock. All rights reserved.
  * Subject to the terms at https://greensock.com/standard-license or for
  * Club GreenSock members, the agreement issued with that membership.
  * @author: Jack Doyle, jack@greensock.com
@@ -340,7 +340,7 @@ _makeAbsolute = function _makeAbsolute(elState, fallbackNode, ignoreBatch) {
       matrix,
       bbox;
 
-  if (simple) {
+  if (simple || !parent) {
     scaleX = scaleY = 1;
     rotation = skewX = 0;
   } else {
@@ -388,7 +388,7 @@ _makeAbsolute = function _makeAbsolute(elState, fallbackNode, ignoreBatch) {
 
   applyProps && _applyProps(element, toState.props);
 
-  if (simple) {
+  if (simple || !parent) {
     x += e - fromState.matrix.e;
     y += f - fromState.matrix.f;
   } else if (deep || parent !== toState.parent) {
@@ -592,7 +592,8 @@ _makeAbsolute = function _makeAbsolute(elState, fallbackNode, ignoreBatch) {
           isVisible: 1
         }),
         a: toNode,
-        sd: 0
+        sd: 0,
+        entering: 1
       }); // to include it in the "entering" Array and do absolute positioning if necessary
 
       el._flip = _batch ? _batch.timeline : animation;
@@ -618,7 +619,7 @@ _makeAbsolute = function _makeAbsolute(elState, fallbackNode, ignoreBatch) {
       a = comp.a;
       b = comp.b;
 
-      if (prune && !a.isDifferent(b)) {
+      if (prune && !a.isDifferent(b) && !comp.entering) {
         // only flip if things changed! Don't omit it from comps initially because that'd prevent the element from being positioned absolutely (if necessary)
         comps.splice(i--, 1);
       } else {
@@ -1480,7 +1481,7 @@ export var Flip = /*#__PURE__*/function () {
 
   return Flip;
 }();
-Flip.version = "3.9.1"; // function whenImagesLoad(el, func) {
+Flip.version = "3.10.0"; // function whenImagesLoad(el, func) {
 // 	let pending = [],
 // 		onLoad = e => {
 // 			pending.splice(pending.indexOf(e.target), 1);

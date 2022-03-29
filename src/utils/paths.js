@@ -1,8 +1,8 @@
 /*!
- * paths 3.9.1
+ * paths 3.10.0
  * https://greensock.com
  *
- * Copyright 2008-2021, GreenSock. All rights reserved.
+ * Copyright 2008-2022, GreenSock. All rights reserved.
  * Subject to the terms at https://greensock.com/standard-license or for
  * Club GreenSock members, the agreement issued with that membership.
  * @author: Jack Doyle, jack@greensock.com
@@ -45,6 +45,7 @@ let _svgPathExp = /[achlmqstvz]|(-?\d*\.?\d*(?:e[\-+]?\d+)?)[0-9]/ig,
 			i = ~~(progress * l);
 		if (samples[i] > length) {
 			while (--i && samples[i] > length) {}
+			i < 0 && (i = 0);
 		} else {
 			while (samples[++i] < length && i < l) {}
 		}
@@ -899,7 +900,7 @@ export function flatPointsToSegment(points, curviness=1) {
 }
 
 //points is an array of x/y points, like [x, y, x, y, x, y]
-export function pointsToSegment(points, curviness, cornerThreshold) {
+export function pointsToSegment(points, curviness) {
 	//points = simplifyPoints(points, tolerance);
 	_abs(points[0] - points[2]) < 1e-4 && _abs(points[1] - points[3]) < 1e-4 && (points = points.slice(2)); // if the first two points are super close, dump the first one.
 	let l = points.length-2,
@@ -911,10 +912,7 @@ export function pointsToSegment(points, curviness, cornerThreshold) {
 		dx2 = nextX - x,
 		dy2 = nextY - y,
 		closed = Math.abs(points[l] - x) < 0.001 && Math.abs(points[l+1] - y) < 0.001,
-		prevX, prevY, angle, slope, i, dx1, dx3, dy1, dy3, d1, d2, a, b, c;
-	if (isNaN(cornerThreshold)) {
-		cornerThreshold = Math.PI / 10;
-	}
+		prevX, prevY, i, dx1, dy1, r1, r2, r3, tl, mx1, mx2, mxm, my1, my2, mym;
 	if (closed) { // if the start and end points are basically on top of each other, close the segment by adding the 2nd point to the end, and the 2nd-to-last point to the beginning (we'll remove them at the end, but this allows the curvature to look perfect)
 		points.push(nextX, nextY);
 		nextX = x;
@@ -939,43 +937,31 @@ export function pointsToSegment(points, curviness, cornerThreshold) {
 		dy1 = dy2;
 		dx2 = nextX - x;
 		dy2 = nextY - y;
-		dx3 = nextX - prevX;
-		dy3 = nextY - prevY;
-		a = dx1 * dx1 + dy1 * dy1;
-		b = dx2 * dx2 + dy2 * dy2;
-		c = dx3 * dx3 + dy3 * dy3;
-		angle = Math.acos( (a + b - c) / _sqrt(4 * a * b) ); //angle between the 3 points
-		d2 = (angle / Math.PI) * curviness; //temporary precalculation for speed (reusing d2 variable)
-		d1 = _sqrt(a) * d2; //the tighter the angle, the shorter we make the handles in proportion.
-		d2 *= _sqrt(b);
+		r1 = _sqrt(dx1 * dx1 + dy1 * dy1); // r1, r2, and r3 correlate x and y (and z in the future). Basically 2D or 3D hypotenuse
+		r2 = _sqrt(dx2 * dx2 + dy2 * dy2);
+		r3 =  _sqrt((dx2 / r2 + dx1 / r1) ** 2 + (dy2 / r2 + dy1 / r1) ** 2);
+		tl = ((r1 + r2) * curviness * 0.25) / r3;
+		mx1 = x - (x - prevX) * (r1 ? tl / r1 : 0);
+		mx2 = x + (nextX - x) * (r2 ? tl / r2 : 0);
+		mxm = x - (mx1 + (((mx2 - mx1) * ((r1 * 3 / (r1 + r2)) + 0.5) / 4) || 0));
+		my1 = y - (y - prevY) * (r1 ? tl / r1 : 0);
+		my2 = y + (nextY - y) * (r2 ? tl / r2 : 0);
+		mym = y - (my1 + (((my2 - my1) * ((r1 * 3 / (r1 + r2)) + 0.5) / 4) || 0));
 		if (x !== prevX || y !== prevY) {
-			if (angle > cornerThreshold) {
-				slope = _atan2(dy3, dx3);
-				segment.push(
-					_round(x - _cos(slope) * d1),   //first control point
-					_round(y - _sin(slope) * d1),
-					_round(x),                      //anchor
-					_round(y),
-					_round(x + _cos(slope) * d2),   //second control point
-					_round(y + _sin(slope) * d2)
-				);
-			} else {
-				slope = _atan2(dy1, dx1);
-				segment.push(
-					_round(x - _cos(slope) * d1),   //first control point
-					_round(y - _sin(slope) * d1));
-				slope = _atan2(dy2, dx2);
-				segment.push(
-					_round(x),                      //anchor
-					_round(y),
-					_round(x + _cos(slope) * d2),   //second control point
-					_round(y + _sin(slope) * d2)
-				);
-			}
+			segment.push(
+				_round(mx1 + mxm),  // first control point
+				_round(my1 + mym),
+				_round(x),          // anchor
+				_round(y),
+				_round(mx2 + mxm),  // second control point
+				_round(my2 + mym)
+			);
 		}
 	}
-	x !== nextX || y !== nextY || segment.length < 4 ? segment.push(_round(nextX), _round(nextY), _round(nextX), _round(nextY)) : segment.length -= 2;
-	if (closed) {
+	x !== nextX || y !== nextY || segment.length < 4 ? segment.push(_round(nextX), _round(nextY), _round(nextX), _round(nextY)) : (segment.length -= 2);
+	if (segment.length === 2) { // only one point!
+		segment.push(x, y, x, y, x, y);
+	} else if (closed) {
 		segment.splice(0, 6);
 		segment.length = segment.length - 6;
 	}

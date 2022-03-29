@@ -361,10 +361,10 @@
 	}
 
 	/*!
-	 * Flip 3.9.1
+	 * Flip 3.10.0
 	 * https://greensock.com
 	 *
-	 * @license Copyright 2008-2021, GreenSock. All rights reserved.
+	 * @license Copyright 2008-2022, GreenSock. All rights reserved.
 	 * Subject to the terms at https://greensock.com/standard-license or for
 	 * Club GreenSock members, the agreement issued with that membership.
 	 * @author: Jack Doyle, jack@greensock.com
@@ -690,7 +690,7 @@
 	      matrix,
 	      bbox;
 
-	  if (simple) {
+	  if (simple || !parent) {
 	    scaleX = scaleY = 1;
 	    rotation = skewX = 0;
 	  } else {
@@ -731,7 +731,7 @@
 
 	  applyProps && _applyProps(element, toState.props);
 
-	  if (simple) {
+	  if (simple || !parent) {
 	    x += e - fromState.matrix.e;
 	    y += f - fromState.matrix.f;
 	  } else if (deep || parent !== toState.parent) {
@@ -928,7 +928,8 @@
 	          isVisible: 1
 	        }),
 	        a: toNode,
-	        sd: 0
+	        sd: 0,
+	        entering: 1
 	      });
 	      el._flip = _batch ? _batch.timeline : animation;
 	    }
@@ -951,7 +952,7 @@
 	      a = comp.a;
 	      b = comp.b;
 
-	      if (prune && !a.isDifferent(b)) {
+	      if (prune && !a.isDifferent(b) && !comp.entering) {
 	        comps.splice(i--, 1);
 	      } else {
 	        el = comp.t;
@@ -1788,7 +1789,7 @@
 
 	  return Flip;
 	}();
-	Flip.version = "3.9.1";
+	Flip.version = "3.10.0";
 	typeof window !== "undefined" && window.gsap && window.gsap.registerPlugin(Flip);
 
 	exports.Flip = Flip;

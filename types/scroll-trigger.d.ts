@@ -8,6 +8,7 @@ declare namespace gsap {
 declare class ScrollTrigger {
 
   static readonly version: string;
+  static readonly isTouch: number;
 
   readonly animation?: gsap.core.Animation | null;
   readonly callbackAnimation?: gsap.core.Animation | null;
@@ -163,6 +164,33 @@ declare class ScrollTrigger {
   static getAll(): ScrollTrigger[];
 
   /**
+   * Disables ALL ScrollTrigger functionality.
+   *
+   * ```js
+   * ScrollTrigger.disable();
+   * ```
+   * @static
+   * @param {boolean} reset
+   * @param {boolean} kill
+   * @memberof ScrollTrigger
+   * @link https://greensock.com/docs/v3/Plugins/ScrollTrigger/static.disable()
+   */
+  static disable(reset?: boolean, kill?: boolean): void;
+
+
+  /**
+   * Enables all ScrollTrigger functionality again after ScrollTrigger.disable() was called.
+   *
+   * ```js
+   * ScrollTrigger.enable();
+   * ```
+   * @static
+   * @memberof ScrollTrigger
+   * @link https://greensock.com/docs/v3/Plugins/ScrollTrigger/static.enable()
+   */
+  static enable(): void;
+
+  /**
    * Returns the ScrollTrigger that was assigned the corresponding id.
    *
    * ```js
@@ -257,6 +285,51 @@ declare class ScrollTrigger {
    * @link https://greensock.com/docs/v3/Plugins/ScrollTrigger/static.maxScroll()
    */
   static maxScroll(target: HTMLElement | Window, horizontal?: boolean): number;
+
+  /**
+   * Forces scrolling to be done on the JavaScript thread, ensuring it is synchronized and the address bar doesn't show/hide on [most] mobile devices.
+   *
+   * ```js
+   * ScrollTrigger.normalizeScroll(true);
+   * ```
+   * @static
+   * @param {boolean | ScrollTrigger.NormalizeVars | Observer} enable
+   * @returns {Observer | null} a new Observer instance (if true) or null (if false)
+   * @memberof ScrollTrigger
+   * @link https://greensock.com/docs/v3/Plugins/ScrollTrigger/static.normalizeScroll()
+   */
+  static normalizeScroll(enable?: boolean | ScrollTrigger.NormalizeVars | Observer): Observer | null;
+
+  /**
+   * Returns the Observer instance that is currently normalizing scroll behavior (if one exists).
+   *
+   * ```js
+   * let normalizer = ScrollTrigger.normalizeScroll();
+   * ```
+   * @static
+   * @returns {Observer | null} the Observer instance normalizing scroll (if one exists) or null (if false)
+   * @memberof ScrollTrigger
+   * @link https://greensock.com/docs/v3/Plugins/ScrollTrigger/static.normalizeScroll()
+   */
+  static normalizeScroll(): Observer | null;
+
+  /**
+   * Creates an Observer that senses "scroll-like" behavior like a mouse wheel spin, finger swipe on a touch device, scrollbar drag or even a press/drag of the pointer.
+   *
+   * ```js
+   * ScrollTrigger.observe({
+   *     target: ".box",
+   *     onUp: self => console.log("up", self.deltaY),
+   *     onDown: self => console.log("down", self.deltaY)
+   * });
+   * ```
+   * @static
+   * @param {Observer.ObserverVars} vars
+   * @returns {Observer} a new Observer instance
+   * @memberof ScrollTrigger
+   * @link https://greensock.com/docs/v3/Plugins/ScrollTrigger/static.observe()
+   */
+  static observe(vars:Observer.ObserverVars): Observer;
 
   /**
    * Returns the position of the Element in the viewport as a normalized value (0-1) where 0 is top/left and 1 is bottom/right.
@@ -600,7 +673,7 @@ declare namespace ScrollTrigger {
   type SnapDirectionalFunc = (value: number, direction?: number, threshold?: number) => number;
   type GetterSetterNumFunc = (value?: number) => number | void;
   type GetterRectFunc = () => RectObj;
-  type StartEndFunc = () => string | number;
+  type StartEndFunc = (self: ScrollTrigger) => string | number;
   type ScrollFunc = (position: number) => void;
 
   interface MarkersVars {
@@ -647,6 +720,7 @@ declare namespace ScrollTrigger {
     once?: boolean;
     onEnter?: Callback;
     onEnterBack?: Callback;
+    onKill?: Callback;
     onLeave?: Callback;
     onLeaveBack?: Callback;
     onRefresh?: Callback;
@@ -705,8 +779,9 @@ declare namespace ScrollTrigger {
 
   interface ConfigVars {
     limitCallbacks?: boolean;
-    syncInterval?: number; // TODO: Add to docs?
+    syncInterval?: number;
     autoRefreshEvents?: string;
+    ignoreMobileResize?: boolean;
   }
 
   interface ScrollerProxyVars {
@@ -717,8 +792,14 @@ declare namespace ScrollTrigger {
     fixedMarkers?: boolean;
     getBoundingClientRect?: GetterRectFunc;
     pinType?: "fixed" | "transform";
+    content?: gsap.DOMTarget;
   }
+  interface NormalizeVars extends Observer.ObserverVars {
+    momentum?: number | Function;
+  }
+
 }
+
 
 declare namespace gsap.plugins {
 

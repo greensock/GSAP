@@ -1,8 +1,8 @@
 /*!
- * TextPlugin 3.9.1
+ * TextPlugin 3.10.0
  * https://greensock.com
  *
- * @license Copyright 2008-2021, GreenSock. All rights reserved.
+ * @license Copyright 2008-2022, GreenSock. All rights reserved.
  * Subject to the terms at https://greensock.com/standard-license or for
  * Club GreenSock members, the agreement issued with that membership.
  * @author: Jack Doyle, jack@greensock.com
@@ -16,48 +16,45 @@ let gsap, _tempDiv,
 
 
 export const TextPlugin = {
-	version:"3.9.1",
+	version:"3.10.0",
 	name:"text",
 	init(target, value, tween) {
+		typeof(value) !== "object" && (value = {value:value});
 		let i = target.nodeName.toUpperCase(),
 			data = this,
+			{ newClass, oldClass, preserveSpaces, rtl } = value,
+			delimiter = data.delimiter = value.delimiter || "",
+			fillChar = data.fillChar = value.fillChar || (value.padSpace ? "&nbsp;" : ""),
 			short, text, original, j, condensedText, condensedOriginal, aggregate, s;
 		data.svg = (target.getBBox && (i === "TEXT" || i === "TSPAN"));
 		if (!("innerHTML" in target) && !data.svg) {
 			return false;
 		}
 		data.target = target;
-		if (typeof(value) !== "object") {
-			value = {value:value};
-		}
 		if (!("value" in value)) {
 			data.text = data.original = [""];
 			return;
 		}
-		data.delimiter = value.delimiter || "";
-		original = splitInnerHTML(target, data.delimiter, false, value.preserveSpaces);
-		if (!_tempDiv) {
-			_tempDiv = document.createElement("div");
-		}
+		original = splitInnerHTML(target, delimiter, false, preserveSpaces);
+		_tempDiv || (_tempDiv = document.createElement("div"));
 		_tempDiv.innerHTML = value.value;
-		text = splitInnerHTML(_tempDiv, data.delimiter);
+		text = splitInnerHTML(_tempDiv, delimiter);
 		data.from = tween._from;
-		if (data.from) {
+		if ((data.from || rtl) && !(rtl && data.from)) { // right-to-left or "from()" tweens should invert things (but if it's BOTH .from() and rtl, inverting twice equals not inverting at all :)
 			i = original;
 			original = text;
 			text = i;
 		}
-		data.hasClass = !!(value.newClass || value.oldClass);
-		data.newClass = value.newClass;
-		data.oldClass = value.oldClass;
+		data.hasClass = !!(newClass || oldClass);
+		data.newClass = rtl ? oldClass : newClass;
+		data.oldClass = rtl ? newClass : oldClass;
 		i = original.length - text.length;
-		short = (i < 0) ? original : text;
-		data.fillChar = value.fillChar || (value.padSpace ? "&nbsp;" : "");
+		short = i < 0 ? original : text;
 		if (i < 0) {
 			i = -i;
 		}
 		while (--i > -1) {
-			short.push(data.fillChar);
+			short.push(fillChar);
 		}
 		if (value.type === "diff") {
 			j = 0;
@@ -81,12 +78,11 @@ export const TextPlugin = {
 				original.push(aggregate);
 			}
 		}
-		if (value.speed) {
-			tween.duration(Math.min(0.05 / value.speed * short.length, value.maxDuration || 9999));
-		}
-		this.original = original;
-		this.text = text;
-		this._props.push("text");
+		value.speed && tween.duration(Math.min(0.05 / value.speed * short.length, value.maxDuration || 9999));
+		data.rtl = rtl;
+		data.original = original;
+		data.text = text;
+		data._props.push("text");
 	},
 	render(ratio, data) {
 		if (ratio > 1) {
@@ -97,9 +93,9 @@ export const TextPlugin = {
 		if (data.from) {
 			ratio = 1 - ratio;
 		}
-		let { text, hasClass, newClass, oldClass, delimiter, target, fillChar, original } = data,
+		let { text, hasClass, newClass, oldClass, delimiter, target, fillChar, original, rtl } = data,
 			l = text.length,
-			i = (ratio * l + 0.5) | 0,
+			i = ((rtl ? 1 - ratio : ratio) * l + 0.5) | 0,
 			applyNew, applyOld, str;
 		if (hasClass && ratio) {
 			applyNew = (newClass && i);

@@ -119,10 +119,10 @@ declare namespace gsap {
   }
 
   interface Ticker {
-    add(callback: TickerCallback): void;
+    add(callback: TickerCallback, once?: boolean, prioritize?: boolean): void;
     fps(fps: number): void;
     frame: number;
-    lagSmoothing(threshold: number, adjustedLag?: number): void;
+    lagSmoothing(threshold: number | boolean, adjustedLag?: number): void;
     remove(callback: Callback): void;
     sleep(): void;
     tick(): void;
@@ -411,6 +411,25 @@ declare namespace gsap {
    * @link https://greensock.com/docs/v3/GSAP/gsap.quickSetter()
    */
   function quickSetter(targets: TweenTarget, property: string, unit?: string): Function;
+
+  /**
+   * Returns a reusable function that performantly redirects a specific property to a new value, restarting the animation each time you feed in a new number.
+   *
+   * ```js
+   * let xTo = gsap.quickTo("#id", "x", {duration: 0.8, ease: "power3});
+   *
+   * // later
+   * xTo(100);
+   * ```
+   *
+   * @param {TweenTarget} target
+   * @param {string} property
+   * @param {TweenVars} vars
+   * @returns {Function} Setter function
+   * @memberof gsap
+   * @link https://greensock.com/docs/v3/GSAP/gsap.quickTo()
+   */
+  function quickTo(target: TweenTarget, property: string, vars?: TweenVars): Function;
 
   /**
    * Register custom easing functions with GSAP, giving it a name so it can be referenced in any tweens.

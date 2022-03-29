@@ -1,8 +1,8 @@
 /*!
- * TextPlugin 3.9.1
+ * TextPlugin 3.10.0
  * https://greensock.com
  *
- * @license Copyright 2008-2021, GreenSock. All rights reserved.
+ * @license Copyright 2008-2022, GreenSock. All rights reserved.
  * Subject to the terms at https://greensock.com/standard-license or for
  * Club GreenSock members, the agreement issued with that membership.
  * @author: Jack Doyle, jack@greensock.com
@@ -18,11 +18,22 @@ var gsap,
 };
 
 export var TextPlugin = {
-  version: "3.9.1",
+  version: "3.10.0",
   name: "text",
   init: function init(target, value, tween) {
+    typeof value !== "object" && (value = {
+      value: value
+    });
+
     var i = target.nodeName.toUpperCase(),
         data = this,
+        _value = value,
+        newClass = _value.newClass,
+        oldClass = _value.oldClass,
+        preserveSpaces = _value.preserveSpaces,
+        rtl = _value.rtl,
+        delimiter = data.delimiter = value.delimiter || "",
+        fillChar = data.fillChar = value.fillChar || (value.padSpace ? "&nbsp;" : ""),
         _short,
         text,
         original,
@@ -40,47 +51,36 @@ export var TextPlugin = {
 
     data.target = target;
 
-    if (typeof value !== "object") {
-      value = {
-        value: value
-      };
-    }
-
     if (!("value" in value)) {
       data.text = data.original = [""];
       return;
     }
 
-    data.delimiter = value.delimiter || "";
-    original = splitInnerHTML(target, data.delimiter, false, value.preserveSpaces);
-
-    if (!_tempDiv) {
-      _tempDiv = document.createElement("div");
-    }
-
+    original = splitInnerHTML(target, delimiter, false, preserveSpaces);
+    _tempDiv || (_tempDiv = document.createElement("div"));
     _tempDiv.innerHTML = value.value;
-    text = splitInnerHTML(_tempDiv, data.delimiter);
+    text = splitInnerHTML(_tempDiv, delimiter);
     data.from = tween._from;
 
-    if (data.from) {
+    if ((data.from || rtl) && !(rtl && data.from)) {
+      // right-to-left or "from()" tweens should invert things (but if it's BOTH .from() and rtl, inverting twice equals not inverting at all :)
       i = original;
       original = text;
       text = i;
     }
 
-    data.hasClass = !!(value.newClass || value.oldClass);
-    data.newClass = value.newClass;
-    data.oldClass = value.oldClass;
+    data.hasClass = !!(newClass || oldClass);
+    data.newClass = rtl ? oldClass : newClass;
+    data.oldClass = rtl ? newClass : oldClass;
     i = original.length - text.length;
     _short = i < 0 ? original : text;
-    data.fillChar = value.fillChar || (value.padSpace ? "&nbsp;" : "");
 
     if (i < 0) {
       i = -i;
     }
 
     while (--i > -1) {
-      _short.push(data.fillChar);
+      _short.push(fillChar);
     }
 
     if (value.type === "diff") {
@@ -110,14 +110,12 @@ export var TextPlugin = {
       }
     }
 
-    if (value.speed) {
-      tween.duration(Math.min(0.05 / value.speed * _short.length, value.maxDuration || 9999));
-    }
+    value.speed && tween.duration(Math.min(0.05 / value.speed * _short.length, value.maxDuration || 9999));
+    data.rtl = rtl;
+    data.original = original;
+    data.text = text;
 
-    this.original = original;
-    this.text = text;
-
-    this._props.push("text");
+    data._props.push("text");
   },
   render: function render(ratio, data) {
     if (ratio > 1) {
@@ -138,8 +136,9 @@ export var TextPlugin = {
         target = data.target,
         fillChar = data.fillChar,
         original = data.original,
+        rtl = data.rtl,
         l = text.length,
-        i = ratio * l + 0.5 | 0,
+        i = (rtl ? 1 - ratio : ratio) * l + 0.5 | 0,
         applyNew,
         applyOld,
         str;

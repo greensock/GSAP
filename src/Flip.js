@@ -1,8 +1,8 @@
 /*!
- * Flip 3.9.1
+ * Flip 3.10.0
  * https://greensock.com
  *
- * @license Copyright 2008-2021, GreenSock. All rights reserved.
+ * @license Copyright 2008-2022, GreenSock. All rights reserved.
  * Subject to the terms at https://greensock.com/standard-license or for
  * Club GreenSock members, the agreement issued with that membership.
  * @author: Jack Doyle, jack@greensock.com
@@ -194,7 +194,7 @@ let _id = 1,
 			deep = fromState.bounds.width !== bounds.width || fromState.bounds.height !== bounds.height || fromState.scaleX !== scaleX || fromState.scaleY !== scaleY || fromState.rotation !== rotation,
 			simple = !deep && fromState.simple && toState.simple && !fitChild,
 			skewX, fromPoint, toPoint, getProp, parentMatrix, matrix, bbox;
-		if (simple) {
+		if (simple || !parent) {
 			scaleX = scaleY = 1;
 			rotation = skewX = 0;
 		} else {
@@ -229,7 +229,7 @@ let _id = 1,
 		// 	f -= _getDocScrollTop();
 		// }
 		applyProps && _applyProps(element, toState.props);
-		if (simple) {
+		if (simple || !parent) {
 			x += e - fromState.matrix.e;
 			y += f - fromState.matrix.f;
 		} else if (deep || parent !== toState.parent) {
@@ -344,7 +344,7 @@ let _id = 1,
 				}
 				el._flip = fromNode.element._flip = _batch ? _batch.timeline : animation;
 			} else if (toNode.isVisible) {
-				comps.push({t: el, b: _copy(toNode, {isVisible:1}), a: toNode, sd: 0}); // to include it in the "entering" Array and do absolute positioning if necessary
+				comps.push({t: el, b: _copy(toNode, {isVisible:1}), a: toNode, sd: 0, entering: 1}); // to include it in the "entering" Array and do absolute positioning if necessary
 				el._flip = _batch ? _batch.timeline : animation;
 			}
 		}
@@ -360,7 +360,7 @@ let _id = 1,
 				comp = comps[i];
 				a = comp.a;
 				b = comp.b;
-				if (prune && !a.isDifferent(b)) { // only flip if things changed! Don't omit it from comps initially because that'd prevent the element from being positioned absolutely (if necessary)
+				if (prune && !a.isDifferent(b) && !comp.entering) { // only flip if things changed! Don't omit it from comps initially because that'd prevent the element from being positioned absolutely (if necessary)
 					comps.splice(i--, 1);
 				} else {
 					el = comp.t;
@@ -1004,7 +1004,7 @@ export class Flip {
 	}
 }
 
-Flip.version = "3.9.1";
+Flip.version = "3.10.0";
 
 // function whenImagesLoad(el, func) {
 // 	let pending = [],

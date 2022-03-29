@@ -3,7 +3,7 @@ declare namespace gsap {
   type DrawSVGTarget = string | SVGPrimitive | SVGPathElement;
 
   interface TweenVars {
-    drawSVG?: BooleanValue | DrawSVGTarget;
+    drawSVG?: number | BooleanValue | DrawSVGTarget;
   }
 }
 

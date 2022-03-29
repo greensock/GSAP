@@ -213,6 +213,24 @@ declare namespace gsap.core {
     kill(target?: object, propertiesList?: string): this;
 
     /**
+     * Redirects a property [that's already being animated by the tween] to a new value and restarts the tween in a performant way.
+     * A more common technique is to use gsap.quickTo() which uses resetTo() under the hood.
+     *
+     * ```js
+     * tween.resetTo("x", 200);
+     * ```
+     *
+     * @param {string} property
+     * @param {number} value
+     * @param {number} start
+     * @param {boolean} startIsRelative
+     * @returns {Tween} The tween
+     * @memberof Tween
+     * @link https://greensock.com/docs/v3/GSAP/Tween/resetTo()
+     */
+    resetTo(property: string, value: number, start?: number, startIsRelative?: boolean): this;
+
+    /**
      * Returns an array of all of the tween's targets.
      *
      * ```js
