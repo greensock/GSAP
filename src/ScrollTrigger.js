@@ -1,5 +1,5 @@
 /*!
- * ScrollTrigger 3.10.0
+ * ScrollTrigger 3.10.1
  * https://greensock.com
  *
  * @license Copyright 2008-2022, GreenSock. All rights reserved.
@@ -1273,7 +1273,7 @@ export class ScrollTrigger {
 
 }
 
-ScrollTrigger.version = "3.10.0";
+ScrollTrigger.version = "3.10.1";
 ScrollTrigger.saveStyles = targets => targets ? _toArray(targets).forEach(target => { // saved styles are recorded in a consecutive alternating Array, like [element, cssText, transform attribute, cache, matchMedia, ...]
 	if (target && target.style) {
 		let i = _savedStyles.indexOf(target);
@@ -1360,7 +1360,7 @@ let _clampScrollAndGetDurationMultiplier = (scrollFunc, current, end, max) => {
 			scrollFuncY = _getScrollFunc(_docEl, _vertical),
 			scrollFuncX = _getScrollFunc(_docEl, _horizontal),
 			scale = 1,
-			resolveMomentumDuration = _isFunction(momentum) ? momentum(self) : () => momentum || 2.8,
+			resolveMomentumDuration = _isFunction(momentum) ? () => momentum(self) : () => momentum || 2.8,
 			skipTouchMove, lastRefreshID,
 			onClick = () => onClickTime = _getTime(),
 			resumeTouchMove = () => skipTouchMove = false,

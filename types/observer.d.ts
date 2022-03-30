@@ -60,11 +60,11 @@ declare class Observer {
    *
    * @static
    * @param {string} id
-   * @returns {Observer | null} The Observer with the supplied id (if one exists)
+   * @returns {Observer | undefined} The Observer with the supplied id (if one exists)
    * @memberof Observer
    * @link https://greensock.com/docs/v3/Plugins/Observer/static.getAll()
    */
-  static getById(id: string): Observer | null;
+  static getById(id: string): Observer | undefined;
 
   /**
    * Disables a Observer instance.

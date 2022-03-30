@@ -1,5 +1,5 @@
 /*!
- * Observer 3.10.0
+ * Observer 3.10.1
  * https://greensock.com
  *
  * @license Copyright 2008-2022, GreenSock. All rights reserved.
@@ -130,14 +130,15 @@ export class Observer {
 			ScrollTrigger = gsap.core.globals().ScrollTrigger;
 			ScrollTrigger && ScrollTrigger.core && _integrate();
 		}
-		let {tolerance, dragMinimum, type, target, lineHeight, debounce, preventDefault, onStop, onStopDelay, ignore, wheelSpeed, event, onDragStart, onDragEnd, onDrag, onPress, onRelease, onRight, onLeft, onUp, onDown, onChangeX, onChangeY, onChange, onToggleX, onToggleY, onHover, onHoverEnd, onMove, ignoreCheck, isNormalizer, onGestureStart, onGestureEnd, onWheel, onEnable, onDisable, onClick} = vars;
+		let {tolerance, dragMinimum, type, target, lineHeight, debounce, preventDefault, onStop, onStopDelay, ignore, wheelSpeed, event, onDragStart, onDragEnd, onDrag, onPress, onRelease, onRight, onLeft, onUp, onDown, onChangeX, onChangeY, onChange, onToggleX, onToggleY, onHover, onHoverEnd, onMove, ignoreCheck, isNormalizer, onGestureStart, onGestureEnd, onWheel, onEnable, onDisable, onClick, scrollSpeed} = vars;
 		this.target = target = _getTarget(target) || _docEl;
 		this.vars = vars;
 		ignore && (ignore = gsap.utils.toArray(ignore));
 		tolerance = tolerance || 0;
 		dragMinimum = dragMinimum || 0;
 		wheelSpeed = wheelSpeed || 1;
-		type = type || "wheel,touch,scroll,pointer";
+		scrollSpeed = scrollSpeed || 1;
+		type = type || "wheel,touch,pointer";
 		debounce = debounce !== false;
 		lineHeight || (lineHeight = parseFloat(_win.getComputedStyle(_body).lineHeight) || 22); // note: browser may report "normal", so default to 22.
 		let id, onStopDelayedCall, dragged, moved, wheeled,
@@ -254,7 +255,7 @@ export class Observer {
 				if (_ignoreCheck(e)) {return;}
 				let x = scrollFuncX(),
 					y = scrollFuncY();
-				onDelta(x - scrollX, y - scrollY, 1);
+				onDelta((x - scrollX) * scrollSpeed, (y - scrollY) * scrollSpeed, 1);
 				scrollX = x;
 				scrollY = y;
 				onStop && onStopDelayedCall.restart(true);
@@ -354,7 +355,7 @@ export class Observer {
 
 }
 
-Observer.version = "3.10.0";
+Observer.version = "3.10.1";
 Observer.create = vars => new Observer(vars);
 Observer.register = _initCore;
 Observer.getAll = () => _observers.slice();

@@ -19,7 +19,7 @@
   }
 
   /*!
-   * GSAP 3.10.0
+   * GSAP 3.10.1
    * https://greensock.com
    *
    * @license Copyright 2008-2022, GreenSock. All rights reserved.
@@ -3192,21 +3192,12 @@
       _tickerActive || _ticker.wake();
       this._ts || this.play();
       var time = Math.min(this._dur, (this._dp._time - this._start) * this._ts),
-          ratio,
-          p;
+          ratio;
       this._initted || _initTween(this, time);
       ratio = this._ease(time / this._dur);
 
-      if (_isObject(property)) {
-        for (p in property) {
-          if (_updatePropTweens(this, p, property[p], value ? value[p] : null, start, ratio, time)) {
-            return this.resetTo(property, value, start, startIsRelative);
-          }
-        }
-      } else {
-        if (_updatePropTweens(this, property, value, start, startIsRelative, ratio, time)) {
-          return this.resetTo(property, value, start, startIsRelative);
-        }
+      if (_updatePropTweens(this, property, value, start, startIsRelative, ratio, time)) {
+        return this.resetTo(property, value, start, startIsRelative);
       }
 
       _alignPlayhead(this, 0);
@@ -3792,7 +3783,7 @@
       }
     }
   }, _buildModifierPlugin("roundProps", _roundModifier), _buildModifierPlugin("modifiers"), _buildModifierPlugin("snap", snap)) || _gsap;
-  Tween.version = Timeline.version = gsap.version = "3.10.0";
+  Tween.version = Timeline.version = gsap.version = "3.10.1";
   _coreReady = 1;
   _windowExists() && _wake();
   var Power0 = _easeMap.Power0,

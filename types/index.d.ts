@@ -1,4 +1,4 @@
-// Type definitions for gsap 3.0
+// Type definitions for gsap 3
 // Project: https://greensock.com/
 // Definitions by: Jack Doyle <https://github.com/jackdoyle>
 //                 Blake Bowen <https://github.com/OSUblake>
@@ -24,12 +24,14 @@
 /// <reference path="morph-svg-plugin.d.ts"/>
 /// <reference path="motion-path-plugin.d.ts"/>
 /// <reference path="motion-path-helper.d.ts"/>
+/// <reference path="observer.d.ts"/>
 /// <reference path="physics-2d-plugin.d.ts"/>
 /// <reference path="physics-props-plugin.d.ts"/>
 /// <reference path="pixi-plugin.d.ts"/>
 /// <reference path="scramble-text-plugin.d.ts"/>
 /// <reference path="scroll-to-plugin.d.ts"/>
 /// <reference path="scroll-trigger.d.ts"/>
+/// <reference path="scroll-smoother.d.ts"/>
 /// <reference path="split-text.d.ts"/>
 /// <reference path="text-plugin.d.ts"/>
 /// <reference path="timeline.d.ts"/>

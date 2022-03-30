@@ -68,11 +68,11 @@ declare class ScrollSmoother {
    * let el = smoother.content();
    * ```
    *
-   * @returns {Element} The content Element
+   * @returns {HTMLElement} The content Element
    * @memberof ScrollSmoother
    * @link https://greensock.com/docs/v3/Plugins/ScrollSmoother/content()
    */
-  content(): Element;
+  content(): HTMLElement;
 
   /**
    * Applies "speed" and/or "lag" effects to the supplied targets (instead of using HTML attributes like data-speed and data-lag)
@@ -90,7 +90,7 @@ declare class ScrollSmoother {
    * @memberof ScrollSmoother
    * @link https://greensock.com/docs/v3/Plugins/ScrollSmoother/effects()
    */
-  effects(targets: gsap.DOMTarget, vars: ScrollSmoother.EffectsVars): ScrollTrigger[];
+  effects(targets: gsap.DOMTarget, vars: ScrollSmoother.EffectsVars | null): ScrollTrigger[];
 
   /**
    * Returns the velocity of the vertical scrolling in pixels per second
@@ -212,11 +212,10 @@ declare class ScrollSmoother {
    * ```
    *
    * @param {number} value
-   * @returns {null}
    * @memberof ScrollSmoother
    * @link https://greensock.com/docs/v3/Plugins/ScrollSmoother/smooth()
    */
-  smooth(value: number): null;
+  smooth(value: number): void;
 
   /**
    * Gets the number of seconds it takes to catch up to the scroll position (smoothing).
@@ -252,11 +251,11 @@ declare class ScrollSmoother {
    * let el = smoother.wrapper();
    * ```
    *
-   * @returns {Element} The wrapper Element
+   * @returns {HTMLElement} The wrapper Element
    * @memberof ScrollSmoother
    * @link https://greensock.com/docs/v3/Plugins/ScrollSmoother/wrapper()
    */
-  wrapper(): Element;
+  wrapper(): HTMLElement;
 
 }
 

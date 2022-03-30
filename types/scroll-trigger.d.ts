@@ -10,8 +10,8 @@ declare class ScrollTrigger {
   static readonly version: string;
   static readonly isTouch: number;
 
-  readonly animation?: gsap.core.Animation | null;
-  readonly callbackAnimation?: gsap.core.Animation | null;
+  readonly animation?: gsap.core.Animation | undefined;
+  readonly callbackAnimation?: gsap.core.Animation | undefined;
   readonly direction: number;
   readonly end: number;
   readonly isActive: boolean;
@@ -203,7 +203,7 @@ declare class ScrollTrigger {
    * @memberof ScrollTrigger
    * @link https://greensock.com/docs/v3/Plugins/ScrollTrigger/static.getById()
    */
-  static getById(id: string): ScrollTrigger;
+  static getById(id: string): ScrollTrigger | undefined;
 
   /**
    * Returns a function to control the scroll position of a particular element
@@ -294,11 +294,11 @@ declare class ScrollTrigger {
    * ```
    * @static
    * @param {boolean | ScrollTrigger.NormalizeVars | Observer} enable
-   * @returns {Observer | null} a new Observer instance (if true) or null (if false)
+   * @returns {Observer | undefined} a new Observer instance (if true) or undefined (if false)
    * @memberof ScrollTrigger
    * @link https://greensock.com/docs/v3/Plugins/ScrollTrigger/static.normalizeScroll()
    */
-  static normalizeScroll(enable?: boolean | ScrollTrigger.NormalizeVars | Observer): Observer | null;
+  static normalizeScroll(enable?: boolean | ScrollTrigger.NormalizeVars | Observer): Observer | undefined;
 
   /**
    * Returns the Observer instance that is currently normalizing scroll behavior (if one exists).
@@ -307,11 +307,11 @@ declare class ScrollTrigger {
    * let normalizer = ScrollTrigger.normalizeScroll();
    * ```
    * @static
-   * @returns {Observer | null} the Observer instance normalizing scroll (if one exists) or null (if false)
+   * @returns {Observer | undefined} the Observer instance normalizing scroll (if one exists) or undefined (if false)
    * @memberof ScrollTrigger
    * @link https://greensock.com/docs/v3/Plugins/ScrollTrigger/static.normalizeScroll()
    */
-  static normalizeScroll(): Observer | null;
+  static normalizeScroll(): Observer | undefined;
 
   /**
    * Creates an Observer that senses "scroll-like" behavior like a mouse wheel spin, finger swipe on a touch device, scrollbar drag or even a press/drag of the pointer.
@@ -582,10 +582,10 @@ declare class ScrollTrigger {
    * ```
    *
    * @memberof ScrollTrigger
-   * @returns {ScrollTrigger | null} The next ScrollTrigger (if one exists)
+   * @returns {ScrollTrigger | undefined} The next ScrollTrigger (if one exists)
    * @link https://greensock.com/docs/v3/Plugins/ScrollTrigger/next()
    */
-  next(): ScrollTrigger | null;
+  next(): ScrollTrigger | undefined;
 
   /**
    * Gets the ScrollTrigger instance that's immediately before this one in the refresh order (if any)
@@ -597,7 +597,7 @@ declare class ScrollTrigger {
    * @memberof ScrollTrigger
    * @link https://greensock.com/docs/v3/Plugins/ScrollTrigger/previous()
    */
-  previous(): ScrollTrigger | null;
+  previous(): ScrollTrigger | undefined;
 
   /**
    * Forces the ScrollTrigger instance to re-calculate its start and end values (the scroll positions where it'll be activated).

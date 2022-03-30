@@ -3,7 +3,7 @@ function _defineProperties(target, props) { for (var i = 0; i < props.length; i+
 function _createClass(Constructor, protoProps, staticProps) { if (protoProps) _defineProperties(Constructor.prototype, protoProps); if (staticProps) _defineProperties(Constructor, staticProps); return Constructor; }
 
 /*!
- * Observer 3.10.0
+ * Observer 3.10.1
  * https://greensock.com
  *
  * @license Copyright 2008-2022, GreenSock. All rights reserved.
@@ -258,14 +258,16 @@ export var Observer = /*#__PURE__*/function () {
         onWheel = vars.onWheel,
         onEnable = vars.onEnable,
         onDisable = vars.onDisable,
-        onClick = vars.onClick;
+        onClick = vars.onClick,
+        scrollSpeed = vars.scrollSpeed;
     this.target = target = _getTarget(target) || _docEl;
     this.vars = vars;
     ignore && (ignore = gsap.utils.toArray(ignore));
     tolerance = tolerance || 0;
     dragMinimum = dragMinimum || 0;
     wheelSpeed = wheelSpeed || 1;
-    type = type || "wheel,touch,scroll,pointer";
+    scrollSpeed = scrollSpeed || 1;
+    type = type || "wheel,touch,pointer";
     debounce = debounce !== false;
     lineHeight || (lineHeight = parseFloat(_win.getComputedStyle(_body).lineHeight) || 22); // note: browser may report "normal", so default to 22.
 
@@ -430,7 +432,7 @@ export var Observer = /*#__PURE__*/function () {
 
       var x = scrollFuncX(),
           y = scrollFuncY();
-      onDelta(x - scrollX, y - scrollY, 1);
+      onDelta((x - scrollX) * scrollSpeed, (y - scrollY) * scrollSpeed, 1);
       scrollX = x;
       scrollY = y;
       onStop && onStopDelayedCall.restart(true);
@@ -573,7 +575,7 @@ export var Observer = /*#__PURE__*/function () {
 
   return Observer;
 }();
-Observer.version = "3.10.0";
+Observer.version = "3.10.1";
 
 Observer.create = function (vars) {
   return new Observer(vars);

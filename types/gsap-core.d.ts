@@ -16,7 +16,9 @@ declare namespace gsap {
     | typeof MotionPathHelper
     | typeof SplitText
     | typeof Flip
-    | typeof ScrollTrigger;
+    | typeof ScrollTrigger
+    | typeof Observer
+    | typeof ScrollSmoother;
 
   // querySelector returns type Element | null
   type DOMTarget = Element | string | null | ArrayLike<Element | string | null>;
@@ -119,7 +121,7 @@ declare namespace gsap {
   }
 
   interface Ticker {
-    add(callback: TickerCallback, once?: boolean, prioritize?: boolean): void;
+    add(callback: TickerCallback, once?: boolean, prioritize?: boolean): Callback;
     fps(fps: number): void;
     frame: number;
     lagSmoothing(threshold: number | boolean, adjustedLag?: number): void;

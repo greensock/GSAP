@@ -1,5 +1,5 @@
 /*!
- * CustomEase 3.10.0
+ * CustomEase 3.10.1
  * https://greensock.com
  *
  * @license Copyright 2008-2022, GreenSock. All rights reserved.
@@ -367,5 +367,5 @@ export var CustomEase = /*#__PURE__*/function () {
   return CustomEase;
 }();
 _getGSAP() && gsap.registerPlugin(CustomEase);
-CustomEase.version = "3.10.0";
+CustomEase.version = "3.10.1";
 export { CustomEase as default };

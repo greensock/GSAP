@@ -1,5 +1,5 @@
 /*!
- * GSAP 3.10.0
+ * GSAP 3.10.1
  * https://greensock.com
  *
  * @license Copyright 2008-2022, GreenSock. All rights reserved.
@@ -2527,17 +2527,18 @@ export class Tween extends Animation {
 			ratio, p;
 		this._initted || _initTween(this, time);
 		ratio = this._ease(time / this._dur); // don't just get tween.ratio because it may not have rendered yet.
-		if (_isObject(property)) { // performance optimization
-			for (p in property) {
-				if (_updatePropTweens(this, p, property[p], value ? value[p] : null, start, ratio, time)) {
-					return this.resetTo(property, value, start, startIsRelative); // if a PropTween wasn't found for the property, it'll get forced with a re-initialization so we need to jump out and start over again.
-				}
-			}
-		} else {
+		// possible future addition to allow an object with multiple values to update, like tween.resetTo({x: 100, y: 200}); At this point, it doesn't seem worth the added kb given the fact that most users will likely opt for the convenient gsap.quickTo() way of interacting with this method.
+		// if (_isObject(property)) { // performance optimization
+		// 	for (p in property) {
+		// 		if (_updatePropTweens(this, p, property[p], value ? value[p] : null, start, ratio, time)) {
+		// 			return this.resetTo(property, value, start, startIsRelative); // if a PropTween wasn't found for the property, it'll get forced with a re-initialization so we need to jump out and start over again.
+		// 		}
+		// 	}
+		// } else {
 			if (_updatePropTweens(this, property, value, start, startIsRelative, ratio, time)) {
 				return this.resetTo(property, value, start, startIsRelative); // if a PropTween wasn't found for the property, it'll get forced with a re-initialization so we need to jump out and start over again.
 			}
-		}
+		//}
 		_alignPlayhead(this, 0);
 		this.parent || _addLinkedListItem(this._dp, this, "_first", "_last", this._dp._sort ? "_start" : 0);
 		return this.render(0);
@@ -2995,7 +2996,7 @@ export const gsap = _gsap.registerPlugin({
 	_buildModifierPlugin("snap", snap)
 ) || _gsap; //to prevent the core plugins from being dropped via aggressive tree shaking, we must include them in the variable declaration in this way.
 
-Tween.version = Timeline.version = gsap.version = "3.10.0";
+Tween.version = Timeline.version = gsap.version = "3.10.1";
 _coreReady = 1;
 _windowExists() && _wake();
 

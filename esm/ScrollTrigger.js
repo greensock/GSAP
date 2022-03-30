@@ -1,5 +1,5 @@
 /*!
- * ScrollTrigger 3.10.0
+ * ScrollTrigger 3.10.1
  * https://greensock.com
  *
  * @license Copyright 2008-2022, GreenSock. All rights reserved.
@@ -1873,7 +1873,7 @@ export var ScrollTrigger = /*#__PURE__*/function () {
 
   return ScrollTrigger;
 }();
-ScrollTrigger.version = "3.10.0";
+ScrollTrigger.version = "3.10.1";
 
 ScrollTrigger.saveStyles = function (targets) {
   return targets ? _toArray(targets).forEach(function (target) {
@@ -2017,7 +2017,9 @@ var _clampScrollAndGetDurationMultiplier = function _clampScrollAndGetDurationMu
       scrollFuncY = _getScrollFunc(_docEl, _vertical),
       scrollFuncX = _getScrollFunc(_docEl, _horizontal),
       scale = 1,
-      resolveMomentumDuration = _isFunction(momentum) ? momentum(self) : function () {
+      resolveMomentumDuration = _isFunction(momentum) ? function () {
+    return momentum(self);
+  } : function () {
     return momentum || 2.8;
   },
       skipTouchMove,
