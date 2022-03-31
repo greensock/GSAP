@@ -1453,7 +1453,7 @@
 	}
 
 	/*!
-	 * MotionPathPlugin 3.10.1
+	 * MotionPathPlugin 3.10.2
 	 * https://greensock.com
 	 *
 	 * @license Copyright 2008-2022, GreenSock. All rights reserved.
@@ -1647,7 +1647,7 @@
 	};
 
 	var MotionPathPlugin = {
-	  version: "3.10.1",
+	  version: "3.10.2",
 	  name: "motionPath",
 	  register: function register(core, Plugin, propTween) {
 	    gsap = core;

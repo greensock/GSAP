@@ -1,5 +1,5 @@
 /*!
- * ScrollTrigger 3.10.1
+ * ScrollTrigger 3.10.2
  * https://greensock.com
  *
  * @license Copyright 2008-2022, GreenSock. All rights reserved.
@@ -1273,7 +1273,7 @@ export class ScrollTrigger {
 
 }
 
-ScrollTrigger.version = "3.10.1";
+ScrollTrigger.version = "3.10.2";
 ScrollTrigger.saveStyles = targets => targets ? _toArray(targets).forEach(target => { // saved styles are recorded in a consecutive alternating Array, like [element, cssText, transform attribute, cache, matchMedia, ...]
 	if (target && target.style) {
 		let i = _savedStyles.indexOf(target);

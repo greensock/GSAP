@@ -1,5 +1,5 @@
 /*!
- * Observer 3.10.1
+ * Observer 3.10.2
  * https://greensock.com
  *
  * @license Copyright 2008-2022, GreenSock. All rights reserved.
@@ -100,7 +100,7 @@ let gsap, _coreInitted, _clamp, _win, _doc, _docEl, _body, _isTouch, _pointerTyp
 	},
 	_initCore = core => {
 		gsap = core || _getGSAP();
-		if (gsap && !_coreInitted && typeof(document) !== "undefined") {
+		if (gsap && !_coreInitted && typeof(document) !== "undefined" && document.body) {
 			_win = window;
 			_doc = document;
 			_docEl = _doc.documentElement;
@@ -355,7 +355,7 @@ export class Observer {
 
 }
 
-Observer.version = "3.10.1";
+Observer.version = "3.10.2";
 Observer.create = vars => new Observer(vars);
 Observer.register = _initCore;
 Observer.getAll = () => _observers.slice();

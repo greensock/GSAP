@@ -3,7 +3,7 @@ function _defineProperties(target, props) { for (var i = 0; i < props.length; i+
 function _createClass(Constructor, protoProps, staticProps) { if (protoProps) _defineProperties(Constructor.prototype, protoProps); if (staticProps) _defineProperties(Constructor, staticProps); return Constructor; }
 
 /*!
- * Observer 3.10.1
+ * Observer 3.10.2
  * https://greensock.com
  *
  * @license Copyright 2008-2022, GreenSock. All rights reserved.
@@ -186,7 +186,7 @@ var gsap,
     _initCore = function _initCore(core) {
   gsap = core || _getGSAP();
 
-  if (gsap && !_coreInitted && typeof document !== "undefined") {
+  if (gsap && !_coreInitted && typeof document !== "undefined" && document.body) {
     _win = window;
     _doc = document;
     _docEl = _doc.documentElement;
@@ -575,7 +575,7 @@ export var Observer = /*#__PURE__*/function () {
 
   return Observer;
 }();
-Observer.version = "3.10.1";
+Observer.version = "3.10.2";
 
 Observer.create = function (vars) {
   return new Observer(vars);

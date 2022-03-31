@@ -1,5 +1,5 @@
 /*!
- * strings: 3.10.1
+ * strings: 3.10.2
  * https://greensock.com
  *
  * Copyright 2008-2022, GreenSock. All rights reserved.

@@ -90,7 +90,7 @@ declare class ScrollSmoother {
    * @memberof ScrollSmoother
    * @link https://greensock.com/docs/v3/Plugins/ScrollSmoother/effects()
    */
-  effects(targets: gsap.DOMTarget, vars: ScrollSmoother.EffectsVars | null): ScrollTrigger[];
+  effects(targets: gsap.DOMTarget, vars?: ScrollSmoother.EffectsVars | null): ScrollTrigger[];
 
   /**
    * Returns the velocity of the vertical scrolling in pixels per second
