@@ -19,7 +19,7 @@
   }
 
   /*!
-   * GSAP 3.10.2
+   * GSAP 3.10.3
    * https://greensock.com
    *
    * @license Copyright 2008-2022, GreenSock. All rights reserved.
@@ -3783,7 +3783,7 @@
       }
     }
   }, _buildModifierPlugin("roundProps", _roundModifier), _buildModifierPlugin("modifiers"), _buildModifierPlugin("snap", snap)) || _gsap;
-  Tween.version = Timeline.version = gsap.version = "3.10.2";
+  Tween.version = Timeline.version = gsap.version = "3.10.3";
   _coreReady = 1;
   _windowExists() && _wake();
   var Power0 = _easeMap.Power0,

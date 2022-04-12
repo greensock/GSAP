@@ -1,5 +1,5 @@
 /*!
- * ScrollTrigger 3.10.2
+ * ScrollTrigger 3.10.3
  * https://greensock.com
  *
  * @license Copyright 2008-2022, GreenSock. All rights reserved.
@@ -134,7 +134,7 @@ let gsap, _coreInitted, _win, _doc, _docEl, _body, _root, _resizeDelay, _toArray
 	},
 	_getLabelAtDirection = timeline => (value, st) => _snapDirectional(_getLabelRatioArray(timeline))(value, st.direction),
 	_multiListener = (func, element, types, callback) => types.split(",").forEach(type => func(element, type, callback)),
-	_addListener = (element, type, func, nonPassive) => element.addEventListener(type, func, {passive: !nonPassive}),
+	_addListener = (element, type, func, nonPassive, capture) => element.addEventListener(type, func, {passive: !nonPassive, capture: !!capture}),
 	_removeListener = (element, type, func) => element.removeEventListener(type, func),
 	_wheelListener = (func, el, scrollFunc) => scrollFunc && scrollFunc.wheelHandler && func(el, "wheel", scrollFunc),
 	_markerDefaults = {startColor: "green", endColor: "red", indent: 0, fontSize: "16px", fontWeight:"normal"},
@@ -195,6 +195,10 @@ let gsap, _coreInitted, _win, _doc, _docEl, _body, _root, _resizeDelay, _toArray
 			_lastScrollTime || _dispatch("scrollStart");
 			_lastScrollTime = _getTime();
 		}
+	},
+	_setBaseDimensions = () => {
+		_baseScreenWidth = _win.innerWidth;
+		_baseScreenHeight = _win.innerHeight;
 	},
 	_onResize = () => {
 		_scrollers.cache++;
@@ -558,6 +562,7 @@ export class ScrollTrigger {
 			getScrollerSize = _getSizeFunc(scroller, isViewport, direction),
 			getScrollerOffsets = _getOffsetsFunc(scroller, isViewport),
 			lastSnap = 0,
+			lastRefresh = 0,
 			scrollFunc = _getScrollFunc(scroller, direction),
 			tweenTo, pinCache, snapFunc, scroll1, scroll2, start, end, markerStart, markerEnd, markerStartTrigger, markerEndTrigger, markerVars,
 			change, pinOriginalState, pinActiveState, pinState, spacer, offset, pinGetter, pinSetter, pinStart, pinChange, spacingStart, spacerState, markerStartSetter,
@@ -604,26 +609,28 @@ export class ScrollTrigger {
 				snap = {snapTo: snap};
 			}
 			("scrollBehavior" in _body.style) && gsap.set(isViewport ? [_body, _docEl] : scroller, {scrollBehavior: "auto"}); // smooth scrolling doesn't work with snap.
-			snapFunc = _isFunction(snap.snapTo) ? snap.snapTo : snap.snapTo === "labels" ? _getClosestLabel(animation) : snap.snapTo === "labelsDirectional" ? _getLabelAtDirection(animation) : snap.directional !== false ? (value, st) => _snapDirectional(snap.snapTo)(value, _refreshing ? 0 : st.direction) : gsap.utils.snap(snap.snapTo);
+			snapFunc = _isFunction(snap.snapTo) ? snap.snapTo : snap.snapTo === "labels" ? _getClosestLabel(animation) : snap.snapTo === "labelsDirectional" ? _getLabelAtDirection(animation) : snap.directional !== false ? (value, st) => _snapDirectional(snap.snapTo)(value, _getTime() - lastRefresh < 500 ? 0 : st.direction) : gsap.utils.snap(snap.snapTo);
 			snapDurClamp = snap.duration || {min: 0.1, max: 2};
 			snapDurClamp = _isObject(snapDurClamp) ? _clamp(snapDurClamp.min, snapDurClamp.max) : _clamp(snapDurClamp, snapDurClamp);
 			snapDelayedCall = gsap.delayedCall(snap.delay || (scrubSmooth / 2) || 0.1, () => {
-				if (Math.abs(self.getVelocity()) < 10 && !_pointerIsDown && lastSnap !== scrollFunc()) {
-					let totalProgress = animation && !isToggle ? animation.totalProgress() : self.progress,
-						velocity = ((totalProgress - snap2) / (_getTime() - _time2) * 1000) || 0,
-						change1 = gsap.utils.clamp(-self.progress, 1 - self.progress, _abs(velocity / 2) * velocity / 0.185),
-						naturalEnd = self.progress + (snap.inertia === false ? 0 : change1),
+				let scroll = scrollFunc(),
+					refreshedRecently = _getTime() - lastRefresh < 500,
+					tween = tweenTo.tween;
+				if ((refreshedRecently || Math.abs(self.getVelocity()) < 10) && !tween && !_pointerIsDown && lastSnap !== scroll) {
+					let progress = (scroll - start) / change, // don't use self.progress because this might run between the refresh() and when the scroll position updates and self.progress is set properly in the update() method.
+						totalProgress = animation && !isToggle ? animation.totalProgress() : progress,
+						velocity = refreshedRecently ? 0 : ((totalProgress - snap2) / (_getTime() - _time2) * 1000) || 0,
+						change1 = gsap.utils.clamp(-progress, 1 - progress, _abs(velocity / 2) * velocity / 0.185),
+						naturalEnd = progress + (snap.inertia === false ? 0 : change1),
 						endValue = _clamp(0, 1, snapFunc(naturalEnd, self)),
-						scroll = scrollFunc(),
 						endScroll = Math.round(start + endValue * change),
-						{ onStart, onInterrupt, onComplete } = snap,
-						tween = tweenTo.tween;
+						{ onStart, onInterrupt, onComplete } = snap;
 					if (scroll <= end && scroll >= start && endScroll !== scroll) {
 						if (tween && !tween._initted && tween.data <= _abs(endScroll - scroll)) { // there's an overlapping snap! So we must figure out which one is closer and let that tween live.
 							return;
 						}
 						if (snap.inertia === false) {
-							change1 = endValue - self.progress;
+							change1 = endValue - progress;
 						}
 						tweenTo(endScroll, {
 							duration: snapDurClamp(_abs( (Math.max(_abs(naturalEnd - totalProgress), _abs(endValue - totalProgress)) * 0.185 / velocity / 0.05) || 0)),
@@ -640,7 +647,7 @@ export class ScrollTrigger {
 						}, scroll, change1 * change, endScroll - scroll - change1 * change);
 						onStart && onStart(self, tweenTo.tween);
 					}
-				} else if (self.isActive) {
+				} else if (self.isActive && lastSnap !== scroll) {
 					snapDelayedCall.restart(true);
 				}
 			}).pause();
@@ -741,6 +748,11 @@ export class ScrollTrigger {
 			}
 			!_refreshingAll && onRefreshInit && onRefreshInit(self);
 			_refreshing = 1;
+			lastRefresh = _getTime();
+			if (tweenTo.tween) {
+				tweenTo.tween.kill();
+				tweenTo.tween = 0;
+			}
 			scrubTween && scrubTween.pause();
 			invalidateOnRefresh && animation && animation.time(-0.01, true).invalidate();
 			self.isReverted || self.revert();
@@ -875,7 +887,11 @@ export class ScrollTrigger {
 				self.scroll.rec = 0;
 			}
 			self.revert(false);
-			snapDelayedCall && self.isActive && scrollFunc(start + change * prevProgress); // just so snapping gets re-enabled, clear out any recorded last value
+			if (snapDelayedCall)  {
+				lastSnap = -1;
+				self.isActive && scrollFunc(start + change * prevProgress); // just so snapping gets re-enabled, clear out any recorded last value
+				snapDelayedCall.restart(true);
+			}
 			_refreshing = 0;
 			animation && isToggle && (animation._initted || prevAnimProgress) && animation.progress() !== prevAnimProgress && animation.progress(prevAnimProgress, true).render(animation.time(), true, true); // must force a re-render because if saveStyles() was used on the target(s), the styles could have been wiped out during the refresh().
 			if (prevProgress !== self.progress || containerAnimation) { // ensures that the direction is set properly (when refreshing, progress is set back to 0 initially, then back again to wherever it needs to be) and that callbacks are triggered.
@@ -1090,6 +1106,7 @@ export class ScrollTrigger {
 				allowAnimation || animation.kill();
 			}
 			markerStart && [markerStart, markerEnd, markerStartTrigger, markerEndTrigger].forEach(m => m.parentNode && m.parentNode.removeChild(m));
+			_primary === self && (_primary = 0);
 			if (pin) {
 				pinCache && (pinCache.uncache = 1);
 				i = 0;
@@ -1153,13 +1170,17 @@ export class ScrollTrigger {
 			gsap.core.globals("ScrollTrigger", ScrollTrigger); // must register the global manually because in Internet Explorer, functions (classes) don't have a "name" property.
 			if (_body) {
 				_enabled = 1;
-				// isTouch is 0 if no touch, 1 if ONLY touch, and 2 if it can accommodate touch but also other types like mouse/pointer.
-				ScrollTrigger.isTouch = _win.matchMedia && _win.matchMedia("(hover: none), (pointer: coarse)").matches ? 1 : ("ontouchstart" in _win || navigator.maxTouchPoints > 0 || navigator.msMaxTouchPoints > 0) ? 2 : 0;
-				//_addListener(_win, "wheel", _onScroll);
-				_root = [_win, _doc, _docEl, _body];
-				_baseScreenHeight = _win.innerHeight;
-				_baseScreenWidth = _win.innerWidth;
 				Observer.register(gsap);
+				// isTouch is 0 if no touch, 1 if ONLY touch, and 2 if it can accommodate touch but also other types like mouse/pointer.
+				ScrollTrigger.isTouch = Observer.isTouch;
+				_addListener(_win, "wheel", _onScroll); // mostly for 3rd party smooth scrolling libraries.
+				_root = [_win, _doc, _docEl, _body];
+				ScrollTrigger.matchMedia({ // when orientation changes, we should take new base measurements for the ignoreMobileResize feature.
+					"(orientation: portrait)": () => {
+						_setBaseDimensions();
+						return _setBaseDimensions;
+					}
+				});
 				_addListener(_doc, "scroll", _onScroll); // some browsers (like Chrome), the window stops dispatching scroll events on the window if you scroll really fast, but it's consistent on the document!
 				let bodyStyle = _body.style,
 					border = bodyStyle.borderTopStyle,
@@ -1273,7 +1294,7 @@ export class ScrollTrigger {
 
 }
 
-ScrollTrigger.version = "3.10.2";
+ScrollTrigger.version = "3.10.3";
 ScrollTrigger.saveStyles = targets => targets ? _toArray(targets).forEach(target => { // saved styles are recorded in a consecutive alternating Array, like [element, cssText, transform attribute, cache, matchMedia, ...]
 	if (target && target.style) {
 		let i = _savedStyles.indexOf(target);
@@ -1341,35 +1362,72 @@ let _clampScrollAndGetDurationMultiplier = (scrollFunc, current, end, max) => {
 		current > max ? scrollFunc(max) : current < 0 && scrollFunc(0);
 		return end > max ? (max - current) / (end - current) : end < 0 ? current / (current - end) : 1;
 	},
-	_allowNativePanning = direction => {
+	_allowNativePanning = (target, direction) => {
 		if (direction === true) {
-			_body.style.removeProperty("touch-action");
-			_docEl.style.removeProperty("touch-action");
+			target.style.removeProperty("touch-action");
 		} else {
-			_body.style.touchAction = _docEl.style.touchAction = direction ? "pan-" + direction : "none"; // note: we tried adding pinch-zoom too, but Firefox doesn't support it properly.
+			target.style.touchAction = direction ? "pan-" + direction : "none"; // note: we tried adding pinch-zoom too, but Firefox doesn't support it properly.
+		}
+		target === _docEl && _allowNativePanning(_body);
+	},
+	_overflow = {auto: 1, scroll: 1},
+	_nestedScroll = ({event, target, axis}) => {
+		let node = (event.changedTouches ? event.changedTouches[0] : event).target,
+			cache = node._gsap || gsap.core.getCache(node),
+			time = _getTime(), cs;
+		if (!cache._isScrollT || time - cache._isScrollT > 2000) { // cache for 2 seconds to improve performance.
+			while (node && node.scrollHeight <= node.clientHeight) node = node.parentNode;
+			cache._isScroll = node && !_isViewport(node) && node !== target && (_overflow[(cs = _getComputedStyle(node)).overflowY] || _overflow[cs.overflowX]);
+			cache._isScrollT = time;
+		}
+		(cache._isScroll || axis === "x") && (event._gsapAllow = true);
+	},
+	// capture events on scrollable elements INSIDE the <body> and allow those by calling stopPropagation() when we find a scrollable ancestor
+	_inputObserver = (target, type, inputs, nested) => Observer.create({
+		target: target,
+		capture: true,
+		debounce: false,
+		lockAxis: true,
+		type: type,
+		onWheel: (nested = nested && _nestedScroll),
+		onPress: nested,
+		onDrag: nested,
+		onScroll: nested,
+		onEnable: () => inputs && _addListener(_doc, Observer.eventTypes[0], _captureInputs, false, true),
+		onDisable: () => _removeListener(_doc, Observer.eventTypes[0], _captureInputs)
+	}),
+	_inputExp = /(input|label|select|textarea)/i,
+	_inputIsFocused,
+	_captureInputs = e => {
+		let isInput = _inputExp.test(e.target.tagName);
+		if (isInput || _inputIsFocused) {
+			e._gsapAllow = true;
+			_inputIsFocused = isInput;
 		}
 	},
 	_getScrollNormalizer = vars => {
 		_isObject(vars) || (vars = {});
-		vars.preventDefault = vars.isNormalizer = true;
+		vars.preventDefault = vars.isNormalizer = vars.allowClicks = true;
 		vars.type || (vars.type = "wheel,touch");
 		vars.debounce = !!vars.debounce;
 		vars.id = vars.id || "normalizer";
-		let {normalizeScrollX, momentum} = vars,
-			self, maxY, onClickTime = 0,
-			scrollFuncY = _getScrollFunc(_docEl, _vertical),
-			scrollFuncX = _getScrollFunc(_docEl, _horizontal),
+		let {normalizeScrollX, momentum, allowNestedScroll} = vars,
+			self, maxY,
+			target = _getTarget(vars.target) || _docEl,
+			scrollFuncY = _getScrollFunc(target, _vertical),
+			scrollFuncX = _getScrollFunc(target, _horizontal),
 			scale = 1,
+			wheelRefresh = 0,
 			resolveMomentumDuration = _isFunction(momentum) ? () => momentum(self) : () => momentum || 2.8,
 			skipTouchMove, lastRefreshID,
-			onClick = () => onClickTime = _getTime(),
+			inputObserver = _inputObserver(target, vars.type, true, allowNestedScroll),
 			resumeTouchMove = () => skipTouchMove = false,
 			scrollClampX = _passThrough,
 			scrollClampY = _passThrough,
 			updateClamps = () => {
-				maxY = _maxScroll(_docEl, _vertical);
+				maxY = _maxScroll(target, _vertical);
 				scrollClampY = _clamp(0, maxY);
-				normalizeScrollX && (scrollClampX = _clamp(0, _maxScroll(_docEl, _horizontal)));
+				normalizeScrollX && (scrollClampX = _clamp(0, _maxScroll(target, _horizontal)));
 				lastRefreshID = _refreshID;
 			},
 			fixIOSBug = ScrollTrigger.isTouch && /(iPad|iPhone|iPod|Mac)/g.test(navigator.userAgent), // since 2017, iOS has had a bug that causes event.clientX/Y to be inaccurate when a scroll occurs, thus we must alternate ignoring every other touchmove event to work around it. See https://bugs.webkit.org/show_bug.cgi?id=181954 and https://codepen.io/GreenSock/pen/ExbrPNa/087cef197dc35445a0951e8935c41503
@@ -1380,17 +1438,17 @@ let _clampScrollAndGetDurationMultiplier = (scrollFunc, current, end, max) => {
 				}
 				skipTouchMove = true;
 			},
-			tween, startScrollX, startScrollY, ownerDoc, onStopDelayedCall,
+			tween, startScrollX, startScrollY, onStopDelayedCall,
 			onResize = () => { // if the window resizes, like on an iPhone which Apple FORCES the address bar to show/hide even if we event.preventDefault(), it may be scrolling too far now that the address bar is showing, so we must dynamically adjust the momentum tween.
 				updateClamps();
-				tween.isActive() && tween.vars.scrollY > maxY && tween.resetTo("scrollY", _maxScroll(_docEl, _vertical));
+				tween.isActive() && tween.vars.scrollY > maxY && tween.resetTo("scrollY", _maxScroll(target, _vertical));
 			};
-		vars.ignoreCheck = e => (fixIOSBug && e.type === "touchmove" && ignoreDrag()) || (scale > 1 || self.isGesturing || (e.touches && e.touches.length > 1));
+		vars.ignoreCheck = e => (fixIOSBug && e.type === "touchmove" && ignoreDrag(e)) || (scale > 1 || self.isGesturing || (e.touches && e.touches.length > 1));
 		vars.onPress = () => {
 			let prevScale = scale;
 			scale = (_win.visualViewport && _win.visualViewport.scale) || 1;
 			tween.pause();
-			prevScale !== scale && _allowNativePanning(scale > 1 ? true : normalizeScrollX ? false : "x");
+			prevScale !== scale && _allowNativePanning(target, scale > 1 ? true : normalizeScrollX ? false : "x");
 			skipTouchMove = false;
 			startScrollX = scrollFuncX();
 			startScrollY = scrollFuncY();
@@ -1398,20 +1456,7 @@ let _clampScrollAndGetDurationMultiplier = (scrollFunc, current, end, max) => {
 			lastRefreshID = _refreshID;
 		}
 		vars.onRelease = vars.onGestureStart = (self, wasDragging) => {
-			let e = self.event,
-				eventData = e.changedTouches ? e.changedTouches[0] : e;
-			if (!wasDragging || (Math.abs(self.x - self.startX) <= 3 && Math.abs(self.y - self.startY) <= 3)) { // some touch devices need some wiggle room in terms of sensing clicks - the finger may move a few pixels.
-				gsap.delayedCall(0.05, () => { // some browsers (like Firefox) won't trust script-generated clicks, so if the user tries to click on a video to play it, for example, it simply won't work. Since a regular "click" event will most likely be generated anyway (one that has its isTrusted flag set to true), we must slightly delay our script-generated click so that the "real"/trusted one is prioritized. Remember, when there are duplicate events in quick succession, we suppress all but the first one. Some browsers don't even trigger the "real" one at all, so our synthetic one is a safety valve that ensures that no matter what, a click event does get dispatched.
-					if (_getTime() - onClickTime > 300 && !e.defaultPrevented) {
-						if (e.target.click) { //some browsers (like mobile Safari) don't properly trigger the click event
-							e.target.click();
-						} else if (ownerDoc.createEvent) {
-							let syntheticEvent = ownerDoc.createEvent("MouseEvents");
-							syntheticEvent.initMouseEvent("click", true, true, _win, 1, eventData.screenX, eventData.screenY, eventData.clientX, eventData.clientY, false, false, false, false, 0, null);
-							e.target.dispatchEvent(syntheticEvent);
-						}
-					}
-				});
+			if (!wasDragging) {
 				onStopDelayedCall.restart(true);
 			} else {
 				// alternate algorithm: durX = Math.min(6, Math.abs(self.velocityX / 800)),	dur = Math.max(durX, Math.min(6, Math.abs(self.velocityY / 800))); dur = dur * (0.4 + (1 - _power4In(dur / 6)) * 0.6)) * (momentumSpeed || 1)
@@ -1420,27 +1465,40 @@ let _clampScrollAndGetDurationMultiplier = (scrollFunc, current, end, max) => {
 				if (normalizeScrollX) {
 					currentScroll = scrollFuncX();
 					endScroll = currentScroll + (dur * 0.05 * -self.velocityX) / 0.227 / scale; // the constant .227 is from power4(0.05). velocity is inverted because scrolling goes in the opposite direction.
-					dur *= _clampScrollAndGetDurationMultiplier(scrollFuncX, currentScroll, endScroll, _maxScroll(_docEl, _horizontal));
+					dur *= _clampScrollAndGetDurationMultiplier(scrollFuncX, currentScroll, endScroll, _maxScroll(target, _horizontal));
 					tween.vars.scrollX = scrollClampX(endScroll);
 				}
 				currentScroll = scrollFuncY();
 				endScroll = currentScroll + (dur * 0.05 * -self.velocityY) / 0.227 / scale; // the constant .227 is from power4(0.05)
-				dur *= _clampScrollAndGetDurationMultiplier(scrollFuncY, currentScroll, endScroll, _maxScroll(_docEl, _vertical));
+				dur *= _clampScrollAndGetDurationMultiplier(scrollFuncY, currentScroll, endScroll, _maxScroll(target, _vertical));
 				tween.vars.scrollY = scrollClampY(endScroll);
 				tween.invalidate().duration(dur).play(0.01);
 			}
 		};
-		vars.onWheel = () => tween._ts && tween.pause();
+		vars.onWheel = () => {
+			tween._ts && tween.pause();
+			if (_getTime() - wheelRefresh > 1000) { // after 1 second, refresh the clamps otherwise that'll only happen when ScrollTrigger.refresh() is called or for touch-scrolling.
+				lastRefreshID = 0;
+				wheelRefresh = _getTime();
+			}
+		};
 		vars.onChange = (self, dx, dy, xArray, yArray) => {
 			_refreshID !== lastRefreshID && updateClamps();
 			dx && normalizeScrollX && scrollFuncX(scrollClampX(xArray[2] === dx ? startScrollX + (self.startX - self.x) / scale : scrollFuncX() + dx - xArray[1])); // for more precision, we track pointer/touch movement from the start, otherwise it'll drift.
 			dy && scrollFuncY(scrollClampY(yArray[2] === dy ? startScrollY + (self.startY - self.y) / scale : scrollFuncY() + dy - yArray[1]));
 			_updateAll();
 		};
-		vars.onEnable = self => { _allowNativePanning(normalizeScrollX ? false : "x"); _addListener(_win, "resize", onResize); self.target.addEventListener("click", onClick, {capture: true}) };
-		vars.onDisable = self => { _allowNativePanning(true); _removeListener(_win, "resize", onResize); _removeListener(self.target, "click", onClick)};
+		vars.onEnable = () => {
+			_allowNativePanning(target, normalizeScrollX ? false : "x");
+			_addListener(_win, "resize", onResize);
+			inputObserver.enable();
+		};
+		vars.onDisable = () => {
+			_allowNativePanning(target, true);
+			_removeListener(_win, "resize", onResize);
+			inputObserver.kill();
+		};
 		self = new Observer(vars);
-		ownerDoc = self.target.ownerDocument || _doc;
 		onStopDelayedCall = self._dc;
 		tween = gsap.to(self, {ease: "power4", paused: true, scrollX: normalizeScrollX ? "+=0.1" : "+=0", scrollY: "+=0.1", onComplete: onStopDelayedCall.vars.onComplete});
 		return self;
@@ -1455,15 +1513,19 @@ ScrollTrigger.normalizeScroll = vars => {
 	if (vars === true && _normalizer) {
 		return _normalizer.enable();
 	}
-	let isInstance = vars instanceof Observer;
-	_normalizer && (vars === false || (isInstance && vars !== _normalizer)) && _normalizer.kill();
-	vars && !isInstance && (vars = _getScrollNormalizer(vars));
-	return (_normalizer = vars && vars.enable());
+	if (vars === false) {
+		return _normalizer && _normalizer.kill();
+	}
+	let normalizer = vars instanceof Observer ? vars : _getScrollNormalizer(vars);
+	_normalizer && _normalizer.target === normalizer.target && _normalizer.kill();
+	_isViewport(normalizer.target) && (_normalizer = normalizer);
+	return normalizer;
 };
 
 
 ScrollTrigger.core = { // smaller file size way to leverage in ScrollSmoother and Observer
 	_getVelocityProp,
+	_inputObserver,
 	_scrollers,
 	_proxies,
 	bridge: {

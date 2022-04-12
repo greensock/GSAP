@@ -1,5 +1,5 @@
 /*!
- * matrix 3.10.2
+ * matrix 3.10.3
  * https://greensock.com
  *
  * Copyright 2008-2022, GreenSock. All rights reserved.
@@ -206,7 +206,7 @@ _divTemps = [],
       x = -b.e / b.a;
       y = -b.f / b.d;
       m = _identityMatrix;
-    } else {
+    } else if (element.getBBox) {
       b = element.getBBox();
       m = element.transform ? element.transform.baseVal : {}; // IE11 doesn't follow the spec.
 
@@ -214,6 +214,10 @@ _divTemps = [],
 
       x = m.a * b.x + m.c * b.y;
       y = m.b * b.x + m.d * b.y;
+    } else {
+      // may be a <mask> which has no getBBox() so just use defaults instead of throwing errors.
+      m = new Matrix2D();
+      x = y = 0;
     }
 
     if (adjustGOffset && element.tagName.toLowerCase() === "g") {

@@ -1,5 +1,5 @@
 /*!
- * matrix 3.10.2
+ * matrix 3.10.3
  * https://greensock.com
  *
  * Copyright 2008-2022, GreenSock. All rights reserved.
@@ -155,12 +155,15 @@ let _doc, _win, _docElement, _body,	_divContainer, _svgContainer, _identityMatri
 				x = -b.e / b.a;
 				y = -b.f / b.d;
 				m = _identityMatrix;
-			} else {
+			} else if (element.getBBox) {
 				b = element.getBBox();
 				m = element.transform ? element.transform.baseVal : {}; // IE11 doesn't follow the spec.
 				m = !m.numberOfItems ? _identityMatrix : m.numberOfItems > 1 ? _consolidate(m) : m.getItem(0).matrix; // don't call m.consolidate().matrix because a bug in Firefox makes pointer events not work when consolidate() is called on the same tick as getBoundingClientRect()! See https://greensock.com/forums/topic/23248-touch-is-not-working-on-draggable-in-firefox-windows-v324/?tab=comments#comment-109800
 				x = m.a * b.x + m.c * b.y;
 				y = m.b * b.x + m.d * b.y;
+			} else { // may be a <mask> which has no getBBox() so just use defaults instead of throwing errors.
+				m = new Matrix2D();
+				x = y = 0;
 			}
 			if (adjustGOffset && element.tagName.toLowerCase() === "g") {
 				x = y = 0;

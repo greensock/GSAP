@@ -3,7 +3,7 @@ function _assertThisInitialized(self) { if (self === void 0) { throw new Referen
 function _inheritsLoose(subClass, superClass) { subClass.prototype = Object.create(superClass.prototype); subClass.prototype.constructor = subClass; subClass.__proto__ = superClass; }
 
 /*!
- * GSAP 3.10.2
+ * GSAP 3.10.3
  * https://greensock.com
  *
  * @license Copyright 2008-2022, GreenSock. All rights reserved.
@@ -3430,8 +3430,7 @@ export var Tween = /*#__PURE__*/function (_Animation2) {
     _tickerActive || _ticker.wake();
     this._ts || this.play();
     var time = Math.min(this._dur, (this._dp._time - this._start) * this._ts),
-        ratio,
-        p;
+        ratio;
     this._initted || _initTween(this, time);
     ratio = this._ease(time / this._dur); // don't just get tween.ratio because it may not have rendered yet.
     // possible future addition to allow an object with multiple values to update, like tween.resetTo({x: 100, y: 200}); At this point, it doesn't seem worth the added kb given the fact that most users will likely opt for the convenient gsap.quickTo() way of interacting with this method.
@@ -4068,7 +4067,7 @@ export var gsap = _gsap.registerPlugin({
   }
 }, _buildModifierPlugin("roundProps", _roundModifier), _buildModifierPlugin("modifiers"), _buildModifierPlugin("snap", snap)) || _gsap; //to prevent the core plugins from being dropped via aggressive tree shaking, we must include them in the variable declaration in this way.
 
-Tween.version = Timeline.version = gsap.version = "3.10.2";
+Tween.version = Timeline.version = gsap.version = "3.10.3";
 _coreReady = 1;
 _windowExists() && _wake();
 var Power0 = _easeMap.Power0,

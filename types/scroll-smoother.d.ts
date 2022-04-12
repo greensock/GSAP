@@ -4,7 +4,7 @@ declare class ScrollSmoother {
 
   readonly scrollTrigger: ScrollTrigger;
   readonly progress: number;
-  readonly observer?: Observer;
+  readonly normalizer?: Observer;
 
   /**
    * Creates an instance of ScrollSmoother.
@@ -46,6 +46,19 @@ declare class ScrollSmoother {
    * @link https://greensock.com/docs/v3/Plugins/ScrollSmoother/static.get()
    */
   static get(): ScrollSmoother;
+
+  /**
+   * Refreshes all ScrollTriggers (same as ScrollTrigger.refresh())
+   *
+   * ```js
+   * ScrollSmoother.refresh();
+   * ```
+   *
+   * @param {boolean} safe
+   * @memberof ScrollSmoother
+   * @link https://greensock.com/docs/v3/Plugins/ScrollSmoother/static.refresh()
+   */
+  static refresh(safe?: boolean): void;
 
   /**
    * Sets the content element (the element that moves up and down when scrolling)
@@ -91,6 +104,19 @@ declare class ScrollSmoother {
    * @link https://greensock.com/docs/v3/Plugins/ScrollSmoother/effects()
    */
   effects(targets: gsap.DOMTarget, vars?: ScrollSmoother.EffectsVars | null): ScrollTrigger[];
+
+  /**
+   * Gets the ScrollTrigger instances that are managing the effects (like "speed" and/or "lag")
+   *
+   * ```js
+   * let effectTriggers = scroller.effects();
+   * ```
+   *
+   * @returns {ScrollTrigger[]} An Array of ScrollTrigger instances that were created to handle the effects
+   * @memberof ScrollSmoother
+   * @link https://greensock.com/docs/v3/Plugins/ScrollSmoother/effects()
+   */
+  effects(): ScrollTrigger[];
 
   /**
    * Returns the velocity of the vertical scrolling in pixels per second
@@ -162,6 +188,20 @@ declare class ScrollSmoother {
   paused(): boolean;
 
   /**
+   * Refreshes only the main page's smoothing ScrollTrigger
+   *
+   * ```js
+   * smoother.refresh();
+   * ```
+   *
+   * @param {boolean} soft
+   * @param {boolean} force
+   * @memberof ScrollSmoother
+   * @link https://greensock.com/docs/v3/Plugins/ScrollSmoother/refresh()
+   */
+  refresh(soft?: boolean, force?: boolean): void;
+
+  /**
    * Scrolls to a particular position or target immediately or in a smooth manner.
    *
    * ```js
@@ -203,6 +243,34 @@ declare class ScrollSmoother {
    * @link https://greensock.com/docs/v3/Plugins/ScrollSmoother/scrollTop()
    */
   scrollTop(): number;
+  //
+  // /**
+  //  * Sets up ScrollTriggers to handle hiding elements (sections) when they're sufficiently outside the viewport in order to improve performance in some situations.
+  //  *
+  //  * ```js
+  //  * smoother.sections("[data-section]");
+  //  * ```
+  //  *
+  //  * @param {gsap.DOMTarget} targets
+  //  * @param {ScrollSmoother.SectionVars} vars
+  //  * @returns {ScrollTrigger[]} An Array of ScrollTrigger instances that were created to handle the sections
+  //  * @memberof ScrollSmoother
+  //  * @link https://greensock.com/docs/v3/Plugins/ScrollSmoother/sections()
+  //  */
+  // sections(targets: gsap.DOMTarget, vars?: ScrollSmoother.SectionVars | null): ScrollTrigger[];
+  //
+  // /**
+  //  * Gets the ScrollTrigger instances that are managing the sections
+  //  *
+  //  * ```js
+  //  * let sectionTriggers = smoother.sections();
+  //  * ```
+  //  *
+  //  * @returns {ScrollTrigger[]} An Array of ScrollTrigger instances that were created to handle the sections
+  //  * @memberof ScrollSmoother
+  //  * @link https://greensock.com/docs/v3/Plugins/ScrollSmoother/sections()
+  //  */
+  // sections(): ScrollTrigger[];
 
   /**
    * Sets the number of seconds it takes to catch up to the scroll position (smoothing).
@@ -262,24 +330,31 @@ declare class ScrollSmoother {
 declare namespace ScrollSmoother {
 
   type Callback = (self: ScrollSmoother) => any;
+  type EventCallback = (self: ScrollSmoother, event: Event) => any;
   type EffectFunc = (index: number, element: Element) => number | string;
 
   interface EffectsVars {
     speed?: number | string | EffectFunc;
     lag?: number | EffectFunc;
   }
+  //
+  // interface SectionVars {
+  //   add?: boolean;
+  // }
 
   interface Vars {
     content?: gsap.DOMTarget;
-    wrapper?: gsap.DOMTarget;
-    smooth?: boolean | number;
-    effects?: boolean | string | gsap.DOMTarget;
-    smoothTouch?: boolean | number;
+    ease?: string | Function;
+    effects?: boolean | gsap.DOMTarget;
+    ignoreMobileResize?: boolean;
+    normalizeScroll?: boolean | ScrollTrigger.NormalizeVars;
+//    onFocusIn?: EventCallback;
     onUpdate?: Callback;
     onStop?: Callback;
-    ease?: string | Function;
-    normalizeScroll?: boolean;
-    ignoreMobileResize?: boolean;
+ //   sections?: boolean | gsap.DOMTarget;
+    smooth?: boolean | number;
+    smoothTouch?: boolean | number;
+    wrapper?: gsap.DOMTarget;
   }
 
 }

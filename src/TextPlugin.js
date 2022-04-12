@@ -1,5 +1,5 @@
 /*!
- * TextPlugin 3.10.2
+ * TextPlugin 3.10.3
  * https://greensock.com
  *
  * @license Copyright 2008-2022, GreenSock. All rights reserved.
@@ -16,7 +16,7 @@ let gsap, _tempDiv,
 
 
 export const TextPlugin = {
-	version:"3.10.2",
+	version:"3.10.3",
 	name:"text",
 	init(target, value, tween) {
 		typeof(value) !== "object" && (value = {value:value});

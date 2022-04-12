@@ -1,5 +1,5 @@
 /*!
- * ScrollTrigger 3.10.2
+ * ScrollTrigger 3.10.3
  * https://greensock.com
  *
  * @license Copyright 2008-2022, GreenSock. All rights reserved.
@@ -266,9 +266,10 @@ _startup = 1,
     return func(element, type, callback);
   });
 },
-    _addListener = function _addListener(element, type, func, nonPassive) {
+    _addListener = function _addListener(element, type, func, nonPassive, capture) {
   return element.addEventListener(type, func, {
-    passive: !nonPassive
+    passive: !nonPassive,
+    capture: !!capture
   });
 },
     _removeListener = function _removeListener(element, type, func) {
@@ -367,6 +368,10 @@ _startup = 1,
     _lastScrollTime || _dispatch("scrollStart");
     _lastScrollTime = _getTime();
   }
+},
+    _setBaseDimensions = function _setBaseDimensions() {
+  _baseScreenWidth = _win.innerWidth;
+  _baseScreenHeight = _win.innerHeight;
 },
     _onResize = function _onResize() {
   _scrollers.cache++;
@@ -868,6 +873,7 @@ export var ScrollTrigger = /*#__PURE__*/function () {
         getScrollerSize = _getSizeFunc(scroller, isViewport, direction),
         getScrollerOffsets = _getOffsetsFunc(scroller, isViewport),
         lastSnap = 0,
+        lastRefresh = 0,
         scrollFunc = _getScrollFunc(scroller, direction),
         tweenTo,
         pinCache,
@@ -971,7 +977,7 @@ export var ScrollTrigger = /*#__PURE__*/function () {
       }); // smooth scrolling doesn't work with snap.
 
       snapFunc = _isFunction(snap.snapTo) ? snap.snapTo : snap.snapTo === "labels" ? _getClosestLabel(animation) : snap.snapTo === "labelsDirectional" ? _getLabelAtDirection(animation) : snap.directional !== false ? function (value, st) {
-        return _snapDirectional(snap.snapTo)(value, _refreshing ? 0 : st.direction);
+        return _snapDirectional(snap.snapTo)(value, _getTime() - lastRefresh < 500 ? 0 : st.direction);
       } : gsap.utils.snap(snap.snapTo);
       snapDurClamp = snap.duration || {
         min: 0.1,
@@ -979,19 +985,22 @@ export var ScrollTrigger = /*#__PURE__*/function () {
       };
       snapDurClamp = _isObject(snapDurClamp) ? _clamp(snapDurClamp.min, snapDurClamp.max) : _clamp(snapDurClamp, snapDurClamp);
       snapDelayedCall = gsap.delayedCall(snap.delay || scrubSmooth / 2 || 0.1, function () {
-        if (Math.abs(self.getVelocity()) < 10 && !_pointerIsDown && lastSnap !== scrollFunc()) {
-          var totalProgress = animation && !isToggle ? animation.totalProgress() : self.progress,
-              velocity = (totalProgress - snap2) / (_getTime() - _time2) * 1000 || 0,
-              change1 = gsap.utils.clamp(-self.progress, 1 - self.progress, _abs(velocity / 2) * velocity / 0.185),
-              naturalEnd = self.progress + (snap.inertia === false ? 0 : change1),
+        var scroll = scrollFunc(),
+            refreshedRecently = _getTime() - lastRefresh < 500,
+            tween = tweenTo.tween;
+
+        if ((refreshedRecently || Math.abs(self.getVelocity()) < 10) && !tween && !_pointerIsDown && lastSnap !== scroll) {
+          var progress = (scroll - start) / change,
+              totalProgress = animation && !isToggle ? animation.totalProgress() : progress,
+              velocity = refreshedRecently ? 0 : (totalProgress - snap2) / (_getTime() - _time2) * 1000 || 0,
+              change1 = gsap.utils.clamp(-progress, 1 - progress, _abs(velocity / 2) * velocity / 0.185),
+              naturalEnd = progress + (snap.inertia === false ? 0 : change1),
               endValue = _clamp(0, 1, snapFunc(naturalEnd, self)),
-              scroll = scrollFunc(),
               endScroll = Math.round(start + endValue * change),
               _snap = snap,
               onStart = _snap.onStart,
               _onInterrupt = _snap.onInterrupt,
-              _onComplete = _snap.onComplete,
-              tween = tweenTo.tween;
+              _onComplete = _snap.onComplete;
 
           if (scroll <= end && scroll >= start && endScroll !== scroll) {
             if (tween && !tween._initted && tween.data <= _abs(endScroll - scroll)) {
@@ -1000,7 +1009,7 @@ export var ScrollTrigger = /*#__PURE__*/function () {
             }
 
             if (snap.inertia === false) {
-              change1 = endValue - self.progress;
+              change1 = endValue - progress;
             }
 
             tweenTo(endScroll, {
@@ -1021,7 +1030,7 @@ export var ScrollTrigger = /*#__PURE__*/function () {
             }, scroll, change1 * change, endScroll - scroll - change1 * change);
             onStart && onStart(self, tweenTo.tween);
           }
-        } else if (self.isActive) {
+        } else if (self.isActive && lastSnap !== scroll) {
           snapDelayedCall.restart(true);
         }
       }).pause();
@@ -1154,6 +1163,13 @@ export var ScrollTrigger = /*#__PURE__*/function () {
 
       !_refreshingAll && onRefreshInit && onRefreshInit(self);
       _refreshing = 1;
+      lastRefresh = _getTime();
+
+      if (tweenTo.tween) {
+        tweenTo.tween.kill();
+        tweenTo.tween = 0;
+      }
+
       scrubTween && scrubTween.pause();
       invalidateOnRefresh && animation && animation.time(-0.01, true).invalidate();
       self.isReverted || self.revert();
@@ -1337,7 +1353,13 @@ export var ScrollTrigger = /*#__PURE__*/function () {
       }
 
       self.revert(false);
-      snapDelayedCall && self.isActive && scrollFunc(start + change * prevProgress); // just so snapping gets re-enabled, clear out any recorded last value
+
+      if (snapDelayedCall) {
+        lastSnap = -1;
+        self.isActive && scrollFunc(start + change * prevProgress); // just so snapping gets re-enabled, clear out any recorded last value
+
+        snapDelayedCall.restart(true);
+      }
 
       _refreshing = 0;
       animation && isToggle && (animation._initted || prevAnimProgress) && animation.progress() !== prevAnimProgress && animation.progress(prevAnimProgress, true).render(animation.time(), true, true); // must force a re-render because if saveStyles() was used on the target(s), the styles could have been wiped out during the refresh().
@@ -1628,6 +1650,7 @@ export var ScrollTrigger = /*#__PURE__*/function () {
       markerStart && [markerStart, markerEnd, markerStartTrigger, markerEndTrigger].forEach(function (m) {
         return m.parentNode && m.parentNode.removeChild(m);
       });
+      _primary === self && (_primary = 0);
 
       if (pin) {
         pinCache && (pinCache.uncache = 1);
@@ -1715,14 +1738,23 @@ export var ScrollTrigger = /*#__PURE__*/function () {
       gsap.core.globals("ScrollTrigger", ScrollTrigger); // must register the global manually because in Internet Explorer, functions (classes) don't have a "name" property.
 
       if (_body) {
-        _enabled = 1; // isTouch is 0 if no touch, 1 if ONLY touch, and 2 if it can accommodate touch but also other types like mouse/pointer.
+        _enabled = 1;
+        Observer.register(gsap); // isTouch is 0 if no touch, 1 if ONLY touch, and 2 if it can accommodate touch but also other types like mouse/pointer.
 
-        ScrollTrigger.isTouch = _win.matchMedia && _win.matchMedia("(hover: none), (pointer: coarse)").matches ? 1 : "ontouchstart" in _win || navigator.maxTouchPoints > 0 || navigator.msMaxTouchPoints > 0 ? 2 : 0; //_addListener(_win, "wheel", _onScroll);
+        ScrollTrigger.isTouch = Observer.isTouch;
+
+        _addListener(_win, "wheel", _onScroll); // mostly for 3rd party smooth scrolling libraries.
+
 
         _root = [_win, _doc, _docEl, _body];
-        _baseScreenHeight = _win.innerHeight;
-        _baseScreenWidth = _win.innerWidth;
-        Observer.register(gsap);
+        ScrollTrigger.matchMedia({
+          // when orientation changes, we should take new base measurements for the ignoreMobileResize feature.
+          "(orientation: portrait)": function orientationPortrait() {
+            _setBaseDimensions();
+
+            return _setBaseDimensions;
+          }
+        });
 
         _addListener(_doc, "scroll", _onScroll); // some browsers (like Chrome), the window stops dispatching scroll events on the window if you scroll really fast, but it's consistent on the document!
 
@@ -1873,7 +1905,7 @@ export var ScrollTrigger = /*#__PURE__*/function () {
 
   return ScrollTrigger;
 }();
-ScrollTrigger.version = "3.10.2";
+ScrollTrigger.version = "3.10.3";
 
 ScrollTrigger.saveStyles = function (targets) {
   return targets ? _toArray(targets).forEach(function (target) {
@@ -1992,18 +2024,74 @@ var _clampScrollAndGetDurationMultiplier = function _clampScrollAndGetDurationMu
   current > max ? scrollFunc(max) : current < 0 && scrollFunc(0);
   return end > max ? (max - current) / (end - current) : end < 0 ? current / (current - end) : 1;
 },
-    _allowNativePanning = function _allowNativePanning(direction) {
+    _allowNativePanning = function _allowNativePanning(target, direction) {
   if (direction === true) {
-    _body.style.removeProperty("touch-action");
-
-    _docEl.style.removeProperty("touch-action");
+    target.style.removeProperty("touch-action");
   } else {
-    _body.style.touchAction = _docEl.style.touchAction = direction ? "pan-" + direction : "none"; // note: we tried adding pinch-zoom too, but Firefox doesn't support it properly.
+    target.style.touchAction = direction ? "pan-" + direction : "none"; // note: we tried adding pinch-zoom too, but Firefox doesn't support it properly.
+  }
+
+  target === _docEl && _allowNativePanning(_body);
+},
+    _overflow = {
+  auto: 1,
+  scroll: 1
+},
+    _nestedScroll = function _nestedScroll(_ref5) {
+  var event = _ref5.event,
+      target = _ref5.target,
+      axis = _ref5.axis;
+
+  var node = (event.changedTouches ? event.changedTouches[0] : event).target,
+      cache = node._gsap || gsap.core.getCache(node),
+      time = _getTime(),
+      cs;
+
+  if (!cache._isScrollT || time - cache._isScrollT > 2000) {
+    // cache for 2 seconds to improve performance.
+    while (node && node.scrollHeight <= node.clientHeight) {
+      node = node.parentNode;
+    }
+
+    cache._isScroll = node && !_isViewport(node) && node !== target && (_overflow[(cs = _getComputedStyle(node)).overflowY] || _overflow[cs.overflowX]);
+    cache._isScrollT = time;
+  }
+
+  (cache._isScroll || axis === "x") && (event._gsapAllow = true);
+},
+    // capture events on scrollable elements INSIDE the <body> and allow those by calling stopPropagation() when we find a scrollable ancestor
+_inputObserver = function _inputObserver(target, type, inputs, nested) {
+  return Observer.create({
+    target: target,
+    capture: true,
+    debounce: false,
+    lockAxis: true,
+    type: type,
+    onWheel: nested = nested && _nestedScroll,
+    onPress: nested,
+    onDrag: nested,
+    onScroll: nested,
+    onEnable: function onEnable() {
+      return inputs && _addListener(_doc, Observer.eventTypes[0], _captureInputs, false, true);
+    },
+    onDisable: function onDisable() {
+      return _removeListener(_doc, Observer.eventTypes[0], _captureInputs);
+    }
+  });
+},
+    _inputExp = /(input|label|select|textarea)/i,
+    _inputIsFocused,
+    _captureInputs = function _captureInputs(e) {
+  var isInput = _inputExp.test(e.target.tagName);
+
+  if (isInput || _inputIsFocused) {
+    e._gsapAllow = true;
+    _inputIsFocused = isInput;
   }
 },
     _getScrollNormalizer = function _getScrollNormalizer(vars) {
   _isObject(vars) || (vars = {});
-  vars.preventDefault = vars.isNormalizer = true;
+  vars.preventDefault = vars.isNormalizer = vars.allowClicks = true;
   vars.type || (vars.type = "wheel,touch");
   vars.debounce = !!vars.debounce;
   vars.id = vars.id || "normalizer";
@@ -2011,12 +2099,14 @@ var _clampScrollAndGetDurationMultiplier = function _clampScrollAndGetDurationMu
   var _vars2 = vars,
       normalizeScrollX = _vars2.normalizeScrollX,
       momentum = _vars2.momentum,
+      allowNestedScroll = _vars2.allowNestedScroll,
       self,
       maxY,
-      onClickTime = 0,
-      scrollFuncY = _getScrollFunc(_docEl, _vertical),
-      scrollFuncX = _getScrollFunc(_docEl, _horizontal),
+      target = _getTarget(vars.target) || _docEl,
+      scrollFuncY = _getScrollFunc(target, _vertical),
+      scrollFuncX = _getScrollFunc(target, _horizontal),
       scale = 1,
+      wheelRefresh = 0,
       resolveMomentumDuration = _isFunction(momentum) ? function () {
     return momentum(self);
   } : function () {
@@ -2024,18 +2114,16 @@ var _clampScrollAndGetDurationMultiplier = function _clampScrollAndGetDurationMu
   },
       skipTouchMove,
       lastRefreshID,
-      onClick = function onClick() {
-    return onClickTime = _getTime();
-  },
+      inputObserver = _inputObserver(target, vars.type, true, allowNestedScroll),
       resumeTouchMove = function resumeTouchMove() {
     return skipTouchMove = false;
   },
       scrollClampX = _passThrough,
       scrollClampY = _passThrough,
       updateClamps = function updateClamps() {
-    maxY = _maxScroll(_docEl, _vertical);
+    maxY = _maxScroll(target, _vertical);
     scrollClampY = _clamp(0, maxY);
-    normalizeScrollX && (scrollClampX = _clamp(0, _maxScroll(_docEl, _horizontal)));
+    normalizeScrollX && (scrollClampX = _clamp(0, _maxScroll(target, _horizontal)));
     lastRefreshID = _refreshID;
   },
       fixIOSBug = ScrollTrigger.isTouch && /(iPad|iPhone|iPod|Mac)/g.test(navigator.userAgent),
@@ -2051,23 +2139,22 @@ var _clampScrollAndGetDurationMultiplier = function _clampScrollAndGetDurationMu
       tween,
       startScrollX,
       startScrollY,
-      ownerDoc,
       onStopDelayedCall,
       onResize = function onResize() {
     // if the window resizes, like on an iPhone which Apple FORCES the address bar to show/hide even if we event.preventDefault(), it may be scrolling too far now that the address bar is showing, so we must dynamically adjust the momentum tween.
     updateClamps();
-    tween.isActive() && tween.vars.scrollY > maxY && tween.resetTo("scrollY", _maxScroll(_docEl, _vertical));
+    tween.isActive() && tween.vars.scrollY > maxY && tween.resetTo("scrollY", _maxScroll(target, _vertical));
   };
 
   vars.ignoreCheck = function (e) {
-    return fixIOSBug && e.type === "touchmove" && ignoreDrag() || scale > 1 || self.isGesturing || e.touches && e.touches.length > 1;
+    return fixIOSBug && e.type === "touchmove" && ignoreDrag(e) || scale > 1 || self.isGesturing || e.touches && e.touches.length > 1;
   };
 
   vars.onPress = function () {
     var prevScale = scale;
     scale = _win.visualViewport && _win.visualViewport.scale || 1;
     tween.pause();
-    prevScale !== scale && _allowNativePanning(scale > 1 ? true : normalizeScrollX ? false : "x");
+    prevScale !== scale && _allowNativePanning(target, scale > 1 ? true : normalizeScrollX ? false : "x");
     skipTouchMove = false;
     startScrollX = scrollFuncX();
     startScrollY = scrollFuncY();
@@ -2076,24 +2163,7 @@ var _clampScrollAndGetDurationMultiplier = function _clampScrollAndGetDurationMu
   };
 
   vars.onRelease = vars.onGestureStart = function (self, wasDragging) {
-    var e = self.event,
-        eventData = e.changedTouches ? e.changedTouches[0] : e;
-
-    if (!wasDragging || Math.abs(self.x - self.startX) <= 3 && Math.abs(self.y - self.startY) <= 3) {
-      // some touch devices need some wiggle room in terms of sensing clicks - the finger may move a few pixels.
-      gsap.delayedCall(0.05, function () {
-        // some browsers (like Firefox) won't trust script-generated clicks, so if the user tries to click on a video to play it, for example, it simply won't work. Since a regular "click" event will most likely be generated anyway (one that has its isTrusted flag set to true), we must slightly delay our script-generated click so that the "real"/trusted one is prioritized. Remember, when there are duplicate events in quick succession, we suppress all but the first one. Some browsers don't even trigger the "real" one at all, so our synthetic one is a safety valve that ensures that no matter what, a click event does get dispatched.
-        if (_getTime() - onClickTime > 300 && !e.defaultPrevented) {
-          if (e.target.click) {
-            //some browsers (like mobile Safari) don't properly trigger the click event
-            e.target.click();
-          } else if (ownerDoc.createEvent) {
-            var syntheticEvent = ownerDoc.createEvent("MouseEvents");
-            syntheticEvent.initMouseEvent("click", true, true, _win, 1, eventData.screenX, eventData.screenY, eventData.clientX, eventData.clientY, false, false, false, false, 0, null);
-            e.target.dispatchEvent(syntheticEvent);
-          }
-        }
-      });
+    if (!wasDragging) {
       onStopDelayedCall.restart(true);
     } else {
       // alternate algorithm: durX = Math.min(6, Math.abs(self.velocityX / 800)),	dur = Math.max(durX, Math.min(6, Math.abs(self.velocityY / 800))); dur = dur * (0.4 + (1 - _power4In(dur / 6)) * 0.6)) * (momentumSpeed || 1)
@@ -2105,21 +2175,27 @@ var _clampScrollAndGetDurationMultiplier = function _clampScrollAndGetDurationMu
         currentScroll = scrollFuncX();
         endScroll = currentScroll + dur * 0.05 * -self.velocityX / 0.227 / scale; // the constant .227 is from power4(0.05). velocity is inverted because scrolling goes in the opposite direction.
 
-        dur *= _clampScrollAndGetDurationMultiplier(scrollFuncX, currentScroll, endScroll, _maxScroll(_docEl, _horizontal));
+        dur *= _clampScrollAndGetDurationMultiplier(scrollFuncX, currentScroll, endScroll, _maxScroll(target, _horizontal));
         tween.vars.scrollX = scrollClampX(endScroll);
       }
 
       currentScroll = scrollFuncY();
       endScroll = currentScroll + dur * 0.05 * -self.velocityY / 0.227 / scale; // the constant .227 is from power4(0.05)
 
-      dur *= _clampScrollAndGetDurationMultiplier(scrollFuncY, currentScroll, endScroll, _maxScroll(_docEl, _vertical));
+      dur *= _clampScrollAndGetDurationMultiplier(scrollFuncY, currentScroll, endScroll, _maxScroll(target, _vertical));
       tween.vars.scrollY = scrollClampY(endScroll);
       tween.invalidate().duration(dur).play(0.01);
     }
   };
 
   vars.onWheel = function () {
-    return tween._ts && tween.pause();
+    tween._ts && tween.pause();
+
+    if (_getTime() - wheelRefresh > 1000) {
+      // after 1 second, refresh the clamps otherwise that'll only happen when ScrollTrigger.refresh() is called or for touch-scrolling.
+      lastRefreshID = 0;
+      wheelRefresh = _getTime();
+    }
   };
 
   vars.onChange = function (self, dx, dy, xArray, yArray) {
@@ -2131,26 +2207,23 @@ var _clampScrollAndGetDurationMultiplier = function _clampScrollAndGetDurationMu
     _updateAll();
   };
 
-  vars.onEnable = function (self) {
-    _allowNativePanning(normalizeScrollX ? false : "x");
+  vars.onEnable = function () {
+    _allowNativePanning(target, normalizeScrollX ? false : "x");
 
     _addListener(_win, "resize", onResize);
 
-    self.target.addEventListener("click", onClick, {
-      capture: true
-    });
+    inputObserver.enable();
   };
 
-  vars.onDisable = function (self) {
-    _allowNativePanning(true);
+  vars.onDisable = function () {
+    _allowNativePanning(target, true);
 
     _removeListener(_win, "resize", onResize);
 
-    _removeListener(self.target, "click", onClick);
+    inputObserver.kill();
   };
 
   self = new Observer(vars);
-  ownerDoc = self.target.ownerDocument || _doc;
   onStopDelayedCall = self._dc;
   tween = gsap.to(self, {
     ease: "power4",
@@ -2181,15 +2254,20 @@ ScrollTrigger.normalizeScroll = function (vars) {
     return _normalizer.enable();
   }
 
-  var isInstance = vars instanceof Observer;
-  _normalizer && (vars === false || isInstance && vars !== _normalizer) && _normalizer.kill();
-  vars && !isInstance && (vars = _getScrollNormalizer(vars));
-  return _normalizer = vars && vars.enable();
+  if (vars === false) {
+    return _normalizer && _normalizer.kill();
+  }
+
+  var normalizer = vars instanceof Observer ? vars : _getScrollNormalizer(vars);
+  _normalizer && _normalizer.target === normalizer.target && _normalizer.kill();
+  _isViewport(normalizer.target) && (_normalizer = normalizer);
+  return normalizer;
 };
 
 ScrollTrigger.core = {
   // smaller file size way to leverage in ScrollSmoother and Observer
   _getVelocityProp: _getVelocityProp,
+  _inputObserver: _inputObserver,
   _scrollers: _scrollers,
   _proxies: _proxies,
   bridge: {

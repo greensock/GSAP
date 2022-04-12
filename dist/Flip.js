@@ -174,12 +174,15 @@
 	      x = -b.e / b.a;
 	      y = -b.f / b.d;
 	      m = _identityMatrix;
-	    } else {
+	    } else if (element.getBBox) {
 	      b = element.getBBox();
 	      m = element.transform ? element.transform.baseVal : {};
 	      m = !m.numberOfItems ? _identityMatrix : m.numberOfItems > 1 ? _consolidate(m) : m.getItem(0).matrix;
 	      x = m.a * b.x + m.c * b.y;
 	      y = m.b * b.x + m.d * b.y;
+	    } else {
+	      m = new Matrix2D();
+	      x = y = 0;
 	    }
 
 	    if (adjustGOffset && element.tagName.toLowerCase() === "g") {
@@ -361,7 +364,7 @@
 	}
 
 	/*!
-	 * Flip 3.10.2
+	 * Flip 3.10.3
 	 * https://greensock.com
 	 *
 	 * @license Copyright 2008-2022, GreenSock. All rights reserved.
@@ -1789,7 +1792,7 @@
 
 	  return Flip;
 	}();
-	Flip.version = "3.10.2";
+	Flip.version = "3.10.3";
 	typeof window !== "undefined" && window.gsap && window.gsap.registerPlugin(Flip);
 
 	exports.Flip = Flip;

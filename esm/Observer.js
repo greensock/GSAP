@@ -3,7 +3,7 @@ function _defineProperties(target, props) { for (var i = 0; i < props.length; i+
 function _createClass(Constructor, protoProps, staticProps) { if (protoProps) _defineProperties(Constructor.prototype, protoProps); if (staticProps) _defineProperties(Constructor, staticProps); return Constructor; }
 
 /*!
- * Observer 3.10.2
+ * Observer 3.10.3
  * https://greensock.com
  *
  * @license Copyright 2008-2022, GreenSock. All rights reserved.
@@ -25,6 +25,7 @@ var gsap,
     ScrollTrigger,
     _root,
     _normalizer,
+    _eventTypes,
     _getGSAP = function _getGSAP() {
   return gsap || typeof window !== "undefined" && (gsap = window.gsap) && gsap.registerPlugin && gsap;
 },
@@ -59,9 +60,10 @@ var gsap,
     _isViewport = function _isViewport(el) {
   return !!~_root.indexOf(el);
 },
-    _addListener = function _addListener(element, type, func, nonPassive) {
+    _addListener = function _addListener(element, type, func, nonPassive, capture) {
   return element.addEventListener(type, func, {
-    passive: !nonPassive
+    passive: !nonPassive,
+    capture: !!capture
   });
 },
     _removeListener = function _removeListener(element, type, func) {
@@ -77,6 +79,7 @@ var gsap,
     // since reading the scrollTop/scrollLeft/pageOffsetY/pageOffsetX can trigger a layout, this function allows us to cache the value so it only gets read fresh after a "scroll" event fires (or while we're refreshing because that can lengthen the page and alter the scroll position). when "soft" is true, that means don't actually set the scroll, but cache the new value instead (useful in ScrollSmoother)
     if (value || value === 0) {
       _startup && (_win.history.scrollRestoration = "manual"); // otherwise the new position will get overwritten by the browser onload.
+      //value = Math.round(value);
 
       f(value);
       f.v = value;
@@ -129,9 +132,9 @@ var gsap,
       offset = sc === _vertical.sc ? 1 : 2;
 
   !~i && (i = _scrollers.push(element) - 1);
-  return _scrollers[i + offset] || (_scrollers[i + offset] = _getProxyProp(element, s) || (_isViewport(element) ? sc : function (value) {
+  return _scrollers[i + offset] || (_scrollers[i + offset] = _getProxyProp(element, s) || (_isViewport(element) ? sc : _scrollCacheFunc(function (value) {
     return arguments.length ? element[s] = value : element[s];
-  }));
+  })));
 },
     _getVelocityProp = function _getVelocityProp(value, minTimeRefresh, useDelta) {
   var v1 = value,
@@ -175,7 +178,7 @@ var gsap,
   };
 },
     _getEvent = function _getEvent(e, preventDefault) {
-  preventDefault && e.preventDefault();
+  preventDefault && !e._gsapAllow && e.preventDefault();
   return e.changedTouches ? e.changedTouches[0] : e;
 },
     _getAbsoluteMax = function _getAbsoluteMax(a) {
@@ -183,10 +186,14 @@ var gsap,
       min = Math.min.apply(Math, a);
   return Math.abs(max) >= Math.abs(min) ? max : min;
 },
+    _setScrollTrigger = function _setScrollTrigger() {
+  ScrollTrigger = gsap.core.globals().ScrollTrigger;
+  ScrollTrigger && ScrollTrigger.core && _integrate();
+},
     _initCore = function _initCore(core) {
   gsap = core || _getGSAP();
 
-  if (gsap && !_coreInitted && typeof document !== "undefined" && document.body) {
+  if (gsap && typeof document !== "undefined" && document.body) {
     _win = window;
     _doc = document;
     _docEl = _doc.documentElement;
@@ -196,9 +203,13 @@ var gsap,
     _pointerType = "onpointerenter" in _body ? "pointer" : "mouse"; // isTouch is 0 if no touch, 1 if ONLY touch, and 2 if it can accommodate touch but also other types like mouse/pointer.
 
     _isTouch = Observer.isTouch = _win.matchMedia && _win.matchMedia("(hover: none), (pointer: coarse)").matches ? 1 : "ontouchstart" in _win || navigator.maxTouchPoints > 0 || navigator.msMaxTouchPoints > 0 ? 2 : 0;
+    _eventTypes = Observer.eventTypes = ("ontouchstart" in _docEl ? "touchstart,touchmove,touchcancel,touchend" : !("onpointerdown" in _docEl) ? "mousedown,mousemove,mouseup,mouseup" : "pointerdown,pointermove,pointercancel,pointerup").split(",");
     setTimeout(function () {
       return _startup = 0;
     }, 500);
+
+    _setScrollTrigger();
+
     _coreInitted = 1;
   }
 
@@ -216,12 +227,7 @@ export var Observer = /*#__PURE__*/function () {
 
   _proto.init = function init(vars) {
     _coreInitted || _initCore(gsap) || console.warn("Please gsap.registerPlugin(Observer)");
-
-    if (!ScrollTrigger) {
-      ScrollTrigger = gsap.core.globals().ScrollTrigger;
-      ScrollTrigger && ScrollTrigger.core && _integrate();
-    }
-
+    ScrollTrigger || _setScrollTrigger();
     var tolerance = vars.tolerance,
         dragMinimum = vars.dragMinimum,
         type = vars.type,
@@ -259,7 +265,11 @@ export var Observer = /*#__PURE__*/function () {
         onEnable = vars.onEnable,
         onDisable = vars.onDisable,
         onClick = vars.onClick,
-        scrollSpeed = vars.scrollSpeed;
+        scrollSpeed = vars.scrollSpeed,
+        capture = vars.capture,
+        allowClicks = vars.allowClicks,
+        lockAxis = vars.lockAxis,
+        onLockAxis = vars.onLockAxis;
     this.target = target = _getTarget(target) || _docEl;
     this.vars = vars;
     ignore && (ignore = gsap.utils.toArray(ignore));
@@ -276,6 +286,8 @@ export var Observer = /*#__PURE__*/function () {
         dragged,
         moved,
         wheeled,
+        locked,
+        axis,
         self = this,
         prevDeltaX = 0,
         prevDeltaY = 0,
@@ -283,16 +295,19 @@ export var Observer = /*#__PURE__*/function () {
         scrollFuncY = _getScrollFunc(target, _vertical),
         scrollX = scrollFuncX(),
         scrollY = scrollFuncY(),
-        events = ("ontouchstart" in _docEl ? "touchstart,touchmove,touchcancel,touchend" : type.indexOf("pointer") >= 0 && !("onpointerdown" in _docEl) ? "mousedown,mousemove,mouseup,mouseup" : "pointerdown,pointermove,pointercancel,pointerup").split(","),
-        limitToTouch = ~type.indexOf("touch") && !~type.indexOf("pointer") && events[0] === "pointerdown",
+        limitToTouch = ~type.indexOf("touch") && !~type.indexOf("pointer") && _eventTypes[0] === "pointerdown",
         // for devices that accommodate mouse events and touch events, we need to distinguish.
     isViewport = _isViewport(target),
         ownerDoc = target.ownerDocument || _doc,
         deltaX = [0, 0, 0],
         // wheel, scroll, pointer/touch
     deltaY = [0, 0, 0],
+        onClickTime = 0,
+        clickCapture = function clickCapture() {
+      return onClickTime = _getTime();
+    },
         _ignoreCheck = function _ignoreCheck(e, isPointerOrTouch) {
-      return (self.event = e) && ignore && ~ignore.indexOf(e.target) || isPointerOrTouch && limitToTouch && e.pointerType !== "touch" || ignoreCheck && ignoreCheck(e);
+      return (self.event = e) && ignore && ~ignore.indexOf(e.target) || isPointerOrTouch && limitToTouch && e.pointerType !== "touch" || ignoreCheck && ignoreCheck(e, isPointerOrTouch);
     },
         onStopFunc = function onStopFunc() {
       self._vx.reset();
@@ -328,14 +343,16 @@ export var Observer = /*#__PURE__*/function () {
         deltaY[0] = deltaY[1] = deltaY[2] = 0;
       }
 
-      if (moved) {
-        onMove(self);
-        moved = false;
-      }
+      if (moved || dragged) {
+        onMove && onMove(self);
+        onLockAxis && locked && onLockAxis(self);
 
-      if (dragged) {
-        onDrag(self);
-        dragged = false;
+        if (dragged) {
+          onDrag(self);
+          dragged = false;
+        }
+
+        moved = locked = false;
       }
 
       if (wheeled) {
@@ -349,10 +366,30 @@ export var Observer = /*#__PURE__*/function () {
       deltaX[index] += x;
       deltaY[index] += y;
 
-      self._vx.update(x, index === 2); // update the velocity as frequently as possible instead of in the debounced function so that very quick touch-scrolls (flicks) feel natural. If it's the mouse/touch/pointer, force it so that we get snappy/accurate momentum scroll.
+      self._vx.update(x);
 
+      self._vy.update(y);
 
-      self._vy.update(y, index === 2);
+      debounce ? id || (id = requestAnimationFrame(update)) : update();
+    },
+        onTouchOrPointerDelta = function onTouchOrPointerDelta(x, y) {
+      if (axis !== "y") {
+        deltaX[2] += x;
+
+        self._vx.update(x, true); // update the velocity as frequently as possible instead of in the debounced function so that very quick touch-scrolls (flicks) feel natural. If it's the mouse/touch/pointer, force it so that we get snappy/accurate momentum scroll.
+
+      }
+
+      if (axis !== "x") {
+        deltaY[2] += y;
+
+        self._vy.update(y, true);
+      }
+
+      if (lockAxis && !axis) {
+        self.axis = axis = Math.abs(x) > Math.abs(y) ? "x" : "y";
+        locked = true;
+      }
 
       debounce ? id || (id = requestAnimationFrame(update)) : update();
     },
@@ -373,7 +410,7 @@ export var Observer = /*#__PURE__*/function () {
       if (isDragging || Math.abs(self.startX - x) >= dragMinimum || Math.abs(self.startY - y) >= dragMinimum) {
         onDrag && (dragged = true);
         isDragging || (self.isDragging = true);
-        onDelta(dx, dy, 2);
+        onTouchOrPointerDelta(dx, dy);
         isDragging || onDragStart && onDragStart(self);
       }
     },
@@ -382,9 +419,11 @@ export var Observer = /*#__PURE__*/function () {
         return;
       }
 
+      self.axis = axis = null;
       onStopDelayedCall.pause();
       self.isPressed = true;
-      e = _getEvent(e, preventDefault);
+      e = _getEvent(e); // note: may need to preventDefault(?) Won't side-scroll on iOS Safari if we do, though.
+
       prevDeltaX = prevDeltaY = 0;
       self.startX = self.x = e.clientX;
       self.startY = self.y = e.clientY;
@@ -394,7 +433,7 @@ export var Observer = /*#__PURE__*/function () {
 
       self._vy.reset();
 
-      _addListener(isNormalizer ? target : ownerDoc, events[1], _onDrag, preventDefault);
+      _addListener(isNormalizer ? target : ownerDoc, _eventTypes[1], _onDrag, preventDefault, capture);
 
       self.deltaX = self.deltaY = 0;
       onPress && onPress(self);
@@ -404,14 +443,32 @@ export var Observer = /*#__PURE__*/function () {
         return;
       }
 
-      _removeListener(isNormalizer ? target : ownerDoc, events[1], _onDrag);
+      _removeListener(isNormalizer ? target : ownerDoc, _eventTypes[1], _onDrag);
 
-      var wasDragging = self.isDragging;
+      var wasDragging = self.isDragging && (Math.abs(self.x - self.startX) > 3 || Math.abs(self.y - self.startY) > 3),
+          // some touch devices need some wiggle room in terms of sensing clicks - the finger may move a few pixels.
+      eventData = _getEvent(e);
 
       if (!wasDragging) {
         self._vx.reset();
 
         self._vy.reset();
+
+        if (preventDefault && allowClicks) {
+          gsap.delayedCall(0.05, function () {
+            // some browsers (like Firefox) won't trust script-generated clicks, so if the user tries to click on a video to play it, for example, it simply won't work. Since a regular "click" event will most likely be generated anyway (one that has its isTrusted flag set to true), we must slightly delay our script-generated click so that the "real"/trusted one is prioritized. Remember, when there are duplicate events in quick succession, we suppress all but the first one. Some browsers don't even trigger the "real" one at all, so our synthetic one is a safety valve that ensures that no matter what, a click event does get dispatched.
+            if (_getTime() - onClickTime > 300 && !e.defaultPrevented) {
+              if (e.target.click) {
+                //some browsers (like mobile Safari) don't properly trigger the click event
+                e.target.click();
+              } else if (ownerDoc.createEvent) {
+                var syntheticEvent = ownerDoc.createEvent("MouseEvents");
+                syntheticEvent.initMouseEvent("click", true, true, _win, 1, eventData.screenX, eventData.screenY, eventData.clientX, eventData.clientY, false, false, false, false, 0, null);
+                e.target.dispatchEvent(syntheticEvent);
+              }
+            }
+          });
+        }
       }
 
       self.isDragging = self.isGesturing = self.isPressed = false;
@@ -459,8 +516,8 @@ export var Observer = /*#__PURE__*/function () {
           dy = y - self.y;
       self.x = x;
       self.y = y;
-      onMove && (moved = true);
-      (dx || dy) && onDelta(dx, dy, 2);
+      moved = true;
+      (dx || dy) && onTouchOrPointerDelta(dx, dy);
     },
         _onHover = function _onHover(e) {
       self.event = e;
@@ -486,16 +543,17 @@ export var Observer = /*#__PURE__*/function () {
       if (!self.isEnabled) {
         _addListener(isViewport ? ownerDoc : target, "scroll", _onScroll);
 
-        type.indexOf("scroll") >= 0 && _addListener(isViewport ? ownerDoc : target, "scroll", onScroll, preventDefault);
-        type.indexOf("wheel") >= 0 && _addListener(target, "wheel", _onWheel, preventDefault);
+        type.indexOf("scroll") >= 0 && _addListener(isViewport ? ownerDoc : target, "scroll", onScroll, preventDefault, capture);
+        type.indexOf("wheel") >= 0 && _addListener(target, "wheel", _onWheel, preventDefault, capture);
 
         if (type.indexOf("touch") >= 0 && _isTouch || type.indexOf("pointer") >= 0) {
-          _addListener(target, events[0], _onPress, preventDefault);
+          _addListener(target, _eventTypes[0], _onPress, preventDefault, capture);
 
-          _addListener(ownerDoc, events[2], _onRelease);
+          _addListener(ownerDoc, _eventTypes[2], _onRelease);
 
-          _addListener(ownerDoc, events[3], _onRelease);
+          _addListener(ownerDoc, _eventTypes[3], _onRelease);
 
+          allowClicks && _addListener(target, "click", clickCapture, false, true);
           onClick && _addListener(target, "click", _onClick);
           onGestureStart && _addListener(ownerDoc, "gesturestart", _onGestureStart);
           onGestureEnd && _addListener(ownerDoc, "gestureend", _onGestureEnd);
@@ -519,15 +577,25 @@ export var Observer = /*#__PURE__*/function () {
           return o !== self && _isViewport(o.target);
         }).length || _removeListener(isViewport ? ownerDoc : target, "scroll", _onScroll);
 
+        if (self.isPressed) {
+          self._vx.reset();
+
+          self._vy.reset();
+
+          _removeListener(isNormalizer ? target : ownerDoc, _eventTypes[1], _onDrag);
+        }
+
         _removeListener(isViewport ? ownerDoc : target, "scroll", onScroll);
 
         _removeListener(target, "wheel", _onWheel);
 
-        _removeListener(target, events[0], _onPress);
+        _removeListener(target, _eventTypes[0], _onPress);
 
-        _removeListener(ownerDoc, events[2], _onRelease);
+        _removeListener(ownerDoc, _eventTypes[2], _onRelease);
 
-        _removeListener(ownerDoc, events[3], _onRelease);
+        _removeListener(ownerDoc, _eventTypes[3], _onRelease);
+
+        _removeListener(target, "click", clickCapture);
 
         _removeListener(target, "click", _onClick);
 
@@ -541,7 +609,7 @@ export var Observer = /*#__PURE__*/function () {
 
         _removeListener(target, _pointerType + "move", _onMove);
 
-        self.isEnabled = false;
+        self.isEnabled = self.isPressed = self.isDragging = false;
         onDisable && onDisable(self);
       }
     };
@@ -557,7 +625,7 @@ export var Observer = /*#__PURE__*/function () {
 
     _observers.push(self);
 
-    isNormalizer && (_normalizer = self);
+    isNormalizer && _isViewport(target) && (_normalizer = self);
     self.enable(event);
   };
 
@@ -575,7 +643,7 @@ export var Observer = /*#__PURE__*/function () {
 
   return Observer;
 }();
-Observer.version = "3.10.2";
+Observer.version = "3.10.3";
 
 Observer.create = function (vars) {
   return new Observer(vars);

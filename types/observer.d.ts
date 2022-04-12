@@ -1,5 +1,6 @@
 declare class Observer {
   static readonly isTouch: number;
+  //static readonly eventTypes: string[];
   static readonly version: string;
 
   readonly deltaX: number;
@@ -16,6 +17,7 @@ declare class Observer {
   readonly velocityY: number;
   readonly x?: number;
   readonly y?: number;
+  //readonly axis?: string | null;
 
   /**
    * Creates a new Observer
@@ -142,14 +144,20 @@ declare class Observer {
 declare namespace Observer {
 
   type ObserverCallback = (self: Observer) => any;
+  //type IgnoreCheckCallback = (event: Event, isTouchOrPointer: boolean) => boolean;
 
   interface ObserverVars {
+    //allowClicks?: boolean;
+    //capture?: boolean;
     debounce?: boolean;
     dragMinimum?: number;
     event?: Event;
     id?: string;
     ignore?: gsap.DOMTarget;
+    //ignoreCheck?: IgnoreCheckCallback;
     lineHeight?: number;
+    // lockAxis?: boolean;
+    // onLockAxis?: ObserverCallback;
     onDown?: ObserverCallback;
     onUp?: ObserverCallback;
     onLeft?: ObserverCallback;

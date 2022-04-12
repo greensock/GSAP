@@ -796,6 +796,7 @@ declare namespace ScrollTrigger {
   }
   interface NormalizeVars extends Observer.ObserverVars {
     momentum?: number | Function;
+    allowNestedScroll?: boolean;
   }
 
 }
