@@ -21,7 +21,7 @@
   }
 
   /*!
-   * Observer 3.10.3
+   * Observer 3.10.4
    * https://greensock.com
    *
    * @license Copyright 2008-2022, GreenSock. All rights reserved.
@@ -79,29 +79,33 @@
       capture: !!capture
     });
   },
-      _removeListener = function _removeListener(element, type, func) {
-    return element.removeEventListener(type, func);
+      _removeListener = function _removeListener(element, type, func, capture) {
+    return element.removeEventListener(type, func, !!capture);
   },
       _scrollLeft = "scrollLeft",
       _scrollTop = "scrollTop",
       _onScroll = function _onScroll() {
     return _normalizer && _normalizer.isPressed || _scrollers.cache++;
   },
-      _scrollCacheFunc = function _scrollCacheFunc(f) {
-    return function (value) {
+      _scrollCacheFunc = function _scrollCacheFunc(f, doNotCache) {
+    var cachingFunc = function cachingFunc(value) {
       if (value || value === 0) {
         _startup && (_win.history.scrollRestoration = "manual");
+        var isNormalizing = _normalizer && _normalizer.isPressed;
+        value = cachingFunc.v = Math.round(value) || (_normalizer && _normalizer.iOS ? 1 : 0);
         f(value);
-        f.v = value;
-        f.c = _scrollers.cache;
-        _normalizer && _normalizer.isPressed && _bridge("ss", value);
-      } else if (_scrollers.cache !== f.c || _bridge("ref")) {
-        f.c = _scrollers.cache;
-        f.v = f();
+        cachingFunc.cacheID = _scrollers.cache;
+        isNormalizing && _bridge("ss", value);
+      } else if (doNotCache || _scrollers.cache !== cachingFunc.cacheID || _bridge("ref")) {
+        cachingFunc.cacheID = _scrollers.cache;
+        cachingFunc.v = f();
       }
 
-      return f.v;
+      return cachingFunc.v + cachingFunc.offset;
     };
+
+    cachingFunc.offset = 0;
+    return f && cachingFunc;
   },
       _horizontal = {
     s: _scrollLeft,
@@ -141,7 +145,7 @@
         offset = sc === _vertical.sc ? 1 : 2;
 
     !~i && (i = _scrollers.push(element) - 1);
-    return _scrollers[i + offset] || (_scrollers[i + offset] = _getProxyProp(element, s) || (_isViewport(element) ? sc : _scrollCacheFunc(function (value) {
+    return _scrollers[i + offset] || (_scrollers[i + offset] = _scrollCacheFunc(_getProxyProp(element, s), true) || (_isViewport(element) ? sc : _scrollCacheFunc(function (value) {
       return arguments.length ? element[s] = value : element[s];
     })));
   },
@@ -435,7 +439,7 @@
 
         self._vy.reset();
 
-        _addListener(isNormalizer ? target : ownerDoc, _eventTypes[1], _onDrag, preventDefault, capture);
+        _addListener(isNormalizer ? target : ownerDoc, _eventTypes[1], _onDrag, preventDefault, true);
 
         self.deltaX = self.deltaY = 0;
         onPress && onPress(self);
@@ -445,7 +449,7 @@
           return;
         }
 
-        _removeListener(isNormalizer ? target : ownerDoc, _eventTypes[1], _onDrag);
+        _removeListener(isNormalizer ? target : ownerDoc, _eventTypes[1], _onDrag, true);
 
         var wasDragging = self.isDragging && (Math.abs(self.x - self.startX) > 3 || Math.abs(self.y - self.startY) > 3),
             eventData = _getEvent(e);
@@ -456,7 +460,7 @@
           self._vy.reset();
 
           if (preventDefault && allowClicks) {
-            gsap.delayedCall(0.05, function () {
+            gsap.delayedCall(0.08, function () {
               if (_getTime() - onClickTime > 300 && !e.defaultPrevented) {
                 if (e.target.click) {
                   e.target.click();
@@ -580,20 +584,20 @@
 
             self._vy.reset();
 
-            _removeListener(isNormalizer ? target : ownerDoc, _eventTypes[1], _onDrag);
+            _removeListener(isNormalizer ? target : ownerDoc, _eventTypes[1], _onDrag, true);
           }
 
-          _removeListener(isViewport ? ownerDoc : target, "scroll", onScroll);
+          _removeListener(isViewport ? ownerDoc : target, "scroll", onScroll, capture);
 
-          _removeListener(target, "wheel", _onWheel);
+          _removeListener(target, "wheel", _onWheel, capture);
 
-          _removeListener(target, _eventTypes[0], _onPress);
+          _removeListener(target, _eventTypes[0], _onPress, capture);
 
           _removeListener(ownerDoc, _eventTypes[2], _onRelease);
 
           _removeListener(ownerDoc, _eventTypes[3], _onRelease);
 
-          _removeListener(target, "click", clickCapture);
+          _removeListener(target, "click", clickCapture, true);
 
           _removeListener(target, "click", _onClick);
 
@@ -641,7 +645,7 @@
 
     return Observer;
   }();
-  Observer.version = "3.10.3";
+  Observer.version = "3.10.4";
 
   Observer.create = function (vars) {
     return new Observer(vars);
@@ -662,7 +666,7 @@
   _getGSAP() && gsap.registerPlugin(Observer);
 
   /*!
-   * ScrollTrigger 3.10.3
+   * ScrollTrigger 3.10.4
    * https://greensock.com
    *
    * @license Copyright 2008-2022, GreenSock. All rights reserved.
@@ -697,6 +701,7 @@
       _ignoreMobileResize,
       _baseScreenHeight,
       _baseScreenWidth,
+      _fixIOSBug,
       _limitCallbacks,
       _startup$1 = 1,
       _getTime$1 = Date.now,
@@ -928,8 +933,8 @@
       capture: !!capture
     });
   },
-      _removeListener$1 = function _removeListener(element, type, func) {
-    return element.removeEventListener(type, func);
+      _removeListener$1 = function _removeListener(element, type, func, capture) {
+    return element.removeEventListener(type, func, !!capture);
   },
       _wheelListener = function _wheelListener(func, el, scrollFunc) {
     return scrollFunc && scrollFunc.wheelHandler && func(el, "wheel", scrollFunc);
@@ -1017,7 +1022,7 @@
     return _getTime$1() - _lastScrollTime > 34 && _updateAll();
   },
       _onScroll$1 = function _onScroll() {
-    if (!_normalizer$1 || !_normalizer$1.isPressed) {
+    if (!_normalizer$1 || !_normalizer$1.isPressed || _normalizer$1.startX > _body$1.clientWidth) {
       _scrollers.cache++;
       _rafID || (_rafID = requestAnimationFrame(_updateAll));
       _lastScrollTime || _dispatch("scrollStart");
@@ -1030,7 +1035,7 @@
   },
       _onResize = function _onResize() {
     _scrollers.cache++;
-    !_refreshing && !_ignoreResize && !_doc$1.fullscreenElement && (!_ignoreMobileResize || _baseScreenWidth !== _win$1.innerWidth || Math.abs(_win$1.innerHeight - _baseScreenHeight) > _win$1.innerHeight * 0.25) && _resizeDelay.restart(true);
+    !_refreshing && !_ignoreResize && !_doc$1.fullscreenElement && !_doc$1.webkitFullscreenElement && (!_ignoreMobileResize || _baseScreenWidth !== _win$1.innerWidth || Math.abs(_win$1.innerHeight - _baseScreenHeight) > _win$1.innerHeight * 0.25) && _resizeDelay.restart(true);
   },
       _listeners = {},
       _emptyArray = [],
@@ -1153,8 +1158,8 @@
       _primary,
       _updateAll = function _updateAll() {
     if (!_refreshingAll) {
-      _primary && _primary.update(0);
       ScrollTrigger$1.isUpdating = true;
+      _primary && _primary.update(0);
 
       var l = _triggers.length,
           time = _getTime$1(),
@@ -1920,7 +1925,7 @@
 
             animation.render(animation.duration(), true, true);
             pinChange = pinGetter(direction.a) - pinStart + change + otherPinOffset;
-            change !== pinChange && pinActiveState.splice(pinActiveState.length - 2, 2);
+            change !== pinChange && useFixedPosition && pinActiveState.splice(pinActiveState.length - 2, 2);
             animation.render(0, true, true);
             initted || animation.invalidate();
 
@@ -2327,6 +2332,7 @@
           _enabled = 1;
           Observer.register(gsap$1);
           ScrollTrigger.isTouch = Observer.isTouch;
+          _fixIOSBug = Observer.isTouch && /(iPad|iPhone|iPod|Mac)/g.test(navigator.userAgent);
 
           _addListener$1(_win$1, "wheel", _onScroll$1);
 
@@ -2481,7 +2487,7 @@
 
     return ScrollTrigger;
   }();
-  ScrollTrigger$1.version = "3.10.3";
+  ScrollTrigger$1.version = "3.10.4";
 
   ScrollTrigger$1.saveStyles = function (targets) {
     return targets ? _toArray(targets).forEach(function (target) {
@@ -2601,10 +2607,10 @@
     if (direction === true) {
       target.style.removeProperty("touch-action");
     } else {
-      target.style.touchAction = direction ? "pan-" + direction : "none";
+      target.style.touchAction = direction === true ? "auto" : direction ? "pan-" + direction + (Observer.isTouch ? " pinch-zoom" : "") : "none";
     }
 
-    target === _docEl$1 && _allowNativePanning(_body$1);
+    target === _docEl$1 && _allowNativePanning(_body$1, direction);
   },
       _overflow = {
     auto: 1,
@@ -2646,7 +2652,7 @@
         return inputs && _addListener$1(_doc$1, Observer.eventTypes[0], _captureInputs, false, true);
       },
       onDisable: function onDisable() {
-        return _removeListener$1(_doc$1, Observer.eventTypes[0], _captureInputs);
+        return _removeListener$1(_doc$1, Observer.eventTypes[0], _captureInputs, true);
       }
     });
   },
@@ -2674,9 +2680,12 @@
         self,
         maxY,
         target = _getTarget(vars.target) || _docEl$1,
+        smoother = gsap$1.core.globals().ScrollSmoother,
+        content = _fixIOSBug && (vars.content && _getTarget(vars.content) || smoother && smoother.get() && smoother.get().content()),
         scrollFuncY = _getScrollFunc(target, _vertical),
         scrollFuncX = _getScrollFunc(target, _horizontal),
         scale = 1,
+        initialScale = (Observer.isTouch && _win$1.visualViewport ? _win$1.visualViewport.scale * _win$1.visualViewport.width : _win$1.outerWidth) / _win$1.innerWidth,
         wheelRefresh = 0,
         resolveMomentumDuration = _isFunction(momentum) ? function () {
       return momentum(self);
@@ -2693,15 +2702,33 @@
         scrollClampY = _passThrough,
         updateClamps = function updateClamps() {
       maxY = _maxScroll(target, _vertical);
-      scrollClampY = _clamp$1(0, maxY);
+      scrollClampY = _clamp$1(_fixIOSBug ? 1 : 0, maxY);
       normalizeScrollX && (scrollClampX = _clamp$1(0, _maxScroll(target, _horizontal)));
       lastRefreshID = _refreshID;
     },
-        fixIOSBug = ScrollTrigger$1.isTouch && /(iPad|iPhone|iPod|Mac)/g.test(navigator.userAgent),
         ignoreDrag = function ignoreDrag() {
       if (skipTouchMove) {
         requestAnimationFrame(resumeTouchMove);
+
+        var offset = _round(self.deltaY / 2),
+            scroll = scrollClampY(scrollFuncY.v - offset);
+
+        if (content && scroll !== scrollFuncY.v + scrollFuncY.offset) {
+          scrollFuncY.offset = scroll - scrollFuncY.v;
+          content.style.transform = "translateY(" + -scrollFuncY.offset + "px)";
+          content._gsap && (content._gsap.y = -scrollFuncY.offset + "px");
+          scrollFuncY.cacheID = _scrollers.cache;
+
+          _updateAll();
+        }
+
         return true;
+      }
+
+      if (content) {
+        content.style.transform = "translateY(0px)";
+        scrollFuncY.offset = scrollFuncY.cacheID = 0;
+        content._gsap && (content._gsap.y = "0px");
       }
 
       skipTouchMove = true;
@@ -2712,18 +2739,21 @@
         onStopDelayedCall,
         onResize = function onResize() {
       updateClamps();
-      tween.isActive() && tween.vars.scrollY > maxY && tween.resetTo("scrollY", _maxScroll(target, _vertical));
+
+      if (tween.isActive() && tween.vars.scrollY > maxY) {
+        scrollFuncY() > maxY ? tween.progress(1) && scrollFuncY(maxY) : tween.resetTo("scrollY", maxY);
+      }
     };
 
     vars.ignoreCheck = function (e) {
-      return fixIOSBug && e.type === "touchmove" && ignoreDrag() || scale > 1 || self.isGesturing || e.touches && e.touches.length > 1;
+      return _fixIOSBug && e.type === "touchmove" && ignoreDrag() || scale > 1.05 && e.type !== "touchstart" || self.isGesturing || e.touches && e.touches.length > 1;
     };
 
     vars.onPress = function () {
       var prevScale = scale;
-      scale = _win$1.visualViewport && _win$1.visualViewport.scale || 1;
+      scale = _round((_win$1.visualViewport && _win$1.visualViewport.scale || 1) / initialScale);
       tween.pause();
-      prevScale !== scale && _allowNativePanning(target, scale > 1 ? true : normalizeScrollX ? false : "x");
+      prevScale !== scale && _allowNativePanning(target, scale > 1.01 ? true : normalizeScrollX ? false : "x");
       skipTouchMove = false;
       startScrollX = scrollFuncX();
       startScrollY = scrollFuncY();
@@ -2732,25 +2762,39 @@
     };
 
     vars.onRelease = vars.onGestureStart = function (self, wasDragging) {
+      if (content) {
+        content.style.transform = "translateY(0px)";
+        scrollFuncY.offset = scrollFuncY.cacheID = 0;
+        content._gsap && (content._gsap.y = "0px");
+      }
+
       if (!wasDragging) {
         onStopDelayedCall.restart(true);
       } else {
+        _scrollers.cache++;
         var dur = resolveMomentumDuration(),
             currentScroll,
             endScroll;
 
         if (normalizeScrollX) {
           currentScroll = scrollFuncX();
-          endScroll = currentScroll + dur * 0.05 * -self.velocityX / 0.227 / scale;
+          endScroll = currentScroll + dur * 0.05 * -self.velocityX / 0.227;
           dur *= _clampScrollAndGetDurationMultiplier(scrollFuncX, currentScroll, endScroll, _maxScroll(target, _horizontal));
           tween.vars.scrollX = scrollClampX(endScroll);
         }
 
         currentScroll = scrollFuncY();
-        endScroll = currentScroll + dur * 0.05 * -self.velocityY / 0.227 / scale;
+        endScroll = currentScroll + dur * 0.05 * -self.velocityY / 0.227;
         dur *= _clampScrollAndGetDurationMultiplier(scrollFuncY, currentScroll, endScroll, _maxScroll(target, _vertical));
         tween.vars.scrollY = scrollClampY(endScroll);
         tween.invalidate().duration(dur).play(0.01);
+
+        if (_fixIOSBug && tween.vars.scrollY >= maxY || currentScroll >= maxY - 1) {
+          gsap$1.to({}, {
+            onUpdate: onResize,
+            duration: dur
+          });
+        }
       }
     };
 
@@ -2765,8 +2809,8 @@
 
     vars.onChange = function (self, dx, dy, xArray, yArray) {
       _refreshID !== lastRefreshID && updateClamps();
-      dx && normalizeScrollX && scrollFuncX(scrollClampX(xArray[2] === dx ? startScrollX + (self.startX - self.x) / scale : scrollFuncX() + dx - xArray[1]));
-      dy && scrollFuncY(scrollClampY(yArray[2] === dy ? startScrollY + (self.startY - self.y) / scale : scrollFuncY() + dy - yArray[1]));
+      dx && normalizeScrollX && scrollFuncX(scrollClampX(xArray[2] === dx ? startScrollX + (self.startX - self.x) : scrollFuncX() + dx - xArray[1]));
+      dy && scrollFuncY(scrollClampY(yArray[2] === dy ? startScrollY + (self.startY - self.y) : scrollFuncY() + dy - yArray[1]));
 
       _updateAll();
     };
@@ -2788,6 +2832,8 @@
     };
 
     self = new Observer(vars);
+    self.iOS = _fixIOSBug;
+    _fixIOSBug && !scrollFuncY() && scrollFuncY(1);
     onStopDelayedCall = self._dc;
     tween = gsap$1.to(self, {
       ease: "power4",

@@ -1,5 +1,5 @@
 /*!
- * Observer 3.10.3
+ * Observer 3.10.4
  * https://greensock.com
  *
  * @license Copyright 2008-2022, GreenSock. All rights reserved.
@@ -32,23 +32,27 @@ let gsap, _coreInitted, _clamp, _win, _doc, _docEl, _body, _isTouch, _pointerTyp
 	_getProxyProp = (element, property) => ~_proxies.indexOf(element) && _proxies[_proxies.indexOf(element) + 1][property],
 	_isViewport = el => !!~_root.indexOf(el),
 	_addListener = (element, type, func, nonPassive, capture) => element.addEventListener(type, func, {passive: !nonPassive, capture: !!capture}),
-	_removeListener = (element, type, func) => element.removeEventListener(type, func),
+	_removeListener = (element, type, func, capture) => element.removeEventListener(type, func, !!capture),
 	_scrollLeft = "scrollLeft",
 	_scrollTop = "scrollTop",
 	_onScroll = () => (_normalizer && _normalizer.isPressed) || _scrollers.cache++,
-	_scrollCacheFunc = f => value => { // since reading the scrollTop/scrollLeft/pageOffsetY/pageOffsetX can trigger a layout, this function allows us to cache the value so it only gets read fresh after a "scroll" event fires (or while we're refreshing because that can lengthen the page and alter the scroll position). when "soft" is true, that means don't actually set the scroll, but cache the new value instead (useful in ScrollSmoother)
-		if (value || value === 0) {
-			_startup && (_win.history.scrollRestoration = "manual"); // otherwise the new position will get overwritten by the browser onload.
-			//value = Math.round(value);
-			f(value);
-			f.v = value;
-			f.c = _scrollers.cache;
-			_normalizer && _normalizer.isPressed && _bridge("ss", value); // set scroll (notify ScrollTrigger so it can dispatch a "scrollStart" event if necessary
-		} else if (_scrollers.cache !== f.c || _bridge("ref")) {
-			f.c = _scrollers.cache;
-			f.v = f();
-		}
-		return f.v;
+	_scrollCacheFunc = (f, doNotCache) => {
+		let cachingFunc = value => { // since reading the scrollTop/scrollLeft/pageOffsetY/pageOffsetX can trigger a layout, this function allows us to cache the value so it only gets read fresh after a "scroll" event fires (or while we're refreshing because that can lengthen the page and alter the scroll position). when "soft" is true, that means don't actually set the scroll, but cache the new value instead (useful in ScrollSmoother)
+				if (value || value === 0) {
+					_startup && (_win.history.scrollRestoration = "manual"); // otherwise the new position will get overwritten by the browser onload.
+					let isNormalizing = _normalizer && _normalizer.isPressed;
+					value = cachingFunc.v = Math.round(value) || (_normalizer && _normalizer.iOS ? 1 : 0); //TODO: iOS Bug: if you allow it to go to 0, Safari can start to report super strange (wildly inaccurate) touch positions!
+					f(value);
+					cachingFunc.cacheID = _scrollers.cache;
+					isNormalizing && _bridge("ss", value); // set scroll (notify ScrollTrigger so it can dispatch a "scrollStart" event if necessary
+				} else if (doNotCache || _scrollers.cache !== cachingFunc.cacheID || _bridge("ref")) {
+					cachingFunc.cacheID = _scrollers.cache;
+					cachingFunc.v = f();
+				}
+				return cachingFunc.v + cachingFunc.offset;
+			};
+		cachingFunc.offset = 0;
+		return f && cachingFunc;
 	},
 	_horizontal = {s: _scrollLeft, p: "left", p2: "Left", os: "right", os2: "Right", d: "width", d2: "Width", a: "x", sc: _scrollCacheFunc(function(value) { return arguments.length ? _win.scrollTo(value, _vertical.sc()) : _win.pageXOffset || _doc[_scrollLeft] || _docEl[_scrollLeft] || _body[_scrollLeft] || 0})},
 	_vertical = {s: _scrollTop, p: "top", p2: "Top", os: "bottom", os2: "Bottom", d: "height", d2: "Height", a: "y", op: _horizontal, sc: _scrollCacheFunc(function(value) { return arguments.length ? _win.scrollTo(_horizontal.sc(), value) : _win.pageYOffset || _doc[_scrollTop] || _docEl[_scrollTop] || _body[_scrollTop] || 0})},
@@ -58,7 +62,7 @@ let gsap, _coreInitted, _clamp, _win, _doc, _docEl, _body, _isTouch, _pointerTyp
 		let i = _scrollers.indexOf(element),
 			offset = sc === _vertical.sc ? 1 : 2;
 		!~i && (i = _scrollers.push(element) - 1);
-		return _scrollers[i + offset] || (_scrollers[i + offset] = _getProxyProp(element, s) || (_isViewport(element) ? sc : _scrollCacheFunc(function(value) { return arguments.length ? (element[s] = value) : element[s]; })));
+		return _scrollers[i + offset] || (_scrollers[i + offset] = _scrollCacheFunc(_getProxyProp(element, s), true) || (_isViewport(element) ? sc : _scrollCacheFunc(function(value) { return arguments.length ? (element[s] = value) : element[s]; })));
 	},
 	_getVelocityProp = (value, minTimeRefresh, useDelta) => {
 		let v1 = value,
@@ -254,20 +258,20 @@ export class Observer {
 				self.startY = self.y = e.clientY;
 				self._vx.reset(); // otherwise the t2 may be stale if the user touches and flicks super fast and releases in less than 2 requestAnimationFrame ticks, causing velocity to be 0.
 				self._vy.reset();
-				_addListener(isNormalizer ? target : ownerDoc, _eventTypes[1], _onDrag, preventDefault, capture);
+				_addListener(isNormalizer ? target : ownerDoc, _eventTypes[1], _onDrag, preventDefault, true);
 				self.deltaX = self.deltaY = 0;
 				onPress && onPress(self);
 			},
 			_onRelease = e => {
 				if (_ignoreCheck(e, 1)) {return;}
-				_removeListener(isNormalizer ? target : ownerDoc, _eventTypes[1], _onDrag);
+				_removeListener(isNormalizer ? target : ownerDoc, _eventTypes[1], _onDrag, true);
 				let wasDragging = self.isDragging && (Math.abs(self.x - self.startX) > 3 || Math.abs(self.y - self.startY) > 3), // some touch devices need some wiggle room in terms of sensing clicks - the finger may move a few pixels.
 					eventData = _getEvent(e);
 				if (!wasDragging) {
 					self._vx.reset();
 					self._vy.reset();
 					if (preventDefault && allowClicks) {
-						gsap.delayedCall(0.05, () => { // some browsers (like Firefox) won't trust script-generated clicks, so if the user tries to click on a video to play it, for example, it simply won't work. Since a regular "click" event will most likely be generated anyway (one that has its isTrusted flag set to true), we must slightly delay our script-generated click so that the "real"/trusted one is prioritized. Remember, when there are duplicate events in quick succession, we suppress all but the first one. Some browsers don't even trigger the "real" one at all, so our synthetic one is a safety valve that ensures that no matter what, a click event does get dispatched.
+						gsap.delayedCall(0.08, () => { // some browsers (like Firefox) won't trust script-generated clicks, so if the user tries to click on a video to play it, for example, it simply won't work. Since a regular "click" event will most likely be generated anyway (one that has its isTrusted flag set to true), we must slightly delay our script-generated click so that the "real"/trusted one is prioritized. Remember, when there are duplicate events in quick succession, we suppress all but the first one. Some browsers don't even trigger the "real" one at all, so our synthetic one is a safety valve that ensures that no matter what, a click event does get dispatched.
 							if (_getTime() - onClickTime > 300 && !e.defaultPrevented) {
 								if (e.target.click) { //some browsers (like mobile Safari) don't properly trigger the click event
 									e.target.click();
@@ -357,14 +361,14 @@ export class Observer {
 				if (self.isPressed) {
 					self._vx.reset();
 					self._vy.reset();
-					_removeListener(isNormalizer ? target : ownerDoc, _eventTypes[1], _onDrag);
+					_removeListener(isNormalizer ? target : ownerDoc, _eventTypes[1], _onDrag, true);
 				}
-				_removeListener(isViewport ? ownerDoc : target, "scroll", onScroll);
-				_removeListener(target, "wheel", _onWheel);
-				_removeListener(target, _eventTypes[0], _onPress);
+				_removeListener(isViewport ? ownerDoc : target, "scroll", onScroll, capture);
+				_removeListener(target, "wheel", _onWheel, capture);
+				_removeListener(target, _eventTypes[0], _onPress, capture);
 				_removeListener(ownerDoc, _eventTypes[2], _onRelease);
 				_removeListener(ownerDoc, _eventTypes[3], _onRelease);
-				_removeListener(target, "click", clickCapture);
+				_removeListener(target, "click", clickCapture, true);
 				_removeListener(target, "click", _onClick);
 				_removeListener(ownerDoc, "gesturestart", _onGestureStart);
 				_removeListener(ownerDoc, "gestureend", _onGestureEnd);
@@ -398,7 +402,7 @@ export class Observer {
 
 }
 
-Observer.version = "3.10.3";
+Observer.version = "3.10.4";
 Observer.create = vars => new Observer(vars);
 Observer.register = _initCore;
 Observer.getAll = () => _observers.slice();

@@ -1,5 +1,5 @@
 /*!
- * ScrollTrigger 3.10.3
+ * ScrollTrigger 3.10.4
  * https://greensock.com
  *
  * @license Copyright 2008-2022, GreenSock. All rights reserved.
@@ -37,6 +37,7 @@ var gsap,
     _ignoreMobileResize,
     _baseScreenHeight,
     _baseScreenWidth,
+    _fixIOSBug,
     _limitCallbacks,
     // if true, we'll only trigger callbacks if the active state toggles, so if you scroll immediately past both the start and end positions of a ScrollTrigger (thus inactive to inactive), neither its onEnter nor onLeave will be called. This is useful during startup.
 _startup = 1,
@@ -272,8 +273,8 @@ _startup = 1,
     capture: !!capture
   });
 },
-    _removeListener = function _removeListener(element, type, func) {
-  return element.removeEventListener(type, func);
+    _removeListener = function _removeListener(element, type, func, capture) {
+  return element.removeEventListener(type, func, !!capture);
 },
     _wheelListener = function _wheelListener(func, el, scrollFunc) {
   return scrollFunc && scrollFunc.wheelHandler && func(el, "wheel", scrollFunc);
@@ -362,7 +363,8 @@ _startup = 1,
 },
     _onScroll = function _onScroll() {
   // previously, we tried to optimize performance by batching/deferring to the next requestAnimationFrame(), but discovered that Safari has a few bugs that make this unworkable (especially on iOS). See https://codepen.io/GreenSock/pen/16c435b12ef09c38125204818e7b45fc?editors=0010 and https://codepen.io/GreenSock/pen/JjOxYpQ/3dd65ccec5a60f1d862c355d84d14562?editors=0010 and https://codepen.io/GreenSock/pen/ExbrPNa/087cef197dc35445a0951e8935c41503?editors=0010
-  if (!_normalizer || !_normalizer.isPressed) {
+  if (!_normalizer || !_normalizer.isPressed || _normalizer.startX > _body.clientWidth) {
+    // if the user is dragging the scrollbar, allow it.
     _scrollers.cache++;
     _rafID || (_rafID = requestAnimationFrame(_updateAll));
     _lastScrollTime || _dispatch("scrollStart");
@@ -375,7 +377,7 @@ _startup = 1,
 },
     _onResize = function _onResize() {
   _scrollers.cache++;
-  !_refreshing && !_ignoreResize && !_doc.fullscreenElement && (!_ignoreMobileResize || _baseScreenWidth !== _win.innerWidth || Math.abs(_win.innerHeight - _baseScreenHeight) > _win.innerHeight * 0.25) && _resizeDelay.restart(true);
+  !_refreshing && !_ignoreResize && !_doc.fullscreenElement && !_doc.webkitFullscreenElement && (!_ignoreMobileResize || _baseScreenWidth !== _win.innerWidth || Math.abs(_win.innerHeight - _baseScreenHeight) > _win.innerHeight * 0.25) && _resizeDelay.restart(true);
 },
     // ignore resizes triggered by refresh()
 _listeners = {},
@@ -506,9 +508,8 @@ _refreshingAll,
     _primary,
     _updateAll = function _updateAll() {
   if (!_refreshingAll) {
-    _primary && _primary.update(0); // ScrollSmoother users refreshPriority -9999 to become the primary that gets updated before all others because it affects the scroll position.
-
     ScrollTrigger.isUpdating = true;
+    _primary && _primary.update(0); // ScrollSmoother users refreshPriority -9999 to become the primary that gets updated before all others because it affects the scroll position.
 
     var l = _triggers.length,
         time = _getTime(),
@@ -1317,7 +1318,7 @@ export var ScrollTrigger = /*#__PURE__*/function () {
 
           animation.render(animation.duration(), true, true);
           pinChange = pinGetter(direction.a) - pinStart + change + otherPinOffset;
-          change !== pinChange && pinActiveState.splice(pinActiveState.length - 2, 2); // transform is the last property/value set in the state Array. Since the animation is controlling that, we should omit it.
+          change !== pinChange && useFixedPosition && pinActiveState.splice(pinActiveState.length - 2, 2); // transform is the last property/value set in the state Array. Since the animation is controlling that, we should omit it.
 
           animation.render(0, true, true);
           initted || animation.invalidate();
@@ -1742,6 +1743,7 @@ export var ScrollTrigger = /*#__PURE__*/function () {
         Observer.register(gsap); // isTouch is 0 if no touch, 1 if ONLY touch, and 2 if it can accommodate touch but also other types like mouse/pointer.
 
         ScrollTrigger.isTouch = Observer.isTouch;
+        _fixIOSBug = Observer.isTouch && /(iPad|iPhone|iPod|Mac)/g.test(navigator.userAgent); // since 2017, iOS has had a bug that causes event.clientX/Y to be inaccurate when a scroll occurs, thus we must alternate ignoring every other touchmove event to work around it. See https://bugs.webkit.org/show_bug.cgi?id=181954 and https://codepen.io/GreenSock/pen/ExbrPNa/087cef197dc35445a0951e8935c41503
 
         _addListener(_win, "wheel", _onScroll); // mostly for 3rd party smooth scrolling libraries.
 
@@ -1905,7 +1907,7 @@ export var ScrollTrigger = /*#__PURE__*/function () {
 
   return ScrollTrigger;
 }();
-ScrollTrigger.version = "3.10.3";
+ScrollTrigger.version = "3.10.4";
 
 ScrollTrigger.saveStyles = function (targets) {
   return targets ? _toArray(targets).forEach(function (target) {
@@ -2028,10 +2030,10 @@ var _clampScrollAndGetDurationMultiplier = function _clampScrollAndGetDurationMu
   if (direction === true) {
     target.style.removeProperty("touch-action");
   } else {
-    target.style.touchAction = direction ? "pan-" + direction : "none"; // note: we tried adding pinch-zoom too, but Firefox doesn't support it properly.
+    target.style.touchAction = direction === true ? "auto" : direction ? "pan-" + direction + (Observer.isTouch ? " pinch-zoom" : "") : "none"; // note: Firefox doesn't support it pinch-zoom properly, at least in addition to a pan-x or pan-y.
   }
 
-  target === _docEl && _allowNativePanning(_body);
+  target === _docEl && _allowNativePanning(_body, direction);
 },
     _overflow = {
   auto: 1,
@@ -2075,7 +2077,7 @@ _inputObserver = function _inputObserver(target, type, inputs, nested) {
       return inputs && _addListener(_doc, Observer.eventTypes[0], _captureInputs, false, true);
     },
     onDisable: function onDisable() {
-      return _removeListener(_doc, Observer.eventTypes[0], _captureInputs);
+      return _removeListener(_doc, Observer.eventTypes[0], _captureInputs, true);
     }
   });
 },
@@ -2103,9 +2105,12 @@ _inputObserver = function _inputObserver(target, type, inputs, nested) {
       self,
       maxY,
       target = _getTarget(vars.target) || _docEl,
+      smoother = gsap.core.globals().ScrollSmoother,
+      content = _fixIOSBug && (vars.content && _getTarget(vars.content) || smoother && smoother.get() && smoother.get().content()),
       scrollFuncY = _getScrollFunc(target, _vertical),
       scrollFuncX = _getScrollFunc(target, _horizontal),
       scale = 1,
+      initialScale = (Observer.isTouch && _win.visualViewport ? _win.visualViewport.scale * _win.visualViewport.width : _win.outerWidth) / _win.innerWidth,
       wheelRefresh = 0,
       resolveMomentumDuration = _isFunction(momentum) ? function () {
     return momentum(self);
@@ -2122,16 +2127,33 @@ _inputObserver = function _inputObserver(target, type, inputs, nested) {
       scrollClampY = _passThrough,
       updateClamps = function updateClamps() {
     maxY = _maxScroll(target, _vertical);
-    scrollClampY = _clamp(0, maxY);
+    scrollClampY = _clamp(_fixIOSBug ? 1 : 0, maxY);
     normalizeScrollX && (scrollClampX = _clamp(0, _maxScroll(target, _horizontal)));
     lastRefreshID = _refreshID;
   },
-      fixIOSBug = ScrollTrigger.isTouch && /(iPad|iPhone|iPod|Mac)/g.test(navigator.userAgent),
       ignoreDrag = function ignoreDrag() {
     if (skipTouchMove) {
       requestAnimationFrame(resumeTouchMove); // we MUST wait for a requestAnimationFrame, otherwise iOS will misreport the value.
 
+      var offset = _round(self.deltaY / 2),
+          scroll = scrollClampY(scrollFuncY.v - offset);
+
+      if (content && scroll !== scrollFuncY.v + scrollFuncY.offset) {
+        scrollFuncY.offset = scroll - scrollFuncY.v;
+        content.style.transform = "translateY(" + -scrollFuncY.offset + "px)";
+        content._gsap && (content._gsap.y = -scrollFuncY.offset + "px");
+        scrollFuncY.cacheID = _scrollers.cache;
+
+        _updateAll();
+      }
+
       return true;
+    }
+
+    if (content) {
+      content.style.transform = "translateY(0px)";
+      scrollFuncY.offset = scrollFuncY.cacheID = 0;
+      content._gsap && (content._gsap.y = "0px");
     }
 
     skipTouchMove = true;
@@ -2143,18 +2165,21 @@ _inputObserver = function _inputObserver(target, type, inputs, nested) {
       onResize = function onResize() {
     // if the window resizes, like on an iPhone which Apple FORCES the address bar to show/hide even if we event.preventDefault(), it may be scrolling too far now that the address bar is showing, so we must dynamically adjust the momentum tween.
     updateClamps();
-    tween.isActive() && tween.vars.scrollY > maxY && tween.resetTo("scrollY", _maxScroll(target, _vertical));
+
+    if (tween.isActive() && tween.vars.scrollY > maxY) {
+      scrollFuncY() > maxY ? tween.progress(1) && scrollFuncY(maxY) : tween.resetTo("scrollY", maxY);
+    }
   };
 
   vars.ignoreCheck = function (e) {
-    return fixIOSBug && e.type === "touchmove" && ignoreDrag(e) || scale > 1 || self.isGesturing || e.touches && e.touches.length > 1;
+    return _fixIOSBug && e.type === "touchmove" && ignoreDrag(e) || scale > 1.05 && e.type !== "touchstart" || self.isGesturing || e.touches && e.touches.length > 1;
   };
 
   vars.onPress = function () {
     var prevScale = scale;
-    scale = _win.visualViewport && _win.visualViewport.scale || 1;
+    scale = _round((_win.visualViewport && _win.visualViewport.scale || 1) / initialScale);
     tween.pause();
-    prevScale !== scale && _allowNativePanning(target, scale > 1 ? true : normalizeScrollX ? false : "x");
+    prevScale !== scale && _allowNativePanning(target, scale > 1.01 ? true : normalizeScrollX ? false : "x");
     skipTouchMove = false;
     startScrollX = scrollFuncX();
     startScrollY = scrollFuncY();
@@ -2163,28 +2188,44 @@ _inputObserver = function _inputObserver(target, type, inputs, nested) {
   };
 
   vars.onRelease = vars.onGestureStart = function (self, wasDragging) {
+    if (content) {
+      content.style.transform = "translateY(0px)";
+      scrollFuncY.offset = scrollFuncY.cacheID = 0;
+      content._gsap && (content._gsap.y = "0px");
+    }
+
     if (!wasDragging) {
       onStopDelayedCall.restart(true);
     } else {
+      _scrollers.cache++; // make sure we're pulling the non-cached value
       // alternate algorithm: durX = Math.min(6, Math.abs(self.velocityX / 800)),	dur = Math.max(durX, Math.min(6, Math.abs(self.velocityY / 800))); dur = dur * (0.4 + (1 - _power4In(dur / 6)) * 0.6)) * (momentumSpeed || 1)
+
       var dur = resolveMomentumDuration(),
           currentScroll,
           endScroll;
 
       if (normalizeScrollX) {
         currentScroll = scrollFuncX();
-        endScroll = currentScroll + dur * 0.05 * -self.velocityX / 0.227 / scale; // the constant .227 is from power4(0.05). velocity is inverted because scrolling goes in the opposite direction.
+        endScroll = currentScroll + dur * 0.05 * -self.velocityX / 0.227; // the constant .227 is from power4(0.05). velocity is inverted because scrolling goes in the opposite direction.
 
         dur *= _clampScrollAndGetDurationMultiplier(scrollFuncX, currentScroll, endScroll, _maxScroll(target, _horizontal));
         tween.vars.scrollX = scrollClampX(endScroll);
       }
 
       currentScroll = scrollFuncY();
-      endScroll = currentScroll + dur * 0.05 * -self.velocityY / 0.227 / scale; // the constant .227 is from power4(0.05)
+      endScroll = currentScroll + dur * 0.05 * -self.velocityY / 0.227; // the constant .227 is from power4(0.05)
 
       dur *= _clampScrollAndGetDurationMultiplier(scrollFuncY, currentScroll, endScroll, _maxScroll(target, _vertical));
       tween.vars.scrollY = scrollClampY(endScroll);
       tween.invalidate().duration(dur).play(0.01);
+
+      if (_fixIOSBug && tween.vars.scrollY >= maxY || currentScroll >= maxY - 1) {
+        // iOS bug: it'll show the address bar but NOT fire the window "resize" event until the animation is done but we must protect against overshoot so we leverage an onUpdate to do so.
+        gsap.to({}, {
+          onUpdate: onResize,
+          duration: dur
+        });
+      }
     }
   };
 
@@ -2200,9 +2241,9 @@ _inputObserver = function _inputObserver(target, type, inputs, nested) {
 
   vars.onChange = function (self, dx, dy, xArray, yArray) {
     _refreshID !== lastRefreshID && updateClamps();
-    dx && normalizeScrollX && scrollFuncX(scrollClampX(xArray[2] === dx ? startScrollX + (self.startX - self.x) / scale : scrollFuncX() + dx - xArray[1])); // for more precision, we track pointer/touch movement from the start, otherwise it'll drift.
+    dx && normalizeScrollX && scrollFuncX(scrollClampX(xArray[2] === dx ? startScrollX + (self.startX - self.x) : scrollFuncX() + dx - xArray[1])); // for more precision, we track pointer/touch movement from the start, otherwise it'll drift.
 
-    dy && scrollFuncY(scrollClampY(yArray[2] === dy ? startScrollY + (self.startY - self.y) / scale : scrollFuncY() + dy - yArray[1]));
+    dy && scrollFuncY(scrollClampY(yArray[2] === dy ? startScrollY + (self.startY - self.y) : scrollFuncY() + dy - yArray[1]));
 
     _updateAll();
   };
@@ -2224,6 +2265,10 @@ _inputObserver = function _inputObserver(target, type, inputs, nested) {
   };
 
   self = new Observer(vars);
+  self.iOS = _fixIOSBug; // used in the Observer getCachedScroll() function to work around an iOS bug that wreaks havoc with TouchEvent.clientY if we allow scroll to go all the way back to 0.
+
+  _fixIOSBug && !scrollFuncY() && scrollFuncY(1); // iOS bug causes event.clientY values to freak out (wildly inaccurate) if the scroll position is exactly 0.
+
   onStopDelayedCall = self._dc;
   tween = gsap.to(self, {
     ease: "power4",

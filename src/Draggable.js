@@ -1,5 +1,5 @@
 /*!
- * Draggable 3.10.3
+ * Draggable 3.10.4
  * https://greensock.com
  *
  * @license Copyright 2008-2022, GreenSock. All rights reserved.
@@ -1181,7 +1181,7 @@ export class Draggable extends EventDispatcher {
 				if (_touchEventLookup[e.type]) { //note: on iOS, BOTH touchmove and mousemove are dispatched, but the mousemove has pageY and pageX of 0 which would mess up the calculations and needlessly hurt performance.
 					touchEventTarget = ~e.type.indexOf("touch") ? (e.currentTarget || e.target) : ownerDoc; //pointer-based touches (for Microsoft browsers) don't remain locked to the original target like other browsers, so we must use the document instead. The event type would be "MSPointerDown" or "pointerdown".
 					_addListener(touchEventTarget, "touchend", onRelease);
-					_addListener(touchEventTarget, "touchmove", onMove);
+					_addListener(touchEventTarget, "touchmove", onMove); // possible future change if PointerEvents are more standardized: https://developer.mozilla.org/en-US/docs/Web/API/Element/setPointerCapture
 					_addListener(touchEventTarget, "touchcancel", onRelease);
 					_addListener(ownerDoc, "touchstart", _onMultiTouchDocument);
 				} else {
@@ -1915,7 +1915,7 @@ export class Draggable extends EventDispatcher {
 _setDefaults(Draggable.prototype, {pointerX:0, pointerY: 0, startX: 0, startY: 0, deltaX: 0, deltaY: 0, isDragging: false, isPressed: false});
 
 Draggable.zIndex = 1000;
-Draggable.version = "3.10.3";
+Draggable.version = "3.10.4";
 
 _getGSAP() && gsap.registerPlugin(Draggable);
 

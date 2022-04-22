@@ -364,7 +364,7 @@
 	}
 
 	/*!
-	 * Flip 3.10.3
+	 * Flip 3.10.4
 	 * https://greensock.com
 	 *
 	 * @license Copyright 2008-2022, GreenSock. All rights reserved.
@@ -1792,7 +1792,7 @@
 
 	  return Flip;
 	}();
-	Flip.version = "3.10.3";
+	Flip.version = "3.10.4";
 	typeof window !== "undefined" && window.gsap && window.gsap.registerPlugin(Flip);
 
 	exports.Flip = Flip;

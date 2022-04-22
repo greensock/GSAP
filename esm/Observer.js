@@ -3,7 +3,7 @@ function _defineProperties(target, props) { for (var i = 0; i < props.length; i+
 function _createClass(Constructor, protoProps, staticProps) { if (protoProps) _defineProperties(Constructor.prototype, protoProps); if (staticProps) _defineProperties(Constructor, staticProps); return Constructor; }
 
 /*!
- * Observer 3.10.3
+ * Observer 3.10.4
  * https://greensock.com
  *
  * @license Copyright 2008-2022, GreenSock. All rights reserved.
@@ -66,32 +66,36 @@ var gsap,
     capture: !!capture
   });
 },
-    _removeListener = function _removeListener(element, type, func) {
-  return element.removeEventListener(type, func);
+    _removeListener = function _removeListener(element, type, func, capture) {
+  return element.removeEventListener(type, func, !!capture);
 },
     _scrollLeft = "scrollLeft",
     _scrollTop = "scrollTop",
     _onScroll = function _onScroll() {
   return _normalizer && _normalizer.isPressed || _scrollers.cache++;
 },
-    _scrollCacheFunc = function _scrollCacheFunc(f) {
-  return function (value) {
+    _scrollCacheFunc = function _scrollCacheFunc(f, doNotCache) {
+  var cachingFunc = function cachingFunc(value) {
     // since reading the scrollTop/scrollLeft/pageOffsetY/pageOffsetX can trigger a layout, this function allows us to cache the value so it only gets read fresh after a "scroll" event fires (or while we're refreshing because that can lengthen the page and alter the scroll position). when "soft" is true, that means don't actually set the scroll, but cache the new value instead (useful in ScrollSmoother)
     if (value || value === 0) {
       _startup && (_win.history.scrollRestoration = "manual"); // otherwise the new position will get overwritten by the browser onload.
-      //value = Math.round(value);
+
+      var isNormalizing = _normalizer && _normalizer.isPressed;
+      value = cachingFunc.v = Math.round(value) || (_normalizer && _normalizer.iOS ? 1 : 0); //TODO: iOS Bug: if you allow it to go to 0, Safari can start to report super strange (wildly inaccurate) touch positions!
 
       f(value);
-      f.v = value;
-      f.c = _scrollers.cache;
-      _normalizer && _normalizer.isPressed && _bridge("ss", value); // set scroll (notify ScrollTrigger so it can dispatch a "scrollStart" event if necessary
-    } else if (_scrollers.cache !== f.c || _bridge("ref")) {
-      f.c = _scrollers.cache;
-      f.v = f();
+      cachingFunc.cacheID = _scrollers.cache;
+      isNormalizing && _bridge("ss", value); // set scroll (notify ScrollTrigger so it can dispatch a "scrollStart" event if necessary
+    } else if (doNotCache || _scrollers.cache !== cachingFunc.cacheID || _bridge("ref")) {
+      cachingFunc.cacheID = _scrollers.cache;
+      cachingFunc.v = f();
     }
 
-    return f.v;
+    return cachingFunc.v + cachingFunc.offset;
   };
+
+  cachingFunc.offset = 0;
+  return f && cachingFunc;
 },
     _horizontal = {
   s: _scrollLeft,
@@ -132,7 +136,7 @@ var gsap,
       offset = sc === _vertical.sc ? 1 : 2;
 
   !~i && (i = _scrollers.push(element) - 1);
-  return _scrollers[i + offset] || (_scrollers[i + offset] = _getProxyProp(element, s) || (_isViewport(element) ? sc : _scrollCacheFunc(function (value) {
+  return _scrollers[i + offset] || (_scrollers[i + offset] = _scrollCacheFunc(_getProxyProp(element, s), true) || (_isViewport(element) ? sc : _scrollCacheFunc(function (value) {
     return arguments.length ? element[s] = value : element[s];
   })));
 },
@@ -433,7 +437,7 @@ export var Observer = /*#__PURE__*/function () {
 
       self._vy.reset();
 
-      _addListener(isNormalizer ? target : ownerDoc, _eventTypes[1], _onDrag, preventDefault, capture);
+      _addListener(isNormalizer ? target : ownerDoc, _eventTypes[1], _onDrag, preventDefault, true);
 
       self.deltaX = self.deltaY = 0;
       onPress && onPress(self);
@@ -443,7 +447,7 @@ export var Observer = /*#__PURE__*/function () {
         return;
       }
 
-      _removeListener(isNormalizer ? target : ownerDoc, _eventTypes[1], _onDrag);
+      _removeListener(isNormalizer ? target : ownerDoc, _eventTypes[1], _onDrag, true);
 
       var wasDragging = self.isDragging && (Math.abs(self.x - self.startX) > 3 || Math.abs(self.y - self.startY) > 3),
           // some touch devices need some wiggle room in terms of sensing clicks - the finger may move a few pixels.
@@ -455,7 +459,7 @@ export var Observer = /*#__PURE__*/function () {
         self._vy.reset();
 
         if (preventDefault && allowClicks) {
-          gsap.delayedCall(0.05, function () {
+          gsap.delayedCall(0.08, function () {
             // some browsers (like Firefox) won't trust script-generated clicks, so if the user tries to click on a video to play it, for example, it simply won't work. Since a regular "click" event will most likely be generated anyway (one that has its isTrusted flag set to true), we must slightly delay our script-generated click so that the "real"/trusted one is prioritized. Remember, when there are duplicate events in quick succession, we suppress all but the first one. Some browsers don't even trigger the "real" one at all, so our synthetic one is a safety valve that ensures that no matter what, a click event does get dispatched.
             if (_getTime() - onClickTime > 300 && !e.defaultPrevented) {
               if (e.target.click) {
@@ -582,20 +586,20 @@ export var Observer = /*#__PURE__*/function () {
 
           self._vy.reset();
 
-          _removeListener(isNormalizer ? target : ownerDoc, _eventTypes[1], _onDrag);
+          _removeListener(isNormalizer ? target : ownerDoc, _eventTypes[1], _onDrag, true);
         }
 
-        _removeListener(isViewport ? ownerDoc : target, "scroll", onScroll);
+        _removeListener(isViewport ? ownerDoc : target, "scroll", onScroll, capture);
 
-        _removeListener(target, "wheel", _onWheel);
+        _removeListener(target, "wheel", _onWheel, capture);
 
-        _removeListener(target, _eventTypes[0], _onPress);
+        _removeListener(target, _eventTypes[0], _onPress, capture);
 
         _removeListener(ownerDoc, _eventTypes[2], _onRelease);
 
         _removeListener(ownerDoc, _eventTypes[3], _onRelease);
 
-        _removeListener(target, "click", clickCapture);
+        _removeListener(target, "click", clickCapture, true);
 
         _removeListener(target, "click", _onClick);
 
@@ -643,7 +647,7 @@ export var Observer = /*#__PURE__*/function () {
 
   return Observer;
 }();
-Observer.version = "3.10.3";
+Observer.version = "3.10.4";
 
 Observer.create = function (vars) {
   return new Observer(vars);

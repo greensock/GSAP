@@ -89,7 +89,7 @@
 	}
 
 	/*!
-	 * TextPlugin 3.10.3
+	 * TextPlugin 3.10.4
 	 * https://greensock.com
 	 *
 	 * @license Copyright 2008-2022, GreenSock. All rights reserved.
@@ -105,7 +105,7 @@
 	};
 
 	var TextPlugin = {
-	  version: "3.10.3",
+	  version: "3.10.4",
 	  name: "text",
 	  init: function init(target, value, tween) {
 	    typeof value !== "object" && (value = {

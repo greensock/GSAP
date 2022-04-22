@@ -3,7 +3,7 @@ function _assertThisInitialized(self) { if (self === void 0) { throw new Referen
 function _inheritsLoose(subClass, superClass) { subClass.prototype = Object.create(superClass.prototype); subClass.prototype.constructor = subClass; subClass.__proto__ = superClass; }
 
 /*!
- * Draggable 3.10.3
+ * Draggable 3.10.4
  * https://greensock.com
  *
  * @license Copyright 2008-2022, GreenSock. All rights reserved.
@@ -1622,7 +1622,8 @@ export var Draggable = /*#__PURE__*/function (_EventDispatcher) {
 
         _addListener(touchEventTarget, "touchend", onRelease);
 
-        _addListener(touchEventTarget, "touchmove", onMove);
+        _addListener(touchEventTarget, "touchmove", onMove); // possible future change if PointerEvents are more standardized: https://developer.mozilla.org/en-US/docs/Web/API/Element/setPointerCapture
+
 
         _addListener(touchEventTarget, "touchcancel", onRelease);
 
@@ -2663,6 +2664,6 @@ _setDefaults(Draggable.prototype, {
 });
 
 Draggable.zIndex = 1000;
-Draggable.version = "3.10.3";
+Draggable.version = "3.10.4";
 _getGSAP() && gsap.registerPlugin(Draggable);
 export { Draggable as default };

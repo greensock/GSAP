@@ -1,5 +1,5 @@
 /*!
- * ScrollTrigger 3.10.3
+ * ScrollTrigger 3.10.4
  * https://greensock.com
  *
  * @license Copyright 2008-2022, GreenSock. All rights reserved.
@@ -11,7 +11,7 @@
 
 import { Observer, _getTarget, _vertical, _horizontal, _scrollers, _proxies, _getScrollFunc, _getProxyProp, _getVelocityProp } from "./Observer.js";
 
-let gsap, _coreInitted, _win, _doc, _docEl, _body, _root, _resizeDelay, _toArray, _clamp, _time2, _syncInterval, _refreshing, _pointerIsDown, _transformProp, _i, _prevWidth, _prevHeight, _autoRefresh, _sort, _suppressOverwrites, _ignoreResize, _normalizer, _ignoreMobileResize, _baseScreenHeight, _baseScreenWidth,
+let gsap, _coreInitted, _win, _doc, _docEl, _body, _root, _resizeDelay, _toArray, _clamp, _time2, _syncInterval, _refreshing, _pointerIsDown, _transformProp, _i, _prevWidth, _prevHeight, _autoRefresh, _sort, _suppressOverwrites, _ignoreResize, _normalizer, _ignoreMobileResize, _baseScreenHeight, _baseScreenWidth, _fixIOSBug,
 	_limitCallbacks, // if true, we'll only trigger callbacks if the active state toggles, so if you scroll immediately past both the start and end positions of a ScrollTrigger (thus inactive to inactive), neither its onEnter nor onLeave will be called. This is useful during startup.
 	_startup = 1,
 	_getTime = Date.now,
@@ -135,7 +135,7 @@ let gsap, _coreInitted, _win, _doc, _docEl, _body, _root, _resizeDelay, _toArray
 	_getLabelAtDirection = timeline => (value, st) => _snapDirectional(_getLabelRatioArray(timeline))(value, st.direction),
 	_multiListener = (func, element, types, callback) => types.split(",").forEach(type => func(element, type, callback)),
 	_addListener = (element, type, func, nonPassive, capture) => element.addEventListener(type, func, {passive: !nonPassive, capture: !!capture}),
-	_removeListener = (element, type, func) => element.removeEventListener(type, func),
+	_removeListener = (element, type, func, capture) => element.removeEventListener(type, func, !!capture),
 	_wheelListener = (func, el, scrollFunc) => scrollFunc && scrollFunc.wheelHandler && func(el, "wheel", scrollFunc),
 	_markerDefaults = {startColor: "green", endColor: "red", indent: 0, fontSize: "16px", fontWeight:"normal"},
 	_defaults = {toggleActions: "play", anticipatePin: 0},
@@ -189,7 +189,7 @@ let gsap, _coreInitted, _win, _doc, _docEl, _body, _root, _resizeDelay, _toArray
 	_rafID,
 	_sync = () => _getTime() - _lastScrollTime > 34 && _updateAll(),
 	_onScroll = () => { // previously, we tried to optimize performance by batching/deferring to the next requestAnimationFrame(), but discovered that Safari has a few bugs that make this unworkable (especially on iOS). See https://codepen.io/GreenSock/pen/16c435b12ef09c38125204818e7b45fc?editors=0010 and https://codepen.io/GreenSock/pen/JjOxYpQ/3dd65ccec5a60f1d862c355d84d14562?editors=0010 and https://codepen.io/GreenSock/pen/ExbrPNa/087cef197dc35445a0951e8935c41503?editors=0010
-		if (!_normalizer || !_normalizer.isPressed) {
+		if (!_normalizer || !_normalizer.isPressed || _normalizer.startX > _body.clientWidth) { // if the user is dragging the scrollbar, allow it.
 			_scrollers.cache++
 			_rafID || (_rafID = requestAnimationFrame(_updateAll));
 			_lastScrollTime || _dispatch("scrollStart");
@@ -202,7 +202,7 @@ let gsap, _coreInitted, _win, _doc, _docEl, _body, _root, _resizeDelay, _toArray
 	},
 	_onResize = () => {
 		_scrollers.cache++;
-		!_refreshing && !_ignoreResize && !_doc.fullscreenElement && (!_ignoreMobileResize || _baseScreenWidth !== _win.innerWidth || Math.abs(_win.innerHeight - _baseScreenHeight) > _win.innerHeight * 0.25) && _resizeDelay.restart(true);
+		!_refreshing && !_ignoreResize && !_doc.fullscreenElement && !_doc.webkitFullscreenElement && (!_ignoreMobileResize || _baseScreenWidth !== _win.innerWidth || Math.abs(_win.innerHeight - _baseScreenHeight) > _win.innerHeight * 0.25) && _resizeDelay.restart(true);
 	}, // ignore resizes triggered by refresh()
 	_listeners = {},
 	_emptyArray = [],
@@ -288,8 +288,8 @@ let gsap, _coreInitted, _win, _doc, _docEl, _body, _root, _resizeDelay, _toArray
 	_primary,
 	_updateAll = () => {
 		if (!_refreshingAll) {
-			_primary && _primary.update(0); // ScrollSmoother users refreshPriority -9999 to become the primary that gets updated before all others because it affects the scroll position.
 			ScrollTrigger.isUpdating = true;
+			_primary && _primary.update(0); // ScrollSmoother users refreshPriority -9999 to become the primary that gets updated before all others because it affects the scroll position.
 			let l = _triggers.length,
 				time = _getTime(),
 				recordVelocity = time - _time1 >= 50,
@@ -861,7 +861,7 @@ export class ScrollTrigger {
 					_suppressOverwrites(1);
 					animation.render(animation.duration(), true, true);
 					pinChange = pinGetter(direction.a) - pinStart + change + otherPinOffset;
-					change !== pinChange && pinActiveState.splice(pinActiveState.length - 2, 2); // transform is the last property/value set in the state Array. Since the animation is controlling that, we should omit it.
+					change !== pinChange && useFixedPosition && pinActiveState.splice(pinActiveState.length - 2, 2); // transform is the last property/value set in the state Array. Since the animation is controlling that, we should omit it.
 					animation.render(0, true, true);
 					initted || animation.invalidate();
 					_suppressOverwrites(0);
@@ -1173,6 +1173,7 @@ export class ScrollTrigger {
 				Observer.register(gsap);
 				// isTouch is 0 if no touch, 1 if ONLY touch, and 2 if it can accommodate touch but also other types like mouse/pointer.
 				ScrollTrigger.isTouch = Observer.isTouch;
+				_fixIOSBug = Observer.isTouch && /(iPad|iPhone|iPod|Mac)/g.test(navigator.userAgent); // since 2017, iOS has had a bug that causes event.clientX/Y to be inaccurate when a scroll occurs, thus we must alternate ignoring every other touchmove event to work around it. See https://bugs.webkit.org/show_bug.cgi?id=181954 and https://codepen.io/GreenSock/pen/ExbrPNa/087cef197dc35445a0951e8935c41503
 				_addListener(_win, "wheel", _onScroll); // mostly for 3rd party smooth scrolling libraries.
 				_root = [_win, _doc, _docEl, _body];
 				ScrollTrigger.matchMedia({ // when orientation changes, we should take new base measurements for the ignoreMobileResize feature.
@@ -1294,7 +1295,7 @@ export class ScrollTrigger {
 
 }
 
-ScrollTrigger.version = "3.10.3";
+ScrollTrigger.version = "3.10.4";
 ScrollTrigger.saveStyles = targets => targets ? _toArray(targets).forEach(target => { // saved styles are recorded in a consecutive alternating Array, like [element, cssText, transform attribute, cache, matchMedia, ...]
 	if (target && target.style) {
 		let i = _savedStyles.indexOf(target);
@@ -1366,9 +1367,9 @@ let _clampScrollAndGetDurationMultiplier = (scrollFunc, current, end, max) => {
 		if (direction === true) {
 			target.style.removeProperty("touch-action");
 		} else {
-			target.style.touchAction = direction ? "pan-" + direction : "none"; // note: we tried adding pinch-zoom too, but Firefox doesn't support it properly.
+			target.style.touchAction = direction === true ? "auto" : direction ? "pan-" + direction + (Observer.isTouch ? " pinch-zoom" : "") : "none"; // note: Firefox doesn't support it pinch-zoom properly, at least in addition to a pan-x or pan-y.
 		}
-		target === _docEl && _allowNativePanning(_body);
+		target === _docEl && _allowNativePanning(_body, direction);
 	},
 	_overflow = {auto: 1, scroll: 1},
 	_nestedScroll = ({event, target, axis}) => {
@@ -1394,7 +1395,7 @@ let _clampScrollAndGetDurationMultiplier = (scrollFunc, current, end, max) => {
 		onDrag: nested,
 		onScroll: nested,
 		onEnable: () => inputs && _addListener(_doc, Observer.eventTypes[0], _captureInputs, false, true),
-		onDisable: () => _removeListener(_doc, Observer.eventTypes[0], _captureInputs)
+		onDisable: () => _removeListener(_doc, Observer.eventTypes[0], _captureInputs, true)
 	}),
 	_inputExp = /(input|label|select|textarea)/i,
 	_inputIsFocused,
@@ -1414,9 +1415,12 @@ let _clampScrollAndGetDurationMultiplier = (scrollFunc, current, end, max) => {
 		let {normalizeScrollX, momentum, allowNestedScroll} = vars,
 			self, maxY,
 			target = _getTarget(vars.target) || _docEl,
+			smoother = gsap.core.globals().ScrollSmoother,
+			content = _fixIOSBug && ((vars.content && _getTarget(vars.content)) || (smoother && smoother.get() && smoother.get().content())),
 			scrollFuncY = _getScrollFunc(target, _vertical),
 			scrollFuncX = _getScrollFunc(target, _horizontal),
 			scale = 1,
+			initialScale = (Observer.isTouch && _win.visualViewport ? _win.visualViewport.scale * _win.visualViewport.width : _win.outerWidth) / _win.innerWidth,
 			wheelRefresh = 0,
 			resolveMomentumDuration = _isFunction(momentum) ? () => momentum(self) : () => momentum || 2.8,
 			skipTouchMove, lastRefreshID,
@@ -1426,29 +1430,44 @@ let _clampScrollAndGetDurationMultiplier = (scrollFunc, current, end, max) => {
 			scrollClampY = _passThrough,
 			updateClamps = () => {
 				maxY = _maxScroll(target, _vertical);
-				scrollClampY = _clamp(0, maxY);
+				scrollClampY = _clamp(_fixIOSBug ? 1 : 0, maxY);
 				normalizeScrollX && (scrollClampX = _clamp(0, _maxScroll(target, _horizontal)));
 				lastRefreshID = _refreshID;
 			},
-			fixIOSBug = ScrollTrigger.isTouch && /(iPad|iPhone|iPod|Mac)/g.test(navigator.userAgent), // since 2017, iOS has had a bug that causes event.clientX/Y to be inaccurate when a scroll occurs, thus we must alternate ignoring every other touchmove event to work around it. See https://bugs.webkit.org/show_bug.cgi?id=181954 and https://codepen.io/GreenSock/pen/ExbrPNa/087cef197dc35445a0951e8935c41503
 			ignoreDrag = () => {
 				if (skipTouchMove) {
 					requestAnimationFrame(resumeTouchMove); // we MUST wait for a requestAnimationFrame, otherwise iOS will misreport the value.
+					let offset = _round(self.deltaY / 2),
+						scroll = scrollClampY(scrollFuncY.v - offset);
+					if (content && scroll !== scrollFuncY.v + scrollFuncY.offset) {
+						scrollFuncY.offset = scroll - scrollFuncY.v;
+						content.style.transform = "translateY(" + -scrollFuncY.offset + "px)";
+						content._gsap && (content._gsap.y = -scrollFuncY.offset + "px");
+						scrollFuncY.cacheID = _scrollers.cache;
+						_updateAll();
+					}
 					return true;
+				}
+				if (content) {
+					content.style.transform = "translateY(0px)";
+					scrollFuncY.offset = scrollFuncY.cacheID = 0;
+					content._gsap && (content._gsap.y = "0px");
 				}
 				skipTouchMove = true;
 			},
 			tween, startScrollX, startScrollY, onStopDelayedCall,
 			onResize = () => { // if the window resizes, like on an iPhone which Apple FORCES the address bar to show/hide even if we event.preventDefault(), it may be scrolling too far now that the address bar is showing, so we must dynamically adjust the momentum tween.
 				updateClamps();
-				tween.isActive() && tween.vars.scrollY > maxY && tween.resetTo("scrollY", _maxScroll(target, _vertical));
+				if (tween.isActive() && tween.vars.scrollY > maxY) {
+					scrollFuncY() > maxY ? tween.progress(1) && scrollFuncY(maxY) : tween.resetTo("scrollY", maxY);
+				}
 			};
-		vars.ignoreCheck = e => (fixIOSBug && e.type === "touchmove" && ignoreDrag(e)) || (scale > 1 || self.isGesturing || (e.touches && e.touches.length > 1));
+		vars.ignoreCheck = e => (_fixIOSBug && e.type === "touchmove" && ignoreDrag(e)) || (scale > 1.05 && e.type !== "touchstart") || self.isGesturing || (e.touches && e.touches.length > 1);
 		vars.onPress = () => {
 			let prevScale = scale;
-			scale = (_win.visualViewport && _win.visualViewport.scale) || 1;
+			scale = _round(((_win.visualViewport && _win.visualViewport.scale) || 1) / initialScale);
 			tween.pause();
-			prevScale !== scale && _allowNativePanning(target, scale > 1 ? true : normalizeScrollX ? false : "x");
+			prevScale !== scale && _allowNativePanning(target, scale > 1.01 ? true : normalizeScrollX ? false : "x");
 			skipTouchMove = false;
 			startScrollX = scrollFuncX();
 			startScrollY = scrollFuncY();
@@ -1456,23 +1475,32 @@ let _clampScrollAndGetDurationMultiplier = (scrollFunc, current, end, max) => {
 			lastRefreshID = _refreshID;
 		}
 		vars.onRelease = vars.onGestureStart = (self, wasDragging) => {
+			if (content) {
+				content.style.transform = "translateY(0px)";
+				scrollFuncY.offset = scrollFuncY.cacheID = 0;
+				content._gsap && (content._gsap.y = "0px");
+			}
 			if (!wasDragging) {
 				onStopDelayedCall.restart(true);
 			} else {
+				_scrollers.cache++; // make sure we're pulling the non-cached value
 				// alternate algorithm: durX = Math.min(6, Math.abs(self.velocityX / 800)),	dur = Math.max(durX, Math.min(6, Math.abs(self.velocityY / 800))); dur = dur * (0.4 + (1 - _power4In(dur / 6)) * 0.6)) * (momentumSpeed || 1)
 				let dur = resolveMomentumDuration(),
 					currentScroll, endScroll;
 				if (normalizeScrollX) {
 					currentScroll = scrollFuncX();
-					endScroll = currentScroll + (dur * 0.05 * -self.velocityX) / 0.227 / scale; // the constant .227 is from power4(0.05). velocity is inverted because scrolling goes in the opposite direction.
+					endScroll = currentScroll + (dur * 0.05 * -self.velocityX) / 0.227; // the constant .227 is from power4(0.05). velocity is inverted because scrolling goes in the opposite direction.
 					dur *= _clampScrollAndGetDurationMultiplier(scrollFuncX, currentScroll, endScroll, _maxScroll(target, _horizontal));
 					tween.vars.scrollX = scrollClampX(endScroll);
 				}
 				currentScroll = scrollFuncY();
-				endScroll = currentScroll + (dur * 0.05 * -self.velocityY) / 0.227 / scale; // the constant .227 is from power4(0.05)
+				endScroll = currentScroll + (dur * 0.05 * -self.velocityY) / 0.227; // the constant .227 is from power4(0.05)
 				dur *= _clampScrollAndGetDurationMultiplier(scrollFuncY, currentScroll, endScroll, _maxScroll(target, _vertical));
 				tween.vars.scrollY = scrollClampY(endScroll);
 				tween.invalidate().duration(dur).play(0.01);
+				if (_fixIOSBug && tween.vars.scrollY >= maxY || currentScroll >= maxY-1) { // iOS bug: it'll show the address bar but NOT fire the window "resize" event until the animation is done but we must protect against overshoot so we leverage an onUpdate to do so.
+					gsap.to({}, {onUpdate: onResize, duration: dur});
+				}
 			}
 		};
 		vars.onWheel = () => {
@@ -1484,8 +1512,8 @@ let _clampScrollAndGetDurationMultiplier = (scrollFunc, current, end, max) => {
 		};
 		vars.onChange = (self, dx, dy, xArray, yArray) => {
 			_refreshID !== lastRefreshID && updateClamps();
-			dx && normalizeScrollX && scrollFuncX(scrollClampX(xArray[2] === dx ? startScrollX + (self.startX - self.x) / scale : scrollFuncX() + dx - xArray[1])); // for more precision, we track pointer/touch movement from the start, otherwise it'll drift.
-			dy && scrollFuncY(scrollClampY(yArray[2] === dy ? startScrollY + (self.startY - self.y) / scale : scrollFuncY() + dy - yArray[1]));
+			dx && normalizeScrollX && scrollFuncX(scrollClampX(xArray[2] === dx ? startScrollX + (self.startX - self.x) : scrollFuncX() + dx - xArray[1])); // for more precision, we track pointer/touch movement from the start, otherwise it'll drift.
+			dy && scrollFuncY(scrollClampY(yArray[2] === dy ? startScrollY + (self.startY - self.y) : scrollFuncY() + dy - yArray[1]));
 			_updateAll();
 		};
 		vars.onEnable = () => {
@@ -1499,6 +1527,8 @@ let _clampScrollAndGetDurationMultiplier = (scrollFunc, current, end, max) => {
 			inputObserver.kill();
 		};
 		self = new Observer(vars);
+		self.iOS = _fixIOSBug; // used in the Observer getCachedScroll() function to work around an iOS bug that wreaks havoc with TouchEvent.clientY if we allow scroll to go all the way back to 0.
+		_fixIOSBug && !scrollFuncY() && scrollFuncY(1); // iOS bug causes event.clientY values to freak out (wildly inaccurate) if the scroll position is exactly 0.
 		onStopDelayedCall = self._dc;
 		tween = gsap.to(self, {ease: "power4", paused: true, scrollX: normalizeScrollX ? "+=0.1" : "+=0", scrollY: "+=0.1", onComplete: onStopDelayedCall.vars.onComplete});
 		return self;

@@ -21,7 +21,7 @@
   }
 
   /*!
-   * Observer 3.10.3
+   * Observer 3.10.4
    * https://greensock.com
    *
    * @license Copyright 2008-2022, GreenSock. All rights reserved.
@@ -79,29 +79,33 @@
       capture: !!capture
     });
   },
-      _removeListener = function _removeListener(element, type, func) {
-    return element.removeEventListener(type, func);
+      _removeListener = function _removeListener(element, type, func, capture) {
+    return element.removeEventListener(type, func, !!capture);
   },
       _scrollLeft = "scrollLeft",
       _scrollTop = "scrollTop",
       _onScroll = function _onScroll() {
     return _normalizer && _normalizer.isPressed || exports._scrollers.cache++;
   },
-      _scrollCacheFunc = function _scrollCacheFunc(f) {
-    return function (value) {
+      _scrollCacheFunc = function _scrollCacheFunc(f, doNotCache) {
+    var cachingFunc = function cachingFunc(value) {
       if (value || value === 0) {
         _startup && (_win.history.scrollRestoration = "manual");
+        var isNormalizing = _normalizer && _normalizer.isPressed;
+        value = cachingFunc.v = Math.round(value) || (_normalizer && _normalizer.iOS ? 1 : 0);
         f(value);
-        f.v = value;
-        f.c = exports._scrollers.cache;
-        _normalizer && _normalizer.isPressed && _bridge("ss", value);
-      } else if (exports._scrollers.cache !== f.c || _bridge("ref")) {
-        f.c = exports._scrollers.cache;
-        f.v = f();
+        cachingFunc.cacheID = exports._scrollers.cache;
+        isNormalizing && _bridge("ss", value);
+      } else if (doNotCache || exports._scrollers.cache !== cachingFunc.cacheID || _bridge("ref")) {
+        cachingFunc.cacheID = exports._scrollers.cache;
+        cachingFunc.v = f();
       }
 
-      return f.v;
+      return cachingFunc.v + cachingFunc.offset;
     };
+
+    cachingFunc.offset = 0;
+    return f && cachingFunc;
   },
       _horizontal = {
     s: _scrollLeft,
@@ -141,7 +145,7 @@
         offset = sc === _vertical.sc ? 1 : 2;
 
     !~i && (i = exports._scrollers.push(element) - 1);
-    return exports._scrollers[i + offset] || (exports._scrollers[i + offset] = _getProxyProp(element, s) || (_isViewport(element) ? sc : _scrollCacheFunc(function (value) {
+    return exports._scrollers[i + offset] || (exports._scrollers[i + offset] = _scrollCacheFunc(_getProxyProp(element, s), true) || (_isViewport(element) ? sc : _scrollCacheFunc(function (value) {
       return arguments.length ? element[s] = value : element[s];
     })));
   },
@@ -435,7 +439,7 @@
 
         self._vy.reset();
 
-        _addListener(isNormalizer ? target : ownerDoc, _eventTypes[1], _onDrag, preventDefault, capture);
+        _addListener(isNormalizer ? target : ownerDoc, _eventTypes[1], _onDrag, preventDefault, true);
 
         self.deltaX = self.deltaY = 0;
         onPress && onPress(self);
@@ -445,7 +449,7 @@
           return;
         }
 
-        _removeListener(isNormalizer ? target : ownerDoc, _eventTypes[1], _onDrag);
+        _removeListener(isNormalizer ? target : ownerDoc, _eventTypes[1], _onDrag, true);
 
         var wasDragging = self.isDragging && (Math.abs(self.x - self.startX) > 3 || Math.abs(self.y - self.startY) > 3),
             eventData = _getEvent(e);
@@ -456,7 +460,7 @@
           self._vy.reset();
 
           if (preventDefault && allowClicks) {
-            gsap.delayedCall(0.05, function () {
+            gsap.delayedCall(0.08, function () {
               if (_getTime() - onClickTime > 300 && !e.defaultPrevented) {
                 if (e.target.click) {
                   e.target.click();
@@ -580,20 +584,20 @@
 
             self._vy.reset();
 
-            _removeListener(isNormalizer ? target : ownerDoc, _eventTypes[1], _onDrag);
+            _removeListener(isNormalizer ? target : ownerDoc, _eventTypes[1], _onDrag, true);
           }
 
-          _removeListener(isViewport ? ownerDoc : target, "scroll", onScroll);
+          _removeListener(isViewport ? ownerDoc : target, "scroll", onScroll, capture);
 
-          _removeListener(target, "wheel", _onWheel);
+          _removeListener(target, "wheel", _onWheel, capture);
 
-          _removeListener(target, _eventTypes[0], _onPress);
+          _removeListener(target, _eventTypes[0], _onPress, capture);
 
           _removeListener(ownerDoc, _eventTypes[2], _onRelease);
 
           _removeListener(ownerDoc, _eventTypes[3], _onRelease);
 
-          _removeListener(target, "click", clickCapture);
+          _removeListener(target, "click", clickCapture, true);
 
           _removeListener(target, "click", _onClick);
 
@@ -641,7 +645,7 @@
 
     return Observer;
   }();
-  Observer.version = "3.10.3";
+  Observer.version = "3.10.4";
 
   Observer.create = function (vars) {
     return new Observer(vars);

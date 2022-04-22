@@ -1,5 +1,5 @@
 /*!
- * GSAP 3.10.3
+ * GSAP 3.10.4
  * https://greensock.com
  *
  * @license Copyright 2008-2022, GreenSock. All rights reserved.
@@ -2996,7 +2996,7 @@ export const gsap = _gsap.registerPlugin({
 	_buildModifierPlugin("snap", snap)
 ) || _gsap; //to prevent the core plugins from being dropped via aggressive tree shaking, we must include them in the variable declaration in this way.
 
-Tween.version = Timeline.version = gsap.version = "3.10.3";
+Tween.version = Timeline.version = gsap.version = "3.10.4";
 _coreReady = 1;
 _windowExists() && _wake();
 
