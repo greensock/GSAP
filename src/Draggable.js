@@ -553,7 +553,7 @@ let gsap, _win, _doc, _docElement, _body, _tempDiv, _placeholderDiv, _coreInitte
 					val;
 				childStyle.display = "inline-block";
 				childStyle.position = "relative";
-				div.style.cssText = child.innerHTML = "width:90px;height:40px;padding:10px;overflow:auto;visibility:hidden";
+				div.style.cssText = "width:90px;height:40px;padding:10px;overflow:auto;visibility:hidden";
 				div.appendChild(child);
 				parent.appendChild(div);
 				val = (child.offsetHeight + 18 > div.scrollHeight); //div.scrollHeight should be child.offsetHeight + 20 because of the 10px of padding on each side, but some browsers ignore one side. We allow a 2px margin of error.
