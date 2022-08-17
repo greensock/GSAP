@@ -3,7 +3,7 @@ function _assertThisInitialized(self) { if (self === void 0) { throw new Referen
 function _inheritsLoose(subClass, superClass) { subClass.prototype = Object.create(superClass.prototype); subClass.prototype.constructor = subClass; subClass.__proto__ = superClass; }
 
 /*!
- * Draggable 3.10.4
+ * Draggable 3.11.0
  * https://greensock.com
  *
  * @license Copyright 2008-2022, GreenSock. All rights reserved.
@@ -362,8 +362,7 @@ _getElementBounds = function _getElementBounds(element, context) {
       bbox,
       width,
       height,
-      cs,
-      contextParent;
+      cs;
 
   if (element === _win) {
     top = _getDocScrollTop(doc);
@@ -427,10 +426,9 @@ _getElementBounds = function _getElementBounds(element, context) {
   });
   left = Math.min(p1.x, p2.x, p3.x, p4.x);
   top = Math.min(p1.y, p2.y, p3.y, p4.y);
-  contextParent = context.parentNode || {};
   return {
-    left: left + (contextParent.scrollLeft || 0),
-    top: top + (contextParent.scrollTop || 0),
+    left: left,
+    top: top,
     width: Math.max(p1.x, p2.x, p3.x, p4.x) - left,
     height: Math.max(p1.y, p2.y, p3.y, p4.y) - top
   };
@@ -807,7 +805,7 @@ ScrollProxy = function ScrollProxy(element, vars) {
 
       childStyle.display = "inline-block";
       childStyle.position = "relative";
-      div.style.cssText = child.innerHTML = "width:90px;height:40px;padding:10px;overflow:auto;visibility:hidden";
+      div.style.cssText = "width:90px;height:40px;padding:10px;overflow:auto;visibility:hidden";
       div.appendChild(child);
       parent.appendChild(div);
       val = child.offsetHeight + 18 > div.scrollHeight; //div.scrollHeight should be child.offsetHeight + 20 because of the 10px of padding on each side, but some browsers ignore one side. We allow a 2px margin of error.
@@ -889,8 +887,8 @@ var EventDispatcher = /*#__PURE__*/function () {
 
   _proto.removeEventListener = function removeEventListener(type, callback) {
     var list = this._listeners[type],
-        i = list && list.indexOf(callback) || -1;
-    i > -1 && list.splice(i, 1);
+        i = list && list.indexOf(callback);
+    i >= 0 && list.splice(i, 1);
   };
 
   _proto.dispatchEvent = function dispatchEvent(type) {
@@ -991,6 +989,7 @@ export var Draggable = /*#__PURE__*/function (_EventDispatcher) {
         trustedClickDispatch,
         isPreventingDefault,
         innerMatrix,
+        dragged,
         onContextMenu = function onContextMenu(e) {
       //used to prevent long-touch from triggering a context menu.
       // (self.isPressed && e.which < 2) && self.endDrag() // previously ended drag when context menu was triggered, but instead we should just stop propagation and prevent the default event behavior.
@@ -1234,7 +1233,7 @@ export var Draggable = /*#__PURE__*/function (_EventDispatcher) {
         return function (n) {
           var edgeTolerance = !self.isPressed ? 1 : 1 - self.edgeResistance; //if we're tweening, disable the edgeTolerance because it's already factored into the tweening values (we don't want to apply it multiple times)
 
-          return snap.call(self, n > max ? max + (n - max) * edgeTolerance : n < min ? min + (n - min) * edgeTolerance : n) * factor;
+          return snap.call(self, (n > max ? max + (n - max) * edgeTolerance : n < min ? min + (n - min) * edgeTolerance : n) * factor) * factor;
         };
       }
 
@@ -1614,6 +1613,8 @@ export var Draggable = /*#__PURE__*/function (_EventDispatcher) {
       }
 
       interrupted = isTweening();
+      dragged = false; // we need to track whether or not it was dragged in this interaction so that if, for example, the user calls .endDrag() to FORCE it to stop and then they keep the mouse pressed down and eventually release, that would normally cause an onClick but we have to skip it in that case if there was dragging that occurred.
+
       self.pointerEvent = e;
 
       if (_touchEventLookup[e.type]) {
@@ -1683,7 +1684,7 @@ export var Draggable = /*#__PURE__*/function (_EventDispatcher) {
 
       _dragCount++;
 
-      _addToRenderQueue(render); //causes the Draggable to render on each "tick" of TweenLite.ticker (performance optimization - updating values in a mousemove can cause them to happen too frequently, like multiple times between frame redraws which is wasteful, and it also prevents values from updating properly in IE8)
+      _addToRenderQueue(render); //causes the Draggable to render on each "tick" of gsap.ticker (performance optimization - updating values in a mousemove can cause them to happen too frequently, like multiple times between frame redraws which is wasteful, and it also prevents values from updating properly in IE8)
 
 
       startPointerY = self.pointerY = e.pageY; //record the starting x and y so that we can calculate the movement from the original in _onMouseMove
@@ -1952,7 +1953,7 @@ export var Draggable = /*#__PURE__*/function (_EventDispatcher) {
 
         if (!invokeOnMove || _dispatchEvent(self, "move", "onMove") !== false) {
           if (!self.isDragging && self.isPressed) {
-            self.isDragging = true;
+            self.isDragging = dragged = true;
 
             _dispatchEvent(self, "dragstart", "onDragStart");
           }
@@ -2017,6 +2018,8 @@ export var Draggable = /*#__PURE__*/function (_EventDispatcher) {
         self.isDragging = false;
       }
 
+      _removeFromRenderQueue(render);
+
       if (isClicking && !isContextMenuRelease) {
         if (e) {
           _removeListener(e.target, "change", onRelease);
@@ -2033,8 +2036,6 @@ export var Draggable = /*#__PURE__*/function (_EventDispatcher) {
         isClicking = false;
         return;
       }
-
-      _removeFromRenderQueue(render);
 
       i = triggers.length;
 
@@ -2057,7 +2058,7 @@ export var Draggable = /*#__PURE__*/function (_EventDispatcher) {
 
             while (--i > -1 && (e = touches[i]).identifier !== touchID && e.target !== target) {}
 
-            if (i < 0) {
+            if (i < 0 && !force) {
               return;
             }
           }
@@ -2186,7 +2187,7 @@ export var Draggable = /*#__PURE__*/function (_EventDispatcher) {
         }
       }
 
-      if (!recentlyClicked && !recentlyDragged) {
+      if (!recentlyClicked && !recentlyDragged && !dragged) {
         // for script-triggered event dispatches, like element.click()
         e && e.target && (self.pointerEvent = e);
 
@@ -2227,7 +2228,7 @@ export var Draggable = /*#__PURE__*/function (_EventDispatcher) {
       }
 
       if (!self.isDragging) {
-        self.isDragging = true;
+        self.isDragging = dragged = true;
 
         _dispatchEvent(self, "dragstart", "onDragStart");
       }
@@ -2664,6 +2665,6 @@ _setDefaults(Draggable.prototype, {
 });
 
 Draggable.zIndex = 1000;
-Draggable.version = "3.10.4";
+Draggable.version = "3.11.0";
 _getGSAP() && gsap.registerPlugin(Draggable);
 export { Draggable as default };

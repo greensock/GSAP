@@ -253,7 +253,21 @@ declare class ScrollTrigger {
   static isScrolling(): boolean;
 
   /**
-   * Set up ScrollTriggers that only apply to certain viewport sizes using media queries.
+   * Kills all ScrollTriggers (except the main ScrollSmoother one, if it exists)
+   *
+   * ```js
+   * ScrollTrigger.killAll();
+   * ```
+   *
+   * @static
+   * @param {boolean} [allowListeners]
+   * @memberof ScrollTrigger
+   * @link https://greensock.com/docs/v3/Plugins/ScrollTrigger/static.killAll()
+   */
+  static killAll(allowListeners?: boolean): void;
+
+  /**
+   * Set up ScrollTriggers that only apply to certain viewport sizes using media queries. Deprecated in favor of gsap.matchMedia() in version 3.11.0+
    *
    * ```js
    * ScrollTrigger.matchMedia({
@@ -262,7 +276,7 @@ declare class ScrollTrigger {
    *   "all": function() { }
    * });
    * ```
-   *
+   * @deprecated
    * @static
    * @param {ScrollTrigger.MatchMediaObject} vars
    * @memberof ScrollTrigger

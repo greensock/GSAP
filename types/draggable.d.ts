@@ -10,6 +10,7 @@ declare class Draggable {
   readonly endX: number;
   readonly endY: number;
   readonly isDragging: boolean;
+  readonly isPressed: boolean;
   readonly isThrowing: boolean;
   readonly lockAxis: boolean;
   readonly maxRotation: number;
@@ -246,10 +247,11 @@ declare class Draggable {
    * ```
    *
    * @param {Event} event
+   * @param {boolean} align
    * @memberof Draggable
    * @link https://greensock.com/docs/v3/Plugins/Draggable/startDrag()
    */
-  startDrag(event: Event): void;
+  startDrag(event: Event, align?: boolean): void;
 
   /**
    * Returns the time (in seconds) that has elapsed since the last drag ended.

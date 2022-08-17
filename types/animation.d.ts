@@ -401,6 +401,20 @@ declare namespace gsap.core {
     reversed(): boolean;
 
     /**
+     * Reverts the animation, returning the targets to their pre-animation state including the removal of inline styles added by the animation.
+     *
+     * ```js
+     * anim.revert();
+     * ```
+     *
+     * @param {object} [config]
+     * @returns {Animation} The animation
+     * @memberof Animation
+     * @link https://greensock.com/docs/v3/GSAP/Tween/revert()
+     */
+    revert(config?: object): this;
+
+    /**
      * Sets the start time of the animation in reference to its parent timeline (not including any delay).
      *
      * ```js
@@ -413,6 +427,7 @@ declare namespace gsap.core {
      * @link https://greensock.com/docs/v3/GSAP/Tween/startTime()
      */
     startTime(value: number): this;
+
     /**
      * Gets the start time of the animation in reference to its parent timeline (not including any delay).
      *
@@ -494,6 +509,7 @@ declare namespace gsap.core {
      * @link https://greensock.com/docs/v3/GSAP/Tween/timeScale()
      */
     timeScale(value: number): this;
+
     /**
      * Gets the time scale of the given animation.
      *
@@ -520,6 +536,7 @@ declare namespace gsap.core {
      * @link https://greensock.com/docs/v3/GSAP/Tween/totalDuration()
      */
     totalDuration(value: number): this;
+
     /**
      * Gets the total duration (including repeats) of the given animation.
      *
@@ -547,6 +564,7 @@ declare namespace gsap.core {
      * @link https://greensock.com/docs/v3/GSAP/Tween/totalProgress()
      */
     totalProgress(value: number, suppressEvents?: boolean): this;
+
     /**
      * Gets the total progress (including repeats) of the given animation.
      *
@@ -574,6 +592,7 @@ declare namespace gsap.core {
      * @link https://greensock.com/docs/v3/GSAP/Tween/totalTime()
      */
     totalTime(value: number, suppressEvents?: boolean): this;
+
     /**
      * Gets the total time (meaning where the playhead is, including repeats) of the given animation.
      *
@@ -601,6 +620,7 @@ declare namespace gsap.core {
      * @link https://greensock.com/docs/v3/GSAP/Tween/yoyo()
      */
     yoyo(value: boolean): this;
+
     /**
      * Gets the yoyo value of the given animation.
      * If yoyo is true that means that each time the animation repeats it should switch its direction (forwards or reverse).

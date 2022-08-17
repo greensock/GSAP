@@ -1,5 +1,5 @@
 /*!
- * CSSPlugin 3.10.4
+ * CSSPlugin 3.11.0
  * https://greensock.com
  *
  * Copyright 2008-2022, GreenSock. All rights reserved.
@@ -13,7 +13,7 @@ import {gsap, _getProperty, _numExp, _numWithUnitExp, getUnit, _isString, _isUnd
 	_setDefaults, _removeLinkedListItem //for the commented-out className feature.
 } from "./gsap-core.js";
 
-let _win, _doc, _docElement, _pluginInitted, _tempDiv, _tempDivStyler, _recentSetterPlugin,
+let _win, _doc, _docElement, _pluginInitted, _tempDiv, _tempDivStyler, _recentSetterPlugin, _reverting,
 	_windowExists = () => typeof(window) !== "undefined",
 	_transformProps = {},
 	_RAD2DEG = 180 / Math.PI,
@@ -49,6 +49,59 @@ let _win, _doc, _docElement, _pluginInitted, _tempDiv, _tempDivStyler, _recentSe
 	},
 	_transformProp = "transform",
 	_transformOriginProp = _transformProp + "Origin",
+	_saveStyle = function(property) {
+		let target = this.target,
+			style = target.style;
+		if (property in _transformProps) {
+			this.tfm = this.tfm || {};
+			if (property !== "transform") {
+				property = _propertyAliases[property] || property;
+				~property.indexOf(",") ? property.split(",").forEach(a => this.tfm[a] = _get(target, a)) : (this.tfm[property] = target._gsap.x ? target._gsap[property] : _get(target, property)); // note: scale would map to "scaleX,scaleY", thus we loop and apply them both.
+			}
+			target._gsap.svg && (this.svg = target.getAttribute(property) || "");
+			if (this.props.indexOf(_transformProp) >= 0) { return; }
+			property = _transformProp;
+		}
+		style && this.props.push(property, style[property]);
+	},
+	_removeIndependentTransforms = style => {
+		if (style.translate) {
+			style.removeProperty("translate");
+			style.removeProperty("scale");
+			style.removeProperty("rotate");
+		}
+	},
+	_revertStyle = function() {
+		let props = this.props,
+			target = this.target,
+			style = target.style,
+			cache = target._gsap,
+			i, p;
+		for (i = 0; i < props.length; i+=2) {
+			props[i+1] ? (style[props[i]] = props[i+1]) : style.removeProperty(props[i].replace(_capsExp, "-$1").toLowerCase());
+		}
+		if (this.tfm) {
+			cache.svg && target.setAttribute("transform", this.svg || "");
+			for (p in this.tfm) {
+				cache[p] = this.tfm[p];
+			}
+			i = _reverting();
+			if (i && !i.isStart && !style[_transformProp]) {
+				_removeIndependentTransforms(style);
+				cache.uncache = 1; // if it's a startAt that's being reverted in the _initTween() of the core, we don't need to uncache transforms. This is purely a performance optimization.
+			}
+		}
+	},
+	_getStyleSaver = (target, properties) => {
+		let saver = {
+			target,
+			props: [],
+			revert: _revertStyle,
+			save: _saveStyle
+		};
+		properties && properties.split(",").forEach(p => saver.save(p));
+		return saver;
+	},
 	_supports3D,
 	_createElement = (type, ns) => {
 		let e = _doc.createElementNS ? _doc.createElementNS((ns || "http://www.w3.org/1999/xhtml").replace(/^https/, "http"), type) : _doc.createElement(type); //some servers swap in https for http in the namespace which can break things, making "style" inaccessible.
@@ -81,6 +134,7 @@ let _win, _doc, _docElement, _pluginInitted, _tempDiv, _tempDivStyler, _recentSe
 			_transformOriginProp = _transformProp + "Origin";
 			_tempDiv.style.cssText = "border-width:0;line-height:0;position:absolute;padding:0"; //make sure to override certain properties that may contaminate measurements, in case the user has overreaching style sheets.
 			_supports3D = !!_checkPropPrefix("perspective");
+			_reverting = gsap.core.reverting;
 			_pluginInitted = 1;
 		}
 	},
@@ -158,6 +212,7 @@ let _win, _doc, _docElement, _pluginInitted, _tempDiv, _tempDivStyler, _recentSe
 		return pt;
 	},
 	_nonConvertibleUnits = {deg:1, rad:1, turn:1},
+	_nonStandardLayouts = {grid:1, flex:1},
 	//takes a single value like 20px and converts it to the unit specified, like "%", returning only the numeric amount.
 	_convertToUnit = (target, property, value, unit) => {
 		let curValue = parseFloat(value) || 0,
@@ -188,10 +243,10 @@ let _win, _doc, _docElement, _pluginInitted, _tempDiv, _tempDivStyler, _recentSe
 			parent = _doc.body;
 		}
 		cache = parent._gsap;
-		if (cache && toPercent && cache.width && horizontal && cache.time === _ticker.time) {
+		if (cache && toPercent && cache.width && horizontal && cache.time === _ticker.time && !cache.uncache) {
 			return _round(curValue / cache.width * amount);
 		} else {
-			(toPercent || curUnit === "%") && (style.position = _getComputedProperty(target, "position"));
+			(toPercent || curUnit === "%") && !_nonStandardLayouts[_getComputedProperty(parent, "display")] && (style.position = _getComputedProperty(target, "position"));
 			(parent === target) && (style.position = "static"); // like for borderRadius, if it's a % we must have it relative to the target itself but that may not have position: relative or position: absolute in which case it'd go up the chain until it finds its offsetParent (bad). position: static protects against that.
 			parent.appendChild(_tempDiv);
 			px = _tempDiv[measureProperty];
@@ -342,6 +397,7 @@ let _win, _doc, _docElement, _pluginInitted, _tempDiv, _tempDivStyler, _recentSe
 					cache.svg && target.removeAttribute("transform");
 					_parseTransform(target, 1); // force all the cached values back to "normal"/identity, otherwise if there's another tween that's already set to render transforms on this element, it could display the wrong values.
 					cache.uncache = 1;
+					_removeIndependentTransforms(style);
 				}
 			}
 		}
@@ -455,7 +511,7 @@ let _win, _doc, _docElement, _pluginInitted, _tempDiv, _tempDivStyler, _recentSe
 			parent = target.parentNode;
 			if (!parent || !target.offsetParent) { // note: in 3.3.0 we switched target.offsetParent to _doc.body.contains(target) to avoid [sometimes unnecessary] MutationObserver calls but that wasn't adequate because there are edge cases where nested position: fixed elements need to get reparented to accurately sense transforms. See https://github.com/greensock/GSAP/issues/388 and https://github.com/greensock/GSAP/issues/375
 				addedToDOM = 1; //flag
-				nextSibling = target.nextSibling;
+				nextSibling = target.nextElementSibling;
 				_docElement.appendChild(target); //we must add it to the DOM in order to get values properly
 			}
 			matrix = _getComputedTransformMatrixAsArray(target);
@@ -524,12 +580,21 @@ let _win, _doc, _docElement, _pluginInitted, _tempDiv, _tempDivStyler, _recentSe
 			invertedScaleX = cache.scaleX < 0,
 			px = "px",
 			deg = "deg",
+			cs = getComputedStyle(target),
 			origin = _getComputedProperty(target, _transformOriginProp) || "0",
 			x, y, z, scaleX, scaleY, rotation, rotationX, rotationY, skewX, skewY, perspective, xOrigin, yOrigin,
 			matrix, angle, cos, sin, a, b, c, d, a12, a22, t1, t2, t3, a13, a23, a33, a42, a43, a32;
 		x = y = z = rotation = rotationX = rotationY = skewX = skewY = perspective = 0;
 		scaleX = scaleY = 1;
 		cache.svg = !!(target.getCTM && _isSVG(target));
+
+		if (cs.translate) { // accommodate independent transforms by combining them into normal ones.
+			if (cs.translate !== "none" || cs.scale !== "none" || cs.rotate !== "none") {
+				style[_transformProp] = (cs.translate !== "none" ? "translate3d(" + (cs.translate + " 0 0").split(" ").slice(0, 3).join(", ") + ") " : "") + (cs.rotate !== "none" ? "rotate(" + cs.rotate + ") " : "") + (cs.scale !== "none" ? "scale(" + cs.scale.split(" ").join(",") + ") " : "") + cs[_transformProp];
+			}
+			style.scale = style.rotate = style.translate = "none";
+		}
+
 		matrix = _getMatrix(target, cache.svg);
 		if (cache.svg) {
 			t1 = (!cache.uncache || origin === "0px 0px") && !uncache && target.getAttribute("data-svg-origin"); // if origin is 0,0 and cache.uncache is true, let the recorded data-svg-origin stay. Otherwise, whenever we set cache.uncache to true, we'd need to set element.style.transformOrigin = (cache.xOrigin - bbox.x) + "px " + (cache.yOrigin - bbox.y) + "px". Remember, to work around browser inconsistencies we always force SVG elements' transformOrigin to 0,0 and offset the translation accordingly.
@@ -880,8 +945,12 @@ export const CSSPlugin = {
 		let props = this._props,
 			style = target.style,
 			startAt = tween.vars.startAt,
-			startValue, endValue, endNum, startNum, type, specialProp, p, startUnit, endUnit, relative, isTransformRelated, transformPropTween, cache, smooth, hasPriority;
+			startValue, endValue, endNum, startNum, type, specialProp, p, startUnit, endUnit, relative, isTransformRelated, transformPropTween, cache, smooth, hasPriority, inlineProps;
 		_pluginInitted || _initCore();
+		// we may call init() multiple times on the same plugin instance, like when adding special properties, so make sure we don't overwrite the revert data or inlineProps
+		this.styles = this.styles || _getStyleSaver(target);
+		inlineProps = this.styles.props;
+		this.tween = tween;
 		for (p in vars) {
 			if (p === "autoRound") {
 				continue;
@@ -912,6 +981,7 @@ export const CSSPlugin = {
 				endUnit ? startUnit !== endUnit && (startValue = _convertToUnit(target, p, startValue, endUnit) + endUnit) : startUnit && (endValue += startUnit);
 				this.add(style, "setProperty", startValue, endValue, index, targets, 0, 0, p);
 				props.push(p);
+				inlineProps.push(p, style[p]);
 			} else if (type !== "undefined") {
 				if (startAt && p in startAt) { // in case someone hard-codes a complex value as the start, like top: "calc(2vh / 2)". Without this, it'd use the computed value (always in px)
 					startValue = typeof(startAt[p]) === "function" ? startAt[p].call(tween, index, target, targets) : startAt[p];
@@ -930,6 +1000,7 @@ export const CSSPlugin = {
 						if (startNum === 1 && _get(target, "visibility") === "hidden" && endNum) { //if visibility is initially set to "hidden", we should interpret that as intent to make opacity 0 (a convenience)
 							startNum = 0;
 						}
+						inlineProps.push("visibility", style.visibility);
 						_addNonTweeningPT(this, style, "visibility", startNum ? "inherit" : "hidden", endNum ? "inherit" : "hidden", !endNum);
 					}
 					if (p !== "scale" && p !== "transform") {
@@ -942,6 +1013,7 @@ export const CSSPlugin = {
 
 				//--- TRANSFORM-RELATED ---
 				if (isTransformRelated) {
+					this.styles.save(p);
 					if (!transformPropTween) {
 						cache = target._gsap;
 						(cache.renderTransform && !vars.parseTransform) || _parseTransform(target, vars.parseTransform); // if, for example, gsap.set(... {transform:"translateX(50vw)"}), the _get() call doesn't parse the transform, thus cache.renderTransform won't be set yet so force the parsing of the transform here.
@@ -950,10 +1022,12 @@ export const CSSPlugin = {
 						transformPropTween.dep = 1; //flag it as dependent so that if things get killed/overwritten and this is the only PropTween left, we can safely kill the whole tween.
 					}
 					if (p === "scale") {
-						this._pt = new PropTween(this._pt, cache, "scaleY", cache.scaleY, ((relative ? _parseRelative(cache.scaleY, relative + endNum) : endNum) - cache.scaleY) || 0);
+						this._pt = new PropTween(this._pt, cache, "scaleY", cache.scaleY, ((relative ? _parseRelative(cache.scaleY, relative + endNum) : endNum) - cache.scaleY) || 0, _renderCSSProp);
+						this._pt.u = 0;
 						props.push("scaleY", p);
 						p += "X";
 					} else if (p === "transformOrigin") {
+						inlineProps.push(_transformOriginProp, style[_transformOriginProp]);
 						endValue = _convertKeywordsToPercentages(endValue); //in case something like "left top" or "bottom right" is passed in. Convert to percentages.
 						if (cache.svg) {
 							_applySVGOrigin(target, endValue, 0, smooth, 0, this);
@@ -1005,11 +1079,23 @@ export const CSSPlugin = {
 				} else {
 					_tweenComplexCSSString.call(this, target, p, startValue, relative ? relative + endValue : endValue);
 				}
+				isTransformRelated || inlineProps.push(p, style[p]);
 				props.push(p);
 			}
 		}
 		hasPriority && _sortPropTweensByPriority(this);
 
+	},
+	render(ratio, data) {
+		if (data.tween._time || !_reverting()) {
+			let pt = data._pt;
+			while (pt) {
+				pt.r(ratio, pt.d);
+				pt = pt._next;
+			}
+		} else {
+			data.styles.revert();
+		}
 	},
 	get: _get,
 	aliases: _propertyAliases,
@@ -1023,6 +1109,7 @@ export const CSSPlugin = {
 };
 
 gsap.utils.checkPrefix = _checkPropPrefix;
+gsap.core.getStyleSaver = _getStyleSaver;
 (function(positionAndScale, rotation, others, aliases) {
 	let all = _forEachName(positionAndScale + "," + rotation + "," + others, name => {_transformProps[name] = 1});
 	_forEachName(rotation, name => {_config.units[name] = "deg"; _rotationalProperties[name] = 1});

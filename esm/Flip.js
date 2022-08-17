@@ -1,5 +1,5 @@
 /*!
- * Flip 3.10.4
+ * Flip 3.11.0
  * https://greensock.com
  *
  * @license Copyright 2008-2022, GreenSock. All rights reserved.
@@ -258,9 +258,11 @@ _makeAbsolute = function _makeAbsolute(elState, fallbackNode, ignoreBatch) {
         c.t._gsap.renderTransform(1); // we must force transforms to render on anything that isn't being made position: absolute, otherwise the absolute position happens and then when animation begins it applies transforms which can create a new stacking context, throwing off positioning!
 
 
-        c.t.style.width = c.b.width + "px"; // otherwise things can collapse when contents are made position: absolute.
+        if (c.b.isVisible) {
+          c.t.style.width = c.b.width + "px"; // otherwise things can collapse when contents are made position: absolute.
 
-        c.t.style.height = c.b.height + "px";
+          c.t.style.height = c.b.height + "px";
+        }
       }
     });
   }
@@ -1481,7 +1483,7 @@ export var Flip = /*#__PURE__*/function () {
 
   return Flip;
 }();
-Flip.version = "3.10.4"; // function whenImagesLoad(el, func) {
+Flip.version = "3.11.0"; // function whenImagesLoad(el, func) {
 // 	let pending = [],
 // 		onLoad = e => {
 // 			pending.splice(pending.indexOf(e.target), 1);

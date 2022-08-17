@@ -5,7 +5,7 @@
 }(this, (function (exports) { 'use strict';
 
 	/*!
-	 * PixiPlugin 3.10.4
+	 * PixiPlugin 3.11.0
 	 * https://greensock.com
 	 *
 	 * @license Copyright 2008-2022, GreenSock. All rights reserved.
@@ -368,7 +368,7 @@
 	}
 
 	var PixiPlugin = {
-	  version: "3.10.4",
+	  version: "3.11.0",
 	  name: "pixi",
 	  register: function register(core, Plugin, propTween) {
 	    gsap = core;
@@ -396,7 +396,7 @@
 
 	      if (context) {
 	        axis = ~p.charAt(p.length - 1).toLowerCase().indexOf("x") ? "x" : "y";
-	        this.add(target[context], axis, target[context][axis], context === "skew" ? _degreesToRadians(value) : value);
+	        this.add(target[context], axis, target[context][axis], context === "skew" ? _degreesToRadians(value) : value, 0, 0, 0, 0, 0, 1);
 	      } else if (p === "scale" || p === "anchor" || p === "pivot" || p === "tileScale") {
 	        this.add(target[p], "x", target[p].x, value);
 	        this.add(target[p], "y", target[p].y, value);

@@ -4,6 +4,7 @@ declare namespace gsap.core {
     
     data: any;
     vars: TweenVars;
+    ratio: number;
 
     constructor(targets: TweenTarget, vars: TweenVars, time?: number);
     constructor(targets: TweenTarget, duration: number, vars: TweenVars);

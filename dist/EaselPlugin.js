@@ -5,7 +5,7 @@
 }(this, (function (exports) { 'use strict';
 
 	/*!
-	 * EaselPlugin 3.10.4
+	 * EaselPlugin 3.11.0
 	 * https://greensock.com
 	 *
 	 * @license Copyright 2008-2022, GreenSock. All rights reserved.
@@ -112,7 +112,7 @@
 	    p = _colorProps[i];
 
 	    if (s[p] !== e[p]) {
-	      pt = plugin.add(s, p, s[p], e[p]);
+	      pt = plugin.add(s, p, s[p], e[p], 0, 0, 0, 0, 0, 1);
 
 	      if (pt) {
 	        pt.op = "easel_colorFilter";
@@ -245,7 +245,7 @@
 
 	  while (--i > -1) {
 	    if (matrix[i] !== startMatrix[i]) {
-	      pg = plugin.add(startMatrix, i, startMatrix[i], matrix[i]);
+	      pg = plugin.add(startMatrix, i, startMatrix[i], matrix[i], 0, 0, 0, 0, 0, 1);
 
 	      if (pg) {
 	        pg.op = "easel_colorMatrixFilter";
@@ -274,7 +274,7 @@
 	};
 
 	var EaselPlugin = {
-	  version: "3.10.4",
+	  version: "3.11.0",
 	  name: "easel",
 	  init: function init(target, value, tween, index, targets) {
 	    if (!_coreInitted) {
@@ -312,7 +312,7 @@
 	          }
 	        }
 
-	        pt = this.add(target, "gotoAndStop", target.currentFrame, end, index, targets, Math.round);
+	        pt = this.add(target, "gotoAndStop", target.currentFrame, end, index, targets, Math.round, 0, 0, 1);
 
 	        if (pt) {
 	          pt.op = p;

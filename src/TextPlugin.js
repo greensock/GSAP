@@ -1,5 +1,5 @@
 /*!
- * TextPlugin 3.10.4
+ * TextPlugin 3.11.0
  * https://greensock.com
  *
  * @license Copyright 2008-2022, GreenSock. All rights reserved.
@@ -16,7 +16,7 @@ let gsap, _tempDiv,
 
 
 export const TextPlugin = {
-	version:"3.10.4",
+	version:"3.11.0",
 	name:"text",
 	init(target, value, tween) {
 		typeof(value) !== "object" && (value = {value:value});
@@ -38,7 +38,7 @@ export const TextPlugin = {
 		original = splitInnerHTML(target, delimiter, false, preserveSpaces);
 		_tempDiv || (_tempDiv = document.createElement("div"));
 		_tempDiv.innerHTML = value.value;
-		text = splitInnerHTML(_tempDiv, delimiter);
+		text = splitInnerHTML(_tempDiv, delimiter, false, preserveSpaces);
 		data.from = tween._from;
 		if ((data.from || rtl) && !(rtl && data.from)) { // right-to-left or "from()" tweens should invert things (but if it's BOTH .from() and rtl, inverting twice equals not inverting at all :)
 			i = original;

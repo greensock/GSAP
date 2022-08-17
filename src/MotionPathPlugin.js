@@ -1,5 +1,5 @@
 /*!
- * MotionPathPlugin 3.10.4
+ * MotionPathPlugin 3.11.0
  * https://greensock.com
  *
  * @license Copyright 2008-2022, GreenSock. All rights reserved.
@@ -15,7 +15,7 @@ import { getGlobalMatrix } from "./utils/matrix.js";
 let _xProps = "x,translateX,left,marginLeft,xPercent".split(","),
 	_yProps = "y,translateY,top,marginTop,yPercent".split(","),
 	_DEG2RAD = Math.PI / 180,
-	gsap, PropTween, _getUnit, _toArray,
+	gsap, PropTween, _getUnit, _toArray, _getStyleSaver, _reverting,
 	_getGSAP = () => gsap || (typeof(window) !== "undefined" && (gsap = window.gsap) && gsap.registerPlugin && gsap),
 	_populateSegmentFromArray = (segment, values, property, mode) => { //mode: 0 = x but don't fill y yet, 1 = y, 2 = x and fill y with 0.
 		let l = values.length,
@@ -100,7 +100,8 @@ let _xProps = "x,translateX,left,marginLeft,xPercent".split(","),
 			x += p.x;
 			y += p.y;
 		}
-		if (p || (toElement.getBBox && fromElement.getBBox && toElement.ownerSVGElement === fromElement.ownerSVGElement)) {
+		//if (p || (toElement.getBBox && fromElement.getBBox && toElement.ownerSVGElement === fromElement.ownerSVGElement)) {
+		if (p) {
 			p = m.apply(toElement.getBBox());
 			x -= p.x;
 			y -= p.y;
@@ -154,15 +155,17 @@ let _xProps = "x,translateX,left,marginLeft,xPercent".split(","),
 
 
 export const MotionPathPlugin = {
-	version: "3.10.4",
+	version: "3.11.0",
 	name: "motionPath",
 	register(core, Plugin, propTween) {
 		gsap = core;
 		_getUnit = gsap.utils.getUnit;
 		_toArray = gsap.utils.toArray;
+		_getStyleSaver = gsap.core.getStyleSaver;
+		_reverting = gsap.core.reverting || function() {};
 		PropTween = propTween;
 	},
-	init(target, vars) {
+	init(target, vars, tween) {
 		if (!gsap) {
 			console.warn("Please gsap.registerPlugin(MotionPathPlugin)");
 			return false;
@@ -177,6 +180,8 @@ export const MotionPathPlugin = {
 			rawPath, p;
 		this.rawPaths = rawPaths;
 		this.target = target;
+		this.tween = tween;
+		this.styles = _getStyleSaver && _getStyleSaver(target, "transform");
 		if ((this.rotate = (autoRotate || autoRotate === 0))) { //get the rotational data FIRST so that the setTransform() method is called in the correct order in the render() loop - rotation gets set last.
 			this.rOffset = parseFloat(autoRotate) || 0;
 			this.radians = !!vars.useRadians;
@@ -212,19 +217,23 @@ export const MotionPathPlugin = {
 		let rawPaths = data.rawPaths,
 			i = rawPaths.length,
 			pt = data._pt;
-		if (ratio > 1) {
-			ratio = 1;
-		} else if (ratio < 0) {
-			ratio = 0;
+		if (data.tween._time || !_reverting()) {
+			if (ratio > 1) {
+				ratio = 1;
+			} else if (ratio < 0) {
+				ratio = 0;
+			}
+			while (i--) {
+				getPositionOnPath(rawPaths[i], ratio, !i && data.rotate, rawPaths[i]);
+			}
+			while (pt) {
+				pt.set(pt.t, pt.p, pt.path[pt.pp] + pt.u, pt.d, ratio);
+				pt = pt._next;
+			}
+			data.rotate && data.rSet(data.target, data.rProp, rawPaths[0].angle * (data.radians ? _DEG2RAD : 1) + data.rOffset + data.ru, data, ratio);
+		} else {
+			data.styles.revert();
 		}
-		while (i--) {
-			getPositionOnPath(rawPaths[i], ratio, !i && data.rotate, rawPaths[i]);
-		}
-		while (pt) {
-			pt.set(pt.t, pt.p, pt.path[pt.pp] + pt.u, pt.d, ratio);
-			pt = pt._next;
-		}
-		data.rotate && data.rSet(data.target, data.rProp, rawPaths[0].angle * (data.radians ? _DEG2RAD : 1) + data.rOffset + data.ru, data, ratio);
 	},
 	getLength(path) {
 		return cacheRawPathMeasurements(getRawPath(path)).totalLength;

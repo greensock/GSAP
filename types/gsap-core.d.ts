@@ -21,10 +21,11 @@ declare namespace gsap {
     | typeof ScrollSmoother;
 
   // querySelector returns type Element | null
-  type DOMTarget = Element | string | null | ArrayLike<Element | string | null>;
+  type DOMTarget = Element | string | null | Window | ArrayLike<Element | string | Window | null>;
   type TweenTarget = string | object | null; 
 
   type Callback = (...args: any[]) => void | null;
+  type ContextFunc = (context: Context) => Function | any | void;
   type CallbackType = "onComplete" | "onInterrupt" | "onRepeat" | "onReverseComplete" | "onStart" | "onUpdate";
   type TickerCallback = (time: number, deltaTime: number, frame: number, elapsed: number) => void | null;
 
@@ -38,10 +39,38 @@ declare namespace gsap {
   type StringValue = string | FunctionBasedValue<string>;
   type ElementValue = Element | FunctionBasedValue<Element>;
   type TweenValue = NumberValue | StringValue;
+  type QuickToFunc = {
+    (value: number, start?: number, startIsRelative?: boolean): core.Tween;
+    tween: core.Tween;
+  }
   
   type SVGPathValue = string | SVGPathElement;
   type SVGPathTarget = SVGPathValue | ArrayLike<SVGPathValue>;
   type SVGPrimitive = SVGCircleElement | SVGRectElement | SVGEllipseElement | SVGPolygonElement | SVGPolylineElement | SVGLineElement;
+
+  interface Conditions {
+    [key: string]: boolean;
+  }
+  interface Context {
+    [key: string]: any;
+    selector?: Function;
+    isReverted: boolean;
+    conditions?: Conditions;
+    queries?: object;
+    add(methodName: string, func: Function, scope?: Element | string | object): Function;
+    add(func: Function, scope?: Element | string | object): void;
+    ignore(func: Function): void;
+    kill(revert?: boolean): void;
+    revert(config?: object): void;
+    clear(): void;
+  }
+
+  interface MatchMedia {
+    contexts: Context[];
+    add(conditions: string | object, func: ContextFunc, scope?: Element | string | object): MatchMedia;
+    revert(config?: object): void;
+    kill(revert?: boolean):void;
+  }
 
   interface AnimationVars extends CallbackVars {
     [key: string]: any;
@@ -180,6 +209,26 @@ declare namespace gsap {
    * @link https://greensock.com/docs/v3/GSAP/gsap.config()
    */
   function config(config?: GSAPConfig): GSAPConfig;
+
+  /**
+   * Creates a Context object for recording/reverting any GSAP animations and/or ScrollTriggers that are in the provided function
+   *
+   * ```js
+   * let ctx = gsap.context((self) => {
+   *     gsap.to(".box", {x: 100});
+   * }, myElement);
+   *
+   * // then later
+   * ctx.revert();
+   * ```
+   *
+   * @param {ContextFunc} [func]
+   * @param {Element | string | object} [scope]
+   * @returns {Context} Context object
+   * @memberof gsap
+   * @link https://greensock.com/docs/v3/GSAP/gsap.context()
+   */
+  function context(func?: ContextFunc, scope?: Element | string | object): Context;
 
   /**
    * Gets or sets GSAP's global defaults. These will be inherited by every tween.
@@ -381,6 +430,35 @@ declare namespace gsap {
   function killTweensOf(targets: TweenTarget, properties?: object | string, onlyActive?: boolean): void;
 
   /**
+   * Creates a MatchMedia object for adding functions that run when a media query matches
+   *
+   * ```js
+   * let mm = gsap.matchMedia(myElement);
+   * mm.add("(max-width: 500px)", (context) => {
+   *     gsap.to(".box", {x: 100});
+   * });
+   * ```
+   *
+   * @param {Element | string | object} [scope]
+   * @returns {MatchMedia} MatchMedia object
+   * @memberof gsap
+   * @link https://greensock.com/docs/v3/GSAP/gsap.matchMedia()
+   */
+  function matchMedia(scope?: Element | string | object): MatchMedia;
+
+  /**
+   * Immediately reverts all active/matching MatchMedia objects and then runs any that currently match.
+   *
+   * ```js
+   * gsap.matchMediaRefresh();
+   * ```
+   *
+   * @memberof gsap
+   * @link https://greensock.com/docs/v3/GSAP/gsap.matchMediaRefresh()
+   */
+  function matchMediaRefresh(): void;
+
+  /**
    * Returns the corresponding easing function for the given easing string.
    *
    * ```js
@@ -418,7 +496,7 @@ declare namespace gsap {
    * Returns a reusable function that performantly redirects a specific property to a new value, restarting the animation each time you feed in a new number.
    *
    * ```js
-   * let xTo = gsap.quickTo("#id", "x", {duration: 0.8, ease: "power3});
+   * let xTo = gsap.quickTo("#id", "x", {duration: 0.8, ease: "power3"});
    *
    * // later
    * xTo(100);
@@ -427,11 +505,11 @@ declare namespace gsap {
    * @param {TweenTarget} target
    * @param {string} property
    * @param {TweenVars} vars
-   * @returns {Function} Setter function
+   * @returns {QuickToFunc} Setter function
    * @memberof gsap
    * @link https://greensock.com/docs/v3/GSAP/gsap.quickTo()
    */
-  function quickTo(target: TweenTarget, property: string, vars?: TweenVars): Function;
+  function quickTo(target: TweenTarget, property: string, vars?: TweenVars): QuickToFunc;
 
   /**
    * Register custom easing functions with GSAP, giving it a name so it can be referenced in any tweens.
@@ -487,7 +565,7 @@ declare namespace gsap {
    * @memberof gsap
    * @link https://greensock.com/docs/v3/GSAP/gsap.registerPlugin()
    */
-  function registerPlugin(...args: RegisterablePlugins[]): void;
+  function registerPlugin(...args: object[]): void;
   
   /**
    * Immediately sets properties of the target(s) to the properties specified.

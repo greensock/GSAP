@@ -1,5 +1,5 @@
 /*!
- * GSAP 3.10.4
+ * GSAP 3.11.0
  * https://greensock.com
  *
  * @license Copyright 2008-2022, GreenSock. All rights reserved.
@@ -21,6 +21,7 @@ let _config = {
 		delay: 0
 	},
 	_suppressOverwrites,
+	_reverting, _context,
 	_bigNum = 1e8,
 	_tinyNum = 1 / _bigNum,
 	_2PI = Math.PI * 2,
@@ -55,6 +56,8 @@ let _config = {
 	_warn = (message, suppress) => !suppress && console.warn(message),
 	_addGlobal = (name, obj) => (name && (_globals[name] = obj) && (_installScope && (_installScope[name] = obj))) || _globals,
 	_emptyFunc = () => 0,
+	_startAtRevertConfig = {suppressEvents: true, isStart: true},
+	_revertConfig = {suppressEvents: true},
 	_reservedProps = {},
 	_lazyTweens = [],
 	_lazyLookup = {},
@@ -109,7 +112,7 @@ let _config = {
 	},
 	_lazySafeRender = (animation, time, suppressEvents, force) => {
 		_lazyTweens.length && _lazyRender();
-		animation.render(time, suppressEvents, force);
+		animation.render(time, suppressEvents, force || _reverting);
 		_lazyTweens.length && _lazyRender(); //in case rendering caused any tweens to lazy-init, we should render them because typically when someone calls seek() or time() or progress(), they expect an immediate render.
 	},
 	_numericIfPossible = value => {
@@ -228,6 +231,7 @@ let _config = {
 		}
 		return animation;
 	},
+	_rewindStartAt = (tween, totalTime, suppressEvents, force) => tween._startAt && (_reverting ? tween._startAt.revert(_revertConfig) : (tween.vars.immediateRender && !tween.vars.autoRevert) || tween._startAt.render(totalTime, true, force)),
 	_hasNoPausedAncestors = animation => !animation || (animation._ts && _hasNoPausedAncestors(animation.parent)),
 	_elapsedCycleDuration = animation => animation._repeat ? _animationCycle(animation._tTime, (animation = animation.duration() + animation._rDelay)) * animation : 0,
 	// feed in the totalTime and cycleDuration and it'll return the cycle (iteration minus 1) and if the playhead is exactly at the very END, it will NOT bump up to the next cycle.
@@ -284,6 +288,7 @@ let _config = {
 		_addLinkedListItem(timeline, child, "_first", "_last", timeline._sort ? "_start" : 0);
 		_isFromOrFromStart(child) || (timeline._recent = child);
 		skipChecks || _postAddChecks(timeline, child);
+		timeline._ts < 0 && _alignPlayhead(timeline, timeline._tTime); // if the timeline is reversed and the new child makes it longer, we may need to adjust the parent's _start (push it back)
 		return timeline;
 	},
 	_scrollTrigger = (animation, trigger) => (_globals.ScrollTrigger || _missingPlugin("scrollTrigger", trigger)) && _globals.ScrollTrigger.create(trigger, animation),
@@ -315,7 +320,7 @@ let _config = {
 				tween.vars.repeatRefresh && tween._initted && tween.invalidate();
 			}
 		}
-		if (ratio !== prevRatio || force || tween._zTime === _tinyNum || (!totalTime && tween._zTime)) {
+		if (ratio !== prevRatio || _reverting || force || tween._zTime === _tinyNum || (!totalTime && tween._zTime)) {
 			if (!tween._initted && _attemptInitTween(tween, totalTime, force, suppressEvents)) { // if we render the very beginning (time == 0) of a fromTo(), we must force the render (normal tweens wouldn't need to render at a time of 0 when the prevTime was also 0). This is also mandatory to make sure overwriting kicks in immediately.
 				return;
 			}
@@ -331,7 +336,7 @@ let _config = {
 				pt.r(ratio, pt.d);
 				pt = pt._next;
 			}
-			tween._startAt && totalTime < 0 && tween._startAt.render(totalTime, true, true);
+			totalTime < 0 && _rewindStartAt(tween, totalTime, suppressEvents, true);
 			tween._onUpdate && !suppressEvents && _callback(tween, "onUpdate");
 			tTime && tween._repeat && !suppressEvents && tween.parent && _callback(tween, "onRepeat");
 			if ((totalTime >= tween._tDur || totalTime < 0) && tween.ratio === ratio) {
@@ -430,7 +435,7 @@ let _config = {
 	_isArrayLike = (value, nonEmpty) => value && (_isObject(value) && "length" in value && ((!nonEmpty && !value.length) || ((value.length - 1) in value && _isObject(value[0]))) && !value.nodeType && value !== _win),
 	_flatten = (ar, leaveStrings, accumulator = []) => ar.forEach(value => (_isString(value) && !leaveStrings) || _isArrayLike(value, 1) ? accumulator.push(...toArray(value)) : accumulator.push(value)) || accumulator,
 	//takes any value and returns an array. If it's a string (and leaveStrings isn't true), it'll use document.querySelectorAll() and convert that to an array. It'll also accept iterables like jQuery objects.
-	toArray = (value, scope, leaveStrings) => _isString(value) && !leaveStrings && (_coreInitted || !_wake()) ? _slice.call((scope || _doc).querySelectorAll(value), 0) : _isArray(value) ? _flatten(value, leaveStrings) : _isArrayLike(value) ? _slice.call(value, 0) : value ? [value] : [],
+	toArray = (value, scope, leaveStrings) => _context && !scope && _context.selector ? _context.selector(value) : _isString(value) && !leaveStrings && (_coreInitted || !_wake()) ? _slice.call((scope || _doc).querySelectorAll(value), 0) : _isArray(value) ? _flatten(value, leaveStrings) : _isArrayLike(value) ? _slice.call(value, 0) : value ? [value] : [],
 	selector = value => {
 		value = toArray(value)[0] || _warn("Invalid scope") || {};
 		return v => {
@@ -498,7 +503,7 @@ let _config = {
 	_roundModifier = v => { //pass in 0.1 get a function that'll round to the nearest tenth, or 5 to round to the closest 5, or 0.001 to the closest 1000th, etc.
 		let p = Math.pow(10, ((v + "").split(".")[1] || "").length); //to avoid floating point math errors (like 24 * 0.1 == 2.4000000000000004), we chop off at a specific number of decimal places (much faster than toFixed())
 		return raw => {
-			let n = Math.round(parseFloat(raw) / v) * v * p;
+			let n = _roundPrecise(Math.round(parseFloat(raw) / v) * v * p);
 			return (n - n % 1) / p + (_isNumber(raw) ? 0 : getUnit(raw)); // n - n % 1 replaces Math.floor() in order to handle negative values properly. For example, Math.floor(-150.00000000000003) is 151!
 		};
 	},
@@ -628,14 +633,19 @@ let _config = {
 	_callback = (animation, type, executeLazyFirst) => {
 		let v = animation.vars,
 			callback = v[type],
-			params, scope;
+			prevContext = _context,
+			context = animation._ctx,
+			params, scope, result;
 		if (!callback) {
 			return;
 		}
 		params = v[type + "Params"];
 		scope = v.callbackScope || animation;
 		executeLazyFirst && _lazyTweens.length && _lazyRender(); //in case rendering caused any tweens to lazy-init, we should render them because typically when a timeline finishes, users expect things to have rendered fully. Imagine an onUpdate on a timeline that reports/checks tweened values.
-		return params ? callback.apply(scope, params) : callback.call(scope);
+		context && (_context = context);
+		result = params ? callback.apply(scope, params) : callback.call(scope);
+		_context = prevContext;
+		return result;
 	},
 	_interrupt = animation => {
 		_removeFromParent(animation);
@@ -1161,6 +1171,10 @@ export class Animation {
 		this._ts = 1;
 		_setDuration(this, +vars.duration, 1, 1);
 		this.data = vars.data;
+		if (_context) {
+			this._ctx = _context;
+			_context.data.push(this);
+		}
 		_tickerActive || _ticker.wake();
 	}
 
@@ -1302,6 +1316,16 @@ export class Animation {
 		return !parent ? this._tTime : (wrapRepeats && (!this._ts || (this._repeat && this._time && this.totalProgress() < 1))) ? this._tTime % (this._dur + this._rDelay) : !this._ts ? this._tTime : _parentToChildTotalTime(parent.rawTime(wrapRepeats), this);
 	}
 
+	revert(config= _revertConfig) {
+		let prevIsReverting = _reverting;
+		_reverting = config;
+		this.timeline && this.timeline.revert(config);
+		this.totalTime(-0.01, config.suppressEvents);
+		this.data !== "nested" && _removeFromParent(this);
+		_reverting = prevIsReverting;
+		return this;
+	}
+
 	globalTime(rawTime) {
 		let animation = this,
 			time = arguments.length ? rawTime : animation.rawTime();
@@ -1309,7 +1333,7 @@ export class Animation {
 			time = animation._start + time / (animation._ts || 1);
 			animation = animation._dp;
 		}
-		return time;
+		return !this.parent && this.vars.immediateRender ? -1 : time; // the _startAt tweens for .fromTo() and .from() that have immediateRender should always be FIRST in the timeline (important for Recording.revert())
 	}
 
 	repeat(value) {
@@ -1640,6 +1664,7 @@ export class Timeline extends Animation {
 					child = next;
 				}
 			} else {
+				force = force || _reverting; // if reverting, we should always force renders. If, for example, a .fromTo() tween with a stagger (which creates an internal timeline) gets reverted BEFORE some of its child tweens render for the first time, it may not properly trigger them to revert.
 				child = this._last;
 				let adjustedTime = totalTime < 0 ? totalTime : time; //when the playhead goes backward beyond the start of this timeline, we must pass that information down to the child animations so that zero-duration tweens know whether to render their starting or ending values.
 				while (child) {
@@ -2033,7 +2058,7 @@ let _addComplexStringPropTween = function(target, prop, start, end, setter, stri
 		this._pt = pt; //start the linked list with this new PropTween. Remember, we call _addComplexStringPropTween.call(tweenInstance...) to ensure that it's scoped properly. We may call it from within a plugin too, thus "this" would refer to the plugin.
 		return pt;
 	},
-	_addPropTween = function(target, prop, start, end, index, targets, modifier, stringFilter, funcParam) {
+	_addPropTween = function(target, prop, start, end, index, targets, modifier, stringFilter, funcParam, optional) {
 		_isFunction(end) && (end = end(index || 0, target, targets));
 		let currentValue = target[prop],
 			parsedStart = (start !== "get") ? start : !_isFunction(currentValue) ? currentValue : (funcParam ? target[(prop.indexOf("set") || !_isFunction(target["get" + prop.substr(3)])) ? prop : "get" + prop.substr(3)](funcParam) : target[prop]()),
@@ -2050,7 +2075,7 @@ let _addComplexStringPropTween = function(target, prop, start, end, setter, stri
 				}
 			}
 		}
-		if (parsedStart !== end || _forceAllPropTweens) {
+		if (!optional || parsedStart !== end || _forceAllPropTweens) {
 			if (!isNaN(parsedStart * end) && end !== "") { // fun fact: any number multiplied by "" is evaluated as the number 0!
 				pt = new PropTween(this._pt, target, prop, +parsedStart || 0, end - (parsedStart || 0), typeof(currentValue) === "boolean" ? _renderBoolean : _renderPlain, 0, setter);
 				funcParam && (pt.fp = funcParam);
@@ -2116,32 +2141,23 @@ let _addComplexStringPropTween = function(target, prop, start, end, setter, stri
 			harnessVars = harness && vars[harness.prop]; //someone may need to specify CSS-specific values AND non-CSS values, like if the element has an "x" property plus it's a standard DOM element. We allow people to distinguish by wrapping plugin-specific stuff in a css:{} object for example.
 			cleanVars = _copyExcluding(vars, _reservedProps);
 			if (prevStartAt) {
-				_removeFromParent(prevStartAt.render(-1, true));
+				prevStartAt.revert(runBackwards && dur ? _revertConfig : _startAtRevertConfig); // if it's a "startAt" (not "from()" or runBackwards: true), we only need to do a shallow revert (keep transforms cached in CSSPlugin)
+				// don't just _removeFromParent(prevStartAt.render(-1, true)) because that'll leave inline styles. We're creating a new _startAt for "startAt" tweens that re-capture things to ensure that if the pre-tween values changed since the tween was created, they're recorded.
 				prevStartAt._lazy = 0;
 			}
 			if (startAt) {
 				_removeFromParent(tween._startAt = Tween.set(targets, _setDefaults({data: "isStart", overwrite: false, parent: parent, immediateRender: true, lazy: _isNotFalse(lazy), startAt: null, delay: 0, onUpdate: onUpdate, onUpdateParams: onUpdateParams, callbackScope: callbackScope, stagger: 0}, startAt))); //copy the properties/values into a new object to avoid collisions, like var to = {x:0}, from = {x:500}; timeline.fromTo(e, from, to).fromTo(e, to, from);
-				(time < 0 && !immediateRender && !autoRevert) && tween._startAt.render(-1, true); // rare edge case, like if a render is forced in the negative direction of a non-initted tween.
+
+				(time < 0 && (_reverting || (!immediateRender && !autoRevert))) && tween._startAt.revert(_revertConfig); // rare edge case, like if a render is forced in the negative direction of a non-initted tween.
 				if (immediateRender) {
-					(time > 0) && !autoRevert && (tween._startAt = 0); //tweens that render immediately (like most from() and fromTo() tweens) shouldn't revert when their parent timeline's playhead goes backward past the startTime because the initial render could have happened anytime and it shouldn't be directly correlated to this tween's startTime. Imagine setting up a complex animation where the beginning states of various objects are rendered immediately but the tween doesn't happen for quite some time - if we revert to the starting values as soon as the playhead goes backward past the tween's startTime, it will throw things off visually. Reversion should only happen in Timeline instances where immediateRender was false or when autoRevert is explicitly set to true.
 					if (dur && time <= 0) {
 						time && (tween._zTime = time);
 						return; //we skip initialization here so that overwriting doesn't occur until the tween actually begins. Otherwise, if you create several immediateRender:true tweens of the same target/properties to drop into a Timeline, the last one created would overwrite the first ones because they didn't get placed into the timeline yet before the first render occurs and kicks in overwriting.
 					}
-					// if (time > 0) {
-					// 	autoRevert || (tween._startAt = 0); //tweens that render immediately (like most from() and fromTo() tweens) shouldn't revert when their parent timeline's playhead goes backward past the startTime because the initial render could have happened anytime and it shouldn't be directly correlated to this tween's startTime. Imagine setting up a complex animation where the beginning states of various objects are rendered immediately but the tween doesn't happen for quite some time - if we revert to the starting values as soon as the playhead goes backward past the tween's startTime, it will throw things off visually. Reversion should only happen in Timeline instances where immediateRender was false or when autoRevert is explicitly set to true.
-					// } else if (dur && !(time < 0 && prevStartAt)) {
-					// 	time && (tween._zTime = time);
-					// 	return; //we skip initialization here so that overwriting doesn't occur until the tween actually begins. Otherwise, if you create several immediateRender:true tweens of the same target/properties to drop into a Timeline, the last one created would overwrite the first ones because they didn't get placed into the timeline yet before the first render occurs and kicks in overwriting.
-					// }
-				} else if (autoRevert === false) {
-					tween._startAt = 0;
 				}
 			} else if (runBackwards && dur) {
 				//from() tweens must be handled uniquely: their beginning values must be rendered but we don't want overwriting to occur yet (when time is still 0). Wait until the tween actually begins before doing all the routines like overwriting. At that time, we should render at the END of the tween to ensure that things initialize correctly (remember, from() tweens go backwards)
-				if (prevStartAt) {
-					!autoRevert && (tween._startAt = 0);
-				} else {
+				if (!prevStartAt) {
 					time && (immediateRender = false); //in rare cases (like if a from() tween runs and then is invalidate()-ed), immediateRender could be true but the initial forced-render gets skipped, so there's no need to force the render in this context when the _time is greater than 0
 					p = _setDefaults({
 						overwrite: false,
@@ -2153,7 +2169,7 @@ let _addComplexStringPropTween = function(target, prop, start, end, setter, stri
 					}, cleanVars);
 					harnessVars && (p[harness.prop] = harnessVars); // in case someone does something like .from(..., {css:{}})
 					_removeFromParent(tween._startAt = Tween.set(targets, p));
-					(time < 0) && tween._startAt.render(-1, true); // rare edge case, like if a render is forced in the negative direction of a non-initted from() tween.
+					(time < 0) && (_reverting ? tween._startAt.revert(_revertConfig) : tween._startAt.render(-1, true));
 					tween._zTime = time;
 					if (!immediateRender) {
 						_initTween(tween._startAt, _tinyNum); //ensures that the initial values are recorded
@@ -2202,7 +2218,7 @@ let _addComplexStringPropTween = function(target, prop, start, end, setter, stri
 	},
 	_updatePropTweens = (tween, property, value, start, startIsRelative, ratio, time) => {
 		let ptCache = ((tween._pt && tween._ptCache) || (tween._ptCache = {}))[property],
-			pt, lookup, i;
+			pt, rootPT, lookup, i;
 		if (!ptCache) {
 			ptCache = tween._ptCache[property] = [];
 			lookup = tween._ptLookup;
@@ -2211,7 +2227,7 @@ let _addComplexStringPropTween = function(target, prop, start, end, setter, stri
 				pt = lookup[i][property];
 				if (pt && pt.d && pt.d._pt) { // it's a plugin, so find the nested PropTween
 					pt = pt.d._pt;
-					while (pt && pt.p !== property) {
+					while (pt && pt.p !== property && pt.fp !== property) { // "fp" is functionParam for things like setting CSS variables which require .setProperty("--var-name", value)
 						pt = pt._next;
 					}
 				}
@@ -2228,11 +2244,12 @@ let _addComplexStringPropTween = function(target, prop, start, end, setter, stri
 		}
 		i = ptCache.length;
 		while (i--) {
-			pt = ptCache[i];
+			rootPT = ptCache[i];
+			pt = rootPT._pt || rootPT; // complex values may have nested PropTweens. We only accommodate the FIRST value.
 			pt.s = (start || start === 0) && !startIsRelative ? start : pt.s + (start || 0) + ratio * pt.c;
 			pt.c = value - pt.s;
-			pt.e && (pt.e = _round(value) + getUnit(pt.e)); // mainly for CSSPlugin (end value)
-			pt.b && (pt.b = pt.s + getUnit(pt.b));          // (beginning value)
+			rootPT.e && (rootPT.e = _round(value) + getUnit(rootPT.e)); // mainly for CSSPlugin (end value)
+			rootPT.b && (rootPT.b = pt.s + getUnit(rootPT.b));          // (beginning value)
 		}
 	},
 	_addAliasesToVars = (targets, vars) => {
@@ -2361,6 +2378,7 @@ export class Tween extends Animation {
 					a, kf, v;
 				if (_isArray(keyframes)) {
 					keyframes.forEach(frame => tl.to(parsedTargets, frame, ">"));
+					tl.duration(); // to ensure tl._dur is cached because we tap into it for performance purposes in the render() method.
 				} else {
 					copy = {};
 					for (p in keyframes) {
@@ -2405,16 +2423,17 @@ export class Tween extends Animation {
 		let prevTime = this._time,
 			tDur = this._tDur,
 			dur = this._dur,
-			tTime = (totalTime > tDur - _tinyNum && totalTime >= 0) ? tDur : (totalTime < _tinyNum) ? 0 : totalTime,
+			isNegative = totalTime < 0,
+			tTime = (totalTime > tDur - _tinyNum && !isNegative) ? tDur : (totalTime < _tinyNum) ? 0 : totalTime,
 			time, pt, iteration, cycleDuration, prevIteration, isYoyo, ratio, timeline, yoyoEase;
 		if (!dur) {
 			_renderZeroDurationTween(this, totalTime, suppressEvents, force);
-		} else if (tTime !== this._tTime || !totalTime || force || (!this._initted && this._tTime) || (this._startAt && (this._zTime < 0) !== (totalTime < 0))) { //this senses if we're crossing over the start time, in which case we must record _zTime and force the render, but we do it in this lengthy conditional way for performance reasons (usually we can skip the calculations): this._initted && (this._zTime < 0) !== (totalTime < 0)
+		} else if (tTime !== this._tTime || !totalTime || force || (!this._initted && this._tTime) || (this._startAt && (this._zTime < 0) !== isNegative)) { //this senses if we're crossing over the start time, in which case we must record _zTime and force the render, but we do it in this lengthy conditional way for performance reasons (usually we can skip the calculations): this._initted && (this._zTime < 0) !== (totalTime < 0)
 			time = tTime;
 			timeline = this.timeline;
 			if (this._repeat) { //adjust the time for repeats and yoyos
 				cycleDuration = dur + this._rDelay;
-				if (this._repeat < -1 && totalTime < 0) {
+				if (this._repeat < -1 && isNegative) {
 					return this.totalTime(cycleDuration * 100 + totalTime, suppressEvents, force);
 				}
 				time = _roundPrecise(tTime % cycleDuration); //round to avoid floating point errors. (4 % 0.8 should be 0 but some browsers report it as 0.79999999!)
@@ -2451,7 +2470,7 @@ export class Tween extends Animation {
 			}
 
 			if (!this._initted) {
-				if (_attemptInitTween(this, totalTime < 0 ? totalTime : time, force, suppressEvents)) {
+				if (_attemptInitTween(this, isNegative ? totalTime : time, force, suppressEvents)) {
 					this._tTime = 0; // in constructor if immediateRender is true, we set _tTime to -_tinyNum to have the playhead cross the starting point but we can't leave _tTime as a negative number.
 					return this;
 				}
@@ -2490,16 +2509,16 @@ export class Tween extends Animation {
 			(timeline && timeline.render(totalTime < 0 ? totalTime : !time && isYoyo ? -_tinyNum : timeline._dur * timeline._ease(time / this._dur), suppressEvents, force)) || (this._startAt && (this._zTime = totalTime));
 
 			if (this._onUpdate && !suppressEvents) {
-				totalTime < 0 && this._startAt && this._startAt.render(totalTime, true, force); //note: for performance reasons, we tuck this conditional logic inside less traveled areas (most tweens don't have an onUpdate). We'd just have it at the end before the onComplete, but the values should be updated before any onUpdate is called, so we ALSO put it here and then if it's not called, we do so later near the onComplete.
+				isNegative && _rewindStartAt(this, totalTime, suppressEvents, force); //note: for performance reasons, we tuck this conditional logic inside less traveled areas (most tweens don't have an onUpdate). We'd just have it at the end before the onComplete, but the values should be updated before any onUpdate is called, so we ALSO put it here and then if it's not called, we do so later near the onComplete.
 				_callback(this, "onUpdate");
 			}
 
 			this._repeat && iteration !== prevIteration && this.vars.onRepeat && !suppressEvents && this.parent && _callback(this, "onRepeat");
 
 			if ((tTime === this._tDur || !tTime) && this._tTime === tTime) {
-				totalTime < 0 && this._startAt && !this._onUpdate && this._startAt.render(totalTime, true, true);
+				isNegative && !this._onUpdate && _rewindStartAt(this, totalTime, true, true);
 				(totalTime || !dur) && ((tTime === this._tDur && this._ts > 0) || (!tTime && this._ts < 0)) && _removeFromParent(this, 1); // don't remove if we're rendering at exactly a time of 0, as there could be autoRevert values that should get set on the next tick (if the playhead goes backward beyond the startTime, negative totalTime). Don't remove if the timeline is reversed and the playhead isn't at 0, otherwise tl.progress(1).reverse() won't work. Only remove if the playhead is at the end and timeScale is positive, or if the playhead is at 0 and the timeScale is negative.
-			    if (!suppressEvents && !(totalTime < 0 && !prevTime) && (tTime || prevTime)) { // if prevTime and tTime are zero, we shouldn't fire the onReverseComplete. This could happen if you gsap.to(... {paused:true}).play();
+			    if (!suppressEvents && !(isNegative && !prevTime) && (tTime || prevTime)) { // if prevTime and tTime are zero, we shouldn't fire the onReverseComplete. This could happen if you gsap.to(... {paused:true}).play();
 					_callback(this, (tTime === tDur ? "onComplete" : "onReverseComplete"), true);
 					this._prom && !(tTime < tDur && this.timeScale() > 0) && this._prom();
 				}
@@ -2801,6 +2820,154 @@ _config.stringFilter = _colorStringFilter;
 
 
 
+let _media = [],
+	_listeners = {},
+	_emptyArray = [],
+	_lastMediaTime = 0,
+	_dispatch = type => (_listeners[type] || _emptyArray).map(f => f()),
+	_onMediaChange = () => {
+		let time = Date.now(),
+			matches = [];
+		if (time - _lastMediaTime > 2) {
+			_dispatch("matchMediaInit");
+			_media.forEach(c => {
+				let queries = c.queries,
+					conditions = c.conditions,
+					match, p, anyMatch, toggled;
+				for (p in queries) {
+					match = _win.matchMedia(queries[p]).matches; // Firefox doesn't update the "matches" property of the MediaQueryList object correctly - it only does so as it calls its change handler - so we must re-create a media query here to ensure it's accurate.
+					match && (anyMatch = 1);
+					if (match !== conditions[p]) {
+						conditions[p] = match;
+						toggled = 1;
+					}
+				}
+				if (toggled) {
+					c.revert();
+					anyMatch && matches.push(c);
+				}
+			});
+			_dispatch("matchMediaRevert");
+			matches.forEach(c => c.onMatch(c));
+			_lastMediaTime = time;
+			_dispatch("matchMedia");
+		}
+	};
+
+class Context {
+	constructor(func, scope) {
+		this.selector = scope && selector(scope);
+		this.data = [];
+		this._r = []; // returned/cleanup functions
+		this.isReverted = false;
+		func && this.add(func);
+	}
+	add(name, func, scope) {
+		if (_isFunction(name)) {
+			scope = func;
+			func = name;
+			name = _isFunction;
+		}
+		let self = this,
+			f = function() {
+				let prev = _context,
+					prevSelector = self.selector,
+					result;
+				prev && prev.data.push(self);
+				scope && (self.selector = selector(scope));
+				_context = self;
+				result = func.apply(self, arguments);
+				_isFunction(result) && self._r.push(result);
+				_context = prev;
+				self.selector = prevSelector;
+				self.isReverted = false;
+				return result;
+			};
+		self.last = f;
+		return name === _isFunction ? f(self) : name ? (self[name] = f) : f;
+	}
+	ignore(func) {
+		let prev = _context;
+		_context = null;
+		func(this);
+		_context = prev;
+	}
+	getTweens() {
+		let a = [];
+		this.data.forEach(e => (e instanceof Context) ? a.push(...e.getTweens()) : (e instanceof Tween) && (e._targets[0] !== e.vars.onComplete) && a.push(e)); // don't include delayedCalls
+		return a;
+	}
+	clear() {
+		this._r.length = this.data.length = 0;
+	}
+	kill(revert, matchMedia) {
+		if (revert) {
+			// save as an object so that we can cache the globalTime for each tween to optimize performance during the sort
+			this.getTweens().map(t => { return {g: t.globalTime(0), t}}).sort((a, b) => b.g - a.g || -1).forEach(o => o.t.revert(revert)); // note: all of the _startAt tweens should be reverted in reverse order that thy were created, and they'll all have the same globalTime (-1) so the " || -1" in the sort keeps the order properly.
+			this.data.forEach(e => !(e instanceof Animation) && e.revert && e.revert(revert));
+			this._r.forEach(f => f(revert, this));
+			this.isReverted = true;
+		} else {
+			this.data.forEach(e => e.kill && e.kill());
+		}
+		this.clear();
+		if (matchMedia) {
+			let i = _media.indexOf(this);
+			!!~i && _media.splice(i, 1);
+		}
+	}
+	revert(config) {
+		this.kill(config || {});
+	}
+}
+
+
+
+
+class MatchMedia {
+	constructor(scope) {
+		this.contexts = [];
+		this.scope = scope;
+	}
+	add(conditions, func, scope) {
+		_isObject(conditions) || (conditions = {matches: conditions});
+		let context = new Context(0, scope || this.scope),
+			cond = context.conditions = {},
+			mq, p, active;
+		this.contexts.push(context);
+		func = context.add("onMatch", func);
+		context.queries = conditions;
+		for (p in conditions) {
+			if (p === "all") {
+				active = 1;
+			} else {
+				mq = _win.matchMedia(conditions[p]);
+				if (mq) {
+					_media.indexOf(context) < 0 && _media.push(context);
+					(cond[p] = mq.matches) && (active = 1);
+					mq.addListener ? mq.addListener(_onMediaChange) : mq.addEventListener("change", _onMediaChange);
+				}
+			}
+		}
+		active && func(context);
+		return this;
+	}
+	// refresh() {
+	// 	let time = _lastMediaTime,
+	// 		media = _media;
+	// 	_lastMediaTime = -1;
+	// 	_media = this.contexts;
+	// 	_onMediaChange();
+	// 	_lastMediaTime = time;
+	// 	_media = media;
+	// }
+	revert(config) {
+		this.kill(config || {});
+	}
+	kill(revert) {
+		this.contexts.forEach(c => c.kill(revert, true));
+	}
+}
 
 
 
@@ -2903,6 +3070,28 @@ const _gsap = {
 		_addToTimeline(_globalTimeline, tl, 0);
 		return tl;
 	},
+	context: (func, scope) => func ? new Context(func, scope) : _context,
+	matchMedia: scope => new MatchMedia(scope),
+	matchMediaRefresh: () => _media.forEach(c => {
+		let cond = c.conditions,
+			found, p;
+		for (p in cond) {
+			if (cond[p]) {
+				cond[p] = false;
+				found = 1;
+			}
+		}
+		found && c.revert();
+	}) || _onMediaChange(),
+	addEventListener(type, callback) {
+		let a = _listeners[type] || (_listeners[type] = []);
+		~a.indexOf(callback) || a.push(callback);
+	},
+	removeEventListener(type, callback) {
+		let a = _listeners[type],
+			i = a && a.indexOf(callback);
+		i >= 0 && a.splice(i, 1);
+	},
 	utils: { wrap, wrapYoyo, distribute, random, snap, normalize, getUnit, clamp, splitColor, toArray, selector, mapRange, pipe, unitize, interpolate, shuffle },
 	install: _install,
 	effects: _effects,
@@ -2910,7 +3099,7 @@ const _gsap = {
 	updateRoot: Timeline.updateRoot,
 	plugins: _plugins,
 	globalTimeline: _globalTimeline,
-	core: {PropTween, globals: _addGlobal, Tween, Timeline, Animation, getCache: _getCache, _removeLinkedListItem, suppressOverwrites: value => _suppressOverwrites = value}
+	core: {PropTween, globals: _addGlobal, Tween, Timeline, Animation, getCache: _getCache, _removeLinkedListItem, reverting: () => _reverting, context: toAdd => {if (toAdd && _context) { _context.data.push(toAdd); toAdd._ctx = _context} return _context; }, suppressOverwrites: value => _suppressOverwrites = value}
 };
 
 _forEachName("to,from,fromTo,delayedCall,set,killTweensOf", name => _gsap[name] = Tween[name]);
@@ -2975,11 +3164,21 @@ let _getPluginPropTween = (plugin, prop) => {
 export const gsap = _gsap.registerPlugin({
 		name:"attr",
 		init(target, vars, tween, index, targets) {
-			let p, pt;
+			let p, pt, v;
+			this.tween = tween;
 			for (p in vars) {
-				pt = this.add(target, "setAttribute", (target.getAttribute(p) || 0) + "", vars[p], index, targets, 0, 0, p);
-				pt && (pt.op = p);
+				v = target.getAttribute(p) || "";
+				pt = this.add(target, "setAttribute", (v || 0) + "", vars[p], index, targets, 0, 0, p);
+				pt.op = p;
+				pt.b = v; // record the beginning value so we can revert()
 				this._props.push(p);
+			}
+		},
+		render(ratio, data) {
+			let pt = data._pt;
+			while (pt) {
+				_reverting ? pt.set(pt.t, pt.p, pt.b, pt) : pt.r(ratio, pt.d); // if reverting, go back to the original (pt.b)
+				pt = pt._next;
 			}
 		}
 	}, {
@@ -2987,7 +3186,7 @@ export const gsap = _gsap.registerPlugin({
 		init(target, value) {
 			let i = value.length;
 			while (i--) {
-				this.add(target, i, target[i] || 0, value[i]);
+				this.add(target, i, target[i] || 0, value[i], 0, 0, 0, 0, 0, 1);
 			}
 		}
 	},
@@ -2996,7 +3195,7 @@ export const gsap = _gsap.registerPlugin({
 	_buildModifierPlugin("snap", snap)
 ) || _gsap; //to prevent the core plugins from being dropped via aggressive tree shaking, we must include them in the variable declaration in this way.
 
-Tween.version = Timeline.version = gsap.version = "3.10.4";
+Tween.version = Timeline.version = gsap.version = "3.11.0";
 _coreReady = 1;
 _windowExists() && _wake();
 

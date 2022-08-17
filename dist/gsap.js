@@ -19,7 +19,7 @@
   }
 
   /*!
-   * GSAP 3.10.4
+   * GSAP 3.11.0
    * https://greensock.com
    *
    * @license Copyright 2008-2022, GreenSock. All rights reserved.
@@ -41,6 +41,8 @@
     delay: 0
   },
       _suppressOverwrites,
+      _reverting,
+      _context,
       _bigNum = 1e8,
       _tinyNum = 1 / _bigNum,
       _2PI = Math.PI * 2,
@@ -103,6 +105,13 @@
   },
       _emptyFunc = function _emptyFunc() {
     return 0;
+  },
+      _startAtRevertConfig = {
+    suppressEvents: true,
+    isStart: true
+  },
+      _revertConfig = {
+    suppressEvents: true
   },
       _reservedProps = {},
       _lazyTweens = [],
@@ -180,7 +189,7 @@
   },
       _lazySafeRender = function _lazySafeRender(animation, time, suppressEvents, force) {
     _lazyTweens.length && _lazyRender();
-    animation.render(time, suppressEvents, force);
+    animation.render(time, suppressEvents, force || _reverting);
     _lazyTweens.length && _lazyRender();
   },
       _numericIfPossible = function _numericIfPossible(value) {
@@ -340,6 +349,9 @@
 
     return animation;
   },
+      _rewindStartAt = function _rewindStartAt(tween, totalTime, suppressEvents, force) {
+    return tween._startAt && (_reverting ? tween._startAt.revert(_revertConfig) : tween.vars.immediateRender && !tween.vars.autoRevert || tween._startAt.render(totalTime, true, force));
+  },
       _hasNoPausedAncestors = function _hasNoPausedAncestors(animation) {
     return !animation || animation._ts && _hasNoPausedAncestors(animation.parent);
   },
@@ -402,6 +414,7 @@
 
     _isFromOrFromStart(child) || (timeline._recent = child);
     skipChecks || _postAddChecks(timeline, child);
+    timeline._ts < 0 && _alignPlayhead(timeline, timeline._tTime);
     return timeline;
   },
       _scrollTrigger = function _scrollTrigger(animation, trigger) {
@@ -449,7 +462,7 @@
       }
     }
 
-    if (ratio !== prevRatio || force || tween._zTime === _tinyNum || !totalTime && tween._zTime) {
+    if (ratio !== prevRatio || _reverting || force || tween._zTime === _tinyNum || !totalTime && tween._zTime) {
       if (!tween._initted && _attemptInitTween(tween, totalTime, force, suppressEvents)) {
         return;
       }
@@ -468,7 +481,7 @@
         pt = pt._next;
       }
 
-      tween._startAt && totalTime < 0 && tween._startAt.render(totalTime, true, true);
+      totalTime < 0 && _rewindStartAt(tween, totalTime, suppressEvents, true);
       tween._onUpdate && !suppressEvents && _callback(tween, "onUpdate");
       tTime && tween._repeat && !suppressEvents && tween.parent && _callback(tween, "onRepeat");
 
@@ -618,7 +631,7 @@
     }) || accumulator;
   },
       toArray = function toArray(value, scope, leaveStrings) {
-    return _isString(value) && !leaveStrings && (_coreInitted || !_wake()) ? _slice.call((scope || _doc).querySelectorAll(value), 0) : _isArray(value) ? _flatten(value, leaveStrings) : _isArrayLike(value) ? _slice.call(value, 0) : value ? [value] : [];
+    return _context && !scope && _context.selector ? _context.selector(value) : _isString(value) && !leaveStrings && (_coreInitted || !_wake()) ? _slice.call((scope || _doc).querySelectorAll(value), 0) : _isArray(value) ? _flatten(value, leaveStrings) : _isArrayLike(value) ? _slice.call(value, 0) : value ? [value] : [];
   },
       selector = function selector(value) {
     value = toArray(value)[0] || _warn("Invalid scope") || {};
@@ -715,7 +728,8 @@
       _roundModifier = function _roundModifier(v) {
     var p = Math.pow(10, ((v + "").split(".")[1] || "").length);
     return function (raw) {
-      var n = Math.round(parseFloat(raw) / v) * v * p;
+      var n = _roundPrecise(Math.round(parseFloat(raw) / v) * v * p);
+
       return (n - n % 1) / p + (_isNumber(raw) ? 0 : getUnit(raw));
     };
   },
@@ -916,8 +930,11 @@
       _callback = function _callback(animation, type, executeLazyFirst) {
     var v = animation.vars,
         callback = v[type],
+        prevContext = _context,
+        context = animation._ctx,
         params,
-        scope;
+        scope,
+        result;
 
     if (!callback) {
       return;
@@ -926,7 +943,10 @@
     params = v[type + "Params"];
     scope = v.callbackScope || animation;
     executeLazyFirst && _lazyTweens.length && _lazyRender();
-    return params ? callback.apply(scope, params) : callback.call(scope);
+    context && (_context = context);
+    result = params ? callback.apply(scope, params) : callback.call(scope);
+    _context = prevContext;
+    return result;
   },
       _interrupt = function _interrupt(animation) {
     _removeFromParent(animation);
@@ -1518,6 +1538,13 @@
       _setDuration(this, +vars.duration, 1, 1);
 
       this.data = vars.data;
+
+      if (_context) {
+        this._ctx = _context;
+
+        _context.data.push(this);
+      }
+
       _tickerActive || _ticker.wake();
     }
 
@@ -1661,6 +1688,20 @@
       return !parent ? this._tTime : wrapRepeats && (!this._ts || this._repeat && this._time && this.totalProgress() < 1) ? this._tTime % (this._dur + this._rDelay) : !this._ts ? this._tTime : _parentToChildTotalTime(parent.rawTime(wrapRepeats), this);
     };
 
+    _proto.revert = function revert(config) {
+      if (config === void 0) {
+        config = _revertConfig;
+      }
+
+      var prevIsReverting = _reverting;
+      _reverting = config;
+      this.timeline && this.timeline.revert(config);
+      this.totalTime(-0.01, config.suppressEvents);
+      this.data !== "nested" && _removeFromParent(this);
+      _reverting = prevIsReverting;
+      return this;
+    };
+
     _proto.globalTime = function globalTime(rawTime) {
       var animation = this,
           time = arguments.length ? rawTime : animation.rawTime();
@@ -1670,7 +1711,7 @@
         animation = animation._dp;
       }
 
-      return time;
+      return !this.parent && this.vars.immediateRender ? -1 : time;
     };
 
     _proto.repeat = function repeat(value) {
@@ -2049,6 +2090,7 @@
             child = next;
           }
         } else {
+          force = force || _reverting;
           child = this._last;
           var adjustedTime = totalTime < 0 ? totalTime : time;
 
@@ -2544,7 +2586,7 @@
     this._pt = pt;
     return pt;
   },
-      _addPropTween = function _addPropTween(target, prop, start, end, index, targets, modifier, stringFilter, funcParam) {
+      _addPropTween = function _addPropTween(target, prop, start, end, index, targets, modifier, stringFilter, funcParam, optional) {
     _isFunction(end) && (end = end(index || 0, target, targets));
     var currentValue = target[prop],
         parsedStart = start !== "get" ? start : !_isFunction(currentValue) ? currentValue : funcParam ? target[prop.indexOf("set") || !_isFunction(target["get" + prop.substr(3)]) ? prop : "get" + prop.substr(3)](funcParam) : target[prop](),
@@ -2565,7 +2607,7 @@
       }
     }
 
-    if (parsedStart !== end || _forceAllPropTweens) {
+    if (!optional || parsedStart !== end || _forceAllPropTweens) {
       if (!isNaN(parsedStart * end) && end !== "") {
         pt = new PropTween(this._pt, target, prop, +parsedStart || 0, end - (parsedStart || 0), typeof currentValue === "boolean" ? _renderBoolean : _renderPlain, 0, setter);
         funcParam && (pt.fp = funcParam);
@@ -2664,8 +2706,7 @@
       cleanVars = _copyExcluding(vars, _reservedProps);
 
       if (prevStartAt) {
-        _removeFromParent(prevStartAt.render(-1, true));
-
+        prevStartAt.revert(runBackwards && dur ? _revertConfig : _startAtRevertConfig);
         prevStartAt._lazy = 0;
       }
 
@@ -2684,22 +2725,16 @@
           stagger: 0
         }, startAt)));
 
-        time < 0 && !immediateRender && !autoRevert && tween._startAt.render(-1, true);
+        time < 0 && (_reverting || !immediateRender && !autoRevert) && tween._startAt.revert(_revertConfig);
 
         if (immediateRender) {
-          time > 0 && !autoRevert && (tween._startAt = 0);
-
           if (dur && time <= 0) {
             time && (tween._zTime = time);
             return;
           }
-        } else if (autoRevert === false) {
-          tween._startAt = 0;
         }
       } else if (runBackwards && dur) {
-        if (prevStartAt) {
-          !autoRevert && (tween._startAt = 0);
-        } else {
+        if (!prevStartAt) {
           time && (immediateRender = false);
           p = _setDefaults({
             overwrite: false,
@@ -2713,7 +2748,7 @@
 
           _removeFromParent(tween._startAt = Tween.set(targets, p));
 
-          time < 0 && tween._startAt.render(-1, true);
+          time < 0 && (_reverting ? tween._startAt.revert(_revertConfig) : tween._startAt.render(-1, true));
           tween._zTime = time;
 
           if (!immediateRender) {
@@ -2779,6 +2814,7 @@
       _updatePropTweens = function _updatePropTweens(tween, property, value, start, startIsRelative, ratio, time) {
     var ptCache = (tween._pt && tween._ptCache || (tween._ptCache = {}))[property],
         pt,
+        rootPT,
         lookup,
         i;
 
@@ -2793,7 +2829,7 @@
         if (pt && pt.d && pt.d._pt) {
           pt = pt.d._pt;
 
-          while (pt && pt.p !== property) {
+          while (pt && pt.p !== property && pt.fp !== property) {
             pt = pt._next;
           }
         }
@@ -2815,11 +2851,12 @@
     i = ptCache.length;
 
     while (i--) {
-      pt = ptCache[i];
+      rootPT = ptCache[i];
+      pt = rootPT._pt || rootPT;
       pt.s = (start || start === 0) && !startIsRelative ? start : pt.s + (start || 0) + ratio * pt.c;
       pt.c = value - pt.s;
-      pt.e && (pt.e = _round(value) + getUnit(pt.e));
-      pt.b && (pt.b = pt.s + getUnit(pt.b));
+      rootPT.e && (rootPT.e = _round(value) + getUnit(rootPT.e));
+      rootPT.b && (rootPT.b = pt.s + getUnit(rootPT.b));
     }
   },
       _addAliasesToVars = function _addAliasesToVars(targets, vars) {
@@ -2979,6 +3016,7 @@
             keyframes.forEach(function (frame) {
               return tl.to(parsedTargets, frame, ">");
             });
+            tl.duration();
           } else {
             copy = {};
 
@@ -3044,7 +3082,8 @@
       var prevTime = this._time,
           tDur = this._tDur,
           dur = this._dur,
-          tTime = totalTime > tDur - _tinyNum && totalTime >= 0 ? tDur : totalTime < _tinyNum ? 0 : totalTime,
+          isNegative = totalTime < 0,
+          tTime = totalTime > tDur - _tinyNum && !isNegative ? tDur : totalTime < _tinyNum ? 0 : totalTime,
           time,
           pt,
           iteration,
@@ -3057,14 +3096,14 @@
 
       if (!dur) {
         _renderZeroDurationTween(this, totalTime, suppressEvents, force);
-      } else if (tTime !== this._tTime || !totalTime || force || !this._initted && this._tTime || this._startAt && this._zTime < 0 !== totalTime < 0) {
+      } else if (tTime !== this._tTime || !totalTime || force || !this._initted && this._tTime || this._startAt && this._zTime < 0 !== isNegative) {
         time = tTime;
         timeline = this.timeline;
 
         if (this._repeat) {
           cycleDuration = dur + this._rDelay;
 
-          if (this._repeat < -1 && totalTime < 0) {
+          if (this._repeat < -1 && isNegative) {
             return this.totalTime(cycleDuration * 100 + totalTime, suppressEvents, force);
           }
 
@@ -3109,7 +3148,7 @@
         }
 
         if (!this._initted) {
-          if (_attemptInitTween(this, totalTime < 0 ? totalTime : time, force, suppressEvents)) {
+          if (_attemptInitTween(this, isNegative ? totalTime : time, force, suppressEvents)) {
             this._tTime = 0;
             return this;
           }
@@ -3155,7 +3194,7 @@
         timeline && timeline.render(totalTime < 0 ? totalTime : !time && isYoyo ? -_tinyNum : timeline._dur * timeline._ease(time / this._dur), suppressEvents, force) || this._startAt && (this._zTime = totalTime);
 
         if (this._onUpdate && !suppressEvents) {
-          totalTime < 0 && this._startAt && this._startAt.render(totalTime, true, force);
+          isNegative && _rewindStartAt(this, totalTime, suppressEvents, force);
 
           _callback(this, "onUpdate");
         }
@@ -3163,10 +3202,10 @@
         this._repeat && iteration !== prevIteration && this.vars.onRepeat && !suppressEvents && this.parent && _callback(this, "onRepeat");
 
         if ((tTime === this._tDur || !tTime) && this._tTime === tTime) {
-          totalTime < 0 && this._startAt && !this._onUpdate && this._startAt.render(totalTime, true, true);
+          isNegative && !this._onUpdate && _rewindStartAt(this, totalTime, true, true);
           (totalTime || !dur) && (tTime === this._tDur && this._ts > 0 || !tTime && this._ts < 0) && _removeFromParent(this, 1);
 
-          if (!suppressEvents && !(totalTime < 0 && !prevTime) && (tTime || prevTime)) {
+          if (!suppressEvents && !(isNegative && !prevTime) && (tTime || prevTime)) {
             _callback(this, tTime === tDur ? "onComplete" : "onReverseComplete", true);
 
             this._prom && !(tTime < tDur && this.timeScale() > 0) && this._prom();
@@ -3507,6 +3546,212 @@
     smoothChildTiming: true
   });
   _config.stringFilter = _colorStringFilter;
+
+  var _media = [],
+      _listeners = {},
+      _emptyArray = [],
+      _lastMediaTime = 0,
+      _dispatch = function _dispatch(type) {
+    return (_listeners[type] || _emptyArray).map(function (f) {
+      return f();
+    });
+  },
+      _onMediaChange = function _onMediaChange() {
+    var time = Date.now(),
+        matches = [];
+
+    if (time - _lastMediaTime > 2) {
+      _dispatch("matchMediaInit");
+
+      _media.forEach(function (c) {
+        var queries = c.queries,
+            conditions = c.conditions,
+            match,
+            p,
+            anyMatch,
+            toggled;
+
+        for (p in queries) {
+          match = _win.matchMedia(queries[p]).matches;
+          match && (anyMatch = 1);
+
+          if (match !== conditions[p]) {
+            conditions[p] = match;
+            toggled = 1;
+          }
+        }
+
+        if (toggled) {
+          c.revert();
+          anyMatch && matches.push(c);
+        }
+      });
+
+      _dispatch("matchMediaRevert");
+
+      matches.forEach(function (c) {
+        return c.onMatch(c);
+      });
+      _lastMediaTime = time;
+
+      _dispatch("matchMedia");
+    }
+  };
+
+  var Context = function () {
+    function Context(func, scope) {
+      this.selector = scope && selector(scope);
+      this.data = [];
+      this._r = [];
+      this.isReverted = false;
+      func && this.add(func);
+    }
+
+    var _proto5 = Context.prototype;
+
+    _proto5.add = function add(name, func, scope) {
+      if (_isFunction(name)) {
+        scope = func;
+        func = name;
+        name = _isFunction;
+      }
+
+      var self = this,
+          f = function f() {
+        var prev = _context,
+            prevSelector = self.selector,
+            result;
+        prev && prev.data.push(self);
+        scope && (self.selector = selector(scope));
+        _context = self;
+        result = func.apply(self, arguments);
+        _isFunction(result) && self._r.push(result);
+        _context = prev;
+        self.selector = prevSelector;
+        self.isReverted = false;
+        return result;
+      };
+
+      self.last = f;
+      return name === _isFunction ? f(self) : name ? self[name] = f : f;
+    };
+
+    _proto5.ignore = function ignore(func) {
+      var prev = _context;
+      _context = null;
+      func(this);
+      _context = prev;
+    };
+
+    _proto5.getTweens = function getTweens() {
+      var a = [];
+      this.data.forEach(function (e) {
+        return e instanceof Context ? a.push.apply(a, e.getTweens()) : e instanceof Tween && e._targets[0] !== e.vars.onComplete && a.push(e);
+      });
+      return a;
+    };
+
+    _proto5.clear = function clear() {
+      this._r.length = this.data.length = 0;
+    };
+
+    _proto5.kill = function kill(revert, matchMedia) {
+      var _this4 = this;
+
+      if (revert) {
+        this.getTweens().map(function (t) {
+          return {
+            g: t.globalTime(0),
+            t: t
+          };
+        }).sort(function (a, b) {
+          return b.g - a.g || -1;
+        }).forEach(function (o) {
+          return o.t.revert(revert);
+        });
+        this.data.forEach(function (e) {
+          return !(e instanceof Animation) && e.revert && e.revert(revert);
+        });
+
+        this._r.forEach(function (f) {
+          return f(revert, _this4);
+        });
+
+        this.isReverted = true;
+      } else {
+        this.data.forEach(function (e) {
+          return e.kill && e.kill();
+        });
+      }
+
+      this.clear();
+
+      if (matchMedia) {
+        var i = _media.indexOf(this);
+
+        !!~i && _media.splice(i, 1);
+      }
+    };
+
+    _proto5.revert = function revert(config) {
+      this.kill(config || {});
+    };
+
+    return Context;
+  }();
+
+  var MatchMedia = function () {
+    function MatchMedia(scope) {
+      this.contexts = [];
+      this.scope = scope;
+    }
+
+    var _proto6 = MatchMedia.prototype;
+
+    _proto6.add = function add(conditions, func, scope) {
+      _isObject(conditions) || (conditions = {
+        matches: conditions
+      });
+      var context = new Context(0, scope || this.scope),
+          cond = context.conditions = {},
+          mq,
+          p,
+          active;
+      this.contexts.push(context);
+      func = context.add("onMatch", func);
+      context.queries = conditions;
+
+      for (p in conditions) {
+        if (p === "all") {
+          active = 1;
+        } else {
+          mq = _win.matchMedia(conditions[p]);
+
+          if (mq) {
+            _media.indexOf(context) < 0 && _media.push(context);
+            (cond[p] = mq.matches) && (active = 1);
+            mq.addListener ? mq.addListener(_onMediaChange) : mq.addEventListener("change", _onMediaChange);
+          }
+        }
+      }
+
+      active && func(context);
+      return this;
+    };
+
+    _proto6.revert = function revert(config) {
+      this.kill(config || {});
+    };
+
+    _proto6.kill = function kill(revert) {
+      this.contexts.forEach(function (c) {
+        return c.kill(revert, true);
+      });
+    };
+
+    return MatchMedia;
+  }();
+
   var _gsap = {
     registerPlugin: function registerPlugin() {
       for (var _len2 = arguments.length, args = new Array(_len2), _key2 = 0; _key2 < _len2; _key2++) {
@@ -3648,6 +3893,37 @@
 
       return tl;
     },
+    context: function context(func, scope) {
+      return func ? new Context(func, scope) : _context;
+    },
+    matchMedia: function matchMedia(scope) {
+      return new MatchMedia(scope);
+    },
+    matchMediaRefresh: function matchMediaRefresh() {
+      return _media.forEach(function (c) {
+        var cond = c.conditions,
+            found,
+            p;
+
+        for (p in cond) {
+          if (cond[p]) {
+            cond[p] = false;
+            found = 1;
+          }
+        }
+
+        found && c.revert();
+      }) || _onMediaChange();
+    },
+    addEventListener: function addEventListener(type, callback) {
+      var a = _listeners[type] || (_listeners[type] = []);
+      ~a.indexOf(callback) || a.push(callback);
+    },
+    removeEventListener: function removeEventListener(type, callback) {
+      var a = _listeners[type],
+          i = a && a.indexOf(callback);
+      i >= 0 && a.splice(i, 1);
+    },
     utils: {
       wrap: wrap,
       wrapYoyo: wrapYoyo,
@@ -3680,6 +3956,18 @@
       Animation: Animation,
       getCache: _getCache,
       _removeLinkedListItem: _removeLinkedListItem,
+      reverting: function reverting() {
+        return _reverting;
+      },
+      context: function context(toAdd) {
+        if (toAdd && _context) {
+          _context.data.push(toAdd);
+
+          toAdd._ctx = _context;
+        }
+
+        return _context;
+      },
       suppressOverwrites: function suppressOverwrites(value) {
         return _suppressOverwrites = value;
       }
@@ -3764,13 +4052,24 @@
   var gsap = _gsap.registerPlugin({
     name: "attr",
     init: function init(target, vars, tween, index, targets) {
-      var p, pt;
+      var p, pt, v;
+      this.tween = tween;
 
       for (p in vars) {
-        pt = this.add(target, "setAttribute", (target.getAttribute(p) || 0) + "", vars[p], index, targets, 0, 0, p);
-        pt && (pt.op = p);
+        v = target.getAttribute(p) || "";
+        pt = this.add(target, "setAttribute", (v || 0) + "", vars[p], index, targets, 0, 0, p);
+        pt.op = p;
+        pt.b = v;
 
         this._props.push(p);
+      }
+    },
+    render: function render(ratio, data) {
+      var pt = data._pt;
+
+      while (pt) {
+        _reverting ? pt.set(pt.t, pt.p, pt.b, pt) : pt.r(ratio, pt.d);
+        pt = pt._next;
       }
     }
   }, {
@@ -3779,11 +4078,11 @@
       var i = value.length;
 
       while (i--) {
-        this.add(target, i, target[i] || 0, value[i]);
+        this.add(target, i, target[i] || 0, value[i], 0, 0, 0, 0, 0, 1);
       }
     }
   }, _buildModifierPlugin("roundProps", _roundModifier), _buildModifierPlugin("modifiers"), _buildModifierPlugin("snap", snap)) || _gsap;
-  Tween.version = Timeline.version = gsap.version = "3.10.4";
+  Tween.version = Timeline.version = gsap.version = "3.11.0";
   _coreReady = 1;
   _windowExists() && _wake();
   var Power0 = _easeMap.Power0,
@@ -3812,6 +4111,7 @@
       _tempDiv,
       _tempDivStyler,
       _recentSetterPlugin,
+      _reverting$1,
       _windowExists$1 = function _windowExists() {
     return typeof window !== "undefined";
   },
@@ -3871,6 +4171,80 @@
   },
       _transformProp = "transform",
       _transformOriginProp = _transformProp + "Origin",
+      _saveStyle = function _saveStyle(property) {
+    var _this = this;
+
+    var target = this.target,
+        style = target.style;
+
+    if (property in _transformProps) {
+      this.tfm = this.tfm || {};
+
+      if (property !== "transform") {
+        property = _propertyAliases[property] || property;
+        ~property.indexOf(",") ? property.split(",").forEach(function (a) {
+          return _this.tfm[a] = _get(target, a);
+        }) : this.tfm[property] = target._gsap.x ? target._gsap[property] : _get(target, property);
+      }
+
+      target._gsap.svg && (this.svg = target.getAttribute(property) || "");
+
+      if (this.props.indexOf(_transformProp) >= 0) {
+        return;
+      }
+
+      property = _transformProp;
+    }
+
+    style && this.props.push(property, style[property]);
+  },
+      _removeIndependentTransforms = function _removeIndependentTransforms(style) {
+    if (style.translate) {
+      style.removeProperty("translate");
+      style.removeProperty("scale");
+      style.removeProperty("rotate");
+    }
+  },
+      _revertStyle = function _revertStyle() {
+    var props = this.props,
+        target = this.target,
+        style = target.style,
+        cache = target._gsap,
+        i,
+        p;
+
+    for (i = 0; i < props.length; i += 2) {
+      props[i + 1] ? style[props[i]] = props[i + 1] : style.removeProperty(props[i].replace(_capsExp, "-$1").toLowerCase());
+    }
+
+    if (this.tfm) {
+      cache.svg && target.setAttribute("transform", this.svg || "");
+
+      for (p in this.tfm) {
+        cache[p] = this.tfm[p];
+      }
+
+      i = _reverting$1();
+
+      if (i && !i.isStart && !style[_transformProp]) {
+        _removeIndependentTransforms(style);
+
+        cache.uncache = 1;
+      }
+    }
+  },
+      _getStyleSaver = function _getStyleSaver(target, properties) {
+    var saver = {
+      target: target,
+      props: [],
+      revert: _revertStyle,
+      save: _saveStyle
+    };
+    properties && properties.split(",").forEach(function (p) {
+      return saver.save(p);
+    });
+    return saver;
+  },
       _supports3D,
       _createElement = function _createElement(type, ns) {
     var e = _doc$1.createElementNS ? _doc$1.createElementNS((ns || "http://www.w3.org/1999/xhtml").replace(/^https/, "http"), type) : _doc$1.createElement(type);
@@ -3909,6 +4283,7 @@
       _transformOriginProp = _transformProp + "Origin";
       _tempDiv.style.cssText = "border-width:0;line-height:0;position:absolute;padding:0";
       _supports3D = !!_checkPropPrefix("perspective");
+      _reverting$1 = gsap.core.reverting;
       _pluginInitted = 1;
     }
   },
@@ -4010,6 +4385,10 @@
     rad: 1,
     turn: 1
   },
+      _nonStandardLayouts = {
+    grid: 1,
+    flex: 1
+  },
       _convertToUnit = function _convertToUnit(target, property, value, unit) {
     var curValue = parseFloat(value) || 0,
         curUnit = (value + "").trim().substr((curValue + "").length) || "px",
@@ -4050,10 +4429,10 @@
 
     cache = parent._gsap;
 
-    if (cache && toPercent && cache.width && horizontal && cache.time === _ticker.time) {
+    if (cache && toPercent && cache.width && horizontal && cache.time === _ticker.time && !cache.uncache) {
       return _round(curValue / cache.width * amount);
     } else {
-      (toPercent || curUnit === "%") && (style.position = _getComputedProperty(target, "position"));
+      (toPercent || curUnit === "%") && !_nonStandardLayouts[_getComputedProperty(parent, "display")] && (style.position = _getComputedProperty(target, "position"));
       parent === target && (style.position = "static");
       parent.appendChild(_tempDiv);
       px = _tempDiv[measureProperty];
@@ -4253,6 +4632,8 @@
           _parseTransform(target, 1);
 
           cache.uncache = 1;
+
+          _removeIndependentTransforms(style);
         }
       }
     }
@@ -4301,7 +4682,7 @@
 
       if (!parent || !target.offsetParent) {
         addedToDOM = 1;
-        nextSibling = target.nextSibling;
+        nextSibling = target.nextElementSibling;
 
         _docElement.appendChild(target);
       }
@@ -4387,6 +4768,7 @@
         invertedScaleX = cache.scaleX < 0,
         px = "px",
         deg = "deg",
+        cs = getComputedStyle(target),
         origin = _getComputedProperty(target, _transformOriginProp) || "0",
         x,
         y,
@@ -4423,6 +4805,15 @@
     x = y = z = rotation = rotationX = rotationY = skewX = skewY = perspective = 0;
     scaleX = scaleY = 1;
     cache.svg = !!(target.getCTM && _isSVG(target));
+
+    if (cs.translate) {
+      if (cs.translate !== "none" || cs.scale !== "none" || cs.rotate !== "none") {
+        style[_transformProp] = (cs.translate !== "none" ? "translate3d(" + (cs.translate + " 0 0").split(" ").slice(0, 3).join(", ") + ") " : "") + (cs.rotate !== "none" ? "rotate(" + cs.rotate + ") " : "") + (cs.scale !== "none" ? "scale(" + cs.scale.split(" ").join(",") + ") " : "") + cs[_transformProp];
+      }
+
+      style.scale = style.rotate = style.translate = "none";
+    }
+
     matrix = _getMatrix(target, cache.svg);
 
     if (cache.svg) {
@@ -4879,8 +5270,12 @@
           transformPropTween,
           cache,
           smooth,
-          hasPriority;
+          hasPriority,
+          inlineProps;
       _pluginInitted || _initCore();
+      this.styles = this.styles || _getStyleSaver(target);
+      inlineProps = this.styles.props;
+      this.tween = tween;
 
       for (p in vars) {
         if (p === "autoRound") {
@@ -4920,6 +5315,7 @@
           endUnit ? startUnit !== endUnit && (startValue = _convertToUnit(target, p, startValue, endUnit) + endUnit) : startUnit && (endValue += startUnit);
           this.add(style, "setProperty", startValue, endValue, index, targets, 0, 0, p);
           props.push(p);
+          inlineProps.push(p, style[p]);
         } else if (type !== "undefined") {
           if (startAt && p in startAt) {
             startValue = typeof startAt[p] === "function" ? startAt[p].call(tween, index, target, targets) : startAt[p];
@@ -4941,6 +5337,8 @@
                 startNum = 0;
               }
 
+              inlineProps.push("visibility", style.visibility);
+
               _addNonTweeningPT(this, style, "visibility", startNum ? "inherit" : "hidden", endNum ? "inherit" : "hidden", !endNum);
             }
 
@@ -4953,6 +5351,8 @@
           isTransformRelated = p in _transformProps;
 
           if (isTransformRelated) {
+            this.styles.save(p);
+
             if (!transformPropTween) {
               cache = target._gsap;
               cache.renderTransform && !vars.parseTransform || _parseTransform(target, vars.parseTransform);
@@ -4962,10 +5362,12 @@
             }
 
             if (p === "scale") {
-              this._pt = new PropTween(this._pt, cache, "scaleY", cache.scaleY, (relative ? _parseRelative(cache.scaleY, relative + endNum) : endNum) - cache.scaleY || 0);
+              this._pt = new PropTween(this._pt, cache, "scaleY", cache.scaleY, (relative ? _parseRelative(cache.scaleY, relative + endNum) : endNum) - cache.scaleY || 0, _renderCSSProp);
+              this._pt.u = 0;
               props.push("scaleY", p);
               p += "X";
             } else if (p === "transformOrigin") {
+              inlineProps.push(_transformOriginProp, style[_transformOriginProp]);
               endValue = _convertKeywordsToPercentages(endValue);
 
               if (cache.svg) {
@@ -5026,11 +5428,24 @@
             _tweenComplexCSSString.call(this, target, p, startValue, relative ? relative + endValue : endValue);
           }
 
+          isTransformRelated || inlineProps.push(p, style[p]);
           props.push(p);
         }
       }
 
       hasPriority && _sortPropTweensByPriority(this);
+    },
+    render: function render(ratio, data) {
+      if (data.tween._time || !_reverting$1()) {
+        var pt = data._pt;
+
+        while (pt) {
+          pt.r(ratio, pt.d);
+          pt = pt._next;
+        }
+      } else {
+        data.styles.revert();
+      }
     },
     get: _get,
     aliases: _propertyAliases,
@@ -5045,6 +5460,7 @@
     }
   };
   gsap.utils.checkPrefix = _checkPropPrefix;
+  gsap.core.getStyleSaver = _getStyleSaver;
 
   (function (positionAndScale, rotation, others, aliases) {
     var all = _forEachName(positionAndScale + "," + rotation + "," + others, function (name) {

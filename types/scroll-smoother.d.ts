@@ -346,9 +346,10 @@ declare namespace ScrollSmoother {
     content?: gsap.DOMTarget;
     ease?: string | Function;
     effects?: boolean | gsap.DOMTarget;
+    effectsPrefix?: string;
     ignoreMobileResize?: boolean;
     normalizeScroll?: boolean | ScrollTrigger.NormalizeVars;
-//    onFocusIn?: EventCallback;
+    onFocusIn?: EventCallback;
     onUpdate?: Callback;
     onStop?: Callback;
  //   sections?: boolean | gsap.DOMTarget;

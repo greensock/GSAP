@@ -1,5 +1,5 @@
 /*!
- * MotionPathPlugin 3.10.4
+ * MotionPathPlugin 3.11.0
  * https://greensock.com
  *
  * @license Copyright 2008-2022, GreenSock. All rights reserved.
@@ -19,6 +19,8 @@ var _xProps = "x,translateX,left,marginLeft,xPercent".split(","),
     PropTween,
     _getUnit,
     _toArray,
+    _getStyleSaver,
+    _reverting,
     _getGSAP = function _getGSAP() {
   return gsap || typeof window !== "undefined" && (gsap = window.gsap) && gsap.registerPlugin && gsap;
 },
@@ -135,9 +137,10 @@ _segmentToRawPath = function _segmentToRawPath(plugin, segment, target, x, y, sl
     });
     x += p.x;
     y += p.y;
-  }
+  } //if (p || (toElement.getBBox && fromElement.getBBox && toElement.ownerSVGElement === fromElement.ownerSVGElement)) {
 
-  if (p || toElement.getBBox && fromElement.getBBox && toElement.ownerSVGElement === fromElement.ownerSVGElement) {
+
+  if (p) {
     p = m.apply(toElement.getBBox());
     x -= p.x;
     y -= p.y;
@@ -214,15 +217,19 @@ _segmentToRawPath = function _segmentToRawPath(plugin, segment, target, x, y, sl
 };
 
 export var MotionPathPlugin = {
-  version: "3.10.4",
+  version: "3.11.0",
   name: "motionPath",
   register: function register(core, Plugin, propTween) {
     gsap = core;
     _getUnit = gsap.utils.getUnit;
     _toArray = gsap.utils.toArray;
+    _getStyleSaver = gsap.core.getStyleSaver;
+
+    _reverting = gsap.core.reverting || function () {};
+
     PropTween = propTween;
   },
-  init: function init(target, vars) {
+  init: function init(target, vars, tween) {
     if (!gsap) {
       console.warn("Please gsap.registerPlugin(MotionPathPlugin)");
       return false;
@@ -249,6 +256,8 @@ export var MotionPathPlugin = {
 
     this.rawPaths = rawPaths;
     this.target = target;
+    this.tween = tween;
+    this.styles = _getStyleSaver && _getStyleSaver(target, "transform");
 
     if (this.rotate = autoRotate || autoRotate === 0) {
       //get the rotational data FIRST so that the setTransform() method is called in the correct order in the render() loop - rotation gets set last.
@@ -295,22 +304,26 @@ export var MotionPathPlugin = {
         i = rawPaths.length,
         pt = data._pt;
 
-    if (ratio > 1) {
-      ratio = 1;
-    } else if (ratio < 0) {
-      ratio = 0;
-    }
+    if (data.tween._time || !_reverting()) {
+      if (ratio > 1) {
+        ratio = 1;
+      } else if (ratio < 0) {
+        ratio = 0;
+      }
 
-    while (i--) {
-      getPositionOnPath(rawPaths[i], ratio, !i && data.rotate, rawPaths[i]);
-    }
+      while (i--) {
+        getPositionOnPath(rawPaths[i], ratio, !i && data.rotate, rawPaths[i]);
+      }
 
-    while (pt) {
-      pt.set(pt.t, pt.p, pt.path[pt.pp] + pt.u, pt.d, ratio);
-      pt = pt._next;
-    }
+      while (pt) {
+        pt.set(pt.t, pt.p, pt.path[pt.pp] + pt.u, pt.d, ratio);
+        pt = pt._next;
+      }
 
-    data.rotate && data.rSet(data.target, data.rProp, rawPaths[0].angle * (data.radians ? _DEG2RAD : 1) + data.rOffset + data.ru, data, ratio);
+      data.rotate && data.rSet(data.target, data.rProp, rawPaths[0].angle * (data.radians ? _DEG2RAD : 1) + data.rOffset + data.ru, data, ratio);
+    } else {
+      data.styles.revert();
+    }
   },
   getLength: function getLength(path) {
     return cacheRawPathMeasurements(getRawPath(path)).totalLength;

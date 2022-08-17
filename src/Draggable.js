@@ -1,5 +1,5 @@
 /*!
- * Draggable 3.10.4
+ * Draggable 3.11.0
  * https://greensock.com
  *
  * @license Copyright 2008-2022, GreenSock. All rights reserved.
@@ -225,7 +225,7 @@ let gsap, _win, _doc, _docElement, _body, _tempDiv, _placeholderDiv, _coreInitte
 		context = _toArray(context)[0];
 		let isSVG = (element.getBBox && element.ownerSVGElement),
 			doc = element.ownerDocument || _doc,
-			left, right, top, bottom, matrix, p1, p2, p3, p4, bbox, width, height, cs, contextParent;
+			left, right, top, bottom, matrix, p1, p2, p3, p4, bbox, width, height, cs;
 		if (element === _win) {
 			top = _getDocScrollTop(doc);
 			left = _getDocScrollLeft(doc);
@@ -266,8 +266,7 @@ let gsap, _win, _doc, _docElement, _body, _tempDiv, _placeholderDiv, _coreInitte
 		p4 = matrix.apply({x:left, y:bottom});
 		left = Math.min(p1.x, p2.x, p3.x, p4.x);
 		top = Math.min(p1.y, p2.y, p3.y, p4.y);
-		contextParent = context.parentNode || {};
-		return {left: left + (contextParent.scrollLeft || 0), top: top + (contextParent.scrollTop || 0), width: Math.max(p1.x, p2.x, p3.x, p4.x) - left, height: Math.max(p1.y, p2.y, p3.y, p4.y) - top};
+		return {left: left, top: top, width: Math.max(p1.x, p2.x, p3.x, p4.x) - left, height: Math.max(p1.y, p2.y, p3.y, p4.y) - top};
 	},
 	_parseInertia = (draggable, snap, max, min, factor, forceZeroVelocity) => {
 		let vars = {},
@@ -553,7 +552,7 @@ let gsap, _win, _doc, _docElement, _body, _tempDiv, _placeholderDiv, _coreInitte
 					val;
 				childStyle.display = "inline-block";
 				childStyle.position = "relative";
-				div.style.cssText = child.innerHTML = "width:90px;height:40px;padding:10px;overflow:auto;visibility:hidden";
+				div.style.cssText = "width:90px;height:40px;padding:10px;overflow:auto;visibility:hidden";
 				div.appendChild(child);
 				parent.appendChild(div);
 				val = (child.offsetHeight + 18 > div.scrollHeight); //div.scrollHeight should be child.offsetHeight + 20 because of the 10px of padding on each side, but some browsers ignore one side. We allow a 2px margin of error.
@@ -624,8 +623,8 @@ class EventDispatcher {
 
 	removeEventListener(type, callback) {
 		let list = this._listeners[type],
-			i = (list && list.indexOf(callback)) || -1;
-		(i > -1) && list.splice(i, 1);
+			i = (list && list.indexOf(callback));
+		(i >= 0) && list.splice(i, 1);
 	}
 
 	dispatchEvent(type) {
@@ -687,7 +686,7 @@ export class Draggable extends EventDispatcher {
 			isFixed = _isFixed(target),
 			getPropAsNum = (property, unit) => parseFloat(gsCache.get(target, property, unit)),
 			ownerDoc = target.ownerDocument || _doc,
-			enabled, scrollProxy, startPointerX, startPointerY, startElementX, startElementY, hasBounds, hasDragCallback, hasMoveCallback, maxX, minX, maxY, minY, touch, touchID, rotationOrigin, dirty, old, snapX, snapY, snapXY, isClicking, touchEventTarget, matrix, interrupted, allowNativeTouchScrolling, touchDragAxis, isDispatching, clickDispatch, trustedClickDispatch, isPreventingDefault, innerMatrix,
+			enabled, scrollProxy, startPointerX, startPointerY, startElementX, startElementY, hasBounds, hasDragCallback, hasMoveCallback, maxX, minX, maxY, minY, touch, touchID, rotationOrigin, dirty, old, snapX, snapY, snapXY, isClicking, touchEventTarget, matrix, interrupted, allowNativeTouchScrolling, touchDragAxis, isDispatching, clickDispatch, trustedClickDispatch, isPreventingDefault, innerMatrix, dragged,
 
 			onContextMenu = e => { //used to prevent long-touch from triggering a context menu.
 				// (self.isPressed && e.which < 2) && self.endDrag() // previously ended drag when context menu was triggered, but instead we should just stop propagation and prevent the default event behavior.
@@ -875,7 +874,7 @@ export class Draggable extends EventDispatcher {
 				if (_isFunction(snap)) {
 					return n => {
 						let edgeTolerance = !self.isPressed ? 1 : 1 - self.edgeResistance; //if we're tweening, disable the edgeTolerance because it's already factored into the tweening values (we don't want to apply it multiple times)
-						return snap.call(self, (n > max ? max + (n - max) * edgeTolerance : (n < min) ? min + (n - min) * edgeTolerance : n)) * factor;
+						return snap.call(self, (n > max ? max + (n - max) * edgeTolerance : (n < min) ? min + (n - min) * edgeTolerance : n) * factor) * factor;
 					};
 				}
 				if (_isArray(snap)) {
@@ -1177,6 +1176,7 @@ export class Draggable extends EventDispatcher {
 					return;
 				}
 				interrupted = isTweening();
+				dragged = false; // we need to track whether or not it was dragged in this interaction so that if, for example, the user calls .endDrag() to FORCE it to stop and then they keep the mouse pressed down and eventually release, that would normally cause an onClick but we have to skip it in that case if there was dragging that occurred.
 				self.pointerEvent = e;
 				if (_touchEventLookup[e.type]) { //note: on iOS, BOTH touchmove and mousemove are dispatched, but the mousemove has pageY and pageX of 0 which would mess up the calculations and needlessly hurt performance.
 					touchEventTarget = ~e.type.indexOf("touch") ? (e.currentTarget || e.target) : ownerDoc; //pointer-based touches (for Microsoft browsers) don't remain locked to the original target like other browsers, so we must use the document instead. The event type would be "MSPointerDown" or "pointerdown".
@@ -1217,7 +1217,7 @@ export class Draggable extends EventDispatcher {
 					touch = touchID = null;
 				}
 				_dragCount++;
-				_addToRenderQueue(render); //causes the Draggable to render on each "tick" of TweenLite.ticker (performance optimization - updating values in a mousemove can cause them to happen too frequently, like multiple times between frame redraws which is wasteful, and it also prevents values from updating properly in IE8)
+				_addToRenderQueue(render); //causes the Draggable to render on each "tick" of gsap.ticker (performance optimization - updating values in a mousemove can cause them to happen too frequently, like multiple times between frame redraws which is wasteful, and it also prevents values from updating properly in IE8)
 				startPointerY = self.pointerY = e.pageY; //record the starting x and y so that we can calculate the movement from the original in _onMouseMove
 				startPointerX = self.pointerX = e.pageX;
 				_dispatchEvent(self, "pressInit", "onPressInit");
@@ -1421,7 +1421,7 @@ export class Draggable extends EventDispatcher {
 					}
 					if (!invokeOnMove || _dispatchEvent(self, "move", "onMove") !== false) {
 						if (!self.isDragging && self.isPressed) {
-							self.isDragging = true;
+							self.isDragging = dragged = true;
 							_dispatchEvent(self, "dragstart", "onDragStart");
 						}
 					} else { //revert because the onMove returned false!
@@ -1468,6 +1468,7 @@ export class Draggable extends EventDispatcher {
 					dragEndTime = _lastDragTime = _getTime();
 					self.isDragging = false;
 				}
+				_removeFromRenderQueue(render);
 				if (isClicking && !isContextMenuRelease) {
 					if (e) {
 						_removeListener(e.target, "change", onRelease);
@@ -1479,7 +1480,6 @@ export class Draggable extends EventDispatcher {
 					isClicking = false;
 					return;
 				}
-				_removeFromRenderQueue(render);
 				i = triggers.length;
 				while (--i > -1) {
 					_setStyle(triggers[i], "cursor", vars.cursor || (vars.cursor !== false ? _defaultCursor : null));
@@ -1492,7 +1492,7 @@ export class Draggable extends EventDispatcher {
 						if (e !== touch && e.identifier !== touchID) { //Usually changedTouches[0] will be what we're looking for, but in case it's not, look through the rest of the array...(and Android browsers don't reuse the event like iOS)
 							i = touches.length;
 							while (--i > -1 && (e = touches[i]).identifier !== touchID && e.target !== target) {}
-							if (i < 0) {
+							if (i < 0 && !force) {
 								return;
 							}
 						}
@@ -1591,7 +1591,7 @@ export class Draggable extends EventDispatcher {
 						_preventDefault(e);
 					}
 				}
-				if (!recentlyClicked && !recentlyDragged) { // for script-triggered event dispatches, like element.click()
+				if (!recentlyClicked && !recentlyDragged && !dragged) { // for script-triggered event dispatches, like element.click()
 					e && e.target && (self.pointerEvent = e);
 					_dispatchEvent(self, "click", "onClick");
 				}
@@ -1616,7 +1616,7 @@ export class Draggable extends EventDispatcher {
 				startPointerY -= p1.y - p2.y;
 			}
 			if (!self.isDragging) {
-				self.isDragging = true;
+				self.isDragging = dragged = true;
 				_dispatchEvent(self, "dragstart", "onDragStart");
 			}
 		};
@@ -1915,7 +1915,7 @@ export class Draggable extends EventDispatcher {
 _setDefaults(Draggable.prototype, {pointerX:0, pointerY: 0, startX: 0, startY: 0, deltaX: 0, deltaY: 0, isDragging: false, isPressed: false});
 
 Draggable.zIndex = 1000;
-Draggable.version = "3.10.4";
+Draggable.version = "3.11.0";
 
 _getGSAP() && gsap.registerPlugin(Draggable);
 

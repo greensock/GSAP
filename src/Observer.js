@@ -1,5 +1,5 @@
 /*!
- * Observer 3.10.4
+ * Observer 3.11.0
  * https://greensock.com
  *
  * @license Copyright 2008-2022, GreenSock. All rights reserved.
@@ -38,19 +38,19 @@ let gsap, _coreInitted, _clamp, _win, _doc, _docEl, _body, _isTouch, _pointerTyp
 	_onScroll = () => (_normalizer && _normalizer.isPressed) || _scrollers.cache++,
 	_scrollCacheFunc = (f, doNotCache) => {
 		let cachingFunc = value => { // since reading the scrollTop/scrollLeft/pageOffsetY/pageOffsetX can trigger a layout, this function allows us to cache the value so it only gets read fresh after a "scroll" event fires (or while we're refreshing because that can lengthen the page and alter the scroll position). when "soft" is true, that means don't actually set the scroll, but cache the new value instead (useful in ScrollSmoother)
-				if (value || value === 0) {
-					_startup && (_win.history.scrollRestoration = "manual"); // otherwise the new position will get overwritten by the browser onload.
-					let isNormalizing = _normalizer && _normalizer.isPressed;
-					value = cachingFunc.v = Math.round(value) || (_normalizer && _normalizer.iOS ? 1 : 0); //TODO: iOS Bug: if you allow it to go to 0, Safari can start to report super strange (wildly inaccurate) touch positions!
-					f(value);
-					cachingFunc.cacheID = _scrollers.cache;
-					isNormalizing && _bridge("ss", value); // set scroll (notify ScrollTrigger so it can dispatch a "scrollStart" event if necessary
-				} else if (doNotCache || _scrollers.cache !== cachingFunc.cacheID || _bridge("ref")) {
-					cachingFunc.cacheID = _scrollers.cache;
-					cachingFunc.v = f();
-				}
-				return cachingFunc.v + cachingFunc.offset;
-			};
+			if (value || value === 0) {
+				_startup && (_win.history.scrollRestoration = "manual"); // otherwise the new position will get overwritten by the browser onload.
+				let isNormalizing = _normalizer && _normalizer.isPressed;
+				value = cachingFunc.v = Math.round(value) || (_normalizer && _normalizer.iOS ? 1 : 0); //TODO: iOS Bug: if you allow it to go to 0, Safari can start to report super strange (wildly inaccurate) touch positions!
+				f(value);
+				cachingFunc.cacheID = _scrollers.cache;
+				isNormalizing && _bridge("ss", value); // set scroll (notify ScrollTrigger so it can dispatch a "scrollStart" event if necessary
+			} else if (doNotCache || _scrollers.cache !== cachingFunc.cacheID || _bridge("ref")) {
+				cachingFunc.cacheID = _scrollers.cache;
+				cachingFunc.v = f();
+			}
+			return cachingFunc.v + cachingFunc.offset;
+		};
 		cachingFunc.offset = 0;
 		return f && cachingFunc;
 	},
@@ -142,7 +142,7 @@ export class Observer {
 		this.target = target = _getTarget(target) || _docEl;
 		this.vars = vars;
 		ignore && (ignore = gsap.utils.toArray(ignore));
-		tolerance = tolerance || 0;
+		tolerance = tolerance || 1e-9;
 		dragMinimum = dragMinimum || 0;
 		wheelSpeed = wheelSpeed || 1;
 		scrollSpeed = scrollSpeed || 1;
@@ -195,13 +195,13 @@ export class Observer {
 				}
 				if (moved || dragged) {
 					onMove && onMove(self);
-					onLockAxis && locked && onLockAxis(self);
 					if (dragged) {
 						onDrag(self);
 						dragged = false;
 					}
-					moved = locked = false;
+					moved = false;
 				}
+				locked && !(locked = false) && onLockAxis && onLockAxis(self);
 				if (wheeled) {
 					onWheel(self);
 					wheeled = false;
@@ -402,7 +402,7 @@ export class Observer {
 
 }
 
-Observer.version = "3.10.4";
+Observer.version = "3.11.0";
 Observer.create = vars => new Observer(vars);
 Observer.register = _initCore;
 Observer.getAll = () => _observers.slice();

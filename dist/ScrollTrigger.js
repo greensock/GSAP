@@ -21,7 +21,7 @@
   }
 
   /*!
-   * Observer 3.10.4
+   * Observer 3.11.0
    * https://greensock.com
    *
    * @license Copyright 2008-2022, GreenSock. All rights reserved.
@@ -284,7 +284,7 @@
       this.target = target = _getTarget(target) || _docEl;
       this.vars = vars;
       ignore && (ignore = gsap.utils.toArray(ignore));
-      tolerance = tolerance || 0;
+      tolerance = tolerance || 1e-9;
       dragMinimum = dragMinimum || 0;
       wheelSpeed = wheelSpeed || 1;
       scrollSpeed = scrollSpeed || 1;
@@ -354,15 +354,16 @@
 
         if (moved || dragged) {
           onMove && onMove(self);
-          onLockAxis && locked && onLockAxis(self);
 
           if (dragged) {
             onDrag(self);
             dragged = false;
           }
 
-          moved = locked = false;
+          moved = false;
         }
+
+        locked && !(locked = false) && onLockAxis && onLockAxis(self);
 
         if (wheeled) {
           onWheel(self);
@@ -645,7 +646,7 @@
 
     return Observer;
   }();
-  Observer.version = "3.10.4";
+  Observer.version = "3.11.0";
 
   Observer.create = function (vars) {
     return new Observer(vars);
@@ -666,7 +667,7 @@
   _getGSAP() && gsap.registerPlugin(Observer);
 
   /*!
-   * ScrollTrigger 3.10.4
+   * ScrollTrigger 3.11.0
    * https://greensock.com
    *
    * @license Copyright 2008-2022, GreenSock. All rights reserved.
@@ -702,6 +703,7 @@
       _baseScreenHeight,
       _baseScreenWidth,
       _fixIOSBug,
+      _context,
       _limitCallbacks,
       _startup$1 = 1,
       _getTime$1 = Date.now,
@@ -776,21 +778,6 @@
   },
       _isObject = function _isObject(value) {
     return typeof value === "object";
-  },
-      _callIfFunc = function _callIfFunc(value) {
-    return _isFunction(value) && value();
-  },
-      _combineFunc = function _combineFunc(f1, f2) {
-    return function () {
-      var result1 = _callIfFunc(f1),
-          result2 = _callIfFunc(f2);
-
-      return function () {
-        _callIfFunc(result1);
-
-        _callIfFunc(result2);
-      };
-    };
   },
       _endAnimation = function _endAnimation(animation, reversed, pause) {
     return animation && animation.progress(reversed ? 0 : 1) && pause && animation.pause();
@@ -1039,42 +1026,6 @@
   },
       _listeners = {},
       _emptyArray = [],
-      _media = [],
-      _creatingMedia,
-      _lastMediaTick,
-      _onMediaChange = function _onMediaChange(e) {
-    var tick = gsap$1.ticker.frame,
-        matches = [],
-        i = 0,
-        index;
-
-    if (_lastMediaTick !== tick || _startup$1) {
-      _revertAll();
-
-      for (; i < _media.length; i += 4) {
-        index = _win$1.matchMedia(_media[i]).matches;
-
-        if (index !== _media[i + 3]) {
-          _media[i + 3] = index;
-          index ? matches.push(i) : _revertAll(1, _media[i]) || _isFunction(_media[i + 2]) && _media[i + 2]();
-        }
-      }
-
-      _revertRecorded();
-
-      for (i = 0; i < matches.length; i++) {
-        index = matches[i];
-        _creatingMedia = _media[index];
-        _media[index + 2] = _media[index + 1](e);
-      }
-
-      _creatingMedia = 0;
-      _coreInitted$1 && _refreshAll(0, 1);
-      _lastMediaTick = tick;
-
-      _dispatch("matchMedia");
-    }
-  },
       _softRefresh = function _softRefresh() {
     return _removeListener$1(ScrollTrigger$1, "scrollEnd", _softRefresh) || _refreshAll(true);
   },
@@ -1086,7 +1037,7 @@
       _savedStyles = [],
       _revertRecorded = function _revertRecorded(media) {
     for (var i = 0; i < _savedStyles.length; i += 5) {
-      if (!media || _savedStyles[i + 4] === media) {
+      if (!media || _savedStyles[i + 4] && _savedStyles[i + 4].query === media) {
         _savedStyles[i].style.cssText = _savedStyles[i + 1];
         _savedStyles[i].getBBox && _savedStyles[i].setAttribute("transform", _savedStyles[i + 2] || "");
         _savedStyles[i + 3].uncache = 1;
@@ -1099,11 +1050,11 @@
     for (_i = 0; _i < _triggers.length; _i++) {
       trigger = _triggers[_i];
 
-      if (!media || trigger.media === media) {
+      if (trigger && (!media || trigger._ctx === media)) {
         if (kill) {
           trigger.kill(1);
         } else {
-          trigger.revert();
+          trigger.revert(true, true);
         }
       }
     }
@@ -1137,7 +1088,7 @@
     });
 
     _triggers.forEach(function (t) {
-      return t.vars.end === "max" && t.setPositions(t.start, _maxScroll(t.scroller, t._dir));
+      return t.vars.end === "max" && t.setPositions(t.start, Math.max(t.start + 1, _maxScroll(t.scroller, t._dir)));
     });
 
     refreshInits.forEach(function (result) {
@@ -1208,7 +1159,7 @@
 
     if (cache.spacerIsNative) {
       _setState(cache.spacerState);
-    } else if (pin.parentNode === spacer) {
+    } else if (pin._gsap.swappedIn) {
       var parent = spacer.parentNode;
 
       if (parent) {
@@ -1216,9 +1167,11 @@
         parent.removeChild(spacer);
       }
     }
+
+    pin._gsap.swappedIn = false;
   },
       _swapPinIn = function _swapPinIn(pin, spacer, cs, spacerState) {
-    if (pin.parentNode !== spacer) {
+    if (!pin._gsap.swappedIn) {
       var i = _propNamesToCopy.length,
           spacerStyle = spacer.style,
           pinStyle = pin.style,
@@ -1243,8 +1196,13 @@
       pinStyle[_width] = pinStyle["max" + _Width] = cs[_width];
       pinStyle[_height] = pinStyle["max" + _Height] = cs[_height];
       pinStyle[_padding] = cs[_padding];
-      pin.parentNode.insertBefore(spacer, pin);
-      spacer.appendChild(pin);
+
+      if (pin.parentNode !== spacer) {
+        pin.parentNode.insertBefore(spacer, pin);
+        spacer.appendChild(pin);
+      }
+
+      pin._gsap.swappedIn = true;
     }
   },
       _capsExp = /([A-Z])/g,
@@ -1315,7 +1273,7 @@
 
     if (!_isNumber(value)) {
       _isFunction(trigger) && (trigger = trigger(self));
-      var offsets = value.split(" "),
+      var offsets = (value || "0").split(" "),
           bounds,
           localOffset,
           globalOffset,
@@ -1408,9 +1366,9 @@
       vars.modifiers = modifiers;
 
       modifiers[prop] = function (value) {
-        value = _round(getScroll());
+        value = Math.round(getScroll());
 
-        if (value !== lastScroll1 && value !== lastScroll2 && Math.abs(value - lastScroll1) > 2 && Math.abs(value - lastScroll2) > 2) {
+        if (value !== lastScroll1 && value !== lastScroll2 && Math.abs(value - lastScroll1) > 3 && Math.abs(value - lastScroll2) > 3) {
           tween.kill();
           getTween.tween = 0;
         } else {
@@ -1418,7 +1376,7 @@
         }
 
         lastScroll2 = lastScroll1;
-        return lastScroll1 = _round(value);
+        return lastScroll1 = Math.round(value);
       };
 
       vars.onComplete = function () {
@@ -1541,7 +1499,8 @@
           caMarkerSetter,
           customRevertReturn;
 
-      self.media = _creatingMedia;
+      _context(self);
+
       self._dir = direction;
       anticipatePin *= 45;
       self.scroller = scroller;
@@ -1745,7 +1704,11 @@
         return _triggers[_triggers.indexOf(self) + 1];
       };
 
-      self.revert = function (revert) {
+      self.revert = function (revert, temp) {
+        if (!temp) {
+          return self.kill(true);
+        }
+
         var r = revert !== false || !self.enabled,
             prevRefreshing = _refreshing;
 
@@ -1789,8 +1752,8 @@
         }
 
         scrubTween && scrubTween.pause();
-        invalidateOnRefresh && animation && animation.time(-0.01, true).invalidate();
-        self.isReverted || self.revert();
+        invalidateOnRefresh && animation && animation.revert().invalidate();
+        self.isReverted || self.revert(true, true);
 
         var size = getScrollerSize(),
             scrollerBounds = getScrollerOffsets(),
@@ -1822,7 +1785,7 @@
           if (curPin && (curPin === trigger || curPin === pin) && !curTrigger.isReverted) {
             revertedPins || (revertedPins = []);
             revertedPins.unshift(curTrigger);
-            curTrigger.revert();
+            curTrigger.revert(true, true);
           }
 
           if (curTrigger !== _triggers[i]) {
@@ -1947,7 +1910,7 @@
         }
 
         revertedPins && revertedPins.forEach(function (t) {
-          return t.revert(false);
+          return t.revert(false, true);
         });
         self.start = start;
         self.end = end;
@@ -1958,7 +1921,7 @@
           self.scroll.rec = 0;
         }
 
-        self.revert(false);
+        self.revert(false, true);
 
         if (snapDelayedCall) {
           lastSnap = -1;
@@ -1971,7 +1934,7 @@
 
         if (prevProgress !== self.progress || containerAnimation) {
           animation && !isToggle && animation.totalProgress(prevProgress, true);
-          self.progress = prevProgress;
+          self.progress = (scroll1 - start) / change === prevProgress ? 0 : prevProgress;
           self.update(0, 0, 1);
         }
 
@@ -2187,7 +2150,7 @@
 
       self.disable = function (reset, allowAnimation) {
         if (self.enabled) {
-          reset !== false && self.revert();
+          reset !== false && self.revert(true, true);
           self.enabled = self.isActive = false;
           allowAnimation || scrubTween && scrubTween.pause();
           prevScroll = 0;
@@ -2325,6 +2288,7 @@
       if (gsap$1) {
         _toArray = gsap$1.utils.toArray;
         _clamp$1 = gsap$1.utils.clamp;
+        _context = gsap$1.core.context || _passThrough;
         _suppressOverwrites = gsap$1.core.suppressOverwrites || _passThrough;
         gsap$1.core.globals("ScrollTrigger", ScrollTrigger);
 
@@ -2337,20 +2301,50 @@
           _addListener$1(_win$1, "wheel", _onScroll$1);
 
           _root$1 = [_win$1, _doc$1, _docEl$1, _body$1];
-          ScrollTrigger.matchMedia({
-            "(orientation: portrait)": function orientationPortrait() {
+
+          if (gsap$1.matchMedia) {
+            ScrollTrigger.matchMedia = function (vars) {
+              var mm, p;
+
+              for (p in vars) {
+                mm ? mm.add(p, vars[p]) : mm = gsap$1.matchMedia(p, vars[p]);
+              }
+
+              return mm;
+            };
+
+            gsap$1.addEventListener("matchMediaInit", function () {
+              return _revertAll();
+            });
+            gsap$1.addEventListener("matchMediaRevert", function () {
+              return _revertRecorded();
+            });
+            gsap$1.addEventListener("matchMedia", function () {
+              _refreshAll(0, 1);
+
+              _dispatch("matchMedia");
+            });
+            gsap$1.matchMedia("(orientation: portrait)", function () {
               _setBaseDimensions();
 
               return _setBaseDimensions;
-            }
-          });
+            });
+          } else {
+            console.warn("Requires GSAP 3.11.0 or later");
+          }
 
           _addListener$1(_doc$1, "scroll", _onScroll$1);
 
           var bodyStyle = _body$1.style,
               border = bodyStyle.borderTopStyle,
+              AnimationProto = gsap$1.core.Animation.prototype,
               bounds,
               i;
+          AnimationProto.revert || Object.defineProperty(AnimationProto, "revert", {
+            value: function value() {
+              return this.time(-0.01, true);
+            }
+          });
           bodyStyle.borderTopStyle = "solid";
           bounds = _getBounds(_body$1);
           _vertical.m = Math.round(bounds.top + _vertical.sc()) || 0;
@@ -2428,47 +2422,10 @@
       }
     };
 
-    ScrollTrigger.matchMedia = function matchMedia(vars) {
-      var mq, p, i, func, result;
-
-      for (p in vars) {
-        i = _media.indexOf(p);
-        func = vars[p];
-        _creatingMedia = p;
-
-        if (p === "all") {
-          func();
-        } else {
-          mq = _win$1.matchMedia(p);
-
-          if (mq) {
-            mq.matches && (result = func());
-
-            if (~i) {
-              _media[i + 1] = _combineFunc(_media[i + 1], func);
-              _media[i + 2] = _combineFunc(_media[i + 2], result);
-            } else {
-              i = _media.length;
-
-              _media.push(p, func, result);
-
-              mq.addListener ? mq.addListener(_onMediaChange) : mq.addEventListener("change", _onMediaChange);
-            }
-
-            _media[i + 3] = mq.matches;
-          }
-        }
-
-        _creatingMedia = 0;
-      }
-
-      return _media;
-    };
-
     ScrollTrigger.clearMatchMedia = function clearMatchMedia(query) {
-      query || (_media.length = 0);
-      query = _media.indexOf(query);
-      query >= 0 && _media.splice(query, 4);
+      _triggers.forEach(function (t) {
+        return t._ctx && t._ctx.query === query && t._ctx.kill(true, true);
+      });
     };
 
     ScrollTrigger.isInViewport = function isInViewport(element, ratio, horizontal) {
@@ -2485,9 +2442,23 @@
       return horizontal ? (bounds.left + offset) / _win$1.innerWidth : (bounds.top + offset) / _win$1.innerHeight;
     };
 
+    ScrollTrigger.killAll = function killAll(allowListeners) {
+      _triggers.forEach(function (t) {
+        return t.vars.id !== "ScrollSmoother" && t.kill();
+      });
+
+      if (allowListeners !== true) {
+        var listeners = _listeners.killAll || [];
+        _listeners = {};
+        listeners.forEach(function (f) {
+          return f();
+        });
+      }
+    };
+
     return ScrollTrigger;
   }();
-  ScrollTrigger$1.version = "3.10.4";
+  ScrollTrigger$1.version = "3.11.0";
 
   ScrollTrigger$1.saveStyles = function (targets) {
     return targets ? _toArray(targets).forEach(function (target) {
@@ -2496,7 +2467,7 @@
 
         i >= 0 && _savedStyles.splice(i, 5);
 
-        _savedStyles.push(target, target.style.cssText, target.getBBox && target.getAttribute("transform"), gsap$1.core.getCache(target), _creatingMedia);
+        _savedStyles.push(target, target.style.cssText, target.getBBox && target.getAttribute("transform"), gsap$1.core.getCache(target), _context());
       }
     }) : _savedStyles;
   };
@@ -2635,7 +2606,10 @@
       cache._isScrollT = time;
     }
 
-    (cache._isScroll || axis === "x") && (event._gsapAllow = true);
+    if (cache._isScroll || axis === "x") {
+      event.stopPropagation();
+      event._gsapAllow = true;
+    }
   },
       _inputObserver = function _inputObserver(target, type, inputs, nested) {
     return Observer.create({
@@ -2681,7 +2655,8 @@
         maxY,
         target = _getTarget(vars.target) || _docEl$1,
         smoother = gsap$1.core.globals().ScrollSmoother,
-        content = _fixIOSBug && (vars.content && _getTarget(vars.content) || smoother && smoother.get() && smoother.get().content()),
+        smootherInstance = smoother && smoother.get(),
+        content = _fixIOSBug && (vars.content && _getTarget(vars.content) || smootherInstance && vars.content !== false && !smootherInstance.smooth() && smootherInstance.content()),
         scrollFuncY = _getScrollFunc(target, _vertical),
         scrollFuncX = _getScrollFunc(target, _horizontal),
         scale = 1,
@@ -2692,8 +2667,8 @@
     } : function () {
       return momentum || 2.8;
     },
-        skipTouchMove,
         lastRefreshID,
+        skipTouchMove,
         inputObserver = _inputObserver(target, vars.type, true, allowNestedScroll),
         resumeTouchMove = function resumeTouchMove() {
       return skipTouchMove = false;
@@ -2706,6 +2681,11 @@
       normalizeScrollX && (scrollClampX = _clamp$1(0, _maxScroll(target, _horizontal)));
       lastRefreshID = _refreshID;
     },
+        removeContentOffset = function removeContentOffset() {
+      content._gsap.y = _round(parseFloat(content._gsap.y) + scrollFuncY.offset) + "px";
+      content.style.transform = "matrix3d(1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, " + parseFloat(content._gsap.y) + ", 0, 1)";
+      scrollFuncY.offset = scrollFuncY.cacheID = 0;
+    },
         ignoreDrag = function ignoreDrag() {
       if (skipTouchMove) {
         requestAnimationFrame(resumeTouchMove);
@@ -2715,8 +2695,11 @@
 
         if (content && scroll !== scrollFuncY.v + scrollFuncY.offset) {
           scrollFuncY.offset = scroll - scrollFuncY.v;
-          content.style.transform = "translateY(" + -scrollFuncY.offset + "px)";
-          content._gsap && (content._gsap.y = -scrollFuncY.offset + "px");
+
+          var y = _round((parseFloat(content && content._gsap.y) || 0) - scrollFuncY.offset);
+
+          content.style.transform = "matrix3d(1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, " + y + ", 0, 1)";
+          content._gsap.y = y + "px";
           scrollFuncY.cacheID = _scrollers.cache;
 
           _updateAll();
@@ -2725,12 +2708,7 @@
         return true;
       }
 
-      if (content) {
-        content.style.transform = "translateY(0px)";
-        scrollFuncY.offset = scrollFuncY.cacheID = 0;
-        content._gsap && (content._gsap.y = "0px");
-      }
-
+      scrollFuncY.offset && removeContentOffset();
       skipTouchMove = true;
     },
         tween,
@@ -2745,6 +2723,10 @@
       }
     };
 
+    content && gsap$1.set(content, {
+      y: "+=0"
+    });
+
     vars.ignoreCheck = function (e) {
       return _fixIOSBug && e.type === "touchmove" && ignoreDrag() || scale > 1.05 && e.type !== "touchstart" || self.isGesturing || e.touches && e.touches.length > 1;
     };
@@ -2754,7 +2736,6 @@
       scale = _round((_win$1.visualViewport && _win$1.visualViewport.scale || 1) / initialScale);
       tween.pause();
       prevScale !== scale && _allowNativePanning(target, scale > 1.01 ? true : normalizeScrollX ? false : "x");
-      skipTouchMove = false;
       startScrollX = scrollFuncX();
       startScrollY = scrollFuncY();
       updateClamps();
@@ -2762,11 +2743,7 @@
     };
 
     vars.onRelease = vars.onGestureStart = function (self, wasDragging) {
-      if (content) {
-        content.style.transform = "translateY(0px)";
-        scrollFuncY.offset = scrollFuncY.cacheID = 0;
-        content._gsap && (content._gsap.y = "0px");
-      }
+      scrollFuncY.offset && removeContentOffset();
 
       if (!wasDragging) {
         onStopDelayedCall.restart(true);
@@ -2810,9 +2787,17 @@
     vars.onChange = function (self, dx, dy, xArray, yArray) {
       _refreshID !== lastRefreshID && updateClamps();
       dx && normalizeScrollX && scrollFuncX(scrollClampX(xArray[2] === dx ? startScrollX + (self.startX - self.x) : scrollFuncX() + dx - xArray[1]));
-      dy && scrollFuncY(scrollClampY(yArray[2] === dy ? startScrollY + (self.startY - self.y) : scrollFuncY() + dy - yArray[1]));
 
-      _updateAll();
+      if (dy) {
+        scrollFuncY.offset && removeContentOffset();
+        var isTouch = yArray[2] === dy,
+            y = isTouch ? startScrollY + self.startY - self.y : scrollFuncY() + dy - yArray[1],
+            yClamped = scrollClampY(y);
+        isTouch && y !== yClamped && (startScrollY += yClamped - y);
+        scrollFuncY(yClamped);
+      }
+
+      (dy || dx) && _updateAll();
     };
 
     vars.onEnable = function () {
@@ -2831,9 +2816,11 @@
       inputObserver.kill();
     };
 
+    vars.lockAxis = vars.lockAxis !== false;
     self = new Observer(vars);
     self.iOS = _fixIOSBug;
     _fixIOSBug && !scrollFuncY() && scrollFuncY(1);
+    _fixIOSBug && gsap$1.ticker.add(_passThrough);
     onStopDelayedCall = self._dc;
     tween = gsap$1.to(self, {
       ease: "power4",

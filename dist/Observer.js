@@ -21,7 +21,7 @@
   }
 
   /*!
-   * Observer 3.10.4
+   * Observer 3.11.0
    * https://greensock.com
    *
    * @license Copyright 2008-2022, GreenSock. All rights reserved.
@@ -284,7 +284,7 @@
       this.target = target = _getTarget(target) || _docEl;
       this.vars = vars;
       ignore && (ignore = gsap.utils.toArray(ignore));
-      tolerance = tolerance || 0;
+      tolerance = tolerance || 1e-9;
       dragMinimum = dragMinimum || 0;
       wheelSpeed = wheelSpeed || 1;
       scrollSpeed = scrollSpeed || 1;
@@ -354,15 +354,16 @@
 
         if (moved || dragged) {
           onMove && onMove(self);
-          onLockAxis && locked && onLockAxis(self);
 
           if (dragged) {
             onDrag(self);
             dragged = false;
           }
 
-          moved = locked = false;
+          moved = false;
         }
+
+        locked && !(locked = false) && onLockAxis && onLockAxis(self);
 
         if (wheeled) {
           onWheel(self);
@@ -645,7 +646,7 @@
 
     return Observer;
   }();
-  Observer.version = "3.10.4";
+  Observer.version = "3.11.0";
 
   Observer.create = function (vars) {
     return new Observer(vars);

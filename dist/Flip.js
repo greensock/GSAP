@@ -364,7 +364,7 @@
 	}
 
 	/*!
-	 * Flip 3.10.4
+	 * Flip 3.11.0
 	 * https://greensock.com
 	 *
 	 * @license Copyright 2008-2022, GreenSock. All rights reserved.
@@ -613,8 +613,10 @@
 	      } else {
 	        c.t._gsap.renderTransform(1);
 
-	        c.t.style.width = c.b.width + "px";
-	        c.t.style.height = c.b.height + "px";
+	        if (c.b.isVisible) {
+	          c.t.style.width = c.b.width + "px";
+	          c.t.style.height = c.b.height + "px";
+	        }
 	      }
 	    });
 	  }
@@ -1792,7 +1794,7 @@
 
 	  return Flip;
 	}();
-	Flip.version = "3.10.4";
+	Flip.version = "3.11.0";
 	typeof window !== "undefined" && window.gsap && window.gsap.registerPlugin(Flip);
 
 	exports.Flip = Flip;

@@ -1,5 +1,5 @@
 /*!
- * ScrollToPlugin 3.10.4
+ * ScrollToPlugin 3.11.0
  * https://greensock.com
  *
  * @license Copyright 2008-2022, GreenSock. All rights reserved.
@@ -125,7 +125,7 @@ var gsap,
 };
 
 export var ScrollToPlugin = {
-  version: "3.10.4",
+  version: "3.11.0",
   name: "scrollTo",
   rawVars: 1,
   register: function register(core) {
@@ -147,6 +147,9 @@ export var ScrollToPlugin = {
     data.getY = _buildGetter(target, "y");
     data.x = data.xPrev = data.getX();
     data.y = data.yPrev = data.getY();
+    gsap.getProperty(target, "scrollBehavior") === "smooth" && gsap.set(target, {
+      scrollBehavior: "auto"
+    });
 
     if (snapType && snapType !== "none") {
       // disable scroll snapping to avoid strange behavior
