@@ -3,7 +3,7 @@ function _defineProperties(target, props) { for (var i = 0; i < props.length; i+
 function _createClass(Constructor, protoProps, staticProps) { if (protoProps) _defineProperties(Constructor.prototype, protoProps); if (staticProps) _defineProperties(Constructor, staticProps); return Constructor; }
 
 /*!
- * Observer 3.11.0
+ * Observer 3.11.1
  * https://greensock.com
  *
  * @license Copyright 2008-2022, GreenSock. All rights reserved.
@@ -378,6 +378,11 @@ export var Observer = /*#__PURE__*/function () {
       debounce ? id || (id = requestAnimationFrame(update)) : update();
     },
         onTouchOrPointerDelta = function onTouchOrPointerDelta(x, y) {
+      if (lockAxis && !axis) {
+        self.axis = axis = Math.abs(x) > Math.abs(y) ? "x" : "y";
+        locked = true;
+      }
+
       if (axis !== "y") {
         deltaX[2] += x;
 
@@ -389,11 +394,6 @@ export var Observer = /*#__PURE__*/function () {
         deltaY[2] += y;
 
         self._vy.update(y, true);
-      }
-
-      if (lockAxis && !axis) {
-        self.axis = axis = Math.abs(x) > Math.abs(y) ? "x" : "y";
-        locked = true;
       }
 
       debounce ? id || (id = requestAnimationFrame(update)) : update();
@@ -648,7 +648,7 @@ export var Observer = /*#__PURE__*/function () {
 
   return Observer;
 }();
-Observer.version = "3.11.0";
+Observer.version = "3.11.1";
 
 Observer.create = function (vars) {
   return new Observer(vars);

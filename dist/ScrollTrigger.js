@@ -21,7 +21,7 @@
   }
 
   /*!
-   * Observer 3.11.0
+   * Observer 3.11.1
    * https://greensock.com
    *
    * @license Copyright 2008-2022, GreenSock. All rights reserved.
@@ -383,6 +383,11 @@
         debounce ? id || (id = requestAnimationFrame(update)) : update();
       },
           onTouchOrPointerDelta = function onTouchOrPointerDelta(x, y) {
+        if (lockAxis && !axis) {
+          self.axis = axis = Math.abs(x) > Math.abs(y) ? "x" : "y";
+          locked = true;
+        }
+
         if (axis !== "y") {
           deltaX[2] += x;
 
@@ -393,11 +398,6 @@
           deltaY[2] += y;
 
           self._vy.update(y, true);
-        }
-
-        if (lockAxis && !axis) {
-          self.axis = axis = Math.abs(x) > Math.abs(y) ? "x" : "y";
-          locked = true;
         }
 
         debounce ? id || (id = requestAnimationFrame(update)) : update();
@@ -646,7 +646,7 @@
 
     return Observer;
   }();
-  Observer.version = "3.11.0";
+  Observer.version = "3.11.1";
 
   Observer.create = function (vars) {
     return new Observer(vars);
@@ -667,7 +667,7 @@
   _getGSAP() && gsap.registerPlugin(Observer);
 
   /*!
-   * ScrollTrigger 3.11.0
+   * ScrollTrigger 3.11.1
    * https://greensock.com
    *
    * @license Copyright 2008-2022, GreenSock. All rights reserved.
@@ -1095,6 +1095,10 @@
       return result && result.render && result.render(-1);
     });
 
+    _scrollers.forEach(function (obj) {
+      return typeof obj === "function" && obj(obj.rec);
+    });
+
     _clearScrollMemory();
 
     _resizeDelay.pause();
@@ -1184,7 +1188,8 @@
 
       spacerStyle.position = cs.position === "absolute" ? "absolute" : "relative";
       cs.display === "inline" && (spacerStyle.display = "inline-block");
-      pinStyle[_bottom] = pinStyle[_right] = spacerStyle.flexBasis = "auto";
+      pinStyle[_bottom] = pinStyle[_right] = "auto";
+      spacerStyle.flexBasis = cs.flexBasis || "auto";
       spacerStyle.overflow = "visible";
       spacerStyle.boxSizing = "border-box";
       spacerStyle[_width] = _getSize(pin, _horizontal) + _px;
@@ -1714,7 +1719,11 @@
 
         if (r !== self.isReverted) {
           if (r) {
-            self.scroll.rec || !_refreshing || !_refreshingAll || (self.scroll.rec = scrollFunc());
+            if (!self.scroll.rec && (_refreshing || _refreshingAll)) {
+              self.scroll.rec = scrollFunc();
+              _refreshingAll && scrollFunc(0);
+            }
+
             prevScroll = Math.max(scrollFunc(), self.scroll.rec || 0);
             prevProgress = self.progress;
             prevAnimProgress = animation && animation.progress();
@@ -1879,6 +1888,7 @@
             override[_padding + _Bottom] = cs[_padding + _Bottom];
             override[_padding + _Left] = cs[_padding + _Left];
             pinActiveState = _copyState(pinOriginalState, override, pinReparent);
+            _refreshingAll && scrollFunc(0);
           }
 
           if (animation) {
@@ -1916,7 +1926,7 @@
         self.end = end;
         scroll1 = scroll2 = scrollFunc();
 
-        if (!containerAnimation) {
+        if (!containerAnimation && !_refreshingAll) {
           scroll1 < prevScroll && scrollFunc(prevScroll);
           self.scroll.rec = 0;
         }
@@ -2097,7 +2107,7 @@
             if (fastScrollEnd && !isActive && Math.abs(self.getVelocity()) > (_isNumber(fastScrollEnd) ? fastScrollEnd : 2500)) {
               _endAnimation(self.callbackAnimation);
 
-              scrubTween ? scrubTween.progress(1) : _endAnimation(animation, !clipped, 1);
+              scrubTween ? scrubTween.progress(1) : _endAnimation(animation, action === "reverse" ? 1 : !clipped, 1);
             }
           } else if (isToggle && onUpdate && !_refreshing) {
             onUpdate(self);
@@ -2193,7 +2203,7 @@
           return t.scroller === self.scroller && (i = 1);
         });
 
-        i || (self.scroll.rec = 0);
+        i || _refreshingAll || (self.scroll.rec = 0);
 
         if (animation) {
           animation.scrollTrigger = null;
@@ -2304,10 +2314,11 @@
 
           if (gsap$1.matchMedia) {
             ScrollTrigger.matchMedia = function (vars) {
-              var mm, p;
+              var mm = gsap$1.matchMedia(),
+                  p;
 
               for (p in vars) {
-                mm ? mm.add(p, vars[p]) : mm = gsap$1.matchMedia(p, vars[p]);
+                mm.add(p, vars[p]);
               }
 
               return mm;
@@ -2458,7 +2469,7 @@
 
     return ScrollTrigger;
   }();
-  ScrollTrigger$1.version = "3.11.0";
+  ScrollTrigger$1.version = "3.11.1";
 
   ScrollTrigger$1.saveStyles = function (targets) {
     return targets ? _toArray(targets).forEach(function (target) {

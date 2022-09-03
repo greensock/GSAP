@@ -19,7 +19,7 @@
   }
 
   /*!
-   * GSAP 3.11.0
+   * GSAP 3.11.1
    * https://greensock.com
    *
    * @license Copyright 2008-2022, GreenSock. All rights reserved.
@@ -488,7 +488,7 @@
       if ((totalTime >= tween._tDur || totalTime < 0) && tween.ratio === ratio) {
         ratio && _removeFromParent(tween, 1);
 
-        if (!suppressEvents) {
+        if (!suppressEvents && !_reverting) {
           _callback(tween, ratio ? "onComplete" : "onReverseComplete", true);
 
           tween._prom && tween._prom();
@@ -2672,7 +2672,7 @@
         prevStartAt = tween._startAt,
         targets = tween._targets,
         parent = tween.parent,
-        fullTargets = parent && parent.data === "nested" ? parent.parent._targets : targets,
+        fullTargets = parent && parent.data === "nested" ? parent.vars.targets : targets,
         autoOverwrite = tween._overwrite === "auto" && !_suppressOverwrites,
         tl = tween.timeline,
         cleanVars,
@@ -2706,7 +2706,7 @@
       cleanVars = _copyExcluding(vars, _reservedProps);
 
       if (prevStartAt) {
-        prevStartAt.revert(runBackwards && dur ? _revertConfig : _startAtRevertConfig);
+        time < 0 && runBackwards && immediateRender && !autoRevert ? prevStartAt.render(-1, true) : prevStartAt.revert(runBackwards && dur ? _revertConfig : _startAtRevertConfig);
         prevStartAt._lazy = 0;
       }
 
@@ -2962,7 +2962,8 @@
         vars = _this3.vars;
         tl = _this3.timeline = new Timeline({
           data: "nested",
-          defaults: defaults || {}
+          defaults: defaults || {},
+          targets: parent && parent.data === "nested" ? parent.vars.targets : parsedTargets
         });
         tl.kill();
         tl.parent = tl._dp = _assertThisInitialized(_this3);
@@ -3621,7 +3622,7 @@
         var prev = _context,
             prevSelector = self.selector,
             result;
-        prev && prev.data.push(self);
+        prev && prev !== self && prev.data.push(self);
         scope && (self.selector = selector(scope));
         _context = self;
         result = func.apply(self, arguments);
@@ -3646,7 +3647,7 @@
     _proto5.getTweens = function getTweens() {
       var a = [];
       this.data.forEach(function (e) {
-        return e instanceof Context ? a.push.apply(a, e.getTweens()) : e instanceof Tween && e._targets[0] !== e.vars.onComplete && a.push(e);
+        return e instanceof Context ? a.push.apply(a, e.getTweens()) : e instanceof Tween && a.push(e);
       });
       return a;
     };
@@ -4082,7 +4083,7 @@
       }
     }
   }, _buildModifierPlugin("roundProps", _roundModifier), _buildModifierPlugin("modifiers"), _buildModifierPlugin("snap", snap)) || _gsap;
-  Tween.version = Timeline.version = gsap.version = "3.11.0";
+  Tween.version = Timeline.version = gsap.version = "3.11.1";
   _coreReady = 1;
   _windowExists() && _wake();
   var Power0 = _easeMap.Power0,
@@ -4187,10 +4188,13 @@
         }) : this.tfm[property] = target._gsap.x ? target._gsap[property] : _get(target, property);
       }
 
-      target._gsap.svg && (this.svg = target.getAttribute(property) || "");
-
       if (this.props.indexOf(_transformProp) >= 0) {
         return;
+      }
+
+      if (target._gsap.svg) {
+        this.svgo = target.getAttribute("data-svg-origin");
+        this.props.push(_transformOriginProp, "");
       }
 
       property = _transformProp;
@@ -4218,10 +4222,13 @@
     }
 
     if (this.tfm) {
-      cache.svg && target.setAttribute("transform", this.svg || "");
-
       for (p in this.tfm) {
         cache[p] = this.tfm[p];
+      }
+
+      if (cache.svg) {
+        cache.renderTransform();
+        target.setAttribute("data-svg-origin", this.svgo || "");
       }
 
       i = _reverting$1();
@@ -4817,7 +4824,13 @@
     matrix = _getMatrix(target, cache.svg);
 
     if (cache.svg) {
-      t1 = (!cache.uncache || origin === "0px 0px") && !uncache && target.getAttribute("data-svg-origin");
+      if (cache.uncache) {
+        t2 = target.getBBox();
+        origin = cache.xOrigin - t2.x + "px " + (cache.yOrigin - t2.y) + "px";
+        t1 = "";
+      } else {
+        t1 = !uncache && target.getAttribute("data-svg-origin");
+      }
 
       _applySVGOrigin(target, t1 || origin, !!t1 || cache.originIsAbsolute, cache.smooth !== false, matrix);
     }

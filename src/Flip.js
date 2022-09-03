@@ -1,5 +1,5 @@
 /*!
- * Flip 3.11.0
+ * Flip 3.11.1
  * https://greensock.com
  *
  * @license Copyright 2008-2022, GreenSock. All rights reserved.
@@ -367,7 +367,7 @@ let _id = 1,
 				} else {
 					el = comp.t;
 					nested && !(comp.sd < 0) && i && (a.matrix = getGlobalMatrix(el, false, false, true)); // moving a parent affects the position of children
-					if (comp.sd || (b.isVisible && a.isVisible)) {
+					if (b.isVisible && a.isVisible) {
 						if (comp.sd < 0) { // swapping OUT (swap direction of -1 is out)
 							state = new ElementState(el, props, fromState.simple);
 							_fit(state, a, scale, 0, 0, state);
@@ -1006,7 +1006,7 @@ export class Flip {
 	}
 }
 
-Flip.version = "3.11.0";
+Flip.version = "3.11.1";
 
 // function whenImagesLoad(el, func) {
 // 	let pending = [],

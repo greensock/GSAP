@@ -3,7 +3,7 @@ function _assertThisInitialized(self) { if (self === void 0) { throw new Referen
 function _inheritsLoose(subClass, superClass) { subClass.prototype = Object.create(superClass.prototype); subClass.prototype.constructor = subClass; subClass.__proto__ = superClass; }
 
 /*!
- * GSAP 3.11.0
+ * GSAP 3.11.1
  * https://greensock.com
  *
  * @license Copyright 2008-2022, GreenSock. All rights reserved.
@@ -510,7 +510,7 @@ _isFromOrFromStart = function _isFromOrFromStart(_ref2) {
     if ((totalTime >= tween._tDur || totalTime < 0) && tween.ratio === ratio) {
       ratio && _removeFromParent(tween, 1);
 
-      if (!suppressEvents) {
+      if (!suppressEvents && !_reverting) {
         _callback(tween, ratio ? "onComplete" : "onReverseComplete", true);
 
         tween._prom && tween._prom();
@@ -2863,7 +2863,7 @@ _forceAllPropTweens,
       prevStartAt = tween._startAt,
       targets = tween._targets,
       parent = tween.parent,
-      fullTargets = parent && parent.data === "nested" ? parent.parent._targets : targets,
+      fullTargets = parent && parent.data === "nested" ? parent.vars.targets : targets,
       autoOverwrite = tween._overwrite === "auto" && !_suppressOverwrites,
       tl = tween.timeline,
       cleanVars,
@@ -2900,7 +2900,7 @@ _forceAllPropTweens,
     cleanVars = _copyExcluding(vars, _reservedProps);
 
     if (prevStartAt) {
-      prevStartAt.revert(runBackwards && dur ? _revertConfig : _startAtRevertConfig); // if it's a "startAt" (not "from()" or runBackwards: true), we only need to do a shallow revert (keep transforms cached in CSSPlugin)
+      time < 0 && runBackwards && immediateRender && !autoRevert ? prevStartAt.render(-1, true) : prevStartAt.revert(runBackwards && dur ? _revertConfig : _startAtRevertConfig); // if it's a "startAt" (not "from()" or runBackwards: true), we only need to do a shallow revert (keep transforms cached in CSSPlugin)
       // don't just _removeFromParent(prevStartAt.render(-1, true)) because that'll leave inline styles. We're creating a new _startAt for "startAt" tweens that re-capture things to ensure that if the pre-tween values changed since the tween was created, they're recorded.
 
       prevStartAt._lazy = 0;
@@ -3184,8 +3184,10 @@ export var Tween = /*#__PURE__*/function (_Animation2) {
       vars = _this3.vars;
       tl = _this3.timeline = new Timeline({
         data: "nested",
-        defaults: defaults || {}
-      });
+        defaults: defaults || {},
+        targets: parent && parent.data === "nested" ? parent.vars.targets : parsedTargets
+      }); // we need to store the targets because for staggers and keyframes, we end up creating an individual tween for each but function-based values need to know the index and the whole Array of targets.
+
       tl.kill();
       tl.parent = tl._dp = _assertThisInitialized(_this3);
       tl._start = 0;
@@ -3601,7 +3603,7 @@ export var Tween = /*#__PURE__*/function (_Animation2) {
       onCompleteParams: params,
       onReverseCompleteParams: params,
       callbackScope: scope
-    });
+    }); // we must use onReverseComplete too for things like timeline.add(() => {...}) which should be triggered in BOTH directions (forward and reverse)
   };
 
   Tween.fromTo = function fromTo(targets, fromVars, toVars) {
@@ -3893,7 +3895,7 @@ var Context = /*#__PURE__*/function () {
       var prev = _context,
           prevSelector = self.selector,
           result;
-      prev && prev.data.push(self);
+      prev && prev !== self && prev.data.push(self);
       scope && (self.selector = selector(scope));
       _context = self;
       result = func.apply(self, arguments);
@@ -3918,9 +3920,8 @@ var Context = /*#__PURE__*/function () {
   _proto5.getTweens = function getTweens() {
     var a = [];
     this.data.forEach(function (e) {
-      return e instanceof Context ? a.push.apply(a, e.getTweens()) : e instanceof Tween && e._targets[0] !== e.vars.onComplete && a.push(e);
-    }); // don't include delayedCalls
-
+      return e instanceof Context ? a.push.apply(a, e.getTweens()) : e instanceof Tween && a.push(e);
+    });
     return a;
   };
 
@@ -4380,7 +4381,7 @@ export var gsap = _gsap.registerPlugin({
   }
 }, _buildModifierPlugin("roundProps", _roundModifier), _buildModifierPlugin("modifiers"), _buildModifierPlugin("snap", snap)) || _gsap; //to prevent the core plugins from being dropped via aggressive tree shaking, we must include them in the variable declaration in this way.
 
-Tween.version = Timeline.version = gsap.version = "3.11.0";
+Tween.version = Timeline.version = gsap.version = "3.11.1";
 _coreReady = 1;
 _windowExists() && _wake();
 var Power0 = _easeMap.Power0,

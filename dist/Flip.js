@@ -364,7 +364,7 @@
 	}
 
 	/*!
-	 * Flip 3.11.0
+	 * Flip 3.11.1
 	 * https://greensock.com
 	 *
 	 * @license Copyright 2008-2022, GreenSock. All rights reserved.
@@ -963,7 +963,7 @@
 	        el = comp.t;
 	        nested && !(comp.sd < 0) && i && (a.matrix = getGlobalMatrix(el, false, false, true));
 
-	        if (comp.sd || b.isVisible && a.isVisible) {
+	        if (b.isVisible && a.isVisible) {
 	          if (comp.sd < 0) {
 	            state = new ElementState(el, props, fromState.simple);
 
@@ -1794,7 +1794,7 @@
 
 	  return Flip;
 	}();
-	Flip.version = "3.11.0";
+	Flip.version = "3.11.1";
 	typeof window !== "undefined" && window.gsap && window.gsap.registerPlugin(Flip);
 
 	exports.Flip = Flip;

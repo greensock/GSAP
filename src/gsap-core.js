@@ -1,5 +1,5 @@
 /*!
- * GSAP 3.11.0
+ * GSAP 3.11.1
  * https://greensock.com
  *
  * @license Copyright 2008-2022, GreenSock. All rights reserved.
@@ -341,7 +341,7 @@ let _config = {
 			tTime && tween._repeat && !suppressEvents && tween.parent && _callback(tween, "onRepeat");
 			if ((totalTime >= tween._tDur || totalTime < 0) && tween.ratio === ratio) {
 				ratio && _removeFromParent(tween, 1);
-				if (!suppressEvents) {
+				if (!suppressEvents && !_reverting) {
 					_callback(tween, (ratio ? "onComplete" : "onReverseComplete"), true);
 					tween._prom && tween._prom();
 				}
@@ -2122,8 +2122,8 @@ let _addComplexStringPropTween = function(target, prop, start, end, setter, stri
 			prevStartAt = tween._startAt,
 			targets = tween._targets,
 			parent = tween.parent,
-			//when a stagger (or function-based duration/delay) is on a Tween instance, we create a nested timeline which means that the "targets" of that tween don't reflect the parent. This function allows us to discern when it's a nested tween and in that case, return the full targets array so that function-based values get calculated properly.
-			fullTargets = (parent && parent.data === "nested") ? parent.parent._targets : targets,
+			//when a stagger (or function-based duration/delay) is on a Tween instance, we create a nested timeline which means that the "targets" of that tween don't reflect the parent. This function allows us to discern when it's a nested tween and in that case, return the full targets array so that function-based values get calculated properly. Also remember that if the tween has a stagger AND keyframes, it could be multiple levels deep which is why we store the targets Array in the vars of the timeline.
+			fullTargets = (parent && parent.data === "nested") ? parent.vars.targets : targets,
 			autoOverwrite = (tween._overwrite === "auto") && !_suppressOverwrites,
 			tl = tween.timeline,
 			cleanVars, i, p, pt, target, hasPriority, gsData, harness, plugin, ptLookup, index, harnessVars, overwritten;
@@ -2141,7 +2141,7 @@ let _addComplexStringPropTween = function(target, prop, start, end, setter, stri
 			harnessVars = harness && vars[harness.prop]; //someone may need to specify CSS-specific values AND non-CSS values, like if the element has an "x" property plus it's a standard DOM element. We allow people to distinguish by wrapping plugin-specific stuff in a css:{} object for example.
 			cleanVars = _copyExcluding(vars, _reservedProps);
 			if (prevStartAt) {
-				prevStartAt.revert(runBackwards && dur ? _revertConfig : _startAtRevertConfig); // if it's a "startAt" (not "from()" or runBackwards: true), we only need to do a shallow revert (keep transforms cached in CSSPlugin)
+				(time < 0 && runBackwards && immediateRender && !autoRevert) ? prevStartAt.render(-1, true) : prevStartAt.revert(runBackwards && dur ? _revertConfig : _startAtRevertConfig); // if it's a "startAt" (not "from()" or runBackwards: true), we only need to do a shallow revert (keep transforms cached in CSSPlugin)
 				// don't just _removeFromParent(prevStartAt.render(-1, true)) because that'll leave inline styles. We're creating a new _startAt for "startAt" tweens that re-capture things to ensure that if the pre-tween values changed since the tween was created, they're recorded.
 				prevStartAt._lazy = 0;
 			}
@@ -2338,7 +2338,7 @@ export class Tween extends Animation {
 		this._overwrite = overwrite;
 		if (keyframes || stagger || _isFuncOrString(duration) || _isFuncOrString(delay)) {
 			vars = this.vars;
-			tl = this.timeline = new Timeline({data:"nested", defaults:defaults || {}});
+			tl = this.timeline = new Timeline({data: "nested", defaults: defaults || {}, targets: parent && parent.data === "nested" ? parent.vars.targets : parsedTargets}); // we need to store the targets because for staggers and keyframes, we end up creating an individual tween for each but function-based values need to know the index and the whole Array of targets.
 			tl.kill();
 			tl.parent = tl._dp = this;
 			tl._start = 0;
@@ -2632,7 +2632,7 @@ export class Tween extends Animation {
 	}
 
 	static delayedCall(delay, callback, params, scope) {
-		return new Tween(callback, 0, {immediateRender:false, lazy:false, overwrite:false, delay:delay, onComplete:callback, onReverseComplete:callback, onCompleteParams:params, onReverseCompleteParams:params, callbackScope:scope});
+		return new Tween(callback, 0, {immediateRender:false, lazy:false, overwrite:false, delay:delay, onComplete:callback, onReverseComplete:callback, onCompleteParams:params, onReverseCompleteParams:params, callbackScope:scope}); // we must use onReverseComplete too for things like timeline.add(() => {...}) which should be triggered in BOTH directions (forward and reverse)
 	}
 
 	static fromTo(targets, fromVars, toVars) {
@@ -2873,7 +2873,7 @@ class Context {
 				let prev = _context,
 					prevSelector = self.selector,
 					result;
-				prev && prev.data.push(self);
+				prev && prev !== self && prev.data.push(self);
 				scope && (self.selector = selector(scope));
 				_context = self;
 				result = func.apply(self, arguments);
@@ -2894,7 +2894,7 @@ class Context {
 	}
 	getTweens() {
 		let a = [];
-		this.data.forEach(e => (e instanceof Context) ? a.push(...e.getTweens()) : (e instanceof Tween) && (e._targets[0] !== e.vars.onComplete) && a.push(e)); // don't include delayedCalls
+		this.data.forEach(e => (e instanceof Context) ? a.push(...e.getTweens()) : (e instanceof Tween) && a.push(e));
 		return a;
 	}
 	clear() {
@@ -3195,7 +3195,7 @@ export const gsap = _gsap.registerPlugin({
 	_buildModifierPlugin("snap", snap)
 ) || _gsap; //to prevent the core plugins from being dropped via aggressive tree shaking, we must include them in the variable declaration in this way.
 
-Tween.version = Timeline.version = gsap.version = "3.11.0";
+Tween.version = Timeline.version = gsap.version = "3.11.1";
 _coreReady = 1;
 _windowExists() && _wake();
 

@@ -390,12 +390,12 @@
       _supportsPassive,
       _isTouchDevice,
       _touchEventLookup,
-      _dragCount,
       _isMultiTouching,
       _isAndroid,
       InertiaPlugin,
       _defaultCursor,
       _supportsPointer,
+      _dragCount = 0,
       _windowExists = function _windowExists() {
     return typeof window !== "undefined";
   },
@@ -1845,6 +1845,13 @@
             parsedOrigin,
             x,
             y;
+
+        if (xyMode) {
+          gsCache.x = getPropAsNum(xProp, "px") + "px";
+          gsCache.y = getPropAsNum(yProp, "px") + "px";
+          gsCache.renderTransform();
+        }
+
         updateMatrix(false);
         _point1.x = self.pointerX - offsetX;
         _point1.y = self.pointerY - offsetY;
@@ -2928,7 +2935,7 @@
   });
 
   Draggable.zIndex = 1000;
-  Draggable.version = "3.11.0";
+  Draggable.version = "3.11.1";
   _getGSAP() && gsap.registerPlugin(Draggable);
 
   exports.Draggable = Draggable;

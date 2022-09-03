@@ -3,7 +3,7 @@ function _assertThisInitialized(self) { if (self === void 0) { throw new Referen
 function _inheritsLoose(subClass, superClass) { subClass.prototype = Object.create(superClass.prototype); subClass.prototype.constructor = subClass; subClass.__proto__ = superClass; }
 
 /*!
- * Draggable 3.11.0
+ * Draggable 3.11.1
  * https://greensock.com
  *
  * @license Copyright 2008-2022, GreenSock. All rights reserved.
@@ -28,12 +28,12 @@ var gsap,
     _supportsPassive,
     _isTouchDevice,
     _touchEventLookup,
-    _dragCount,
     _isMultiTouching,
     _isAndroid,
     InertiaPlugin,
     _defaultCursor,
     _supportsPointer,
+    _dragCount = 0,
     _windowExists = function _windowExists() {
   return typeof window !== "undefined";
 },
@@ -1523,6 +1523,14 @@ export var Draggable = /*#__PURE__*/function (_EventDispatcher) {
           parsedOrigin,
           x,
           y;
+
+      if (xyMode) {
+        // in case the user set it as a different unit, like animating the x to "100%". We must convert it back to px!
+        gsCache.x = getPropAsNum(xProp, "px") + "px";
+        gsCache.y = getPropAsNum(yProp, "px") + "px";
+        gsCache.renderTransform();
+      }
+
       updateMatrix(false);
       _point1.x = self.pointerX - offsetX;
       _point1.y = self.pointerY - offsetY;
@@ -2665,6 +2673,6 @@ _setDefaults(Draggable.prototype, {
 });
 
 Draggable.zIndex = 1000;
-Draggable.version = "3.11.0";
+Draggable.version = "3.11.1";
 _getGSAP() && gsap.registerPlugin(Draggable);
 export { Draggable as default };

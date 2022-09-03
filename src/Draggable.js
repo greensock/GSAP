@@ -1,5 +1,5 @@
 /*!
- * Draggable 3.11.0
+ * Draggable 3.11.1
  * https://greensock.com
  *
  * @license Copyright 2008-2022, GreenSock. All rights reserved.
@@ -11,7 +11,8 @@
 
 import { getGlobalMatrix, Matrix2D } from "./utils/matrix.js";
 
-let gsap, _win, _doc, _docElement, _body, _tempDiv, _placeholderDiv, _coreInitted, _checkPrefix, _toArray, _supportsPassive, _isTouchDevice, _touchEventLookup, _dragCount, _isMultiTouching, _isAndroid, InertiaPlugin, _defaultCursor, _supportsPointer,
+let gsap, _win, _doc, _docElement, _body, _tempDiv, _placeholderDiv, _coreInitted, _checkPrefix, _toArray, _supportsPassive, _isTouchDevice, _touchEventLookup, _isMultiTouching, _isAndroid, InertiaPlugin, _defaultCursor, _supportsPointer,
+	_dragCount = 0,
 	_windowExists = () => typeof(window) !== "undefined",
 	_getGSAP = () => gsap || (_windowExists() && (gsap = window.gsap) && gsap.registerPlugin && gsap),
 	_isFunction = value => typeof(value) === "function",
@@ -1102,6 +1103,11 @@ export class Draggable extends EventDispatcher {
 					offsetX = isFixed ? _getDocScrollLeft(ownerDoc) : 0,
 					offsetY = isFixed ? _getDocScrollTop(ownerDoc) : 0,
 					parsedOrigin, x, y;
+				if (xyMode) { // in case the user set it as a different unit, like animating the x to "100%". We must convert it back to px!
+					gsCache.x = getPropAsNum(xProp, "px") + "px";
+					gsCache.y = getPropAsNum(yProp, "px") + "px";
+					gsCache.renderTransform();
+				}
 				updateMatrix(false);
 				_point1.x = self.pointerX - offsetX;
 				_point1.y = self.pointerY - offsetY;
@@ -1915,7 +1921,7 @@ export class Draggable extends EventDispatcher {
 _setDefaults(Draggable.prototype, {pointerX:0, pointerY: 0, startX: 0, startY: 0, deltaX: 0, deltaY: 0, isDragging: false, isPressed: false});
 
 Draggable.zIndex = 1000;
-Draggable.version = "3.11.0";
+Draggable.version = "3.11.1";
 
 _getGSAP() && gsap.registerPlugin(Draggable);
 

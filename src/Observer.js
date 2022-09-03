@@ -1,5 +1,5 @@
 /*!
- * Observer 3.11.0
+ * Observer 3.11.1
  * https://greensock.com
  *
  * @license Copyright 2008-2022, GreenSock. All rights reserved.
@@ -216,6 +216,10 @@ export class Observer {
 				debounce ? id || (id = requestAnimationFrame(update)) : update();
 			},
 			onTouchOrPointerDelta = (x, y) => {
+				if (lockAxis && !axis) {
+					self.axis = axis = Math.abs(x) > Math.abs(y) ? "x" : "y";
+					locked = true;
+				}
 				if (axis !== "y") {
 					deltaX[2] += x;
 					self._vx.update(x, true); // update the velocity as frequently as possible instead of in the debounced function so that very quick touch-scrolls (flicks) feel natural. If it's the mouse/touch/pointer, force it so that we get snappy/accurate momentum scroll.
@@ -223,10 +227,6 @@ export class Observer {
 				if (axis !== "x") {
 					deltaY[2] += y;
 					self._vy.update(y, true);
-				}
-				if (lockAxis && !axis) {
-					self.axis = axis = Math.abs(x) > Math.abs(y) ? "x" : "y";
-					locked = true;
 				}
 				debounce ? id || (id = requestAnimationFrame(update)) : update();
 			},
@@ -402,7 +402,7 @@ export class Observer {
 
 }
 
-Observer.version = "3.11.0";
+Observer.version = "3.11.1";
 Observer.create = vars => new Observer(vars);
 Observer.register = _initCore;
 Observer.getAll = () => _observers.slice();

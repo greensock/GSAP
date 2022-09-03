@@ -1,5 +1,5 @@
 /*!
- * CSSPlugin 3.11.0
+ * CSSPlugin 3.11.1
  * https://greensock.com
  *
  * Copyright 2008-2022, GreenSock. All rights reserved.
@@ -58,8 +58,11 @@ let _win, _doc, _docElement, _pluginInitted, _tempDiv, _tempDivStyler, _recentSe
 				property = _propertyAliases[property] || property;
 				~property.indexOf(",") ? property.split(",").forEach(a => this.tfm[a] = _get(target, a)) : (this.tfm[property] = target._gsap.x ? target._gsap[property] : _get(target, property)); // note: scale would map to "scaleX,scaleY", thus we loop and apply them both.
 			}
-			target._gsap.svg && (this.svg = target.getAttribute(property) || "");
 			if (this.props.indexOf(_transformProp) >= 0) { return; }
+			if (target._gsap.svg) {
+				this.svgo = target.getAttribute("data-svg-origin");
+				this.props.push(_transformOriginProp, "");
+			}
 			property = _transformProp;
 		}
 		style && this.props.push(property, style[property]);
@@ -81,9 +84,12 @@ let _win, _doc, _docElement, _pluginInitted, _tempDiv, _tempDivStyler, _recentSe
 			props[i+1] ? (style[props[i]] = props[i+1]) : style.removeProperty(props[i].replace(_capsExp, "-$1").toLowerCase());
 		}
 		if (this.tfm) {
-			cache.svg && target.setAttribute("transform", this.svg || "");
 			for (p in this.tfm) {
 				cache[p] = this.tfm[p];
+			}
+			if (cache.svg) {
+				cache.renderTransform();
+				target.setAttribute("data-svg-origin", this.svgo || "");
 			}
 			i = _reverting();
 			if (i && !i.isStart && !style[_transformProp]) {
@@ -597,7 +603,13 @@ let _win, _doc, _docElement, _pluginInitted, _tempDiv, _tempDivStyler, _recentSe
 
 		matrix = _getMatrix(target, cache.svg);
 		if (cache.svg) {
-			t1 = (!cache.uncache || origin === "0px 0px") && !uncache && target.getAttribute("data-svg-origin"); // if origin is 0,0 and cache.uncache is true, let the recorded data-svg-origin stay. Otherwise, whenever we set cache.uncache to true, we'd need to set element.style.transformOrigin = (cache.xOrigin - bbox.x) + "px " + (cache.yOrigin - bbox.y) + "px". Remember, to work around browser inconsistencies we always force SVG elements' transformOrigin to 0,0 and offset the translation accordingly.
+			if (cache.uncache) { // if cache.uncache is true (and maybe if origin is 0,0), we need to set element.style.transformOrigin = (cache.xOrigin - bbox.x) + "px " + (cache.yOrigin - bbox.y) + "px". Previously we let the data-svg-origin stay instead, but when introducing revert(), it complicated things.
+				t2 = target.getBBox();
+				origin = (cache.xOrigin - t2.x) + "px " + (cache.yOrigin - t2.y) + "px";
+				t1 = "";
+			} else {
+				t1 = !uncache && target.getAttribute("data-svg-origin"); //  Remember, to work around browser inconsistencies we always force SVG elements' transformOrigin to 0,0 and offset the translation accordingly.
+			}
 			_applySVGOrigin(target, t1 || origin, !!t1 || cache.originIsAbsolute, cache.smooth !== false, matrix);
 		}
 		xOrigin = cache.xOrigin || 0;
@@ -844,7 +856,7 @@ let _win, _doc, _docElement, _pluginInitted, _tempDiv, _tempDivStyler, _recentSe
 		}
 		temp = "matrix(" + a11 + "," + a21 + "," + a12 + "," + a22 + "," + tx + "," + ty + ")";
 		target.setAttribute("transform", temp);
-		forceCSS && (target.style[_transformProp] = temp); //some browsers prioritize CSS transforms over the transform attribute. When we sense that the user has CSS transforms applied, we must overwrite them this way (otherwise some browser simply won't render the  transform attribute changes!)
+		forceCSS && (target.style[_transformProp] = temp); //some browsers prioritize CSS transforms over the transform attribute. When we sense that the user has CSS transforms applied, we must overwrite them this way (otherwise some browser simply won't render the transform attribute changes!)
 	},
 	_addRotationalPropTween = function(plugin, target, property, startNum, endValue) {
 		let cap = 360,

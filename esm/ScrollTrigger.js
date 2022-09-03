@@ -1,5 +1,5 @@
 /*!
- * ScrollTrigger 3.11.0
+ * ScrollTrigger 3.11.1
  * https://greensock.com
  *
  * @license Copyright 2008-2022, GreenSock. All rights reserved.
@@ -456,6 +456,10 @@ _refreshingAll,
     return result && result.render && result.render(-1);
   }); // if the onRefreshInit() returns an animation (typically a gsap.set()), revert it. This makes it easy to put things in a certain spot before refreshing for measurement purposes, and then put things back.
 
+  _scrollers.forEach(function (obj) {
+    return typeof obj === "function" && obj(obj.rec);
+  });
+
   _clearScrollMemory();
 
   _resizeDelay.pause();
@@ -545,7 +549,8 @@ _refreshingAll,
 
     spacerStyle.position = cs.position === "absolute" ? "absolute" : "relative";
     cs.display === "inline" && (spacerStyle.display = "inline-block");
-    pinStyle[_bottom] = pinStyle[_right] = spacerStyle.flexBasis = "auto";
+    pinStyle[_bottom] = pinStyle[_right] = "auto";
+    spacerStyle.flexBasis = cs.flexBasis || "auto";
     spacerStyle.overflow = "visible";
     spacerStyle.boxSizing = "border-box";
     spacerStyle[_width] = _getSize(pin, _horizontal) + _px;
@@ -1108,7 +1113,11 @@ export var ScrollTrigger = /*#__PURE__*/function () {
 
       if (r !== self.isReverted) {
         if (r) {
-          self.scroll.rec || !_refreshing || !_refreshingAll || (self.scroll.rec = scrollFunc());
+          if (!self.scroll.rec && (_refreshing || _refreshingAll)) {
+            self.scroll.rec = scrollFunc();
+            _refreshingAll && scrollFunc(0);
+          }
+
           prevScroll = Math.max(scrollFunc(), self.scroll.rec || 0); // record the scroll so we can revert later (repositioning/pinning things can affect scroll position). In the static refresh() method, we first record all the scroll positions as a reference.
 
           prevProgress = self.progress;
@@ -1284,6 +1293,7 @@ export var ScrollTrigger = /*#__PURE__*/function () {
           override[_padding + _Bottom] = cs[_padding + _Bottom];
           override[_padding + _Left] = cs[_padding + _Left];
           pinActiveState = _copyState(pinOriginalState, override, pinReparent);
+          _refreshingAll && scrollFunc(0);
         }
 
         if (animation) {
@@ -1324,7 +1334,7 @@ export var ScrollTrigger = /*#__PURE__*/function () {
       self.end = end;
       scroll1 = scroll2 = scrollFunc(); // reset velocity
 
-      if (!containerAnimation) {
+      if (!containerAnimation && !_refreshingAll) {
         scroll1 < prevScroll && scrollFunc(prevScroll);
         self.scroll.rec = 0;
       }
@@ -1516,7 +1526,7 @@ export var ScrollTrigger = /*#__PURE__*/function () {
           if (fastScrollEnd && !isActive && Math.abs(self.getVelocity()) > (_isNumber(fastScrollEnd) ? fastScrollEnd : 2500)) {
             _endAnimation(self.callbackAnimation);
 
-            scrubTween ? scrubTween.progress(1) : _endAnimation(animation, !clipped, 1);
+            scrubTween ? scrubTween.progress(1) : _endAnimation(animation, action === "reverse" ? 1 : !clipped, 1);
           }
         } else if (isToggle && onUpdate && !_refreshing) {
           onUpdate(self);
@@ -1616,7 +1626,7 @@ export var ScrollTrigger = /*#__PURE__*/function () {
         return t.scroller === self.scroller && (i = 1);
       });
 
-      i || (self.scroll.rec = 0);
+      i || _refreshingAll || (self.scroll.rec = 0);
 
       if (animation) {
         animation.scrollTrigger = null;
@@ -1729,10 +1739,11 @@ export var ScrollTrigger = /*#__PURE__*/function () {
 
         if (gsap.matchMedia) {
           ScrollTrigger.matchMedia = function (vars) {
-            var mm, p;
+            var mm = gsap.matchMedia(),
+                p;
 
             for (p in vars) {
-              mm ? mm.add(p, vars[p]) : mm = gsap.matchMedia(p, vars[p]);
+              mm.add(p, vars[p]);
             }
 
             return mm;
@@ -1891,7 +1902,7 @@ export var ScrollTrigger = /*#__PURE__*/function () {
 
   return ScrollTrigger;
 }();
-ScrollTrigger.version = "3.11.0";
+ScrollTrigger.version = "3.11.1";
 
 ScrollTrigger.saveStyles = function (targets) {
   return targets ? _toArray(targets).forEach(function (target) {
