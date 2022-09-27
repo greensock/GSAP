@@ -1,5 +1,5 @@
 /*!
- * CSSPlugin 3.11.1
+ * CSSPlugin 3.11.2
  * https://greensock.com
  *
  * Copyright 2008-2022, GreenSock. All rights reserved.
@@ -49,7 +49,7 @@ let _win, _doc, _docElement, _pluginInitted, _tempDiv, _tempDivStyler, _recentSe
 	},
 	_transformProp = "transform",
 	_transformOriginProp = _transformProp + "Origin",
-	_saveStyle = function(property) {
+	_saveStyle = function(property, isNotCSS) {
 		let target = this.target,
 			style = target.style;
 		if (property in _transformProps) {
@@ -61,11 +61,11 @@ let _win, _doc, _docElement, _pluginInitted, _tempDiv, _tempDivStyler, _recentSe
 			if (this.props.indexOf(_transformProp) >= 0) { return; }
 			if (target._gsap.svg) {
 				this.svgo = target.getAttribute("data-svg-origin");
-				this.props.push(_transformOriginProp, "");
+				this.props.push(_transformOriginProp, isNotCSS, "");
 			}
 			property = _transformProp;
 		}
-		style && this.props.push(property, style[property]);
+		(style || isNotCSS) && this.props.push(property, isNotCSS, style[property]);
 	},
 	_removeIndependentTransforms = style => {
 		if (style.translate) {
@@ -80,8 +80,8 @@ let _win, _doc, _docElement, _pluginInitted, _tempDiv, _tempDivStyler, _recentSe
 			style = target.style,
 			cache = target._gsap,
 			i, p;
-		for (i = 0; i < props.length; i+=2) {
-			props[i+1] ? (style[props[i]] = props[i+1]) : style.removeProperty(props[i].replace(_capsExp, "-$1").toLowerCase());
+		for (i = 0; i < props.length; i+=3) { // stored like this: property, isNotCSS, value
+			props[i+1] ? target[props[i]] = props[i+2] : props[i+2] ? (style[props[i]] = props[i+2]) : style.removeProperty(props[i].replace(_capsExp, "-$1").toLowerCase());
 		}
 		if (this.tfm) {
 			for (p in this.tfm) {
@@ -596,7 +596,7 @@ let _win, _doc, _docElement, _pluginInitted, _tempDiv, _tempDivStyler, _recentSe
 
 		if (cs.translate) { // accommodate independent transforms by combining them into normal ones.
 			if (cs.translate !== "none" || cs.scale !== "none" || cs.rotate !== "none") {
-				style[_transformProp] = (cs.translate !== "none" ? "translate3d(" + (cs.translate + " 0 0").split(" ").slice(0, 3).join(", ") + ") " : "") + (cs.rotate !== "none" ? "rotate(" + cs.rotate + ") " : "") + (cs.scale !== "none" ? "scale(" + cs.scale.split(" ").join(",") + ") " : "") + cs[_transformProp];
+				style[_transformProp] = (cs.translate !== "none" ? "translate3d(" + (cs.translate + " 0 0").split(" ").slice(0, 3).join(", ") + ") " : "") + (cs.rotate !== "none" ? "rotate(" + cs.rotate + ") " : "") + (cs.scale !== "none" ? "scale(" + cs.scale.split(" ").join(",") + ") " : "") + (cs[_transformProp] !== "none" ? cs[_transformProp] : "");
 			}
 			style.scale = style.rotate = style.translate = "none";
 		}
@@ -993,7 +993,7 @@ export const CSSPlugin = {
 				endUnit ? startUnit !== endUnit && (startValue = _convertToUnit(target, p, startValue, endUnit) + endUnit) : startUnit && (endValue += startUnit);
 				this.add(style, "setProperty", startValue, endValue, index, targets, 0, 0, p);
 				props.push(p);
-				inlineProps.push(p, style[p]);
+				inlineProps.push(p, 0, style[p]);
 			} else if (type !== "undefined") {
 				if (startAt && p in startAt) { // in case someone hard-codes a complex value as the start, like top: "calc(2vh / 2)". Without this, it'd use the computed value (always in px)
 					startValue = typeof(startAt[p]) === "function" ? startAt[p].call(tween, index, target, targets) : startAt[p];
@@ -1012,7 +1012,7 @@ export const CSSPlugin = {
 						if (startNum === 1 && _get(target, "visibility") === "hidden" && endNum) { //if visibility is initially set to "hidden", we should interpret that as intent to make opacity 0 (a convenience)
 							startNum = 0;
 						}
-						inlineProps.push("visibility", style.visibility);
+						inlineProps.push("visibility", 0, style.visibility);
 						_addNonTweeningPT(this, style, "visibility", startNum ? "inherit" : "hidden", endNum ? "inherit" : "hidden", !endNum);
 					}
 					if (p !== "scale" && p !== "transform") {
@@ -1034,12 +1034,12 @@ export const CSSPlugin = {
 						transformPropTween.dep = 1; //flag it as dependent so that if things get killed/overwritten and this is the only PropTween left, we can safely kill the whole tween.
 					}
 					if (p === "scale") {
-						this._pt = new PropTween(this._pt, cache, "scaleY", cache.scaleY, ((relative ? _parseRelative(cache.scaleY, relative + endNum) : endNum) - cache.scaleY) || 0, _renderCSSProp);
+						this._pt = new PropTween(this._pt, cache, "scaleY", startNum, ((relative ? _parseRelative(startNum, relative + endNum) : endNum) - startNum) || 0, _renderCSSProp);
 						this._pt.u = 0;
 						props.push("scaleY", p);
 						p += "X";
 					} else if (p === "transformOrigin") {
-						inlineProps.push(_transformOriginProp, style[_transformOriginProp]);
+						inlineProps.push(_transformOriginProp, 0, style[_transformOriginProp]);
 						endValue = _convertKeywordsToPercentages(endValue); //in case something like "left top" or "bottom right" is passed in. Convert to percentages.
 						if (cache.svg) {
 							_applySVGOrigin(target, endValue, 0, smooth, 0, this);
@@ -1091,7 +1091,7 @@ export const CSSPlugin = {
 				} else {
 					_tweenComplexCSSString.call(this, target, p, startValue, relative ? relative + endValue : endValue);
 				}
-				isTransformRelated || inlineProps.push(p, style[p]);
+				isTransformRelated || (p in style ? inlineProps.push(p, 0, style[p]) : inlineProps.push(p, 1, startValue || target[p]));
 				props.push(p);
 			}
 		}

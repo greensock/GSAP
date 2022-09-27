@@ -21,7 +21,7 @@
   }
 
   /*!
-   * Observer 3.11.1
+   * Observer 3.11.2
    * https://greensock.com
    *
    * @license Copyright 2008-2022, GreenSock. All rights reserved.
@@ -140,14 +140,20 @@
       _getScrollFunc = function _getScrollFunc(element, _ref) {
     var s = _ref.s,
         sc = _ref.sc;
+    _isViewport(element) && (element = _doc.scrollingElement || _docEl);
 
     var i = exports._scrollers.indexOf(element),
         offset = sc === _vertical.sc ? 1 : 2;
 
     !~i && (i = exports._scrollers.push(element) - 1);
-    return exports._scrollers[i + offset] || (exports._scrollers[i + offset] = _scrollCacheFunc(_getProxyProp(element, s), true) || (_isViewport(element) ? sc : _scrollCacheFunc(function (value) {
+    exports._scrollers[i + offset] || element.addEventListener("scroll", _onScroll);
+    var prev = exports._scrollers[i + offset],
+        func = prev || (exports._scrollers[i + offset] = _scrollCacheFunc(_getProxyProp(element, s), true) || (_isViewport(element) ? sc : _scrollCacheFunc(function (value) {
       return arguments.length ? element[s] = value : element[s];
     })));
+    func.target = element;
+    prev || (func.smooth = gsap.getProperty(element, "scrollBehavior") === "smooth");
+    return func;
   },
       _getVelocityProp = function _getVelocityProp(value, minTimeRefresh, useDelta) {
     var v1 = value,
@@ -646,7 +652,7 @@
 
     return Observer;
   }();
-  Observer.version = "3.11.1";
+  Observer.version = "3.11.2";
 
   Observer.create = function (vars) {
     return new Observer(vars);

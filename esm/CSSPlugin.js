@@ -1,5 +1,5 @@
 /*!
- * CSSPlugin 3.11.1
+ * CSSPlugin 3.11.2
  * https://greensock.com
  *
  * Copyright 2008-2022, GreenSock. All rights reserved.
@@ -80,7 +80,7 @@ _renderRoundedCSSProp = function _renderRoundedCSSProp(ratio, data) {
 },
     _transformProp = "transform",
     _transformOriginProp = _transformProp + "Origin",
-    _saveStyle = function _saveStyle(property) {
+    _saveStyle = function _saveStyle(property, isNotCSS) {
   var _this = this;
 
   var target = this.target,
@@ -102,13 +102,13 @@ _renderRoundedCSSProp = function _renderRoundedCSSProp(ratio, data) {
 
     if (target._gsap.svg) {
       this.svgo = target.getAttribute("data-svg-origin");
-      this.props.push(_transformOriginProp, "");
+      this.props.push(_transformOriginProp, isNotCSS, "");
     }
 
     property = _transformProp;
   }
 
-  style && this.props.push(property, style[property]);
+  (style || isNotCSS) && this.props.push(property, isNotCSS, style[property]);
 },
     _removeIndependentTransforms = function _removeIndependentTransforms(style) {
   if (style.translate) {
@@ -125,8 +125,9 @@ _renderRoundedCSSProp = function _renderRoundedCSSProp(ratio, data) {
       i,
       p;
 
-  for (i = 0; i < props.length; i += 2) {
-    props[i + 1] ? style[props[i]] = props[i + 1] : style.removeProperty(props[i].replace(_capsExp, "-$1").toLowerCase());
+  for (i = 0; i < props.length; i += 3) {
+    // stored like this: property, isNotCSS, value
+    props[i + 1] ? target[props[i]] = props[i + 2] : props[i + 2] ? style[props[i]] = props[i + 2] : style.removeProperty(props[i].replace(_capsExp, "-$1").toLowerCase());
   }
 
   if (this.tfm) {
@@ -824,7 +825,7 @@ _identity2DMatrix = [1, 0, 0, 1, 0, 0],
   if (cs.translate) {
     // accommodate independent transforms by combining them into normal ones.
     if (cs.translate !== "none" || cs.scale !== "none" || cs.rotate !== "none") {
-      style[_transformProp] = (cs.translate !== "none" ? "translate3d(" + (cs.translate + " 0 0").split(" ").slice(0, 3).join(", ") + ") " : "") + (cs.rotate !== "none" ? "rotate(" + cs.rotate + ") " : "") + (cs.scale !== "none" ? "scale(" + cs.scale.split(" ").join(",") + ") " : "") + cs[_transformProp];
+      style[_transformProp] = (cs.translate !== "none" ? "translate3d(" + (cs.translate + " 0 0").split(" ").slice(0, 3).join(", ") + ") " : "") + (cs.rotate !== "none" ? "rotate(" + cs.rotate + ") " : "") + (cs.scale !== "none" ? "scale(" + cs.scale.split(" ").join(",") + ") " : "") + (cs[_transformProp] !== "none" ? cs[_transformProp] : "");
     }
 
     style.scale = style.rotate = style.translate = "none";
@@ -1361,7 +1362,7 @@ export var CSSPlugin = {
         endUnit ? startUnit !== endUnit && (startValue = _convertToUnit(target, p, startValue, endUnit) + endUnit) : startUnit && (endValue += startUnit);
         this.add(style, "setProperty", startValue, endValue, index, targets, 0, 0, p);
         props.push(p);
-        inlineProps.push(p, style[p]);
+        inlineProps.push(p, 0, style[p]);
       } else if (type !== "undefined") {
         if (startAt && p in startAt) {
           // in case someone hard-codes a complex value as the start, like top: "calc(2vh / 2)". Without this, it'd use the computed value (always in px)
@@ -1387,7 +1388,7 @@ export var CSSPlugin = {
               startNum = 0;
             }
 
-            inlineProps.push("visibility", style.visibility);
+            inlineProps.push("visibility", 0, style.visibility);
 
             _addNonTweeningPT(this, style, "visibility", startNum ? "inherit" : "hidden", endNum ? "inherit" : "hidden", !endNum);
           }
@@ -1414,12 +1415,12 @@ export var CSSPlugin = {
           }
 
           if (p === "scale") {
-            this._pt = new PropTween(this._pt, cache, "scaleY", cache.scaleY, (relative ? _parseRelative(cache.scaleY, relative + endNum) : endNum) - cache.scaleY || 0, _renderCSSProp);
+            this._pt = new PropTween(this._pt, cache, "scaleY", startNum, (relative ? _parseRelative(startNum, relative + endNum) : endNum) - startNum || 0, _renderCSSProp);
             this._pt.u = 0;
             props.push("scaleY", p);
             p += "X";
           } else if (p === "transformOrigin") {
-            inlineProps.push(_transformOriginProp, style[_transformOriginProp]);
+            inlineProps.push(_transformOriginProp, 0, style[_transformOriginProp]);
             endValue = _convertKeywordsToPercentages(endValue); //in case something like "left top" or "bottom right" is passed in. Convert to percentages.
 
             if (cache.svg) {
@@ -1484,7 +1485,7 @@ export var CSSPlugin = {
           _tweenComplexCSSString.call(this, target, p, startValue, relative ? relative + endValue : endValue);
         }
 
-        isTransformRelated || inlineProps.push(p, style[p]);
+        isTransformRelated || (p in style ? inlineProps.push(p, 0, style[p]) : inlineProps.push(p, 1, startValue || target[p]));
         props.push(p);
       }
     }

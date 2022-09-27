@@ -2721,9 +2721,9 @@
 
             gsap.set(trigger, setVars);
 
-            if (trigger.getBBox && trigger.ownerSVGElement) {
+            if (trigger.getBBox && trigger.ownerSVGElement && allowX !== allowY) {
               gsap.set(trigger.ownerSVGElement, {
-                touchAction: allowX === allowY ? "none" : vars.allowNativeTouchScrolling || vars.allowEventDefault ? "manipulation" : allowX ? "pan-y" : "pan-x"
+                touchAction: vars.allowNativeTouchScrolling || vars.allowEventDefault ? "manipulation" : allowX ? "pan-y" : "pan-x"
               });
             }
 
@@ -2935,7 +2935,7 @@
   });
 
   Draggable.zIndex = 1000;
-  Draggable.version = "3.11.1";
+  Draggable.version = "3.11.2";
   _getGSAP() && gsap.registerPlugin(Draggable);
 
   exports.Draggable = Draggable;

@@ -19,7 +19,7 @@
   }
 
   /*!
-   * GSAP 3.11.1
+   * GSAP 3.11.2
    * https://greensock.com
    *
    * @license Copyright 2008-2022, GreenSock. All rights reserved.
@@ -108,7 +108,12 @@
   },
       _startAtRevertConfig = {
     suppressEvents: true,
-    isStart: true
+    isStart: true,
+    kill: false
+  },
+      _revertConfigNoKill = {
+    suppressEvents: true,
+    kill: false
   },
       _revertConfig = {
     suppressEvents: true
@@ -189,7 +194,7 @@
   },
       _lazySafeRender = function _lazySafeRender(animation, time, suppressEvents, force) {
     _lazyTweens.length && _lazyRender();
-    animation.render(time, suppressEvents, force || _reverting);
+    animation.render(time, suppressEvents, force || _reverting && time < 0 && (animation._initted || animation._startAt));
     _lazyTweens.length && _lazyRender();
   },
       _numericIfPossible = function _numericIfPossible(value) {
@@ -350,7 +355,7 @@
     return animation;
   },
       _rewindStartAt = function _rewindStartAt(tween, totalTime, suppressEvents, force) {
-    return tween._startAt && (_reverting ? tween._startAt.revert(_revertConfig) : tween.vars.immediateRender && !tween.vars.autoRevert || tween._startAt.render(totalTime, true, force));
+    return tween._startAt && (_reverting ? tween._startAt.revert(_revertConfigNoKill) : tween.vars.immediateRender && !tween.vars.autoRevert || tween._startAt.render(totalTime, true, force));
   },
       _hasNoPausedAncestors = function _hasNoPausedAncestors(animation) {
     return !animation || animation._ts && _hasNoPausedAncestors(animation.parent);
@@ -420,17 +425,17 @@
       _scrollTrigger = function _scrollTrigger(animation, trigger) {
     return (_globals.ScrollTrigger || _missingPlugin("scrollTrigger", trigger)) && _globals.ScrollTrigger.create(trigger, animation);
   },
-      _attemptInitTween = function _attemptInitTween(tween, totalTime, force, suppressEvents) {
-    _initTween(tween, totalTime);
+      _attemptInitTween = function _attemptInitTween(tween, time, force, suppressEvents, tTime) {
+    _initTween(tween, time, tTime);
 
     if (!tween._initted) {
       return 1;
     }
 
-    if (!force && tween._pt && (tween._dur && tween.vars.lazy !== false || !tween._dur && tween.vars.lazy) && _lastRenderedFrame !== _ticker.frame) {
+    if (!force && tween._pt && !_reverting && (tween._dur && tween.vars.lazy !== false || !tween._dur && tween.vars.lazy) && _lastRenderedFrame !== _ticker.frame) {
       _lazyTweens.push(tween);
 
-      tween._lazy = [totalTime, suppressEvents];
+      tween._lazy = [tTime, suppressEvents];
       return 1;
     }
   },
@@ -463,7 +468,7 @@
     }
 
     if (ratio !== prevRatio || _reverting || force || tween._zTime === _tinyNum || !totalTime && tween._zTime) {
-      if (!tween._initted && _attemptInitTween(tween, totalTime, force, suppressEvents)) {
+      if (!tween._initted && _attemptInitTween(tween, totalTime, force, suppressEvents, tTime)) {
         return;
       }
 
@@ -530,7 +535,8 @@
     totalProgress && !leavePlayhead && (animation._time *= dur / animation._dur);
     animation._dur = dur;
     animation._tDur = !repeat ? dur : repeat < 0 ? 1e10 : _roundPrecise(dur * (repeat + 1) + animation._rDelay * repeat);
-    totalProgress > 0 && !leavePlayhead ? _alignPlayhead(animation, animation._tTime = animation._tDur * totalProgress) : animation.parent && _setEnd(animation);
+    totalProgress > 0 && !leavePlayhead && _alignPlayhead(animation, animation._tTime = animation._tDur * totalProgress);
+    animation.parent && _setEnd(animation);
     skipUncache || _uncache(animation.parent, animation);
     return animation;
   },
@@ -951,7 +957,7 @@
       _interrupt = function _interrupt(animation) {
     _removeFromParent(animation);
 
-    animation.scrollTrigger && animation.scrollTrigger.kill(false);
+    animation.scrollTrigger && animation.scrollTrigger.kill(!!_reverting);
     animation.progress() < 1 && _callback(animation, "onInterrupt");
     return animation;
   },
@@ -1695,9 +1701,13 @@
 
       var prevIsReverting = _reverting;
       _reverting = config;
-      this.timeline && this.timeline.revert(config);
-      this.totalTime(-0.01, config.suppressEvents);
-      this.data !== "nested" && _removeFromParent(this);
+
+      if (this._initted || this._startAt) {
+        this.timeline && this.timeline.revert(config);
+        this.totalTime(-0.01, config.suppressEvents);
+      }
+
+      this.data !== "nested" && config.kill !== false && this.kill();
       _reverting = prevIsReverting;
       return this;
     };
@@ -2090,7 +2100,6 @@
             child = next;
           }
         } else {
-          force = force || _reverting;
           child = this._last;
           var adjustedTime = totalTime < 0 ? totalTime : time;
 
@@ -2102,7 +2111,7 @@
                 return this.render(totalTime, suppressEvents, force);
               }
 
-              child.render(child._ts > 0 ? (adjustedTime - child._start) * child._ts : (child._dirty ? child.totalDuration() : child._tDur) + (adjustedTime - child._start) * child._ts, suppressEvents, force);
+              child.render(child._ts > 0 ? (adjustedTime - child._start) * child._ts : (child._dirty ? child.totalDuration() : child._tDur) + (adjustedTime - child._start) * child._ts, suppressEvents, force || _reverting && (child._initted || child._startAt));
 
               if (time !== this._time || !this._ts && !prevPaused) {
                 pauseTween = 0;
@@ -2410,16 +2419,16 @@
       return _uncache(this);
     };
 
-    _proto2.invalidate = function invalidate() {
+    _proto2.invalidate = function invalidate(soft) {
       var child = this._first;
       this._lock = 0;
 
       while (child) {
-        child.invalidate();
+        child.invalidate(soft);
         child = child._next;
       }
 
-      return _Animation.prototype.invalidate.call(this);
+      return _Animation.prototype.invalidate.call(this, soft);
     };
 
     _proto2.clear = function clear(includeLabels) {
@@ -2655,7 +2664,7 @@
   },
       _overwritingTween,
       _forceAllPropTweens,
-      _initTween = function _initTween(tween, time) {
+      _initTween = function _initTween(tween, time, tTime) {
     var vars = tween.vars,
         ease = vars.ease,
         startAt = vars.startAt,
@@ -2706,7 +2715,8 @@
       cleanVars = _copyExcluding(vars, _reservedProps);
 
       if (prevStartAt) {
-        time < 0 && runBackwards && immediateRender && !autoRevert ? prevStartAt.render(-1, true) : prevStartAt.revert(runBackwards && dur ? _revertConfig : _startAtRevertConfig);
+        prevStartAt._zTime < 0 && prevStartAt.progress(1);
+        time < 0 && runBackwards && immediateRender && !autoRevert ? prevStartAt.render(-1, true) : prevStartAt.revert(runBackwards && dur ? _revertConfigNoKill : _startAtRevertConfig);
         prevStartAt._lazy = 0;
       }
 
@@ -2725,10 +2735,10 @@
           stagger: 0
         }, startAt)));
 
-        time < 0 && (_reverting || !immediateRender && !autoRevert) && tween._startAt.revert(_revertConfig);
+        time < 0 && (_reverting || !immediateRender && !autoRevert) && tween._startAt.revert(_revertConfigNoKill);
 
         if (immediateRender) {
-          if (dur && time <= 0) {
+          if (dur && time <= 0 && tTime <= 0) {
             time && (tween._zTime = time);
             return;
           }
@@ -2748,11 +2758,11 @@
 
           _removeFromParent(tween._startAt = Tween.set(targets, p));
 
-          time < 0 && (_reverting ? tween._startAt.revert(_revertConfig) : tween._startAt.render(-1, true));
+          time < 0 && (_reverting ? tween._startAt.revert(_revertConfigNoKill) : tween._startAt.render(-1, true));
           tween._zTime = time;
 
           if (!immediateRender) {
-            _initTween(tween._startAt, _tinyNum);
+            _initTween(tween._startAt, _tinyNum, _tinyNum);
           } else if (!time) {
             return;
           }
@@ -3070,7 +3080,7 @@
       if (immediateRender || !duration && !keyframes && _this3._start === _roundPrecise(parent._time) && _isNotFalse(immediateRender) && _hasNoPausedAncestors(_assertThisInitialized(_this3)) && parent.data !== "nested") {
         _this3._tTime = -_tinyNum;
 
-        _this3.render(Math.max(0, -delay));
+        _this3.render(Math.max(0, -delay) || 0);
       }
 
       scrollTrigger && _scrollTrigger(_assertThisInitialized(_this3), scrollTrigger);
@@ -3149,7 +3159,7 @@
         }
 
         if (!this._initted) {
-          if (_attemptInitTween(this, isNegative ? totalTime : time, force, suppressEvents)) {
+          if (_attemptInitTween(this, isNegative ? totalTime : time, force, suppressEvents, tTime)) {
             this._tTime = 0;
             return this;
           }
@@ -3206,7 +3216,7 @@
           isNegative && !this._onUpdate && _rewindStartAt(this, totalTime, true, true);
           (totalTime || !dur) && (tTime === this._tDur && this._ts > 0 || !tTime && this._ts < 0) && _removeFromParent(this, 1);
 
-          if (!suppressEvents && !(isNegative && !prevTime) && (tTime || prevTime)) {
+          if (!suppressEvents && !(isNegative && !prevTime) && (tTime || prevTime || isYoyo)) {
             _callback(this, tTime === tDur ? "onComplete" : "onReverseComplete", true);
 
             this._prom && !(tTime < tDur && this.timeScale() > 0) && this._prom();
@@ -3221,11 +3231,12 @@
       return this._targets;
     };
 
-    _proto3.invalidate = function invalidate() {
-      this._pt = this._op = this._startAt = this._onUpdate = this._lazy = this.ratio = 0;
+    _proto3.invalidate = function invalidate(soft) {
+      (!soft || !this.vars.runBackwards) && (this._startAt = 0);
+      this._pt = this._op = this._onUpdate = this._lazy = this.ratio = 0;
       this._ptLookup = [];
-      this.timeline && this.timeline.invalidate();
-      return _Animation2.prototype.invalidate.call(this);
+      this.timeline && this.timeline.invalidate(soft);
+      return _Animation2.prototype.invalidate.call(this, soft);
     };
 
     _proto3.resetTo = function resetTo(property, value, start, startIsRelative) {
@@ -3647,7 +3658,7 @@
     _proto5.getTweens = function getTweens() {
       var a = [];
       this.data.forEach(function (e) {
-        return e instanceof Context ? a.push.apply(a, e.getTweens()) : e instanceof Tween && a.push(e);
+        return e instanceof Context ? a.push.apply(a, e.getTweens()) : e instanceof Tween && !(e.parent && e.parent.data === "nested") && a.push(e);
       });
       return a;
     };
@@ -3660,7 +3671,16 @@
       var _this4 = this;
 
       if (revert) {
-        this.getTweens().map(function (t) {
+        var tweens = this.getTweens();
+        this.data.forEach(function (t) {
+          if (t.data === "isFlip") {
+            t.revert();
+            t.getChildren(true, true, false).forEach(function (tween) {
+              return tweens.splice(tweens.indexOf(tween), 1);
+            });
+          }
+        });
+        tweens.map(function (t) {
           return {
             g: t.globalTime(0),
             t: t
@@ -4083,7 +4103,7 @@
       }
     }
   }, _buildModifierPlugin("roundProps", _roundModifier), _buildModifierPlugin("modifiers"), _buildModifierPlugin("snap", snap)) || _gsap;
-  Tween.version = Timeline.version = gsap.version = "3.11.1";
+  Tween.version = Timeline.version = gsap.version = "3.11.2";
   _coreReady = 1;
   _windowExists() && _wake();
   var Power0 = _easeMap.Power0,
@@ -4172,7 +4192,7 @@
   },
       _transformProp = "transform",
       _transformOriginProp = _transformProp + "Origin",
-      _saveStyle = function _saveStyle(property) {
+      _saveStyle = function _saveStyle(property, isNotCSS) {
     var _this = this;
 
     var target = this.target,
@@ -4194,13 +4214,13 @@
 
       if (target._gsap.svg) {
         this.svgo = target.getAttribute("data-svg-origin");
-        this.props.push(_transformOriginProp, "");
+        this.props.push(_transformOriginProp, isNotCSS, "");
       }
 
       property = _transformProp;
     }
 
-    style && this.props.push(property, style[property]);
+    (style || isNotCSS) && this.props.push(property, isNotCSS, style[property]);
   },
       _removeIndependentTransforms = function _removeIndependentTransforms(style) {
     if (style.translate) {
@@ -4217,8 +4237,8 @@
         i,
         p;
 
-    for (i = 0; i < props.length; i += 2) {
-      props[i + 1] ? style[props[i]] = props[i + 1] : style.removeProperty(props[i].replace(_capsExp, "-$1").toLowerCase());
+    for (i = 0; i < props.length; i += 3) {
+      props[i + 1] ? target[props[i]] = props[i + 2] : props[i + 2] ? style[props[i]] = props[i + 2] : style.removeProperty(props[i].replace(_capsExp, "-$1").toLowerCase());
     }
 
     if (this.tfm) {
@@ -4815,7 +4835,7 @@
 
     if (cs.translate) {
       if (cs.translate !== "none" || cs.scale !== "none" || cs.rotate !== "none") {
-        style[_transformProp] = (cs.translate !== "none" ? "translate3d(" + (cs.translate + " 0 0").split(" ").slice(0, 3).join(", ") + ") " : "") + (cs.rotate !== "none" ? "rotate(" + cs.rotate + ") " : "") + (cs.scale !== "none" ? "scale(" + cs.scale.split(" ").join(",") + ") " : "") + cs[_transformProp];
+        style[_transformProp] = (cs.translate !== "none" ? "translate3d(" + (cs.translate + " 0 0").split(" ").slice(0, 3).join(", ") + ") " : "") + (cs.rotate !== "none" ? "rotate(" + cs.rotate + ") " : "") + (cs.scale !== "none" ? "scale(" + cs.scale.split(" ").join(",") + ") " : "") + (cs[_transformProp] !== "none" ? cs[_transformProp] : "");
       }
 
       style.scale = style.rotate = style.translate = "none";
@@ -5328,7 +5348,7 @@
           endUnit ? startUnit !== endUnit && (startValue = _convertToUnit(target, p, startValue, endUnit) + endUnit) : startUnit && (endValue += startUnit);
           this.add(style, "setProperty", startValue, endValue, index, targets, 0, 0, p);
           props.push(p);
-          inlineProps.push(p, style[p]);
+          inlineProps.push(p, 0, style[p]);
         } else if (type !== "undefined") {
           if (startAt && p in startAt) {
             startValue = typeof startAt[p] === "function" ? startAt[p].call(tween, index, target, targets) : startAt[p];
@@ -5350,7 +5370,7 @@
                 startNum = 0;
               }
 
-              inlineProps.push("visibility", style.visibility);
+              inlineProps.push("visibility", 0, style.visibility);
 
               _addNonTweeningPT(this, style, "visibility", startNum ? "inherit" : "hidden", endNum ? "inherit" : "hidden", !endNum);
             }
@@ -5375,12 +5395,12 @@
             }
 
             if (p === "scale") {
-              this._pt = new PropTween(this._pt, cache, "scaleY", cache.scaleY, (relative ? _parseRelative(cache.scaleY, relative + endNum) : endNum) - cache.scaleY || 0, _renderCSSProp);
+              this._pt = new PropTween(this._pt, cache, "scaleY", startNum, (relative ? _parseRelative(startNum, relative + endNum) : endNum) - startNum || 0, _renderCSSProp);
               this._pt.u = 0;
               props.push("scaleY", p);
               p += "X";
             } else if (p === "transformOrigin") {
-              inlineProps.push(_transformOriginProp, style[_transformOriginProp]);
+              inlineProps.push(_transformOriginProp, 0, style[_transformOriginProp]);
               endValue = _convertKeywordsToPercentages(endValue);
 
               if (cache.svg) {
@@ -5441,7 +5461,7 @@
             _tweenComplexCSSString.call(this, target, p, startValue, relative ? relative + endValue : endValue);
           }
 
-          isTransformRelated || inlineProps.push(p, style[p]);
+          isTransformRelated || (p in style ? inlineProps.push(p, 0, style[p]) : inlineProps.push(p, 1, startValue || target[p]));
           props.push(p);
         }
       }

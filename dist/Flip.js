@@ -364,7 +364,7 @@
 	}
 
 	/*!
-	 * Flip 3.11.1
+	 * Flip 3.11.2
 	 * https://greensock.com
 	 *
 	 * @license Copyright 2008-2022, GreenSock. All rights reserved.
@@ -866,7 +866,8 @@
 	    paused: paused,
 	    repeat: repeat,
 	    repeatDelay: repeatDelay,
-	    yoyo: yoyo
+	    yoyo: yoyo,
+	    data: "isFlip"
 	  }),
 	      remainingProps = tweenVars,
 	      entering = [],
@@ -1148,7 +1149,13 @@
 	    run();
 	  }
 
-	  return _batch ? _batch.timeline : animation;
+	  var anim = _batch ? _batch.timeline : animation;
+
+	  anim.revert = function () {
+	    return _killFlip(anim, 1);
+	  };
+
+	  return anim;
 	},
 	    _interrupt = function _interrupt(tl) {
 	  tl.vars.onInterrupt && tl.vars.onInterrupt.apply(tl, tl.vars.onInterruptParams || []);
@@ -1794,7 +1801,7 @@
 
 	  return Flip;
 	}();
-	Flip.version = "3.11.1";
+	Flip.version = "3.11.2";
 	typeof window !== "undefined" && window.gsap && window.gsap.registerPlugin(Flip);
 
 	exports.Flip = Flip;

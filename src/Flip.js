@@ -1,5 +1,5 @@
 /*!
- * Flip 3.11.1
+ * Flip 3.11.2
  * https://greensock.com
  *
  * @license Copyright 2008-2022, GreenSock. All rights reserved.
@@ -315,7 +315,7 @@ let _id = 1,
 		let { clearProps, onEnter, onLeave, absolute, absoluteOnLeave, custom, delay, paused, repeat, repeatDelay, yoyo, toggleClass, nested, zIndex, scale, fade, stagger, spin, prune } = vars,
 			props = ("props" in vars ? vars : fromState).props,
 			tweenVars = _copy(vars, _reserved),
-			animation = gsap.timeline({ delay, paused, repeat, repeatDelay, yoyo }),
+			animation = gsap.timeline({ delay, paused, repeat, repeatDelay, yoyo, data: "isFlip" }),
 			remainingProps = tweenVars,
 			entering = [],
 			leaving = [],
@@ -495,7 +495,10 @@ let _id = 1,
 			run();
 		}
 
-		return _batch ? _batch.timeline : animation;
+		let anim = _batch ? _batch.timeline : animation;
+		anim.revert = () => _killFlip(anim, 1); // a Flip timeline should behave very different when reverting - it should actually jump to the end so that styles get cleared out.
+
+		return anim;
 	},
 	_interrupt = tl => {
 		tl.vars.onInterrupt && tl.vars.onInterrupt.apply(tl, tl.vars.onInterruptParams || []);
@@ -1006,7 +1009,7 @@ export class Flip {
 	}
 }
 
-Flip.version = "3.11.1";
+Flip.version = "3.11.2";
 
 // function whenImagesLoad(el, func) {
 // 	let pending = [],

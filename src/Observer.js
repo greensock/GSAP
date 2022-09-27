@@ -1,5 +1,5 @@
 /*!
- * Observer 3.11.1
+ * Observer 3.11.2
  * https://greensock.com
  *
  * @license Copyright 2008-2022, GreenSock. All rights reserved.
@@ -58,11 +58,17 @@ let gsap, _coreInitted, _clamp, _win, _doc, _docEl, _body, _isTouch, _pointerTyp
 	_vertical = {s: _scrollTop, p: "top", p2: "Top", os: "bottom", os2: "Bottom", d: "height", d2: "Height", a: "y", op: _horizontal, sc: _scrollCacheFunc(function(value) { return arguments.length ? _win.scrollTo(_horizontal.sc(), value) : _win.pageYOffset || _doc[_scrollTop] || _docEl[_scrollTop] || _body[_scrollTop] || 0})},
 	_getTarget = t => gsap.utils.toArray(t)[0] || (typeof(t) === "string" && gsap.config().nullTargetWarn !== false ? console.warn("Element not found:", t) : null),
 
-	_getScrollFunc = (element, {s, sc}) => { // we store the scroller functions in a alternating sequenced Array like [element, verticalScrollFunc, horizontalScrollFunc, ...] so that we can minimize memory, maximize performance, and we also record the last position as a ".rec" property in order to revert to that after refreshing to ensure things don't shift around.
+	_getScrollFunc = (element, {s, sc}) => { // we store the scroller functions in an alternating sequenced Array like [element, verticalScrollFunc, horizontalScrollFunc, ...] so that we can minimize memory, maximize performance, and we also record the last position as a ".rec" property in order to revert to that after refreshing to ensure things don't shift around.
+		_isViewport(element) && (element = _doc.scrollingElement || _docEl);
 		let i = _scrollers.indexOf(element),
 			offset = sc === _vertical.sc ? 1 : 2;
 		!~i && (i = _scrollers.push(element) - 1);
-		return _scrollers[i + offset] || (_scrollers[i + offset] = _scrollCacheFunc(_getProxyProp(element, s), true) || (_isViewport(element) ? sc : _scrollCacheFunc(function(value) { return arguments.length ? (element[s] = value) : element[s]; })));
+		_scrollers[i + offset] || element.addEventListener("scroll", _onScroll); // clear the cache when a scroll occurs
+		let prev = _scrollers[i + offset],
+			func = prev || (_scrollers[i + offset] = _scrollCacheFunc(_getProxyProp(element, s), true) || (_isViewport(element) ? sc : _scrollCacheFunc(function(value) { return arguments.length ? (element[s] = value) : element[s]; })));
+		func.target = element;
+		prev || (func.smooth = gsap.getProperty(element, "scrollBehavior") === "smooth"); // only set it the first time (don't reset every time a scrollFunc is requested because perhaps it happens during a refresh() when it's disabled in ScrollTrigger.
+		return func;
 	},
 	_getVelocityProp = (value, minTimeRefresh, useDelta) => {
 		let v1 = value,
@@ -402,7 +408,7 @@ export class Observer {
 
 }
 
-Observer.version = "3.11.1";
+Observer.version = "3.11.2";
 Observer.create = vars => new Observer(vars);
 Observer.register = _initCore;
 Observer.getAll = () => _observers.slice();

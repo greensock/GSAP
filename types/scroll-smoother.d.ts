@@ -343,6 +343,7 @@ declare namespace ScrollSmoother {
   // }
 
   interface Vars {
+    autoResize?: boolean;
     content?: gsap.DOMTarget;
     ease?: string | Function;
     effects?: boolean | gsap.DOMTarget;

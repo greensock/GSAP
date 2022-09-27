@@ -1,5 +1,5 @@
 /*!
- * Draggable 3.11.1
+ * Draggable 3.11.2
  * https://greensock.com
  *
  * @license Copyright 2008-2022, GreenSock. All rights reserved.
@@ -1766,10 +1766,10 @@ export class Draggable extends EventDispatcher {
 					trigger = triggers[i];
 					_supportsPointer || _addListener(trigger, "mousedown", onPress);
 					_addListener(trigger, "touchstart", onPress);
-					_addListener(trigger, "click", onClick, true); //note: used to pass true for capture but it prevented click-to-play-video functionality in Firefox.
+					_addListener(trigger, "click", onClick, true); // note: used to pass true for capture but it prevented click-to-play-video functionality in Firefox.
 					gsap.set(trigger, setVars);
-					if (trigger.getBBox && trigger.ownerSVGElement) { // a bug in chrome doesn't respect touch-action on SVG elements - it only works if we set it on the parent SVG.
-						gsap.set(trigger.ownerSVGElement, {touchAction: (allowX === allowY) ? "none" : vars.allowNativeTouchScrolling || vars.allowEventDefault ? "manipulation" : allowX ? "pan-y" : "pan-x"});
+					if (trigger.getBBox && trigger.ownerSVGElement && allowX !== allowY) { // a bug in chrome doesn't respect touch-action on SVG elements - it only works if we set it on the parent SVG.
+						gsap.set(trigger.ownerSVGElement, {touchAction: vars.allowNativeTouchScrolling || vars.allowEventDefault ? "manipulation" : allowX ? "pan-y" : "pan-x"});
 					}
 					vars.allowContextMenu || _addListener(trigger, "contextmenu", onContextMenu);
 				}
@@ -1921,7 +1921,7 @@ export class Draggable extends EventDispatcher {
 _setDefaults(Draggable.prototype, {pointerX:0, pointerY: 0, startX: 0, startY: 0, deltaX: 0, deltaY: 0, isDragging: false, isPressed: false});
 
 Draggable.zIndex = 1000;
-Draggable.version = "3.11.1";
+Draggable.version = "3.11.2";
 
 _getGSAP() && gsap.registerPlugin(Draggable);
 

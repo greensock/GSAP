@@ -129,12 +129,13 @@ declare class Draggable {
    * ```js
    * draggable.disable();
    * ```
-   * 
+   *
+   * @param {string | object} [type]
    * @returns {Draggable} The Draggable instance
    * @memberof Draggable
    * @link https://greensock.com/docs/v3/Plugins/Draggable/disable()
    */
-  disable(): this;
+  disable(type?: string | object): this;
 
   dispatchEvent(type: Draggable.CallbackType): boolean;
 
@@ -144,12 +145,13 @@ declare class Draggable {
    * ```js
    * draggable.enable();
    * ```
-   * 
+   *
+   * @param {string | object} [type]
    * @returns {Draggable} The Draggable instance
    * @memberof Draggable
    * @link https://greensock.com/docs/v3/Plugins/Draggable/enable()
    */
-  enable(): this;
+  enable(type?: string | object): this;
 
   /**
    * Sets the enabled state of the Draggable.
