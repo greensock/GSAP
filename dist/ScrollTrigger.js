@@ -21,7 +21,7 @@
   }
 
   /*!
-   * Observer 3.11.2
+   * Observer 3.11.3
    * https://greensock.com
    *
    * @license Copyright 2008-2022, GreenSock. All rights reserved.
@@ -652,7 +652,7 @@
 
     return Observer;
   }();
-  Observer.version = "3.11.2";
+  Observer.version = "3.11.3";
 
   Observer.create = function (vars) {
     return new Observer(vars);
@@ -673,7 +673,7 @@
   _getGSAP() && gsap.registerPlugin(Observer);
 
   /*!
-   * ScrollTrigger 3.11.2
+   * ScrollTrigger 3.11.3
    * https://greensock.com
    *
    * @license Copyright 2008-2022, GreenSock. All rights reserved.
@@ -1013,12 +1013,18 @@
       _ids = {},
       _rafID,
       _sync = function _sync() {
-    return _getTime$1() - _lastScrollTime > 34 && _updateAll();
+    return _getTime$1() - _lastScrollTime > 34 && (_rafID || (_rafID = requestAnimationFrame(_updateAll)));
   },
       _onScroll$1 = function _onScroll() {
     if (!_normalizer$1 || !_normalizer$1.isPressed || _normalizer$1.startX > _body$1.clientWidth) {
       _scrollers.cache++;
-      _rafID || (_rafID = requestAnimationFrame(_updateAll));
+
+      if (_normalizer$1) {
+        _rafID || (_rafID = requestAnimationFrame(_updateAll));
+      } else {
+        _updateAll();
+      }
+
       _lastScrollTime || _dispatch("scrollStart");
       _lastScrollTime = _getTime$1();
     }
@@ -1078,6 +1084,15 @@
   },
       _refreshingAll,
       _refreshID = 0,
+      _queueRefreshID,
+      _queueRefreshAll = function _queueRefreshAll() {
+    if (_queueRefreshID !== _refreshID) {
+      var id = _queueRefreshID = _refreshID;
+      requestAnimationFrame(function () {
+        return id === _refreshID && _refreshAll(true);
+      });
+    }
+  },
       _refreshAll = function _refreshAll(force, skipRevert) {
     if (_lastScrollTime && !force) {
       _addListener$1(ScrollTrigger$1, "scrollEnd", _softRefresh);
@@ -1107,6 +1122,16 @@
       return t.refresh();
     });
 
+    _triggers.forEach(function (t, i) {
+      if (t._subPinOffset && t.pin) {
+        var prop = t.vars.horizontal ? "offsetWidth" : "offsetHeight",
+            original = t.pin[prop];
+        t.revert(true, 1);
+        t.adjustPinSpacing(t.pin[prop] - original);
+        t.revert(false, 1);
+      }
+    });
+
     _triggers.forEach(function (t) {
       return t.vars.end === "max" && t.setPositions(t.start, Math.max(t.start + 1, _maxScroll(t.scroller, t._dir)));
     });
@@ -1131,6 +1156,10 @@
     _refreshID++;
 
     _updateAll(2);
+
+    _triggers.forEach(function (t) {
+      return _isFunction(t.vars.onRefresh) && t.vars.onRefresh(t);
+    });
 
     _refreshingAll = ScrollTrigger$1.isRefreshing = false;
 
@@ -1594,6 +1623,11 @@
         "scrollBehavior" in _body$1.style && gsap$1.set(isViewport ? [_body$1, _docEl$1] : scroller, {
           scrollBehavior: "auto"
         });
+
+        _scrollers.forEach(function (o) {
+          return _isFunction(o) && o.target === (isViewport ? _doc$1.scrollingElement || _docEl$1 : scroller) && (o.smooth = false);
+        });
+
         snapFunc = _isFunction(snap.snapTo) ? snap.snapTo : snap.snapTo === "labels" ? _getClosestLabel(animation) : snap.snapTo === "labelsDirectional" ? _getLabelAtDirection(animation) : snap.directional !== false ? function (value, st) {
           return _snapDirectional(snap.snapTo)(value, _getTime$1() - lastRefresh < 500 ? 0 : st.direction);
         } : gsap$1.utils.snap(snap.snapTo);
@@ -1663,7 +1697,7 @@
       });
 
       if (pin) {
-        pinSpacing === false || pinSpacing === _margin || (pinSpacing = !pinSpacing && _getComputedStyle(pin.parentNode).display === "flex" ? false : _padding);
+        pinSpacing === false || pinSpacing === _margin || (pinSpacing = !pinSpacing && pin.parentNode && pin.parentNode.style && _getComputedStyle(pin.parentNode).display === "flex" ? false : _padding);
         self.pin = pin;
         pinCache = gsap$1.core.getCache(pin);
 
@@ -1755,10 +1789,22 @@
           markerStart && [markerStart, markerEnd, markerStartTrigger, markerEndTrigger].forEach(function (m) {
             return m.style.display = r ? "none" : "block";
           });
-          r && (_refreshing = 1);
-          self.update(r);
+
+          if (r) {
+            _refreshing = 1;
+            self.update(r);
+          }
+
+          if (pin) {
+            if (r) {
+              _swapPinOut(pin, spacer, pinOriginalState);
+            } else {
+              (!pinReparent || !self.isActive) && _swapPinIn(pin, spacer, _getComputedStyle(pin), spacerState);
+            }
+          }
+
+          r || self.update(r);
           _refreshing = prevRefreshing;
-          pin && (r ? _swapPinOut(pin, spacer, pinOriginalState) : (!pinReparent || !self.isActive) && _swapPinIn(pin, spacer, _getComputedStyle(pin), spacerState));
           self.isReverted = r;
         }
       };
@@ -1788,6 +1834,7 @@
           kill: false
         }).invalidate();
         self.isReverted || self.revert(true, true);
+        self._subPinOffset = false;
 
         var size = getScrollerSize(),
             scrollerBounds = getScrollerOffsets(),
@@ -1851,10 +1898,10 @@
           curTrigger = _triggers[i];
           curPin = curTrigger.pin;
 
-          if (curPin && curTrigger.start - curTrigger._pinPush < start && !containerAnimation && curTrigger.end > 0) {
+          if (curPin && curTrigger.start - curTrigger._pinPush <= start && !containerAnimation && curTrigger.end > 0) {
             cs = curTrigger.end - curTrigger.start;
 
-            if ((curPin === trigger || curPin === pinnedContainer) && !_isNumber(parsedStart)) {
+            if ((curPin === trigger && curTrigger.start - curTrigger._pinPush < start || curPin === pinnedContainer) && !_isNumber(parsedStart)) {
               offset += cs * (1 - curTrigger.progress);
             }
 
@@ -1893,6 +1940,14 @@
             i && spacerState.push(direction.d, i + _px);
 
             _setState(spacerState);
+
+            if (pinnedContainer) {
+              _triggers.forEach(function (t) {
+                if (t.pin === pinnedContainer && t.vars.pinSpacing !== false) {
+                  t._subPinOffset = true;
+                }
+              });
+            }
 
             useFixedPosition && scrollFunc(prevScroll);
           }
@@ -1974,7 +2029,7 @@
         }
 
         pin && pinSpacing && (spacer._pinOffset = Math.round(self.progress * pinChange));
-        onRefresh && onRefresh(self);
+        onRefresh && !_refreshingAll && onRefresh(self);
       };
 
       self.getVelocity = function () {
@@ -2175,12 +2230,23 @@
         if (pin) {
           pinStart += newStart - start;
           pinChange += newEnd - newStart - change;
+          pinSpacing === _padding && self.adjustPinSpacing(newEnd - newStart - change);
         }
 
         self.start = start = newStart;
         self.end = end = newEnd;
         change = newEnd - newStart;
         self.update();
+      };
+
+      self.adjustPinSpacing = function (amount) {
+        if (spacerState) {
+          var i = spacerState.indexOf(direction.d) + 1;
+          spacerState[i] = parseFloat(spacerState[i]) + amount + _px;
+          spacerState[1] = parseFloat(spacerState[1]) + amount + _px;
+
+          _setState(spacerState);
+        }
       };
 
       self.disable = function (reset, allowAnimation) {
@@ -2262,6 +2328,7 @@
       !animation || !animation.add || change ? self.refresh() : gsap$1.delayedCall(0.01, function () {
         return start || end || self.refresh();
       }) && (change = 0.01) && (start = end = 0);
+      pin && _queueRefreshAll();
     };
 
     ScrollTrigger.register = function register(core) {
@@ -2499,7 +2566,7 @@
 
     return ScrollTrigger;
   }();
-  ScrollTrigger$1.version = "3.11.2";
+  ScrollTrigger$1.version = "3.11.3";
 
   ScrollTrigger$1.saveStyles = function (targets) {
     return targets ? _toArray(targets).forEach(function (target) {

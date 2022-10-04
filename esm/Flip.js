@@ -1,5 +1,5 @@
 /*!
- * Flip 3.11.2
+ * Flip 3.11.3
  * https://greensock.com
  *
  * @license Copyright 2008-2022, GreenSock. All rights reserved.
@@ -1491,7 +1491,7 @@ export var Flip = /*#__PURE__*/function () {
 
   return Flip;
 }();
-Flip.version = "3.11.2"; // function whenImagesLoad(el, func) {
+Flip.version = "3.11.3"; // function whenImagesLoad(el, func) {
 // 	let pending = [],
 // 		onLoad = e => {
 // 			pending.splice(pending.indexOf(e.target), 1);

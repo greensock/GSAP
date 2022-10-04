@@ -1,5 +1,5 @@
 /*!
- * Observer 3.11.2
+ * Observer 3.11.3
  * https://greensock.com
  *
  * @license Copyright 2008-2022, GreenSock. All rights reserved.
@@ -408,7 +408,7 @@ export class Observer {
 
 }
 
-Observer.version = "3.11.2";
+Observer.version = "3.11.3";
 Observer.create = vars => new Observer(vars);
 Observer.register = _initCore;
 Observer.getAll = () => _observers.slice();

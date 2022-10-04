@@ -1,5 +1,5 @@
 /*!
- * ScrollTrigger 3.11.2
+ * ScrollTrigger 3.11.3
  * https://greensock.com
  *
  * @license Copyright 2008-2022, GreenSock. All rights reserved.
@@ -361,14 +361,21 @@ _startup = 1,
     _ids = {},
     _rafID,
     _sync = function _sync() {
-  return _getTime() - _lastScrollTime > 34 && _updateAll();
+  return _getTime() - _lastScrollTime > 34 && (_rafID || (_rafID = requestAnimationFrame(_updateAll)));
 },
     _onScroll = function _onScroll() {
   // previously, we tried to optimize performance by batching/deferring to the next requestAnimationFrame(), but discovered that Safari has a few bugs that make this unworkable (especially on iOS). See https://codepen.io/GreenSock/pen/16c435b12ef09c38125204818e7b45fc?editors=0010 and https://codepen.io/GreenSock/pen/JjOxYpQ/3dd65ccec5a60f1d862c355d84d14562?editors=0010 and https://codepen.io/GreenSock/pen/ExbrPNa/087cef197dc35445a0951e8935c41503?editors=0010
   if (!_normalizer || !_normalizer.isPressed || _normalizer.startX > _body.clientWidth) {
     // if the user is dragging the scrollbar, allow it.
     _scrollers.cache++;
-    _rafID || (_rafID = requestAnimationFrame(_updateAll));
+
+    if (_normalizer) {
+      _rafID || (_rafID = requestAnimationFrame(_updateAll));
+    } else {
+      _updateAll(); // Safari in particular (on desktop) NEEDS the immediate update rather than waiting for a requestAnimationFrame() whereas iOS seems to benefit from waiting for the requestAnimationFrame() tick, at least when normalizing. See https://codepen.io/GreenSock/pen/qBYozqO?editors=0110
+
+    }
+
     _lastScrollTime || _dispatch("scrollStart");
     _lastScrollTime = _getTime();
   }
@@ -431,6 +438,16 @@ _revertRecorded = function _revertRecorded(media) {
 },
     _refreshingAll,
     _refreshID = 0,
+    _queueRefreshID,
+    _queueRefreshAll = function _queueRefreshAll() {
+  // we don't want to call _refreshAll() every time we create a new ScrollTrigger (for performance reasons) - it's better to batch them. Some frameworks dynamically load content and we can't rely on the window's "load" or "DOMContentLoaded" events to trigger it.
+  if (_queueRefreshID !== _refreshID) {
+    var id = _queueRefreshID = _refreshID;
+    requestAnimationFrame(function () {
+      return id === _refreshID && _refreshAll(true);
+    });
+  }
+},
     _refreshAll = function _refreshAll(force, skipRevert) {
   if (_lastScrollTime && !force) {
     _addListener(ScrollTrigger, "scrollEnd", _softRefresh);
@@ -463,6 +480,17 @@ _revertRecorded = function _revertRecorded(media) {
   }); // don't loop with _i because during a refresh() someone could call ScrollTrigger.update() which would iterate through _i resulting in a skip.
 
 
+  _triggers.forEach(function (t, i) {
+    // nested pins (pinnedContainer) with pinSpacing may expand the container, so we must accommodate that here.
+    if (t._subPinOffset && t.pin) {
+      var prop = t.vars.horizontal ? "offsetWidth" : "offsetHeight",
+          original = t.pin[prop];
+      t.revert(true, 1);
+      t.adjustPinSpacing(t.pin[prop] - original);
+      t.revert(false, 1);
+    }
+  });
+
   _triggers.forEach(function (t) {
     return t.vars.end === "max" && t.setPositions(t.start, Math.max(t.start + 1, _maxScroll(t.scroller, t._dir)));
   }); // the scroller's max scroll position may change after all the ScrollTriggers refreshed (like pinning could push it down), so we need to loop back and correct any with end: "max".
@@ -489,6 +517,10 @@ _revertRecorded = function _revertRecorded(media) {
 
   _updateAll(2);
 
+  _triggers.forEach(function (t) {
+    return _isFunction(t.vars.onRefresh) && t.vars.onRefresh(t);
+  });
+
   _refreshingAll = ScrollTrigger.isRefreshing = false;
 
   _dispatch("refresh");
@@ -499,7 +531,7 @@ _revertRecorded = function _revertRecorded(media) {
     _updateAll = function _updateAll(force) {
   if (!_refreshingAll || force === 2) {
     ScrollTrigger.isUpdating = true;
-    _primary && _primary.update(0); // ScrollSmoother users refreshPriority -9999 to become the primary that gets updated before all others because it affects the scroll position.
+    _primary && _primary.update(0); // ScrollSmoother uses refreshPriority -9999 to become the primary that gets updated before all others because it affects the scroll position.
 
     var l = _triggers.length,
         time = _getTime(),
@@ -977,6 +1009,11 @@ export var ScrollTrigger = /*#__PURE__*/function () {
         scrollBehavior: "auto"
       }); // smooth scrolling doesn't work with snap.
 
+      _scrollers.forEach(function (o) {
+        return _isFunction(o) && o.target === (isViewport ? _doc.scrollingElement || _docEl : scroller) && (o.smooth = false);
+      }); // note: set smooth to false on both the vertical and horizontal scroll getters/setters
+
+
       snapFunc = _isFunction(snap.snapTo) ? snap.snapTo : snap.snapTo === "labels" ? _getClosestLabel(animation) : snap.snapTo === "labelsDirectional" ? _getLabelAtDirection(animation) : snap.directional !== false ? function (value, st) {
         return _snapDirectional(snap.snapTo)(value, _getTime() - lastRefresh < 500 ? 0 : st.direction);
       } : gsap.utils.snap(snap.snapTo);
@@ -1049,7 +1086,7 @@ export var ScrollTrigger = /*#__PURE__*/function () {
     });
 
     if (pin) {
-      pinSpacing === false || pinSpacing === _margin || (pinSpacing = !pinSpacing && _getComputedStyle(pin.parentNode).display === "flex" ? false : _padding); // if the parent is display: flex, don't apply pinSpacing by default.
+      pinSpacing === false || pinSpacing === _margin || (pinSpacing = !pinSpacing && pin.parentNode && pin.parentNode.style && _getComputedStyle(pin.parentNode).display === "flex" ? false : _padding); // if the parent is display: flex, don't apply pinSpacing by default. We should check that pin.parentNode is an element (not shadow dom window)
 
       self.pin = pin;
       pinCache = gsap.core.getCache(pin);
@@ -1150,11 +1187,24 @@ export var ScrollTrigger = /*#__PURE__*/function () {
         markerStart && [markerStart, markerEnd, markerStartTrigger, markerEndTrigger].forEach(function (m) {
           return m.style.display = r ? "none" : "block";
         });
-        r && (_refreshing = 1);
-        self.update(r); // make sure the pin is back in its original position so that all the measurements are correct.
 
-        _refreshing = prevRefreshing;
-        pin && (r ? _swapPinOut(pin, spacer, pinOriginalState) : (!pinReparent || !self.isActive) && _swapPinIn(pin, spacer, _getComputedStyle(pin), spacerState));
+        if (r) {
+          _refreshing = 1;
+          self.update(r); // make sure the pin is back in its original position so that all the measurements are correct. do this BEFORE swapping the pin out
+        }
+
+        if (pin) {
+          if (r) {
+            _swapPinOut(pin, spacer, pinOriginalState);
+          } else {
+            (!pinReparent || !self.isActive) && _swapPinIn(pin, spacer, _getComputedStyle(pin), spacerState);
+          }
+        }
+
+        r || self.update(r); // when we're restoring, the update should run AFTER swapping the pin into its pin-spacer.
+
+        _refreshing = prevRefreshing; // restore. We set it to true during the update() so that things fire properly in there.
+
         self.isReverted = r;
       }
     };
@@ -1184,6 +1234,7 @@ export var ScrollTrigger = /*#__PURE__*/function () {
         kill: false
       }).invalidate();
       self.isReverted || self.revert(true, true);
+      self._subPinOffset = false; // we'll set this to true in the sub-pins if we find any
 
       var size = getScrollerSize(),
           scrollerBounds = getScrollerOffsets(),
@@ -1252,10 +1303,10 @@ export var ScrollTrigger = /*#__PURE__*/function () {
         curTrigger = _triggers[i];
         curPin = curTrigger.pin;
 
-        if (curPin && curTrigger.start - curTrigger._pinPush < start && !containerAnimation && curTrigger.end > 0) {
+        if (curPin && curTrigger.start - curTrigger._pinPush <= start && !containerAnimation && curTrigger.end > 0) {
           cs = curTrigger.end - curTrigger.start;
 
-          if ((curPin === trigger || curPin === pinnedContainer) && !_isNumber(parsedStart)) {
+          if ((curPin === trigger && curTrigger.start - curTrigger._pinPush < start || curPin === pinnedContainer) && !_isNumber(parsedStart)) {
             // numeric start values shouldn't be offset at all - treat them as absolute
             offset += cs * (1 - curTrigger.progress);
           }
@@ -1298,6 +1349,15 @@ export var ScrollTrigger = /*#__PURE__*/function () {
           i && spacerState.push(direction.d, i + _px); // for box-sizing: border-box (must include padding).
 
           _setState(spacerState);
+
+          if (pinnedContainer) {
+            // in ScrollTrigger.refresh(), we need to re-evaluate the pinContainer's size because this pinSpacing may stretch it out, but we can't just add the exact distance because depending on layout, it may not push things down or it may only do so partially.
+            _triggers.forEach(function (t) {
+              if (t.pin === pinnedContainer && t.vars.pinSpacing !== false) {
+                t._subPinOffset = true;
+              }
+            });
+          }
 
           useFixedPosition && scrollFunc(prevScroll);
         }
@@ -1386,7 +1446,7 @@ export var ScrollTrigger = /*#__PURE__*/function () {
 
       pin && pinSpacing && (spacer._pinOffset = Math.round(self.progress * pinChange)); //			scrubTween && scrubTween.invalidate();
 
-      onRefresh && onRefresh(self);
+      onRefresh && !_refreshingAll && onRefresh(self); // when refreshing all, we do extra work to correct pinnedContainer sizes and ensure things don't exceed the maxScroll, so we should do all the refreshes at the end after all that work so that the start/end values are corrected.
     };
 
     self.getVelocity = function () {
@@ -1596,12 +1656,23 @@ export var ScrollTrigger = /*#__PURE__*/function () {
       if (pin) {
         pinStart += newStart - start;
         pinChange += newEnd - newStart - change;
+        pinSpacing === _padding && self.adjustPinSpacing(newEnd - newStart - change);
       }
 
       self.start = start = newStart;
       self.end = end = newEnd;
       change = newEnd - newStart;
       self.update();
+    };
+
+    self.adjustPinSpacing = function (amount) {
+      if (spacerState) {
+        var i = spacerState.indexOf(direction.d) + 1;
+        spacerState[i] = parseFloat(spacerState[i]) + amount + _px;
+        spacerState[1] = parseFloat(spacerState[1]) + amount + _px;
+
+        _setState(spacerState);
+      }
     };
 
     self.disable = function (reset, allowAnimation) {
@@ -1685,6 +1756,8 @@ export var ScrollTrigger = /*#__PURE__*/function () {
     !animation || !animation.add || change ? self.refresh() : gsap.delayedCall(0.01, function () {
       return start || end || self.refresh();
     }) && (change = 0.01) && (start = end = 0); // if the animation is a timeline, it may not have been populated yet, so it wouldn't render at the proper place on the first refresh(), thus we should schedule one for the next tick. If "change" is defined, we know it must be re-enabling, thus we can refresh() right away.
+
+    pin && _queueRefreshAll(); // pinning could affect the positions of other things, so make sure we queue a full refresh()
   };
 
   ScrollTrigger.register = function register(core) {
@@ -1932,7 +2005,7 @@ export var ScrollTrigger = /*#__PURE__*/function () {
 
   return ScrollTrigger;
 }();
-ScrollTrigger.version = "3.11.2";
+ScrollTrigger.version = "3.11.3";
 
 ScrollTrigger.saveStyles = function (targets) {
   return targets ? _toArray(targets).forEach(function (target) {

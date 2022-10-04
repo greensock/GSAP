@@ -1,5 +1,5 @@
 /*!
- * PixiPlugin 3.11.2
+ * PixiPlugin 3.11.3
  * https://greensock.com
  *
  * @license Copyright 2008-2022, GreenSock. All rights reserved.
@@ -368,7 +368,7 @@ for (i = 0; i < _xyContexts.length; i++) {
 }
 
 export var PixiPlugin = {
-  version: "3.11.2",
+  version: "3.11.3",
   name: "pixi",
   register: function register(core, Plugin, propTween) {
     gsap = core;
