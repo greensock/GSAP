@@ -21,7 +21,7 @@
   }
 
   /*!
-   * Observer 3.11.3
+   * Observer 3.11.4
    * https://greensock.com
    *
    * @license Copyright 2008-2022, GreenSock. All rights reserved.
@@ -42,6 +42,7 @@
       _root,
       _normalizer,
       _eventTypes,
+      _context,
       _getGSAP = function _getGSAP() {
     return gsap || typeof window !== "undefined" && (gsap = window.gsap) && gsap.registerPlugin && gsap;
   },
@@ -218,6 +219,9 @@
       _body = _doc.body;
       _root = [_win, _doc, _docEl, _body];
       _clamp = gsap.utils.clamp;
+
+      _context = gsap.core.context || function () {};
+
       _pointerType = "onpointerenter" in _body ? "pointer" : "mouse";
       _isTouch = Observer.isTouch = _win.matchMedia && _win.matchMedia("(hover: none), (pointer: coarse)").matches ? 1 : "ontouchstart" in _win || navigator.maxTouchPoints > 0 || navigator.msMaxTouchPoints > 0 ? 2 : 0;
       _eventTypes = Observer.eventTypes = ("ontouchstart" in _docEl ? "touchstart,touchmove,touchcancel,touchend" : !("onpointerdown" in _docEl) ? "mousedown,mousemove,mouseup,mouseup" : "pointerdown,pointermove,pointercancel,pointerup").split(",");
@@ -458,10 +462,11 @@
 
         _removeListener(isNormalizer ? target : ownerDoc, _eventTypes[1], _onDrag, true);
 
-        var wasDragging = self.isDragging && (Math.abs(self.x - self.startX) > 3 || Math.abs(self.y - self.startY) > 3),
+        var isTrackingDrag = !isNaN(self.y - self.startY),
+            wasDragging = self.isDragging && (Math.abs(self.x - self.startX) > 3 || Math.abs(self.y - self.startY) > 3),
             eventData = _getEvent(e);
 
-        if (!wasDragging) {
+        if (!wasDragging && isTrackingDrag) {
           self._vx.reset();
 
           self._vy.reset();
@@ -549,6 +554,8 @@
       self.scrollY = scrollFuncY;
       self.isDragging = self.isGesturing = self.isPressed = false;
 
+      _context(this);
+
       self.enable = function (e) {
         if (!self.isEnabled) {
           _addListener(isViewport ? ownerDoc : target, "scroll", _onScroll);
@@ -623,7 +630,7 @@
         }
       };
 
-      self.kill = function () {
+      self.kill = self.revert = function () {
         self.disable();
 
         var i = _observers.indexOf(self);
@@ -652,7 +659,7 @@
 
     return Observer;
   }();
-  Observer.version = "3.11.3";
+  Observer.version = "3.11.4";
 
   Observer.create = function (vars) {
     return new Observer(vars);
@@ -673,7 +680,7 @@
   _getGSAP() && gsap.registerPlugin(Observer);
 
   /*!
-   * ScrollTrigger 3.11.3
+   * ScrollTrigger 3.11.4
    * https://greensock.com
    *
    * @license Copyright 2008-2022, GreenSock. All rights reserved.
@@ -709,7 +716,7 @@
       _baseScreenHeight,
       _baseScreenWidth,
       _fixIOSBug,
-      _context,
+      _context$1,
       _scrollRestoration,
       _limitCallbacks,
       _startup$1 = 1,
@@ -1441,6 +1448,12 @@
         return lastScroll1 = Math.round(value);
       };
 
+      vars.onUpdate = function () {
+        _scrollers.cache++;
+
+        _updateAll();
+      };
+
       vars.onComplete = function () {
         getTween.tween = 0;
         onComplete && onComplete.call(tween);
@@ -1547,6 +1560,7 @@
           spacingStart,
           spacerState,
           markerStartSetter,
+          pinMoves,
           markerEndSetter,
           cs,
           snap1,
@@ -1561,7 +1575,7 @@
           caMarkerSetter,
           customRevertReturn;
 
-      _context(self);
+      _context$1(self);
 
       self._dir = direction;
       anticipatePin *= 45;
@@ -1795,11 +1809,11 @@
             self.update(r);
           }
 
-          if (pin) {
+          if (pin && (!pinReparent || !self.isActive)) {
             if (r) {
               _swapPinOut(pin, spacer, pinOriginalState);
             } else {
-              (!pinReparent || !self.isActive) && _swapPinIn(pin, spacer, _getComputedStyle(pin), spacerState);
+              _swapPinIn(pin, spacer, _getComputedStyle(pin), spacerState);
             }
           }
 
@@ -1856,7 +1870,8 @@
             curPin,
             oppositeScroll,
             initted,
-            revertedPins;
+            revertedPins,
+            forcedOverflow;
 
         while (i--) {
           curTrigger = _triggers[i];
@@ -1925,7 +1940,15 @@
           isVertical = direction === _vertical;
           scroll = scrollFunc();
           pinStart = parseFloat(pinGetter(direction.a)) + otherPinOffset;
-          !max && end > 1 && ((isViewport ? _body$1 : scroller).style["overflow-" + direction.a] = "scroll");
+
+          if (!max && end > 1) {
+            forcedOverflow = (isViewport ? _doc$1.scrollingElement || _docEl$1 : scroller).style;
+            forcedOverflow = {
+              style: forcedOverflow,
+              value: forcedOverflow["overflow" + direction.a.toUpperCase()]
+            };
+            forcedOverflow["overflow" + direction.a.toUpperCase()] = "scroll";
+          }
 
           _swapPinIn(pin, spacer, cs);
 
@@ -1978,7 +2001,8 @@
 
             animation.render(animation.duration(), true, true);
             pinChange = pinGetter(direction.a) - pinStart + change + otherPinOffset;
-            change !== pinChange && useFixedPosition && pinActiveState.splice(pinActiveState.length - 2, 2);
+            pinMoves = Math.abs(change - pinChange) > 1;
+            useFixedPosition && pinMoves && pinActiveState.splice(pinActiveState.length - 2, 2);
             animation.render(0, true, true);
             initted || animation.invalidate(true);
             animation.parent || animation.totalTime(animation.totalTime());
@@ -1987,6 +2011,8 @@
           } else {
             pinChange = change;
           }
+
+          forcedOverflow && (forcedOverflow.value ? forcedOverflow.style["overflow" + direction.a.toUpperCase()] = forcedOverflow.value : forcedOverflow.style.removeProperty("overflow-" + direction.a));
         } else if (trigger && scrollFunc() && !containerAnimation) {
           bounds = trigger.parentNode;
 
@@ -2112,7 +2138,7 @@
 
           if (!isToggle) {
             if (scrubTween && !_refreshing && !_startup$1) {
-              (containerAnimation || _primary && _primary !== self) && scrubTween.render(scrubTween._dp._time - scrubTween._start);
+              scrubTween._dp._time - scrubTween._start !== scrubTween._time && scrubTween.render(scrubTween._dp._time - scrubTween._start);
 
               if (scrubTween.resetTo) {
                 scrubTween.resetTo("totalProgress", clipped, animation._tTime / animation._tDur);
@@ -2146,7 +2172,7 @@
 
               _setState(isActive || isAtMax ? pinActiveState : pinState);
 
-              pinChange !== change && clipped < 1 && isActive || pinSetter(pinStart + (clipped === 1 && !isAtMax ? pinChange : 0));
+              pinMoves && clipped < 1 && isActive || pinSetter(pinStart + (clipped === 1 && !isAtMax ? pinChange : 0));
             }
           }
 
@@ -2392,7 +2418,7 @@
       if (gsap$1) {
         _toArray = gsap$1.utils.toArray;
         _clamp$1 = gsap$1.utils.clamp;
-        _context = gsap$1.core.context || _passThrough;
+        _context$1 = gsap$1.core.context || _passThrough;
         _suppressOverwrites = gsap$1.core.suppressOverwrites || _passThrough;
         _scrollRestoration = _win$1.history.scrollRestoration || "auto";
         gsap$1.core.globals("ScrollTrigger", ScrollTrigger);
@@ -2551,7 +2577,7 @@
     };
 
     ScrollTrigger.killAll = function killAll(allowListeners) {
-      _triggers.forEach(function (t) {
+      _triggers.slice(0).forEach(function (t) {
         return t.vars.id !== "ScrollSmoother" && t.kill();
       });
 
@@ -2566,7 +2592,7 @@
 
     return ScrollTrigger;
   }();
-  ScrollTrigger$1.version = "3.11.3";
+  ScrollTrigger$1.version = "3.11.4";
 
   ScrollTrigger$1.saveStyles = function (targets) {
     return targets ? _toArray(targets).forEach(function (target) {
@@ -2575,7 +2601,7 @@
 
         i >= 0 && _savedStyles.splice(i, 5);
 
-        _savedStyles.push(target, target.style.cssText, target.getBBox && target.getAttribute("transform"), gsap$1.core.getCache(target), _context());
+        _savedStyles.push(target, target.style.cssText, target.getBBox && target.getAttribute("transform"), gsap$1.core.getCache(target), _context$1());
       }
     }) : _savedStyles;
   };
@@ -2592,7 +2618,10 @@
     return safe ? _onResize() : (_coreInitted$1 || ScrollTrigger$1.register()) && _refreshAll(true);
   };
 
-  ScrollTrigger$1.update = _updateAll;
+  ScrollTrigger$1.update = function (force) {
+    return ++_scrollers.cache && _updateAll(force === true ? 2 : 0);
+  };
+
   ScrollTrigger$1.clearScrollMemory = _clearScrollMemory;
 
   ScrollTrigger$1.maxScroll = function (element, horizontal) {
@@ -2706,11 +2735,11 @@
         cs;
 
     if (!cache._isScrollT || time - cache._isScrollT > 2000) {
-      while (node && node.scrollHeight <= node.clientHeight) {
+      while (node && node !== _body$1 && (node.scrollHeight <= node.clientHeight && node.scrollWidth <= node.clientWidth || !(_overflow[(cs = _getComputedStyle(node)).overflowY] || _overflow[cs.overflowX]))) {
         node = node.parentNode;
       }
 
-      cache._isScroll = node && !_isViewport$1(node) && node !== target && (_overflow[(cs = _getComputedStyle(node)).overflowY] || _overflow[cs.overflowX]);
+      cache._isScroll = node && node !== target && !_isViewport$1(node) && (_overflow[(cs = _getComputedStyle(node)).overflowY] || _overflow[cs.overflowX]);
       cache._isScrollT = time;
     }
 

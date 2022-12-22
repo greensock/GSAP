@@ -19,7 +19,7 @@
   }
 
   /*!
-   * GSAP 3.11.3
+   * GSAP 3.11.4
    * https://greensock.com
    *
    * @license Copyright 2008-2022, GreenSock. All rights reserved.
@@ -193,9 +193,9 @@
     }
   },
       _lazySafeRender = function _lazySafeRender(animation, time, suppressEvents, force) {
-    _lazyTweens.length && _lazyRender();
+    _lazyTweens.length && !_reverting && _lazyRender();
     animation.render(time, suppressEvents, force || _reverting && time < 0 && (animation._initted || animation._startAt));
-    _lazyTweens.length && _lazyRender();
+    _lazyTweens.length && !_reverting && _lazyRender();
   },
       _numericIfPossible = function _numericIfPossible(value) {
     var n = parseFloat(value);
@@ -1286,8 +1286,8 @@
         _req = _emptyFunc;
       },
       lagSmoothing: function lagSmoothing(threshold, adjustedLag) {
-        _lagThreshold = threshold || 1 / _tinyNum;
-        _adjustedLag = Math.min(adjustedLag, _lagThreshold, 0);
+        _lagThreshold = threshold || Infinity;
+        _adjustedLag = Math.min(adjustedLag || 33, _lagThreshold);
       },
       fps: function fps(_fps) {
         _gap = 1000 / (_fps || 240);
@@ -1721,7 +1721,7 @@
         animation = animation._dp;
       }
 
-      return !this.parent && this.vars.immediateRender ? -1 : time;
+      return !this.parent && this._sat ? this._sat.vars.immediateRender ? -1 : this._sat.globalTime(rawTime) : time;
     };
 
     _proto.repeat = function repeat(value) {
@@ -2726,7 +2726,7 @@
           overwrite: false,
           parent: parent,
           immediateRender: true,
-          lazy: _isNotFalse(lazy),
+          lazy: !prevStartAt && _isNotFalse(lazy),
           startAt: null,
           delay: 0,
           onUpdate: onUpdate,
@@ -2736,6 +2736,7 @@
         }, startAt)));
 
         tween._startAt._dp = 0;
+        tween._startAt._sat = tween;
         time < 0 && (_reverting || !immediateRender && !autoRevert) && tween._startAt.revert(_revertConfigNoKill);
 
         if (immediateRender) {
@@ -2750,7 +2751,7 @@
           p = _setDefaults({
             overwrite: false,
             data: "isFromStart",
-            lazy: immediateRender && _isNotFalse(lazy),
+            lazy: immediateRender && !prevStartAt && _isNotFalse(lazy),
             immediateRender: immediateRender,
             stagger: 0,
             parent: parent
@@ -2760,6 +2761,7 @@
           _removeFromParent(tween._startAt = Tween.set(targets, p));
 
           tween._startAt._dp = 0;
+          tween._startAt._sat = tween;
           time < 0 && (_reverting ? tween._startAt.revert(_revertConfigNoKill) : tween._startAt.render(-1, true));
           tween._zTime = time;
 
@@ -4105,7 +4107,7 @@
       }
     }
   }, _buildModifierPlugin("roundProps", _roundModifier), _buildModifierPlugin("modifiers"), _buildModifierPlugin("snap", snap)) || _gsap;
-  Tween.version = Timeline.version = gsap.version = "3.11.3";
+  Tween.version = Timeline.version = gsap.version = "3.11.4";
   _coreReady = 1;
   _windowExists() && _wake();
   var Power0 = _easeMap.Power0,
@@ -5397,7 +5399,7 @@
             }
 
             if (p === "scale") {
-              this._pt = new PropTween(this._pt, cache, "scaleY", startNum, (relative ? _parseRelative(startNum, relative + endNum) : endNum) - startNum || 0, _renderCSSProp);
+              this._pt = new PropTween(this._pt, cache, "scaleY", cache.scaleY, (relative ? _parseRelative(cache.scaleY, relative + endNum) : endNum) - cache.scaleY || 0, _renderCSSProp);
               this._pt.u = 0;
               props.push("scaleY", p);
               p += "X";
@@ -5454,7 +5456,7 @@
           } else if (!(p in style)) {
             if (p in target) {
               this.add(target, p, startValue || target[p], relative ? relative + endValue : endValue, index, targets);
-            } else {
+            } else if (p !== "parseTransform") {
               _missingPlugin(p, endValue);
 
               continue;

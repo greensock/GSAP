@@ -21,7 +21,7 @@
   }
 
   /*!
-   * Observer 3.11.3
+   * Observer 3.11.4
    * https://greensock.com
    *
    * @license Copyright 2008-2022, GreenSock. All rights reserved.
@@ -42,6 +42,7 @@
       _root,
       _normalizer,
       _eventTypes,
+      _context,
       _getGSAP = function _getGSAP() {
     return gsap || typeof window !== "undefined" && (gsap = window.gsap) && gsap.registerPlugin && gsap;
   },
@@ -218,6 +219,9 @@
       _body = _doc.body;
       _root = [_win, _doc, _docEl, _body];
       _clamp = gsap.utils.clamp;
+
+      _context = gsap.core.context || function () {};
+
       _pointerType = "onpointerenter" in _body ? "pointer" : "mouse";
       _isTouch = Observer.isTouch = _win.matchMedia && _win.matchMedia("(hover: none), (pointer: coarse)").matches ? 1 : "ontouchstart" in _win || navigator.maxTouchPoints > 0 || navigator.msMaxTouchPoints > 0 ? 2 : 0;
       _eventTypes = Observer.eventTypes = ("ontouchstart" in _docEl ? "touchstart,touchmove,touchcancel,touchend" : !("onpointerdown" in _docEl) ? "mousedown,mousemove,mouseup,mouseup" : "pointerdown,pointermove,pointercancel,pointerup").split(",");
@@ -458,10 +462,11 @@
 
         _removeListener(isNormalizer ? target : ownerDoc, _eventTypes[1], _onDrag, true);
 
-        var wasDragging = self.isDragging && (Math.abs(self.x - self.startX) > 3 || Math.abs(self.y - self.startY) > 3),
+        var isTrackingDrag = !isNaN(self.y - self.startY),
+            wasDragging = self.isDragging && (Math.abs(self.x - self.startX) > 3 || Math.abs(self.y - self.startY) > 3),
             eventData = _getEvent(e);
 
-        if (!wasDragging) {
+        if (!wasDragging && isTrackingDrag) {
           self._vx.reset();
 
           self._vy.reset();
@@ -549,6 +554,8 @@
       self.scrollY = scrollFuncY;
       self.isDragging = self.isGesturing = self.isPressed = false;
 
+      _context(this);
+
       self.enable = function (e) {
         if (!self.isEnabled) {
           _addListener(isViewport ? ownerDoc : target, "scroll", _onScroll);
@@ -623,7 +630,7 @@
         }
       };
 
-      self.kill = function () {
+      self.kill = self.revert = function () {
         self.disable();
 
         var i = _observers.indexOf(self);
@@ -652,7 +659,7 @@
 
     return Observer;
   }();
-  Observer.version = "3.11.3";
+  Observer.version = "3.11.4";
 
   Observer.create = function (vars) {
     return new Observer(vars);

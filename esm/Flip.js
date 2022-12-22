@@ -1,5 +1,5 @@
 /*!
- * Flip 3.11.3
+ * Flip 3.11.4
  * https://greensock.com
  *
  * @license Copyright 2008-2022, GreenSock. All rights reserved.
@@ -165,6 +165,13 @@ _callbacks = _listToArray("onStart,onUpdate,onComplete,onReverseComplete,onInter
 
   for (; i < css.length; i += 2) {
     css[i + 1] ? style[css[i]] = css[i + 1] : style.removeProperty(css[i]);
+  }
+
+  if (!css[css.indexOf("transform") + 1] && style.translate) {
+    // CSSPlugin adds scale, translate, and rotate inline CSS as "none" in order to keep CSS rules from contaminating transforms.
+    style.removeProperty("translate");
+    style.removeProperty("scale");
+    style.removeProperty("rotate");
   }
 },
     _setFinalStates = function _setFinalStates(comps, onlyTransforms) {
@@ -1491,7 +1498,7 @@ export var Flip = /*#__PURE__*/function () {
 
   return Flip;
 }();
-Flip.version = "3.11.3"; // function whenImagesLoad(el, func) {
+Flip.version = "3.11.4"; // function whenImagesLoad(el, func) {
 // 	let pending = [],
 // 		onLoad = e => {
 // 			pending.splice(pending.indexOf(e.target), 1);

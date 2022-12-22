@@ -1,5 +1,5 @@
 /*!
- * ScrollToPlugin 3.11.3
+ * ScrollToPlugin 3.11.4
  * https://greensock.com
  *
  * @license Copyright 2008-2022, GreenSock. All rights reserved.
@@ -9,7 +9,7 @@
 */
 /* eslint-disable */
 
-let gsap, _coreInitted, _window, _docEl, _body, _toArray, _config,
+let gsap, _coreInitted, _window, _docEl, _body, _toArray, _config, ScrollTrigger,
 	_windowExists = () => typeof(window) !== "undefined",
 	_getGSAP = () => gsap || (_windowExists() && (gsap = window.gsap) && gsap.registerPlugin && gsap),
 	_isString = value => typeof(value) === "string",
@@ -63,7 +63,7 @@ let gsap, _coreInitted, _window, _docEl, _body, _toArray, _config,
 	_parseVal = (value, target, axis, currentVal, offset) => !isNaN(value) && typeof(value) !== "object" ? parseFloat(value) - offset : (_isString(value) && value.charAt(1) === "=") ? parseFloat(value.substr(2)) * (value.charAt(0) === "-" ? -1 : 1) + currentVal - offset : (value === "max") ? _max(target, axis) - offset : Math.min(_max(target, axis), _getOffset(value, target)[axis] - offset),
 	_initCore = () => {
 		gsap = _getGSAP();
-		if (_windowExists() && gsap && document.body) {
+		if (_windowExists() && gsap && typeof(document) !== "undefined" && document.body) {
 			_window = window;
 			_body = document.body;
 			_docEl = document.documentElement;
@@ -76,7 +76,7 @@ let gsap, _coreInitted, _window, _docEl, _body, _toArray, _config,
 
 
 export const ScrollToPlugin = {
-	version: "3.11.3",
+	version: "3.11.4",
 	name: "scrollTo",
 	rawVars: 1,
 	register(core) {
@@ -97,6 +97,7 @@ export const ScrollToPlugin = {
 		data.getY = _buildGetter(target, "y");
 		data.x = data.xPrev = data.getX();
 		data.y = data.yPrev = data.getY();
+		ScrollTrigger || (ScrollTrigger = gsap.core.globals().ScrollTrigger);
 		gsap.getProperty(target, "scrollBehavior") === "smooth" && gsap.set(target, {scrollBehavior: "auto"});
 		if (snapType && snapType !== "none") { // disable scroll snapping to avoid strange behavior
 			data.snap = 1;
@@ -165,6 +166,7 @@ export const ScrollToPlugin = {
 		}
 		data.xPrev = data.x;
 		data.yPrev = data.y;
+		ScrollTrigger && ScrollTrigger.update();
 	},
 	kill(property) {
 		let both = (property === "scrollTo");

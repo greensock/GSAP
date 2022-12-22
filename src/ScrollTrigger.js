@@ -1,5 +1,5 @@
 /*!
- * ScrollTrigger 3.11.3
+ * ScrollTrigger 3.11.4
  * https://greensock.com
  *
  * @license Copyright 2008-2022, GreenSock. All rights reserved.
@@ -530,6 +530,10 @@ let gsap, _coreInitted, _win, _doc, _docEl, _body, _root, _resizeDelay, _toArray
 					lastScroll2 = lastScroll1;
 					return (lastScroll1 = Math.round(value));
 				};
+				vars.onUpdate = () => {
+					_scrollers.cache++;
+					_updateAll();
+				};
 				vars.onComplete = () => {
 					getTween.tween = 0;
 					onComplete && onComplete.call(tween);
@@ -580,7 +584,7 @@ export class ScrollTrigger {
 			lastRefresh = 0,
 			scrollFunc = _getScrollFunc(scroller, direction),
 			tweenTo, pinCache, snapFunc, scroll1, scroll2, start, end, markerStart, markerEnd, markerStartTrigger, markerEndTrigger, markerVars,
-			change, pinOriginalState, pinActiveState, pinState, spacer, offset, pinGetter, pinSetter, pinStart, pinChange, spacingStart, spacerState, markerStartSetter,
+			change, pinOriginalState, pinActiveState, pinState, spacer, offset, pinGetter, pinSetter, pinStart, pinChange, spacingStart, spacerState, markerStartSetter, pinMoves,
 			markerEndSetter, cs, snap1, snap2, scrubTween, scrubSmooth, snapDurClamp, snapDelayedCall, prevProgress, prevScroll, prevAnimProgress, caMarkerSetter, customRevertReturn;
 
 		_context(self);
@@ -754,11 +758,11 @@ export class ScrollTrigger {
 					_refreshing = 1;
 					self.update(r); // make sure the pin is back in its original position so that all the measurements are correct. do this BEFORE swapping the pin out
 				}
-				if (pin) {
+				if (pin && (!pinReparent || !self.isActive)) {
 					if (r) {
 						_swapPinOut(pin, spacer, pinOriginalState);
 					} else {
-						(!pinReparent || !self.isActive) && _swapPinIn(pin, spacer, _getComputedStyle(pin), spacerState);
+						_swapPinIn(pin, spacer, _getComputedStyle(pin), spacerState);
 					}
 				}
 				r || self.update(r); // when we're restoring, the update should run AFTER swapping the pin into its pin-spacer.
@@ -798,7 +802,7 @@ export class ScrollTrigger {
 				pinnedContainer = self.pinnedContainer = vars.pinnedContainer && _getTarget(vars.pinnedContainer),
 				triggerIndex = (trigger && Math.max(0, _triggers.indexOf(self))) || 0,
 				i = triggerIndex,
-				cs, bounds, scroll, isVertical, override, curTrigger, curPin, oppositeScroll, initted, revertedPins;
+				cs, bounds, scroll, isVertical, override, curTrigger, curPin, oppositeScroll, initted, revertedPins, forcedOverflow;
 			while (i--) { // user might try to pin the same element more than once, so we must find any prior triggers with the same pin, revert them, and determine how long they're pinning so that we can offset things appropriately. Make sure we revert from last to first so that things "rewind" properly.
 				curTrigger = _triggers[i];
 				curTrigger.end || curTrigger.refresh(0, 1) || (_refreshing = 1); // if it's a timeline-based trigger that hasn't been fully initialized yet because it's waiting for 1 tick, just force the refresh() here, otherwise if it contains a pin that's supposed to affect other ScrollTriggers further down the page, they won't be adjusted properly.
@@ -856,7 +860,11 @@ export class ScrollTrigger {
 				isVertical = direction === _vertical;
 				scroll = scrollFunc(); // recalculate because the triggers can affect the scroll
 				pinStart = parseFloat(pinGetter(direction.a)) + otherPinOffset;
-				!max && end > 1 && ((isViewport ? _body : scroller).style["overflow-" + direction.a] = "scroll"); // makes sure the scroller has a scrollbar, otherwise if something has width: 100%, for example, it would be too big (exclude the scrollbar). See https://greensock.com/forums/topic/25182-scrolltrigger-width-of-page-increase-where-markers-are-set-to-false/
+				if (!max && end > 1) { // makes sure the scroller has a scrollbar, otherwise if something has width: 100%, for example, it would be too big (exclude the scrollbar). See https://greensock.com/forums/topic/25182-scrolltrigger-width-of-page-increase-where-markers-are-set-to-false/
+					forcedOverflow = (isViewport ? (_doc.scrollingElement || _docEl) : scroller).style;
+					forcedOverflow = {style: forcedOverflow, value: forcedOverflow["overflow" + direction.a.toUpperCase()]};
+					forcedOverflow["overflow" + direction.a.toUpperCase()] = "scroll";
+				}
 				_swapPinIn(pin, spacer, cs);
 				pinState = _getState(pin);
 				// transforms will interfere with the top/left/right/bottom placement, so remove them temporarily. getBoundingClientRect() factors in transforms.
@@ -900,7 +908,8 @@ export class ScrollTrigger {
 					_suppressOverwrites(1);
 					animation.render(animation.duration(), true, true);
 					pinChange = pinGetter(direction.a) - pinStart + change + otherPinOffset;
-					change !== pinChange && useFixedPosition && pinActiveState.splice(pinActiveState.length - 2, 2); // transform is the last property/value set in the state Array. Since the animation is controlling that, we should omit it.
+					pinMoves = Math.abs(change - pinChange) > 1;
+					useFixedPosition && pinMoves && pinActiveState.splice(pinActiveState.length - 2, 2); // transform is the last property/value set in the state Array. Since the animation is controlling that, we should omit it.
 					animation.render(0, true, true);
 					initted || animation.invalidate(true);
 					animation.parent || animation.totalTime(animation.totalTime()); // if, for example, a toggleAction called play() and then refresh() happens and when we render(1) above, it would cause the animation to complete and get removed from its parent, so this makes sure it gets put back in.
@@ -908,6 +917,7 @@ export class ScrollTrigger {
 				} else {
 					pinChange = change
 				}
+				forcedOverflow && (forcedOverflow.value ? (forcedOverflow.style["overflow" + direction.a.toUpperCase()] = forcedOverflow.value) : forcedOverflow.style.removeProperty("overflow-" + direction.a));
 			} else if (trigger && scrollFunc() && !containerAnimation) { // it may be INSIDE a pinned element, so walk up the tree and look for any elements with _pinOffset to compensate because anything with pinSpacing that's already scrolled would throw off the measurements in getBoundingClientRect()
 				bounds = trigger.parentNode;
 				while (bounds && bounds !== _body) {
@@ -1000,7 +1010,7 @@ export class ScrollTrigger {
 
 				if (!isToggle) {
 					if (scrubTween && !_refreshing && !_startup) {
-						(containerAnimation || (_primary && _primary !== self)) && scrubTween.render(scrubTween._dp._time - scrubTween._start); // if there's a scrub on both the container animation and this one (or a ScrollSmoother), the update order would cause this one not to have rendered yet, so it wouldn't make any progress before we .restart() it heading toward the new progress so it'd appear stuck thus we force a render here.
+						(scrubTween._dp._time - scrubTween._start !== scrubTween._time) && scrubTween.render(scrubTween._dp._time - scrubTween._start); // if there's a scrub on both the container animation and this one (or a ScrollSmoother), the update order would cause this one not to have rendered yet, so it wouldn't make any progress before we .restart() it heading toward the new progress so it'd appear stuck thus we force a render here.
 						if (scrubTween.resetTo) {
 							scrubTween.resetTo("totalProgress", clipped, animation._tTime / animation._tDur);
 						} else { // legacy support (courtesy), before 3.10.0
@@ -1027,7 +1037,7 @@ export class ScrollTrigger {
 							}
 						}
 						_setState(isActive || isAtMax ? pinActiveState : pinState);
-						(pinChange !== change && clipped < 1 && isActive) || pinSetter(pinStart + (clipped === 1 && !isAtMax ? pinChange : 0));
+						(pinMoves && clipped < 1 && isActive) || pinSetter(pinStart + (clipped === 1 && !isAtMax ? pinChange : 0));
 					}
 				}
 				snap && !tweenTo.tween && !_refreshing && !_startup && snapDelayedCall.restart(true);
@@ -1335,7 +1345,7 @@ export class ScrollTrigger {
 	}
 
 	static killAll(allowListeners) {
-		_triggers.forEach(t => t.vars.id !== "ScrollSmoother" && t.kill());
+		_triggers.slice(0).forEach(t => t.vars.id !== "ScrollSmoother" && t.kill());
 		if (allowListeners !== true) {
 			let listeners = _listeners.killAll || [];
 			_listeners = {};
@@ -1345,7 +1355,7 @@ export class ScrollTrigger {
 
 }
 
-ScrollTrigger.version = "3.11.3";
+ScrollTrigger.version = "3.11.4";
 ScrollTrigger.saveStyles = targets => targets ? _toArray(targets).forEach(target => { // saved styles are recorded in a consecutive alternating Array, like [element, cssText, transform attribute, cache, matchMedia, ...]
 	if (target && target.style) {
 		let i = _savedStyles.indexOf(target);
@@ -1356,7 +1366,7 @@ ScrollTrigger.saveStyles = targets => targets ? _toArray(targets).forEach(target
 ScrollTrigger.revert = (soft, media) => _revertAll(!soft, media);
 ScrollTrigger.create = (vars, animation) => new ScrollTrigger(vars, animation);
 ScrollTrigger.refresh = safe => safe ? _onResize() : (_coreInitted || ScrollTrigger.register()) && _refreshAll(true);
-ScrollTrigger.update = _updateAll;
+ScrollTrigger.update = force => ++_scrollers.cache && _updateAll(force === true ? 2 : 0);
 ScrollTrigger.clearScrollMemory = _clearScrollMemory;
 ScrollTrigger.maxScroll = (element, horizontal) => _maxScroll(element, horizontal ? _horizontal : _vertical);
 ScrollTrigger.getScrollFunc = (element, horizontal) => _getScrollFunc(_getTarget(element), horizontal ? _horizontal : _vertical);
@@ -1428,13 +1438,13 @@ let _clampScrollAndGetDurationMultiplier = (scrollFunc, current, end, max) => {
 			cache = node._gsap || gsap.core.getCache(node),
 			time = _getTime(), cs;
 		if (!cache._isScrollT || time - cache._isScrollT > 2000) { // cache for 2 seconds to improve performance.
-			while (node && node.scrollHeight <= node.clientHeight) node = node.parentNode;
-			cache._isScroll = node && !_isViewport(node) && node !== target && (_overflow[(cs = _getComputedStyle(node)).overflowY] || _overflow[cs.overflowX]);
+			while (node && node !== _body && ((node.scrollHeight <= node.clientHeight && node.scrollWidth <= node.clientWidth) || !(_overflow[(cs = _getComputedStyle(node)).overflowY] || _overflow[cs.overflowX]))) node = node.parentNode;
+			cache._isScroll = node && node !== target && !_isViewport(node) && (_overflow[(cs = _getComputedStyle(node)).overflowY] || _overflow[cs.overflowX]);
 			cache._isScrollT = time;
 		}
 		if (cache._isScroll || axis === "x") {
 			event.stopPropagation();
-			event._gsapAllow = true
+			event._gsapAllow = true;
 		}
 	},
 	// capture events on scrollable elements INSIDE the <body> and allow those by calling stopPropagation() when we find a scrollable ancestor

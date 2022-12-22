@@ -395,6 +395,7 @@
       InertiaPlugin,
       _defaultCursor,
       _supportsPointer,
+      _context,
       _dragCount = 0,
       _windowExists = function _windowExists() {
     return typeof window !== "undefined";
@@ -517,11 +518,11 @@
       touchType && type !== touchType && element.addEventListener(type, func, capture);
     }
   },
-      _removeListener = function _removeListener(element, type, func) {
+      _removeListener = function _removeListener(element, type, func, capture) {
     if (element.removeEventListener) {
       var touchType = _touchEventLookup[type];
-      element.removeEventListener(touchType || type, func);
-      touchType && type !== touchType && element.removeEventListener(type, func);
+      element.removeEventListener(touchType || type, func, capture);
+      touchType && type !== touchType && element.removeEventListener(type, func, capture);
     }
   },
       _preventDefault = function _preventDefault(event) {
@@ -1193,6 +1194,9 @@
 
     if (gsap) {
       InertiaPlugin = gsap.plugins.inertia;
+
+      _context = gsap.core.context || function () {};
+
       _checkPrefix = gsap.utils.checkPrefix;
       _transformProp$1 = _checkPrefix(_transformProp$1);
       _transformOriginProp$1 = _checkPrefix(_transformOriginProp$1);
@@ -2777,7 +2781,7 @@
 
             _removeListener(trigger, "touchstart", onPress);
 
-            _removeListener(trigger, "click", onClick);
+            _removeListener(trigger, "click", onClick, true);
 
             _removeListener(trigger, "contextmenu", onContextMenu);
           }
@@ -2814,7 +2818,7 @@
         return arguments.length ? value ? self.enable(type) : self.disable(type) : enabled;
       };
 
-      _this2.kill = function () {
+      _this2.kill = _this2.revert = function () {
         self.isThrowing = false;
         self.tween && self.tween.kill();
         self.disable();
@@ -2849,6 +2853,8 @@
       }
 
       gsCache.force3D = "force3D" in vars ? vars.force3D : true;
+
+      _context(_assertThisInitialized(_this2));
 
       _this2.enable();
 
@@ -2935,7 +2941,7 @@
   });
 
   Draggable.zIndex = 1000;
-  Draggable.version = "3.11.3";
+  Draggable.version = "3.11.4";
   _getGSAP() && gsap.registerPlugin(Draggable);
 
   exports.Draggable = Draggable;

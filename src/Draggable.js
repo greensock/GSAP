@@ -1,5 +1,5 @@
 /*!
- * Draggable 3.11.3
+ * Draggable 3.11.4
  * https://greensock.com
  *
  * @license Copyright 2008-2022, GreenSock. All rights reserved.
@@ -11,7 +11,7 @@
 
 import { getGlobalMatrix, Matrix2D } from "./utils/matrix.js";
 
-let gsap, _win, _doc, _docElement, _body, _tempDiv, _placeholderDiv, _coreInitted, _checkPrefix, _toArray, _supportsPassive, _isTouchDevice, _touchEventLookup, _isMultiTouching, _isAndroid, InertiaPlugin, _defaultCursor, _supportsPointer,
+let gsap, _win, _doc, _docElement, _body, _tempDiv, _placeholderDiv, _coreInitted, _checkPrefix, _toArray, _supportsPassive, _isTouchDevice, _touchEventLookup, _isMultiTouching, _isAndroid, InertiaPlugin, _defaultCursor, _supportsPointer, _context,
 	_dragCount = 0,
 	_windowExists = () => typeof(window) !== "undefined",
 	_getGSAP = () => gsap || (_windowExists() && (gsap = window.gsap) && gsap.registerPlugin && gsap),
@@ -95,11 +95,11 @@ let gsap, _win, _doc, _docElement, _body, _tempDiv, _placeholderDiv, _coreInitte
 			(touchType && type !== touchType) && element.addEventListener(type, func, capture);//some browsers actually support both, so must we. But pointer events cover all.
 		}
 	},
-	_removeListener = (element, type, func) => {
+	_removeListener = (element, type, func, capture) => {
 		if (element.removeEventListener) {
 			let touchType = _touchEventLookup[type];
-			element.removeEventListener(touchType || type, func);
-			(touchType && type !== touchType) && element.removeEventListener(type, func);
+			element.removeEventListener(touchType || type, func, capture);
+			(touchType && type !== touchType) && element.removeEventListener(type, func, capture);
 		}
 	},
 	_preventDefault = event => {
@@ -593,6 +593,7 @@ let gsap, _win, _doc, _docElement, _body, _tempDiv, _placeholderDiv, _coreInitte
 		}
 		if (gsap) {
 			InertiaPlugin = gsap.plugins.inertia;
+			_context = gsap.core.context || function() {};
 			_checkPrefix = gsap.utils.checkPrefix;
 			_transformProp = _checkPrefix(_transformProp);
 			_transformOriginProp = _checkPrefix(_transformOriginProp);
@@ -1806,7 +1807,7 @@ export class Draggable extends EventDispatcher {
 					_setStyle(trigger, "touchCallout", null);
 					_removeListener(trigger, "mousedown", onPress);
 					_removeListener(trigger, "touchstart", onPress);
-					_removeListener(trigger, "click", onClick);
+					_removeListener(trigger, "click", onClick, true);
 					_removeListener(trigger, "contextmenu", onContextMenu);
 				}
 				_setSelectable(triggers, true);
@@ -1832,7 +1833,7 @@ export class Draggable extends EventDispatcher {
 			return arguments.length ? (value ? self.enable(type) : self.disable(type)) : enabled;
 		};
 
-		this.kill = function() {
+		this.kill = this.revert = function() {
 			self.isThrowing = false;
 			self.tween && self.tween.kill();
 			self.disable();
@@ -1864,6 +1865,7 @@ export class Draggable extends EventDispatcher {
 
 		gsCache.force3D = ("force3D" in vars) ? vars.force3D : true; //otherwise, normal dragging would be in 2D and then as soon as it's released and there's an inertia tween, it'd jump to 3D which can create an initial jump due to the work the browser must to do layerize it.
 
+		_context(this);
 		this.enable();
 	}
 
@@ -1921,7 +1923,7 @@ export class Draggable extends EventDispatcher {
 _setDefaults(Draggable.prototype, {pointerX:0, pointerY: 0, startX: 0, startY: 0, deltaX: 0, deltaY: 0, isDragging: false, isPressed: false});
 
 Draggable.zIndex = 1000;
-Draggable.version = "3.11.3";
+Draggable.version = "3.11.4";
 
 _getGSAP() && gsap.registerPlugin(Draggable);
 

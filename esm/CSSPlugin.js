@@ -1,5 +1,5 @@
 /*!
- * CSSPlugin 3.11.3
+ * CSSPlugin 3.11.4
  * https://greensock.com
  *
  * Copyright 2008-2022, GreenSock. All rights reserved.
@@ -1415,7 +1415,7 @@ export var CSSPlugin = {
           }
 
           if (p === "scale") {
-            this._pt = new PropTween(this._pt, cache, "scaleY", startNum, (relative ? _parseRelative(startNum, relative + endNum) : endNum) - startNum || 0, _renderCSSProp);
+            this._pt = new PropTween(this._pt, cache, "scaleY", cache.scaleY, (relative ? _parseRelative(cache.scaleY, relative + endNum) : endNum) - cache.scaleY || 0, _renderCSSProp);
             this._pt.u = 0;
             props.push("scaleY", p);
             p += "X";
@@ -1476,7 +1476,7 @@ export var CSSPlugin = {
           if (p in target) {
             //maybe it's not a style - it could be a property added directly to an element in which case we'll try to animate that.
             this.add(target, p, startValue || target[p], relative ? relative + endValue : endValue, index, targets);
-          } else {
+          } else if (p !== "parseTransform") {
             _missingPlugin(p, endValue);
 
             continue;

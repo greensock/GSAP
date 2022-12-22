@@ -3,7 +3,7 @@ function _defineProperties(target, props) { for (var i = 0; i < props.length; i+
 function _createClass(Constructor, protoProps, staticProps) { if (protoProps) _defineProperties(Constructor.prototype, protoProps); if (staticProps) _defineProperties(Constructor, staticProps); return Constructor; }
 
 /*!
- * Observer 3.11.3
+ * Observer 3.11.4
  * https://greensock.com
  *
  * @license Copyright 2008-2022, GreenSock. All rights reserved.
@@ -26,6 +26,7 @@ var gsap,
     _root,
     _normalizer,
     _eventTypes,
+    _context,
     _getGSAP = function _getGSAP() {
   return gsap || typeof window !== "undefined" && (gsap = window.gsap) && gsap.registerPlugin && gsap;
 },
@@ -212,6 +213,9 @@ var gsap,
     _body = _doc.body;
     _root = [_win, _doc, _docEl, _body];
     _clamp = gsap.utils.clamp;
+
+    _context = gsap.core.context || function () {};
+
     _pointerType = "onpointerenter" in _body ? "pointer" : "mouse"; // isTouch is 0 if no touch, 1 if ONLY touch, and 2 if it can accommodate touch but also other types like mouse/pointer.
 
     _isTouch = Observer.isTouch = _win.matchMedia && _win.matchMedia("(hover: none), (pointer: coarse)").matches ? 1 : "ontouchstart" in _win || navigator.maxTouchPoints > 0 || navigator.msMaxTouchPoints > 0 ? 2 : 0;
@@ -458,11 +462,12 @@ export var Observer = /*#__PURE__*/function () {
 
       _removeListener(isNormalizer ? target : ownerDoc, _eventTypes[1], _onDrag, true);
 
-      var wasDragging = self.isDragging && (Math.abs(self.x - self.startX) > 3 || Math.abs(self.y - self.startY) > 3),
+      var isTrackingDrag = !isNaN(self.y - self.startY),
+          wasDragging = self.isDragging && (Math.abs(self.x - self.startX) > 3 || Math.abs(self.y - self.startY) > 3),
           // some touch devices need some wiggle room in terms of sensing clicks - the finger may move a few pixels.
       eventData = _getEvent(e);
 
-      if (!wasDragging) {
+      if (!wasDragging && isTrackingDrag) {
         self._vx.reset();
 
         self._vy.reset();
@@ -552,6 +557,8 @@ export var Observer = /*#__PURE__*/function () {
     self.scrollY = scrollFuncY;
     self.isDragging = self.isGesturing = self.isPressed = false;
 
+    _context(this);
+
     self.enable = function (e) {
       if (!self.isEnabled) {
         _addListener(isViewport ? ownerDoc : target, "scroll", _onScroll);
@@ -627,7 +634,7 @@ export var Observer = /*#__PURE__*/function () {
       }
     };
 
-    self.kill = function () {
+    self.kill = self.revert = function () {
       self.disable();
 
       var i = _observers.indexOf(self);
@@ -656,7 +663,7 @@ export var Observer = /*#__PURE__*/function () {
 
   return Observer;
 }();
-Observer.version = "3.11.3";
+Observer.version = "3.11.4";
 
 Observer.create = function (vars) {
   return new Observer(vars);

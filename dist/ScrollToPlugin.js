@@ -5,7 +5,7 @@
 }(this, (function (exports) { 'use strict';
 
 	/*!
-	 * ScrollToPlugin 3.11.3
+	 * ScrollToPlugin 3.11.4
 	 * https://greensock.com
 	 *
 	 * @license Copyright 2008-2022, GreenSock. All rights reserved.
@@ -20,6 +20,7 @@
 	    _body,
 	    _toArray,
 	    _config,
+	    ScrollTrigger,
 	    _windowExists = function _windowExists() {
 	  return typeof window !== "undefined";
 	},
@@ -113,7 +114,7 @@
 	    _initCore = function _initCore() {
 	  gsap = _getGSAP();
 
-	  if (_windowExists() && gsap && document.body) {
+	  if (_windowExists() && gsap && typeof document !== "undefined" && document.body) {
 	    _window = window;
 	    _body = document.body;
 	    _docEl = document.documentElement;
@@ -127,7 +128,7 @@
 	};
 
 	var ScrollToPlugin = {
-	  version: "3.11.3",
+	  version: "3.11.4",
 	  name: "scrollTo",
 	  rawVars: 1,
 	  register: function register(core) {
@@ -149,6 +150,7 @@
 	    data.getY = _buildGetter(target, "y");
 	    data.x = data.xPrev = data.getX();
 	    data.y = data.yPrev = data.getY();
+	    ScrollTrigger || (ScrollTrigger = gsap.core.globals().ScrollTrigger);
 	    gsap.getProperty(target, "scrollBehavior") === "smooth" && gsap.set(target, {
 	      scrollBehavior: "auto"
 	    });
@@ -244,6 +246,7 @@
 
 	    data.xPrev = data.x;
 	    data.yPrev = data.y;
+	    ScrollTrigger && ScrollTrigger.update();
 	  },
 	  kill: function kill(property) {
 	    var both = property === "scrollTo";

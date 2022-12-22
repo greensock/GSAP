@@ -45,7 +45,7 @@ declare class ScrollSmoother {
    * @memberof ScrollSmoother
    * @link https://greensock.com/docs/v3/Plugins/ScrollSmoother/static.get()
    */
-  static get(): ScrollSmoother;
+  static get(): ScrollSmoother | undefined;
 
   /**
    * Refreshes all ScrollTriggers (same as ScrollTrigger.refresh())
@@ -336,6 +336,7 @@ declare namespace ScrollSmoother {
   interface EffectsVars {
     speed?: number | string | EffectFunc;
     lag?: number | EffectFunc;
+    effectsPadding?: number | string | EffectFunc;
   }
   //
   // interface SectionVars {
@@ -348,6 +349,7 @@ declare namespace ScrollSmoother {
     ease?: string | Function;
     effects?: boolean | gsap.DOMTarget;
     effectsPrefix?: string;
+    effectsPadding?: number;
     ignoreMobileResize?: boolean;
     normalizeScroll?: boolean | ScrollTrigger.NormalizeVars;
     onFocusIn?: EventCallback;
@@ -356,6 +358,7 @@ declare namespace ScrollSmoother {
  //   sections?: boolean | gsap.DOMTarget;
     smooth?: boolean | number;
     smoothTouch?: boolean | number;
+    speed?: number;
     wrapper?: gsap.DOMTarget;
   }
 

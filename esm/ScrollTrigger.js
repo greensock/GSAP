@@ -1,5 +1,5 @@
 /*!
- * ScrollTrigger 3.11.3
+ * ScrollTrigger 3.11.4
  * https://greensock.com
  *
  * @license Copyright 2008-2022, GreenSock. All rights reserved.
@@ -824,6 +824,12 @@ _getTweenCreator = function _getTweenCreator(scroller, direction) {
       return lastScroll1 = Math.round(value);
     };
 
+    vars.onUpdate = function () {
+      _scrollers.cache++;
+
+      _updateAll();
+    };
+
     vars.onComplete = function () {
       getTween.tween = 0;
       onComplete && onComplete.call(tween);
@@ -931,6 +937,7 @@ export var ScrollTrigger = /*#__PURE__*/function () {
         spacingStart,
         spacerState,
         markerStartSetter,
+        pinMoves,
         markerEndSetter,
         cs,
         snap1,
@@ -1193,11 +1200,11 @@ export var ScrollTrigger = /*#__PURE__*/function () {
           self.update(r); // make sure the pin is back in its original position so that all the measurements are correct. do this BEFORE swapping the pin out
         }
 
-        if (pin) {
+        if (pin && (!pinReparent || !self.isActive)) {
           if (r) {
             _swapPinOut(pin, spacer, pinOriginalState);
           } else {
-            (!pinReparent || !self.isActive) && _swapPinIn(pin, spacer, _getComputedStyle(pin), spacerState);
+            _swapPinIn(pin, spacer, _getComputedStyle(pin), spacerState);
           }
         }
 
@@ -1256,7 +1263,8 @@ export var ScrollTrigger = /*#__PURE__*/function () {
           curPin,
           oppositeScroll,
           initted,
-          revertedPins;
+          revertedPins,
+          forcedOverflow;
 
       while (i--) {
         // user might try to pin the same element more than once, so we must find any prior triggers with the same pin, revert them, and determine how long they're pinning so that we can offset things appropriately. Make sure we revert from last to first so that things "rewind" properly.
@@ -1333,7 +1341,16 @@ export var ScrollTrigger = /*#__PURE__*/function () {
         scroll = scrollFunc(); // recalculate because the triggers can affect the scroll
 
         pinStart = parseFloat(pinGetter(direction.a)) + otherPinOffset;
-        !max && end > 1 && ((isViewport ? _body : scroller).style["overflow-" + direction.a] = "scroll"); // makes sure the scroller has a scrollbar, otherwise if something has width: 100%, for example, it would be too big (exclude the scrollbar). See https://greensock.com/forums/topic/25182-scrolltrigger-width-of-page-increase-where-markers-are-set-to-false/
+
+        if (!max && end > 1) {
+          // makes sure the scroller has a scrollbar, otherwise if something has width: 100%, for example, it would be too big (exclude the scrollbar). See https://greensock.com/forums/topic/25182-scrolltrigger-width-of-page-increase-where-markers-are-set-to-false/
+          forcedOverflow = (isViewport ? _doc.scrollingElement || _docEl : scroller).style;
+          forcedOverflow = {
+            style: forcedOverflow,
+            value: forcedOverflow["overflow" + direction.a.toUpperCase()]
+          };
+          forcedOverflow["overflow" + direction.a.toUpperCase()] = "scroll";
+        }
 
         _swapPinIn(pin, spacer, cs);
 
@@ -1389,7 +1406,8 @@ export var ScrollTrigger = /*#__PURE__*/function () {
 
           animation.render(animation.duration(), true, true);
           pinChange = pinGetter(direction.a) - pinStart + change + otherPinOffset;
-          change !== pinChange && useFixedPosition && pinActiveState.splice(pinActiveState.length - 2, 2); // transform is the last property/value set in the state Array. Since the animation is controlling that, we should omit it.
+          pinMoves = Math.abs(change - pinChange) > 1;
+          useFixedPosition && pinMoves && pinActiveState.splice(pinActiveState.length - 2, 2); // transform is the last property/value set in the state Array. Since the animation is controlling that, we should omit it.
 
           animation.render(0, true, true);
           initted || animation.invalidate(true);
@@ -1399,6 +1417,8 @@ export var ScrollTrigger = /*#__PURE__*/function () {
         } else {
           pinChange = change;
         }
+
+        forcedOverflow && (forcedOverflow.value ? forcedOverflow.style["overflow" + direction.a.toUpperCase()] = forcedOverflow.value : forcedOverflow.style.removeProperty("overflow-" + direction.a));
       } else if (trigger && scrollFunc() && !containerAnimation) {
         // it may be INSIDE a pinned element, so walk up the tree and look for any elements with _pinOffset to compensate because anything with pinSpacing that's already scrolled would throw off the measurements in getBoundingClientRect()
         bounds = trigger.parentNode;
@@ -1532,7 +1552,7 @@ export var ScrollTrigger = /*#__PURE__*/function () {
 
         if (!isToggle) {
           if (scrubTween && !_refreshing && !_startup) {
-            (containerAnimation || _primary && _primary !== self) && scrubTween.render(scrubTween._dp._time - scrubTween._start); // if there's a scrub on both the container animation and this one (or a ScrollSmoother), the update order would cause this one not to have rendered yet, so it wouldn't make any progress before we .restart() it heading toward the new progress so it'd appear stuck thus we force a render here.
+            scrubTween._dp._time - scrubTween._start !== scrubTween._time && scrubTween.render(scrubTween._dp._time - scrubTween._start); // if there's a scrub on both the container animation and this one (or a ScrollSmoother), the update order would cause this one not to have rendered yet, so it wouldn't make any progress before we .restart() it heading toward the new progress so it'd appear stuck thus we force a render here.
 
             if (scrubTween.resetTo) {
               scrubTween.resetTo("totalProgress", clipped, animation._tTime / animation._tDur);
@@ -1567,7 +1587,7 @@ export var ScrollTrigger = /*#__PURE__*/function () {
 
             _setState(isActive || isAtMax ? pinActiveState : pinState);
 
-            pinChange !== change && clipped < 1 && isActive || pinSetter(pinStart + (clipped === 1 && !isAtMax ? pinChange : 0));
+            pinMoves && clipped < 1 && isActive || pinSetter(pinStart + (clipped === 1 && !isAtMax ? pinChange : 0));
           }
         }
 
@@ -1990,7 +2010,7 @@ export var ScrollTrigger = /*#__PURE__*/function () {
   };
 
   ScrollTrigger.killAll = function killAll(allowListeners) {
-    _triggers.forEach(function (t) {
+    _triggers.slice(0).forEach(function (t) {
       return t.vars.id !== "ScrollSmoother" && t.kill();
     });
 
@@ -2005,7 +2025,7 @@ export var ScrollTrigger = /*#__PURE__*/function () {
 
   return ScrollTrigger;
 }();
-ScrollTrigger.version = "3.11.3";
+ScrollTrigger.version = "3.11.4";
 
 ScrollTrigger.saveStyles = function (targets) {
   return targets ? _toArray(targets).forEach(function (target) {
@@ -2032,7 +2052,10 @@ ScrollTrigger.refresh = function (safe) {
   return safe ? _onResize() : (_coreInitted || ScrollTrigger.register()) && _refreshAll(true);
 };
 
-ScrollTrigger.update = _updateAll;
+ScrollTrigger.update = function (force) {
+  return ++_scrollers.cache && _updateAll(force === true ? 2 : 0);
+};
+
 ScrollTrigger.clearScrollMemory = _clearScrollMemory;
 
 ScrollTrigger.maxScroll = function (element, horizontal) {
@@ -2149,11 +2172,11 @@ var _clampScrollAndGetDurationMultiplier = function _clampScrollAndGetDurationMu
 
   if (!cache._isScrollT || time - cache._isScrollT > 2000) {
     // cache for 2 seconds to improve performance.
-    while (node && node.scrollHeight <= node.clientHeight) {
+    while (node && node !== _body && (node.scrollHeight <= node.clientHeight && node.scrollWidth <= node.clientWidth || !(_overflow[(cs = _getComputedStyle(node)).overflowY] || _overflow[cs.overflowX]))) {
       node = node.parentNode;
     }
 
-    cache._isScroll = node && !_isViewport(node) && node !== target && (_overflow[(cs = _getComputedStyle(node)).overflowY] || _overflow[cs.overflowX]);
+    cache._isScroll = node && node !== target && !_isViewport(node) && (_overflow[(cs = _getComputedStyle(node)).overflowY] || _overflow[cs.overflowX]);
     cache._isScrollT = time;
   }
 

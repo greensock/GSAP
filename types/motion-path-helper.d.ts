@@ -3,6 +3,18 @@ declare class MotionPathHelper {
   constructor(target: gsap.DOMTarget, vars?: MotionPathHelper.Vars);
 
   /**
+   * Kills the MotionPathHelper instance, removing the editing elements from the DOM.
+   *
+   * ```js
+   * myHelper.kill();
+   * ```
+   *
+   * @memberof MotionPathHelper
+   * @link https://greensock.com/docs/v3/Plugins/MotionPathHelper/kill()
+   */
+  kill(): void
+
+  /**
    * Create a MotionPathHelper instance.
    * 
    * ```js
@@ -13,7 +25,7 @@ declare class MotionPathHelper {
    * @param {MotionPathHelper.Vars} [vars]
    * @returns {MotionPathHelper} The MotionPathHelper instance
    * @memberof MotionPathHelper
-   * @link https://greensock.com/docs/v3/Plugins/MotionPathPlugin/MotionPathHelper
+   * @link https://greensock.com/docs/v3/Plugins/MotionPathHelper
    */
   static create(target: gsap.DOMTarget, vars?: MotionPathHelper.Vars): MotionPathHelper;
 

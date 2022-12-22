@@ -3,7 +3,7 @@ function _assertThisInitialized(self) { if (self === void 0) { throw new Referen
 function _inheritsLoose(subClass, superClass) { subClass.prototype = Object.create(superClass.prototype); subClass.prototype.constructor = subClass; subClass.__proto__ = superClass; }
 
 /*!
- * Draggable 3.11.3
+ * Draggable 3.11.4
  * https://greensock.com
  *
  * @license Copyright 2008-2022, GreenSock. All rights reserved.
@@ -33,6 +33,7 @@ var gsap,
     InertiaPlugin,
     _defaultCursor,
     _supportsPointer,
+    _context,
     _dragCount = 0,
     _windowExists = function _windowExists() {
   return typeof window !== "undefined";
@@ -159,11 +160,11 @@ _copy = function _copy(obj, factor) {
     touchType && type !== touchType && element.addEventListener(type, func, capture); //some browsers actually support both, so must we. But pointer events cover all.
   }
 },
-    _removeListener = function _removeListener(element, type, func) {
+    _removeListener = function _removeListener(element, type, func, capture) {
   if (element.removeEventListener) {
     var touchType = _touchEventLookup[type];
-    element.removeEventListener(touchType || type, func);
-    touchType && type !== touchType && element.removeEventListener(type, func);
+    element.removeEventListener(touchType || type, func, capture);
+    touchType && type !== touchType && element.removeEventListener(type, func, capture);
   }
 },
     _preventDefault = function _preventDefault(event) {
@@ -859,6 +860,9 @@ ScrollProxy = function ScrollProxy(element, vars) {
 
   if (gsap) {
     InertiaPlugin = gsap.plugins.inertia;
+
+    _context = gsap.core.context || function () {};
+
     _checkPrefix = gsap.utils.checkPrefix;
     _transformProp = _checkPrefix(_transformProp);
     _transformOriginProp = _checkPrefix(_transformOriginProp);
@@ -2513,7 +2517,7 @@ export var Draggable = /*#__PURE__*/function (_EventDispatcher) {
 
           _removeListener(trigger, "touchstart", onPress);
 
-          _removeListener(trigger, "click", onClick);
+          _removeListener(trigger, "click", onClick, true);
 
           _removeListener(trigger, "contextmenu", onContextMenu);
         }
@@ -2550,7 +2554,7 @@ export var Draggable = /*#__PURE__*/function (_EventDispatcher) {
       return arguments.length ? value ? self.enable(type) : self.disable(type) : enabled;
     };
 
-    _this2.kill = function () {
+    _this2.kill = _this2.revert = function () {
       self.isThrowing = false;
       self.tween && self.tween.kill();
       self.disable();
@@ -2587,6 +2591,8 @@ export var Draggable = /*#__PURE__*/function (_EventDispatcher) {
     }
 
     gsCache.force3D = "force3D" in vars ? vars.force3D : true; //otherwise, normal dragging would be in 2D and then as soon as it's released and there's an inertia tween, it'd jump to 3D which can create an initial jump due to the work the browser must to do layerize it.
+
+    _context(_assertThisInitialized(_this2));
 
     _this2.enable();
 
@@ -2673,6 +2679,6 @@ _setDefaults(Draggable.prototype, {
 });
 
 Draggable.zIndex = 1000;
-Draggable.version = "3.11.3";
+Draggable.version = "3.11.4";
 _getGSAP() && gsap.registerPlugin(Draggable);
 export { Draggable as default };

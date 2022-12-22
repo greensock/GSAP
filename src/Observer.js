@@ -1,5 +1,5 @@
 /*!
- * Observer 3.11.3
+ * Observer 3.11.4
  * https://greensock.com
  *
  * @license Copyright 2008-2022, GreenSock. All rights reserved.
@@ -9,7 +9,7 @@
 */
 /* eslint-disable */
 
-let gsap, _coreInitted, _clamp, _win, _doc, _docEl, _body, _isTouch, _pointerType, ScrollTrigger, _root, _normalizer, _eventTypes,
+let gsap, _coreInitted, _clamp, _win, _doc, _docEl, _body, _isTouch, _pointerType, ScrollTrigger, _root, _normalizer, _eventTypes, _context,
 	_getGSAP = () => gsap || (typeof(window) !== "undefined" && (gsap = window.gsap) && gsap.registerPlugin && gsap),
 	_passThrough = p => p,
 	_startup = 1,
@@ -122,6 +122,7 @@ let gsap, _coreInitted, _clamp, _win, _doc, _docEl, _body, _isTouch, _pointerTyp
 			_body = _doc.body;
 			_root = [_win, _doc, _docEl, _body];
 			_clamp = gsap.utils.clamp;
+			_context = gsap.core.context || function() {};
 			_pointerType = "onpointerenter" in _body ? "pointer" : "mouse";
 			// isTouch is 0 if no touch, 1 if ONLY touch, and 2 if it can accommodate touch but also other types like mouse/pointer.
 			_isTouch = Observer.isTouch = _win.matchMedia && _win.matchMedia("(hover: none), (pointer: coarse)").matches ? 1 : ("ontouchstart" in _win || navigator.maxTouchPoints > 0 || navigator.msMaxTouchPoints > 0) ? 2 : 0;
@@ -271,9 +272,10 @@ export class Observer {
 			_onRelease = e => {
 				if (_ignoreCheck(e, 1)) {return;}
 				_removeListener(isNormalizer ? target : ownerDoc, _eventTypes[1], _onDrag, true);
-				let wasDragging = self.isDragging && (Math.abs(self.x - self.startX) > 3 || Math.abs(self.y - self.startY) > 3), // some touch devices need some wiggle room in terms of sensing clicks - the finger may move a few pixels.
+				let isTrackingDrag = !isNaN(self.y - self.startY),
+					wasDragging = self.isDragging && (Math.abs(self.x - self.startX) > 3 || Math.abs(self.y - self.startY) > 3), // some touch devices need some wiggle room in terms of sensing clicks - the finger may move a few pixels.
 					eventData = _getEvent(e);
-				if (!wasDragging) {
+				if (!wasDragging && isTrackingDrag) {
 					self._vx.reset();
 					self._vy.reset();
 					if (preventDefault && allowClicks) {
@@ -337,6 +339,7 @@ export class Observer {
 		self.scrollX = scrollFuncX;
 		self.scrollY = scrollFuncY;
 		self.isDragging = self.isGesturing = self.isPressed = false;
+		_context(this);
 		self.enable = e => {
 			if (!self.isEnabled) {
 				_addListener(isViewport ? ownerDoc : target, "scroll", _onScroll);
@@ -386,7 +389,7 @@ export class Observer {
 			}
 		};
 
-		self.kill = () => {
+		self.kill = self.revert = () => {
 			self.disable();
 			let i = _observers.indexOf(self);
 			i >= 0 && _observers.splice(i, 1);
@@ -408,7 +411,7 @@ export class Observer {
 
 }
 
-Observer.version = "3.11.3";
+Observer.version = "3.11.4";
 Observer.create = vars => new Observer(vars);
 Observer.register = _initCore;
 Observer.getAll = () => _observers.slice();

@@ -1,5 +1,5 @@
 /*!
- * GSAP 3.11.3
+ * GSAP 3.11.4
  * https://greensock.com
  *
  * @license Copyright 2008-2022, GreenSock. All rights reserved.
@@ -112,9 +112,9 @@ let _config = {
 		}
 	},
 	_lazySafeRender = (animation, time, suppressEvents, force) => {
-		_lazyTweens.length && _lazyRender();
+		_lazyTweens.length && !_reverting && _lazyRender();
 		animation.render(time, suppressEvents, force || (_reverting && time < 0 && (animation._initted || animation._startAt)));
-		_lazyTweens.length && _lazyRender(); //in case rendering caused any tweens to lazy-init, we should render them because typically when someone calls seek() or time() or progress(), they expect an immediate render.
+		_lazyTweens.length && !_reverting && _lazyRender(); //in case rendering caused any tweens to lazy-init, we should render them because typically when someone calls seek() or time() or progress(), they expect an immediate render.
 	},
 	_numericIfPossible = value => {
 		let n = parseFloat(value);
@@ -944,8 +944,8 @@ let _config = {
 				_req = _emptyFunc;
 			},
 			lagSmoothing(threshold, adjustedLag) {
-				_lagThreshold = threshold || (1 / _tinyNum); //zero should be interpreted as basically unlimited
-				_adjustedLag = Math.min(adjustedLag, _lagThreshold, 0);
+				_lagThreshold = threshold || Infinity; // zero should be interpreted as basically unlimited
+				_adjustedLag = Math.min(adjustedLag || 33, _lagThreshold);
 			},
 			fps(fps) {
 				_gap = 1000 / (fps || 240);
@@ -1337,7 +1337,7 @@ export class Animation {
 			time = animation._start + time / (animation._ts || 1);
 			animation = animation._dp;
 		}
-		return !this.parent && this.vars.immediateRender ? -1 : time; // the _startAt tweens for .fromTo() and .from() that have immediateRender should always be FIRST in the timeline (important for Recording.revert())
+		return !this.parent && this._sat ? (this._sat.vars.immediateRender ? -1 : this._sat.globalTime(rawTime)) : time; // the _startAt tweens for .fromTo() and .from() that have immediateRender should always be FIRST in the timeline (important for context.revert()). "_sat" stands for _startAtTween, referring to the parent tween that created the _startAt. We must discern if that tween had immediateRender so that we can know whether or not to prioritize it in revert().
 	}
 
 	repeat(value) {
@@ -2150,9 +2150,9 @@ let _addComplexStringPropTween = function(target, prop, start, end, setter, stri
 				prevStartAt._lazy = 0;
 			}
 			if (startAt) {
-				_removeFromParent(tween._startAt = Tween.set(targets, _setDefaults({data: "isStart", overwrite: false, parent: parent, immediateRender: true, lazy: _isNotFalse(lazy), startAt: null, delay: 0, onUpdate: onUpdate, onUpdateParams: onUpdateParams, callbackScope: callbackScope, stagger: 0}, startAt))); //copy the properties/values into a new object to avoid collisions, like var to = {x:0}, from = {x:500}; timeline.fromTo(e, from, to).fromTo(e, to, from);
+				_removeFromParent(tween._startAt = Tween.set(targets, _setDefaults({data: "isStart", overwrite: false, parent: parent, immediateRender: true, lazy: !prevStartAt && _isNotFalse(lazy), startAt: null, delay: 0, onUpdate: onUpdate, onUpdateParams: onUpdateParams, callbackScope: callbackScope, stagger: 0}, startAt))); //copy the properties/values into a new object to avoid collisions, like var to = {x:0}, from = {x:500}; timeline.fromTo(e, from, to).fromTo(e, to, from);
 				tween._startAt._dp = 0; // don't allow it to get put back into root timeline! Like when revert() is called and totalTime() gets set.
-
+				tween._startAt._sat = tween; // used in globalTime(). _sat stands for _startAtTween
 				(time < 0 && (_reverting || (!immediateRender && !autoRevert))) && tween._startAt.revert(_revertConfigNoKill); // rare edge case, like if a render is forced in the negative direction of a non-initted tween.
 				if (immediateRender) {
 					if (dur && time <= 0 && tTime <= 0) { // check tTime here because in the case of a yoyo tween whose playhead gets pushed to the end like tween.progress(1), we should allow it through so that the onComplete gets fired properly.
@@ -2167,7 +2167,7 @@ let _addComplexStringPropTween = function(target, prop, start, end, setter, stri
 					p = _setDefaults({
 						overwrite: false,
 						data: "isFromStart", //we tag the tween with as "isFromStart" so that if [inside a plugin] we need to only do something at the very END of a tween, we have a way of identifying this tween as merely the one that's setting the beginning values for a "from()" tween. For example, clearProps in CSSPlugin should only get applied at the very END of a tween and without this tag, from(...{height:100, clearProps:"height", delay:1}) would wipe the height at the beginning of the tween and after 1 second, it'd kick back in.
-						lazy: immediateRender && _isNotFalse(lazy),
+						lazy: immediateRender && !prevStartAt && _isNotFalse(lazy),
 						immediateRender: immediateRender, //zero-duration tweens render immediately by default, but if we're not specifically instructed to render this tween immediately, we should skip this and merely _init() to record the starting values (rendering them immediately would push them to completion which is wasteful in that case - we'd have to render(-1) immediately after)
 						stagger: 0,
 						parent: parent //ensures that nested tweens that had a stagger are handled properly, like gsap.from(".class", {y:gsap.utils.wrap([-100,100])})
@@ -2175,6 +2175,7 @@ let _addComplexStringPropTween = function(target, prop, start, end, setter, stri
 					harnessVars && (p[harness.prop] = harnessVars); // in case someone does something like .from(..., {css:{}})
 					_removeFromParent(tween._startAt = Tween.set(targets, p));
 					tween._startAt._dp = 0; // don't allow it to get put back into root timeline!
+					tween._startAt._sat = tween; // used in globalTime()
 					(time < 0) && (_reverting ? tween._startAt.revert(_revertConfigNoKill) : tween._startAt.render(-1, true));
 					tween._zTime = time;
 					if (!immediateRender) {
@@ -2870,6 +2871,11 @@ class Context {
 		func && this.add(func);
 	}
 	add(name, func, scope) {
+		// possible future addition if we need the ability to add() an animation to a context and for whatever reason cannot create that animation inside of a context.add(() => {...}) function.
+		// if (name && _isFunction(name.revert)) {
+		// 	this.data.push(name);
+		// 	return (name._ctx = this);
+		// }
 		if (_isFunction(name)) {
 			scope = func;
 			func = name;
@@ -2917,7 +2923,7 @@ class Context {
 				}
 			});
 			// save as an object so that we can cache the globalTime for each tween to optimize performance during the sort
-			tweens.map(t => { return {g: t.globalTime(0), t}}).sort((a, b) => b.g - a.g || -1).forEach(o => o.t.revert(revert)); // note: all of the _startAt tweens should be reverted in reverse order that thy were created, and they'll all have the same globalTime (-1) so the " || -1" in the sort keeps the order properly.
+			tweens.map(t => { return {g: t.globalTime(0), t}}).sort((a, b) => b.g - a.g || -1).forEach(o => o.t.revert(revert)); // note: all of the _startAt tweens should be reverted in reverse order that they were created, and they'll all have the same globalTime (-1) so the " || -1" in the sort keeps the order properly.
 			this.data.forEach(e => !(e instanceof Animation) && e.revert && e.revert(revert));
 			this._r.forEach(f => f(revert, this));
 			this.isReverted = true;
@@ -3209,7 +3215,7 @@ export const gsap = _gsap.registerPlugin({
 	_buildModifierPlugin("snap", snap)
 ) || _gsap; //to prevent the core plugins from being dropped via aggressive tree shaking, we must include them in the variable declaration in this way.
 
-Tween.version = Timeline.version = gsap.version = "3.11.3";
+Tween.version = Timeline.version = gsap.version = "3.11.4";
 _coreReady = 1;
 _windowExists() && _wake();
 
