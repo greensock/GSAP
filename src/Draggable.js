@@ -1,8 +1,8 @@
 /*!
- * Draggable 3.11.4
+ * Draggable 3.11.5
  * https://greensock.com
  *
- * @license Copyright 2008-2022, GreenSock. All rights reserved.
+ * @license Copyright 2008-2023, GreenSock. All rights reserved.
  * Subject to the terms at https://greensock.com/standard-license or for
  * Club GreenSock members, the agreement issued with that membership.
  * @author: Jack Doyle, jack@greensock.com
@@ -11,7 +11,7 @@
 
 import { getGlobalMatrix, Matrix2D } from "./utils/matrix.js";
 
-let gsap, _win, _doc, _docElement, _body, _tempDiv, _placeholderDiv, _coreInitted, _checkPrefix, _toArray, _supportsPassive, _isTouchDevice, _touchEventLookup, _isMultiTouching, _isAndroid, InertiaPlugin, _defaultCursor, _supportsPointer, _context,
+let gsap, _win, _doc, _docElement, _body, _tempDiv, _placeholderDiv, _coreInitted, _checkPrefix, _toArray, _supportsPassive, _isTouchDevice, _touchEventLookup, _isMultiTouching, _isAndroid, InertiaPlugin, _defaultCursor, _supportsPointer, _context, _getStyleSaver,
 	_dragCount = 0,
 	_windowExists = () => typeof(window) !== "undefined",
 	_getGSAP = () => gsap || (_windowExists() && (gsap = window.gsap) && gsap.registerPlugin && gsap),
@@ -598,6 +598,7 @@ let gsap, _win, _doc, _docElement, _body, _tempDiv, _placeholderDiv, _coreInitte
 			_transformProp = _checkPrefix(_transformProp);
 			_transformOriginProp = _checkPrefix(_transformOriginProp);
 			_toArray = gsap.utils.toArray;
+			_getStyleSaver = gsap.core.getStyleSaver;
 			_supports3D = !!_checkPrefix("perspective");
 		} else if (required) {
 			console.warn("Please gsap.registerPlugin(Draggable)");
@@ -650,6 +651,7 @@ export class Draggable extends EventDispatcher {
 		super();
 		_coreInitted || _initCore(1);
 		target = _toArray(target)[0]; //in case the target is a selector object or selector text
+		this.styles = _getStyleSaver && _getStyleSaver(target, "transform,left,top");
 		if (!InertiaPlugin) {
 			InertiaPlugin = gsap.plugins.inertia;
 		}
@@ -1833,13 +1835,18 @@ export class Draggable extends EventDispatcher {
 			return arguments.length ? (value ? self.enable(type) : self.disable(type)) : enabled;
 		};
 
-		this.kill = this.revert = function() {
+		this.kill = function() {
 			self.isThrowing = false;
 			self.tween && self.tween.kill();
 			self.disable();
 			gsap.set(triggers, {clearProps:"userSelect"});
 			delete _lookup[target._gsDragID];
 			return self;
+		};
+
+		this.revert = function() {
+			this.kill();
+			this.styles && this.styles.revert();
 		};
 
 		if (~type.indexOf("scroll")) {
@@ -1923,7 +1930,7 @@ export class Draggable extends EventDispatcher {
 _setDefaults(Draggable.prototype, {pointerX:0, pointerY: 0, startX: 0, startY: 0, deltaX: 0, deltaY: 0, isDragging: false, isPressed: false});
 
 Draggable.zIndex = 1000;
-Draggable.version = "3.11.4";
+Draggable.version = "3.11.5";
 
 _getGSAP() && gsap.registerPlugin(Draggable);
 

@@ -1,8 +1,8 @@
 /*!
- * Observer 3.11.4
+ * Observer 3.11.5
  * https://greensock.com
  *
- * @license Copyright 2008-2022, GreenSock. All rights reserved.
+ * @license Copyright 2008-2023, GreenSock. All rights reserved.
  * Subject to the terms at https://greensock.com/standard-license or for
  * Club GreenSock members, the agreement issued with that membership.
  * @author: Jack Doyle, jack@greensock.com
@@ -255,7 +255,7 @@ export class Observer {
 				}
 			},
 			_onPress = self.onPress = e => {
-				if (_ignoreCheck(e, 1)) {return;}
+				if (_ignoreCheck(e, 1) || (e && e.button)) {return;}
 				self.axis = axis = null;
 				onStopDelayedCall.pause();
 				self.isPressed = true;
@@ -269,7 +269,7 @@ export class Observer {
 				self.deltaX = self.deltaY = 0;
 				onPress && onPress(self);
 			},
-			_onRelease = e => {
+			_onRelease = self.onRelease = e => {
 				if (_ignoreCheck(e, 1)) {return;}
 				_removeListener(isNormalizer ? target : ownerDoc, _eventTypes[1], _onDrag, true);
 				let isTrackingDrag = !isNaN(self.y - self.startY),
@@ -411,7 +411,7 @@ export class Observer {
 
 }
 
-Observer.version = "3.11.4";
+Observer.version = "3.11.5";
 Observer.create = vars => new Observer(vars);
 Observer.register = _initCore;
 Observer.getAll = () => _observers.slice();

@@ -6,7 +6,7 @@ declare class GSDevTools {
    * Create a GSDevTools instance.
    * 
    * ```js
-   * GSDevTools.create(".myClass");
+   * GSDevTools.create({animation: tl});
    * ```
    *
    * @param {GSDevTools.Vars} vars
@@ -15,6 +15,32 @@ declare class GSDevTools {
    * @link https://greensock.com/docs/v3/Plugins/GSDevTools/static.create()
    */
   static create(vars?: GSDevTools.Vars): GSDevTools;
+
+  /**
+   * Returns the GSDevTools instance associated with the provided id.
+   *
+   * ```js
+   * GSDevTools.getById("my-id");
+   * ```
+   *
+   * @param {string} id
+   * @returns {GSDevTools} The GSDevTools instance
+   * @memberof GSDevTools
+   * @link https://greensock.com/docs/v3/Plugins/GSDevTools/static.getById()
+   */
+  static getById(id: string): GSDevTools | null;
+
+  /**
+   * Kills a GSDevTools instance
+   *
+   * ```js
+   * tool.kill();
+   * ```
+   *
+   * @memberof GSDevTools
+   * @link https://greensock.com/docs/v3/Plugins/GSDevTools/kill()
+   */
+  kill(): void
 }
 
 declare namespace GSDevTools {

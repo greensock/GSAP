@@ -3,10 +3,10 @@ function _assertThisInitialized(self) { if (self === void 0) { throw new Referen
 function _inheritsLoose(subClass, superClass) { subClass.prototype = Object.create(superClass.prototype); subClass.prototype.constructor = subClass; subClass.__proto__ = superClass; }
 
 /*!
- * Draggable 3.11.4
+ * Draggable 3.11.5
  * https://greensock.com
  *
- * @license Copyright 2008-2022, GreenSock. All rights reserved.
+ * @license Copyright 2008-2023, GreenSock. All rights reserved.
  * Subject to the terms at https://greensock.com/standard-license or for
  * Club GreenSock members, the agreement issued with that membership.
  * @author: Jack Doyle, jack@greensock.com
@@ -34,6 +34,7 @@ var gsap,
     _defaultCursor,
     _supportsPointer,
     _context,
+    _getStyleSaver,
     _dragCount = 0,
     _windowExists = function _windowExists() {
   return typeof window !== "undefined";
@@ -867,6 +868,7 @@ ScrollProxy = function ScrollProxy(element, vars) {
     _transformProp = _checkPrefix(_transformProp);
     _transformOriginProp = _checkPrefix(_transformOriginProp);
     _toArray = gsap.utils.toArray;
+    _getStyleSaver = gsap.core.getStyleSaver;
     _supports3D = !!_checkPrefix("perspective");
   } else if (required) {
     console.warn("Please gsap.registerPlugin(Draggable)");
@@ -920,6 +922,8 @@ export var Draggable = /*#__PURE__*/function (_EventDispatcher) {
     _this2 = _EventDispatcher.call(this) || this;
     _coreInitted || _initCore(1);
     target = _toArray(target)[0]; //in case the target is a selector object or selector text
+
+    _this2.styles = _getStyleSaver && _getStyleSaver(target, "transform,left,top");
 
     if (!InertiaPlugin) {
       InertiaPlugin = gsap.plugins.inertia;
@@ -2554,7 +2558,7 @@ export var Draggable = /*#__PURE__*/function (_EventDispatcher) {
       return arguments.length ? value ? self.enable(type) : self.disable(type) : enabled;
     };
 
-    _this2.kill = _this2.revert = function () {
+    _this2.kill = function () {
       self.isThrowing = false;
       self.tween && self.tween.kill();
       self.disable();
@@ -2563,6 +2567,11 @@ export var Draggable = /*#__PURE__*/function (_EventDispatcher) {
       });
       delete _lookup[target._gsDragID];
       return self;
+    };
+
+    _this2.revert = function () {
+      this.kill();
+      this.styles && this.styles.revert();
     };
 
     if (~type.indexOf("scroll")) {
@@ -2679,6 +2688,6 @@ _setDefaults(Draggable.prototype, {
 });
 
 Draggable.zIndex = 1000;
-Draggable.version = "3.11.4";
+Draggable.version = "3.11.5";
 _getGSAP() && gsap.registerPlugin(Draggable);
 export { Draggable as default };

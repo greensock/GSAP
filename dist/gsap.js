@@ -19,10 +19,10 @@
   }
 
   /*!
-   * GSAP 3.11.4
+   * GSAP 3.11.5
    * https://greensock.com
    *
-   * @license Copyright 2008-2022, GreenSock. All rights reserved.
+   * @license Copyright 2008-2023, GreenSock. All rights reserved.
    * Subject to the terms at https://greensock.com/standard-license or for
    * Club GreenSock members, the agreement issued with that membership.
    * @author: Jack Doyle, jack@greensock.com
@@ -962,7 +962,14 @@
     return animation;
   },
       _quickTween,
+      _registerPluginQueue = [],
       _createPlugin = function _createPlugin(config) {
+    if (!_windowExists()) {
+      _registerPluginQueue.push(config);
+
+      return;
+    }
+
     config = !config.name && config["default"] || config;
 
     var name = config.name,
@@ -1267,6 +1274,8 @@
             _install(_installScope || _win.GreenSockGlobals || !_win.gsap && _win || {});
 
             _raf = _win.requestAnimationFrame;
+
+            _registerPluginQueue.forEach(_createPlugin);
           }
 
           _id && _self.sleep();
@@ -1645,7 +1654,7 @@
       var tTime = this.parent && this._ts ? _parentToChildTotalTime(this.parent._time, this) : this._tTime;
       this._rts = +value || 0;
       this._ts = this._ps || value === -_tinyNum ? 0 : this._rts;
-      this.totalTime(_clamp(-this._delay, this._tDur, tTime), true);
+      this.totalTime(_clamp(-Math.abs(this._delay), this._tDur, tTime), true);
 
       _setEnd(this);
 
@@ -2008,7 +2017,7 @@
           }
 
           prevIteration = _animationCycle(this._tTime, cycleDuration);
-          !prevTime && this._tTime && prevIteration !== iteration && (prevIteration = iteration);
+          !prevTime && this._tTime && prevIteration !== iteration && this._tTime - prevIteration * cycleDuration - this._dur <= 0 && (prevIteration = iteration);
 
           if (yoyo && iteration & 1) {
             time = dur - time;
@@ -2069,7 +2078,7 @@
           prevTime = 0;
         }
 
-        if (!prevTime && time && !suppressEvents) {
+        if (!prevTime && time && !suppressEvents && !iteration) {
           _callback(this, "onStart");
 
           if (this._tTime !== tTime) {
@@ -3191,7 +3200,7 @@
           this.ratio = ratio = 1 - ratio;
         }
 
-        if (time && !prevTime && !suppressEvents) {
+        if (time && !prevTime && !suppressEvents && !iteration) {
           _callback(this, "onStart");
 
           if (this._tTime !== tTime) {
@@ -4107,7 +4116,7 @@
       }
     }
   }, _buildModifierPlugin("roundProps", _roundModifier), _buildModifierPlugin("modifiers"), _buildModifierPlugin("snap", snap)) || _gsap;
-  Tween.version = Timeline.version = gsap.version = "3.11.4";
+  Tween.version = Timeline.version = gsap.version = "3.11.5";
   _coreReady = 1;
   _windowExists() && _wake();
   var Power0 = _easeMap.Power0,
@@ -4210,6 +4219,10 @@
         ~property.indexOf(",") ? property.split(",").forEach(function (a) {
           return _this.tfm[a] = _get(target, a);
         }) : this.tfm[property] = target._gsap.x ? target._gsap[property] : _get(target, property);
+      } else {
+        return _propertyAliases.transform.split(",").forEach(function (p) {
+          return _saveStyle.call(_this, p, isNotCSS);
+        });
       }
 
       if (this.props.indexOf(_transformProp) >= 0) {
@@ -4242,7 +4255,7 @@
         p;
 
     for (i = 0; i < props.length; i += 3) {
-      props[i + 1] ? target[props[i]] = props[i + 2] : props[i + 2] ? style[props[i]] = props[i + 2] : style.removeProperty(props[i].replace(_capsExp, "-$1").toLowerCase());
+      props[i + 1] ? target[props[i]] = props[i + 2] : props[i + 2] ? style[props[i]] = props[i + 2] : style.removeProperty(props[i].substr(0, 2) === "--" ? props[i] : props[i].replace(_capsExp, "-$1").toLowerCase());
     }
 
     if (this.tfm) {
@@ -4257,7 +4270,7 @@
 
       i = _reverting$1();
 
-      if (i && !i.isStart && !style[_transformProp]) {
+      if ((!i || !i.isStart) && !style[_transformProp]) {
         _removeIndependentTransforms(style);
 
         cache.uncache = 1;
@@ -4271,6 +4284,7 @@
       revert: _revertStyle,
       save: _saveStyle
     };
+    target._gsap || gsap.core.getCache(target);
     properties && properties.split(",").forEach(function (p) {
       return saver.save(p);
     });

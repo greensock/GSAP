@@ -1,8 +1,8 @@
 /*!
- * Flip 3.11.4
+ * Flip 3.11.5
  * https://greensock.com
  *
- * @license Copyright 2008-2022, GreenSock. All rights reserved.
+ * @license Copyright 2008-2023, GreenSock. All rights reserved.
  * Subject to the terms at https://greensock.com/standard-license or for
  * Club GreenSock members, the agreement issued with that membership.
  * @author: Jack Doyle, jack@greensock.com
@@ -18,6 +18,7 @@ var _id = 1,
     _batchAction,
     _body,
     _closestTenth,
+    _getStyleSaver,
     _forEachBatch = function _forEachBatch(batch, name) {
   return batch.actions.forEach(function (a) {
     return a.vars[name] && a.vars[name](a);
@@ -333,8 +334,7 @@ _makeAbsolute = function _makeAbsolute(elState, fallbackNode, ignoreBatch) {
       scaleY = toState.scaleY,
       rotation = toState.rotation,
       bounds = toState.bounds,
-      cssText = vars && element.style.cssText,
-      transform = vars && element.getBBox && element.getAttribute("transform"),
+      styles = vars && _getStyleSaver && _getStyleSaver(element, "transform"),
       dimensionState = fromState,
       _toState$matrix = toState.matrix,
       e = _toState$matrix.e,
@@ -429,9 +429,7 @@ _makeAbsolute = function _makeAbsolute(elState, fallbackNode, ignoreBatch) {
 
   if (vars && !(vars instanceof ElementState)) {
     // revert
-    element.style.cssText = cssText;
-    element.getBBox && element.setAttribute("transform", transform || "");
-    cache.uncache = 1;
+    styles && styles.revert();
   } else {
     // or apply the transform immediately
     cache.x = x + "px";
@@ -1488,6 +1486,7 @@ export var Flip = /*#__PURE__*/function () {
       _setDoc(_body);
 
       _toArray = gsap.utils.toArray;
+      _getStyleSaver = gsap.core.getStyleSaver;
       var snap = gsap.utils.snap(0.1);
 
       _closestTenth = function _closestTenth(value, add) {
@@ -1498,7 +1497,7 @@ export var Flip = /*#__PURE__*/function () {
 
   return Flip;
 }();
-Flip.version = "3.11.4"; // function whenImagesLoad(el, func) {
+Flip.version = "3.11.5"; // function whenImagesLoad(el, func) {
 // 	let pending = [],
 // 		onLoad = e => {
 // 			pending.splice(pending.indexOf(e.target), 1);

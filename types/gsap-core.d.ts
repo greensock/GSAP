@@ -52,7 +52,7 @@ declare namespace gsap {
     [key: string]: boolean;
   }
   interface Context {
-    [key: string]: any;
+    [key: string]: Function | any;
     selector?: Function;
     isReverted: boolean;
     conditions?: Conditions;

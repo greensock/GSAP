@@ -396,6 +396,7 @@
       _defaultCursor,
       _supportsPointer,
       _context,
+      _getStyleSaver,
       _dragCount = 0,
       _windowExists = function _windowExists() {
     return typeof window !== "undefined";
@@ -1201,6 +1202,7 @@
       _transformProp$1 = _checkPrefix(_transformProp$1);
       _transformOriginProp$1 = _checkPrefix(_transformOriginProp$1);
       _toArray = gsap.utils.toArray;
+      _getStyleSaver = gsap.core.getStyleSaver;
       _supports3D = !!_checkPrefix("perspective");
     } else if (required) {
       console.warn("Please gsap.registerPlugin(Draggable)");
@@ -1254,6 +1256,7 @@
       _this2 = _EventDispatcher.call(this) || this;
       _coreInitted || _initCore(1);
       target = _toArray(target)[0];
+      _this2.styles = _getStyleSaver && _getStyleSaver(target, "transform,left,top");
 
       if (!InertiaPlugin) {
         InertiaPlugin = gsap.plugins.inertia;
@@ -2818,7 +2821,7 @@
         return arguments.length ? value ? self.enable(type) : self.disable(type) : enabled;
       };
 
-      _this2.kill = _this2.revert = function () {
+      _this2.kill = function () {
         self.isThrowing = false;
         self.tween && self.tween.kill();
         self.disable();
@@ -2827,6 +2830,11 @@
         });
         delete _lookup[target._gsDragID];
         return self;
+      };
+
+      _this2.revert = function () {
+        this.kill();
+        this.styles && this.styles.revert();
       };
 
       if (~type.indexOf("scroll")) {
@@ -2941,7 +2949,7 @@
   });
 
   Draggable.zIndex = 1000;
-  Draggable.version = "3.11.4";
+  Draggable.version = "3.11.5";
   _getGSAP() && gsap.registerPlugin(Draggable);
 
   exports.Draggable = Draggable;

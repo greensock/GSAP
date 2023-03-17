@@ -1,8 +1,8 @@
 /*!
- * CSSPlugin 3.11.4
+ * CSSPlugin 3.11.5
  * https://greensock.com
  *
- * Copyright 2008-2022, GreenSock. All rights reserved.
+ * Copyright 2008-2023, GreenSock. All rights reserved.
  * Subject to the terms at https://greensock.com/standard-license or for
  * Club GreenSock members, the agreement issued with that membership.
  * @author: Jack Doyle, jack@greensock.com
@@ -57,6 +57,8 @@ let _win, _doc, _docElement, _pluginInitted, _tempDiv, _tempDivStyler, _recentSe
 			if (property !== "transform") {
 				property = _propertyAliases[property] || property;
 				~property.indexOf(",") ? property.split(",").forEach(a => this.tfm[a] = _get(target, a)) : (this.tfm[property] = target._gsap.x ? target._gsap[property] : _get(target, property)); // note: scale would map to "scaleX,scaleY", thus we loop and apply them both.
+			} else {
+				return _propertyAliases.transform.split(",").forEach(p => _saveStyle.call(this, p, isNotCSS));
 			}
 			if (this.props.indexOf(_transformProp) >= 0) { return; }
 			if (target._gsap.svg) {
@@ -81,7 +83,7 @@ let _win, _doc, _docElement, _pluginInitted, _tempDiv, _tempDivStyler, _recentSe
 			cache = target._gsap,
 			i, p;
 		for (i = 0; i < props.length; i+=3) { // stored like this: property, isNotCSS, value
-			props[i+1] ? target[props[i]] = props[i+2] : props[i+2] ? (style[props[i]] = props[i+2]) : style.removeProperty(props[i].replace(_capsExp, "-$1").toLowerCase());
+			props[i+1] ? target[props[i]] = props[i+2] : props[i+2] ? (style[props[i]] = props[i+2]) : style.removeProperty(props[i].substr(0,2) === "--" ? props[i] : props[i].replace(_capsExp, "-$1").toLowerCase());
 		}
 		if (this.tfm) {
 			for (p in this.tfm) {
@@ -92,7 +94,7 @@ let _win, _doc, _docElement, _pluginInitted, _tempDiv, _tempDivStyler, _recentSe
 				target.setAttribute("data-svg-origin", this.svgo || "");
 			}
 			i = _reverting();
-			if (i && !i.isStart && !style[_transformProp]) {
+			if ((!i || !i.isStart) && !style[_transformProp]) {
 				_removeIndependentTransforms(style);
 				cache.uncache = 1; // if it's a startAt that's being reverted in the _initTween() of the core, we don't need to uncache transforms. This is purely a performance optimization.
 			}
@@ -105,6 +107,7 @@ let _win, _doc, _docElement, _pluginInitted, _tempDiv, _tempDivStyler, _recentSe
 			revert: _revertStyle,
 			save: _saveStyle
 		};
+		target._gsap || gsap.core.getCache(target); // just make sure there's a _gsap cache defined because we read from it in _saveStyle() and it's more efficient to just check it here once.
 		properties && properties.split(",").forEach(p => saver.save(p));
 		return saver;
 	},

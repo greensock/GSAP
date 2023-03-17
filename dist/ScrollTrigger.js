@@ -21,10 +21,10 @@
   }
 
   /*!
-   * Observer 3.11.4
+   * Observer 3.11.5
    * https://greensock.com
    *
-   * @license Copyright 2008-2022, GreenSock. All rights reserved.
+   * @license Copyright 2008-2023, GreenSock. All rights reserved.
    * Subject to the terms at https://greensock.com/standard-license or for
    * Club GreenSock members, the agreement issued with that membership.
    * @author: Jack Doyle, jack@greensock.com
@@ -434,7 +434,7 @@
         }
       },
           _onPress = self.onPress = function (e) {
-        if (_ignoreCheck(e, 1)) {
+        if (_ignoreCheck(e, 1) || e && e.button) {
           return;
         }
 
@@ -455,7 +455,7 @@
         self.deltaX = self.deltaY = 0;
         onPress && onPress(self);
       },
-          _onRelease = function _onRelease(e) {
+          _onRelease = self.onRelease = function (e) {
         if (_ignoreCheck(e, 1)) {
           return;
         }
@@ -659,7 +659,7 @@
 
     return Observer;
   }();
-  Observer.version = "3.11.4";
+  Observer.version = "3.11.5";
 
   Observer.create = function (vars) {
     return new Observer(vars);
@@ -680,10 +680,10 @@
   _getGSAP() && gsap.registerPlugin(Observer);
 
   /*!
-   * ScrollTrigger 3.11.4
+   * ScrollTrigger 3.11.5
    * https://greensock.com
    *
-   * @license Copyright 2008-2022, GreenSock. All rights reserved.
+   * @license Copyright 2008-2023, GreenSock. All rights reserved.
    * Subject to the terms at https://greensock.com/standard-license or for
    * Club GreenSock members, the agreement issued with that membership.
    * @author: Jack Doyle, jack@greensock.com
@@ -724,6 +724,9 @@
       _time1 = _getTime$1(),
       _lastScrollTime = 0,
       _enabled = 0,
+      _rafBugFix = function _rafBugFix() {
+    return _enabled && requestAnimationFrame(_rafBugFix);
+  },
       _pointerDownHandler = function _pointerDownHandler() {
     return _pointerIsDown = 1;
   },
@@ -774,7 +777,7 @@
         d2 = _ref2.d2,
         d = _ref2.d,
         a = _ref2.a;
-    return (s = "scroll" + d2) && (a = _getProxyProp(element, s)) ? a() - _getBoundsFunc(element)()[d] : _isViewport$1(element) ? (_docEl$1[s] || _body$1[s]) - (_win$1["inner" + d2] || _docEl$1["client" + d2] || _body$1["client" + d2]) : element[s] - element["offset" + d2];
+    return Math.max(0, (s = "scroll" + d2) && (a = _getProxyProp(element, s)) ? a() - _getBoundsFunc(element)()[d] : _isViewport$1(element) ? (_docEl$1[s] || _body$1[s]) - (_win$1["inner" + d2] || _docEl$1["client" + d2] || _body$1["client" + d2]) : element[s] - element["offset" + d2]);
   },
       _iterateAutoRefresh = function _iterateAutoRefresh(func, events) {
     for (var i = 0; i < _autoRefresh.length; i += 3) {
@@ -938,7 +941,12 @@
     return element.removeEventListener(type, func, !!capture);
   },
       _wheelListener = function _wheelListener(func, el, scrollFunc) {
-    return scrollFunc && scrollFunc.wheelHandler && func(el, "wheel", scrollFunc);
+    scrollFunc = scrollFunc && scrollFunc.wheelHandler;
+
+    if (scrollFunc) {
+      func(el, "wheel", scrollFunc);
+      func(el, "touchmove", scrollFunc);
+    }
   },
       _markerDefaults = {
     startColor: "green",
@@ -1135,7 +1143,7 @@
             original = t.pin[prop];
         t.revert(true, 1);
         t.adjustPinSpacing(t.pin[prop] - original);
-        t.revert(false, 1);
+        t.refresh();
       }
     });
 
@@ -1161,6 +1169,7 @@
     _resizeDelay.pause();
 
     _refreshID++;
+    _refreshingAll = 2;
 
     _updateAll(2);
 
@@ -1186,7 +1195,7 @@
           scroll = l && _triggers[0].scroll();
 
       _direction = _lastScroll > scroll ? -1 : 1;
-      _lastScroll = scroll;
+      _refreshingAll || (_lastScroll = scroll);
 
       if (recordVelocity) {
         if (_lastScrollTime && !_pointerIsDown && time - _lastScrollTime > 200) {
@@ -1362,8 +1371,9 @@
       value = bounds[direction.p] - scrollerBounds[direction.p] - borderWidth + localOffset + scroll - globalOffset;
       markerScroller && _positionMarker(markerScroller, globalOffset, direction, scrollerSize - globalOffset < 20 || markerScroller._isStart && globalOffset > 20);
       scrollerSize -= scrollerSize - globalOffset;
-    } else if (markerScroller) {
-      _positionMarker(markerScroller, scrollerSize, direction, true);
+    } else {
+      containerAnimation && (value = gsap$1.utils.mapRange(containerAnimation.scrollTrigger.start, containerAnimation.scrollTrigger.end, 0, scrollerMax, value));
+      markerScroller && _positionMarker(markerScroller, scrollerSize, direction, true);
     }
 
     if (marker) {
@@ -1417,35 +1427,44 @@
       parent.appendChild(element);
     }
   },
+      _interruptionTracker = function _interruptionTracker(getValueFunc, initialValue, onInterrupt) {
+    var last1 = initialValue,
+        last2 = last1;
+    return function (value) {
+      var current = Math.round(getValueFunc());
+
+      if (current !== last1 && current !== last2 && Math.abs(current - last1) > 3 && Math.abs(current - last2) > 3) {
+        value = current;
+        onInterrupt && onInterrupt();
+      }
+
+      last2 = last1;
+      last1 = value;
+      return value;
+    };
+  },
       _getTweenCreator = function _getTweenCreator(scroller, direction) {
     var getScroll = _getScrollFunc(scroller, direction),
         prop = "_scroll" + direction.p2,
-        lastScroll1,
-        lastScroll2,
         getTween = function getTween(scrollTo, vars, initialValue, change1, change2) {
       var tween = getTween.tween,
           onComplete = vars.onComplete,
           modifiers = {};
       initialValue = initialValue || getScroll();
+
+      var checkForInterruption = _interruptionTracker(getScroll, initialValue, function () {
+        tween.kill();
+        getTween.tween = 0;
+      });
+
       change2 = change1 && change2 || 0;
       change1 = change1 || scrollTo - initialValue;
       tween && tween.kill();
-      lastScroll1 = Math.round(initialValue);
       vars[prop] = scrollTo;
       vars.modifiers = modifiers;
 
-      modifiers[prop] = function (value) {
-        value = Math.round(getScroll());
-
-        if (value !== lastScroll1 && value !== lastScroll2 && Math.abs(value - lastScroll1) > 3 && Math.abs(value - lastScroll2) > 3) {
-          tween.kill();
-          getTween.tween = 0;
-        } else {
-          value = initialValue + change1 * tween.ratio + change2 * tween.ratio * tween.ratio;
-        }
-
-        lastScroll2 = lastScroll1;
-        return lastScroll1 = Math.round(value);
+      modifiers[prop] = function () {
+        return checkForInterruption(initialValue + change1 * tween.ratio + change2 * tween.ratio * tween.ratio);
       };
 
       vars.onUpdate = function () {
@@ -1471,6 +1490,7 @@
 
     _addListener$1(scroller, "wheel", getScroll.wheelHandler);
 
+    ScrollTrigger$1.isTouch && _addListener$1(scroller, "touchmove", getScroll.wheelHandler);
     return getTween;
   };
 
@@ -1621,6 +1641,7 @@
         self.animation = animation.pause();
         animation.scrollTrigger = self;
         self.scrubDuration(scrub);
+        scrubTween && scrubTween.resetTo && scrubTween.resetTo("totalProgress", 0);
         snap1 = 0;
         id || (id = animation.vars.id);
       }
@@ -1773,7 +1794,7 @@
             oldParams = containerAnimation.vars.onUpdateParams;
         containerAnimation.eventCallback("onUpdate", function () {
           self.update(0, 0, 1);
-          oldOnUpdate && oldOnUpdate.apply(oldParams || []);
+          oldOnUpdate && oldOnUpdate.apply(containerAnimation, oldParams || []);
         });
       }
 
@@ -1805,7 +1826,7 @@
           });
 
           if (r) {
-            _refreshing = 1;
+            _refreshing = self;
             self.update(r);
           }
 
@@ -1835,7 +1856,7 @@
         }
 
         !_refreshingAll && onRefreshInit && onRefreshInit(self);
-        _refreshing = 1;
+        _refreshing = self;
         lastRefresh = _getTime$1();
 
         if (tweenTo.tween) {
@@ -1853,6 +1874,7 @@
         var size = getScrollerSize(),
             scrollerBounds = getScrollerOffsets(),
             max = containerAnimation ? containerAnimation.duration() : _maxScroll(scroller, direction),
+            isFirstRefresh = change <= 0.01,
             offset = 0,
             otherPinOffset = 0,
             parsedEnd = vars.end,
@@ -1875,10 +1897,10 @@
 
         while (i--) {
           curTrigger = _triggers[i];
-          curTrigger.end || curTrigger.refresh(0, 1) || (_refreshing = 1);
+          curTrigger.end || curTrigger.refresh(0, 1) || (_refreshing = self);
           curPin = curTrigger.pin;
 
-          if (curPin && (curPin === trigger || curPin === pin) && !curTrigger.isReverted) {
+          if (curPin && (curPin === trigger || curPin === pin || curPin === pinnedContainer) && !curTrigger.isReverted) {
             revertedPins || (revertedPins = []);
             revertedPins.unshift(curTrigger);
             curTrigger.revert(true, true);
@@ -1899,7 +1921,7 @@
             parsedEnd = (_isString(parsedStart) ? parsedStart.split(" ")[0] : "") + parsedEnd;
           } else {
             offset = _offsetToPx(parsedEnd.substr(2), size);
-            parsedEnd = _isString(parsedStart) ? parsedStart : start + offset;
+            parsedEnd = _isString(parsedStart) ? parsedStart : (containerAnimation ? gsap$1.utils.mapRange(0, containerAnimation.duration(), containerAnimation.scrollTrigger.start, containerAnimation.scrollTrigger.end, start) : start) + offset;
             parsedEndTrigger = trigger;
           }
         }
@@ -1926,6 +1948,11 @@
 
         start += offset;
         end += offset;
+
+        if (isFirstRefresh) {
+          prevProgress = gsap$1.utils.clamp(0, 1, gsap$1.utils.normalize(start, end, prevScroll));
+        }
+
         self._pinPush = otherPinOffset;
 
         if (markerStart && offset) {
@@ -1947,7 +1974,7 @@
               style: forcedOverflow,
               value: forcedOverflow["overflow" + direction.a.toUpperCase()]
             };
-            forcedOverflow["overflow" + direction.a.toUpperCase()] = "scroll";
+            forcedOverflow.style["overflow" + direction.a.toUpperCase()] = "scroll";
           }
 
           _swapPinIn(pin, spacer, cs);
@@ -2049,12 +2076,13 @@
         _refreshing = 0;
         animation && isToggle && (animation._initted || prevAnimProgress) && animation.progress() !== prevAnimProgress && animation.progress(prevAnimProgress, true).render(animation.time(), true, true);
 
-        if (prevProgress !== self.progress || containerAnimation) {
-          animation && !isToggle && animation.totalProgress(prevProgress, true);
+        if (isFirstRefresh || prevProgress !== self.progress || containerAnimation) {
+          animation && !isToggle && animation.totalProgress(containerAnimation && start < -0.001 && !prevProgress ? gsap$1.utils.normalize(start, end, 0) : prevProgress, true);
           self.progress = (scroll1 - start) / change === prevProgress ? 0 : prevProgress;
         }
 
         pin && pinSpacing && (spacer._pinOffset = Math.round(self.progress * pinChange));
+        scrubTween && scrubTween.invalidate();
         onRefresh && !_refreshingAll && onRefresh(self);
       };
 
@@ -2090,7 +2118,7 @@
           return;
         }
 
-        var scroll = _refreshingAll ? prevScroll : self.scroll(),
+        var scroll = _refreshingAll === true ? prevScroll : self.scroll(),
             p = reset ? 0 : (scroll - start) / change,
             clipped = p < 0 ? 0 : p > 1 ? 1 : p || 0,
             prevProgress = self.progress,
@@ -2266,7 +2294,7 @@
       };
 
       self.adjustPinSpacing = function (amount) {
-        if (spacerState) {
+        if (spacerState && amount) {
           var i = spacerState.indexOf(direction.d) + 1;
           spacerState[i] = parseFloat(spacerState[i]) + amount + _px;
           spacerState[1] = parseFloat(spacerState[1]) + amount + _px;
@@ -2421,10 +2449,14 @@
         _context$1 = gsap$1.core.context || _passThrough;
         _suppressOverwrites = gsap$1.core.suppressOverwrites || _passThrough;
         _scrollRestoration = _win$1.history.scrollRestoration || "auto";
+        _lastScroll = _win$1.pageYOffset;
         gsap$1.core.globals("ScrollTrigger", ScrollTrigger);
 
         if (_body$1) {
           _enabled = 1;
+
+          _rafBugFix();
+
           Observer.register(gsap$1);
           ScrollTrigger.isTouch = Observer.isTouch;
           _fixIOSBug = Observer.isTouch && /(iPad|iPhone|iPod|Mac)/g.test(navigator.userAgent);
@@ -2592,7 +2624,7 @@
 
     return ScrollTrigger;
   }();
-  ScrollTrigger$1.version = "3.11.4";
+  ScrollTrigger$1.version = "3.11.5";
 
   ScrollTrigger$1.saveStyles = function (targets) {
     return targets ? _toArray(targets).forEach(function (target) {
@@ -2788,6 +2820,7 @@
         normalizeScrollX = _vars2.normalizeScrollX,
         momentum = _vars2.momentum,
         allowNestedScroll = _vars2.allowNestedScroll,
+        onRelease = _vars2.onRelease,
         self,
         maxY,
         target = _getTarget(vars.target) || _docEl$1,
@@ -2869,6 +2902,7 @@
     };
 
     vars.onPress = function () {
+      skipTouchMove = false;
       var prevScale = scale;
       scale = _round((_win$1.visualViewport && _win$1.visualViewport.scale || 1) / initialScale);
       tween.pause();
@@ -2910,6 +2944,8 @@
           });
         }
       }
+
+      onRelease && onRelease(self);
     };
 
     vars.onWheel = function () {
@@ -2972,6 +3008,12 @@
       paused: true,
       scrollX: normalizeScrollX ? "+=0.1" : "+=0",
       scrollY: "+=0.1",
+      modifiers: {
+        scrollY: _interruptionTracker(scrollFuncY, scrollFuncY(), function () {
+          return tween.pause();
+        })
+      },
+      onUpdate: _updateAll,
       onComplete: onStopDelayedCall.vars.onComplete
     });
     return self;

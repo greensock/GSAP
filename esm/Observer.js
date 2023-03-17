@@ -3,10 +3,10 @@ function _defineProperties(target, props) { for (var i = 0; i < props.length; i+
 function _createClass(Constructor, protoProps, staticProps) { if (protoProps) _defineProperties(Constructor.prototype, protoProps); if (staticProps) _defineProperties(Constructor, staticProps); return Constructor; }
 
 /*!
- * Observer 3.11.4
+ * Observer 3.11.5
  * https://greensock.com
  *
- * @license Copyright 2008-2022, GreenSock. All rights reserved.
+ * @license Copyright 2008-2023, GreenSock. All rights reserved.
  * Subject to the terms at https://greensock.com/standard-license or for
  * Club GreenSock members, the agreement issued with that membership.
  * @author: Jack Doyle, jack@greensock.com
@@ -432,7 +432,7 @@ export var Observer = /*#__PURE__*/function () {
       }
     },
         _onPress = self.onPress = function (e) {
-      if (_ignoreCheck(e, 1)) {
+      if (_ignoreCheck(e, 1) || e && e.button) {
         return;
       }
 
@@ -455,7 +455,7 @@ export var Observer = /*#__PURE__*/function () {
       self.deltaX = self.deltaY = 0;
       onPress && onPress(self);
     },
-        _onRelease = function _onRelease(e) {
+        _onRelease = self.onRelease = function (e) {
       if (_ignoreCheck(e, 1)) {
         return;
       }
@@ -663,7 +663,7 @@ export var Observer = /*#__PURE__*/function () {
 
   return Observer;
 }();
-Observer.version = "3.11.4";
+Observer.version = "3.11.5";
 
 Observer.create = function (vars) {
   return new Observer(vars);

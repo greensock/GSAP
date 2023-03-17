@@ -1,8 +1,8 @@
 /*!
- * GSAP 3.11.4
+ * GSAP 3.11.5
  * https://greensock.com
  *
- * @license Copyright 2008-2022, GreenSock. All rights reserved.
+ * @license Copyright 2008-2023, GreenSock. All rights reserved.
  * Subject to the terms at https://greensock.com/standard-license or for
  * Club GreenSock members, the agreement issued with that membership.
  * @author: Jack Doyle, jack@greensock.com
@@ -656,7 +656,12 @@ let _config = {
 		return animation;
 	},
 	_quickTween,
+	_registerPluginQueue = [],
 	_createPlugin = config => {
+		if (!_windowExists()) {
+			_registerPluginQueue.push(config);
+			return;
+		}
 		config = !config.name && config.default || config; //UMD packaging wraps things oddly, so for example MotionPathHelper becomes {MotionPathHelper:MotionPathHelper, default:MotionPathHelper}.
 		let name = config.name,
 			isFunc = _isFunction(config),
@@ -931,6 +936,7 @@ let _config = {
 						(_win.gsapVersions || (_win.gsapVersions = [])).push(gsap.version);
 						_install(_installScope || _win.GreenSockGlobals || (!_win.gsap && _win) || {});
 						_raf = _win.requestAnimationFrame;
+						_registerPluginQueue.forEach(_createPlugin);
 					}
 					_id && _self.sleep();
 					_req = _raf || (f => setTimeout(f, (_nextTime - _self.time * 1000 + 1) | 0));
@@ -1275,7 +1281,7 @@ export class Animation {
 		// prioritize rendering where the parent's playhead lines up instead of this._tTime because there could be a tween that's animating another tween's timeScale in the same rendering loop (same parent), thus if the timeScale tween renders first, it would alter _start BEFORE _tTime was set on that tick (in the rendering loop), effectively freezing it until the timeScale tween finishes.
 		this._rts = +value || 0;
 		this._ts = (this._ps || value === -_tinyNum) ? 0 : this._rts; // _ts is the functional timeScale which would be 0 if the animation is paused.
-		this.totalTime(_clamp(-this._delay, this._tDur, tTime), true);
+		this.totalTime(_clamp(-Math.abs(this._delay), this._tDur, tTime), true);
 		_setEnd(this); // if parent.smoothChildTiming was false, the end time didn't get updated in the _alignPlayhead() method, so do it here.
 		return _recacheAncestors(this);
 	}
@@ -1585,7 +1591,7 @@ export class Timeline extends Animation {
 					time > dur && (time = dur);
 				}
 				prevIteration = _animationCycle(this._tTime, cycleDuration);
-				!prevTime && this._tTime && prevIteration !== iteration && (prevIteration = iteration); // edge case - if someone does addPause() at the very beginning of a repeating timeline, that pause is technically at the same spot as the end which causes this._time to get set to 0 when the totalTime would normally place the playhead at the end. See https://greensock.com/forums/topic/23823-closing-nav-animation-not-working-on-ie-and-iphone-6-maybe-other-older-browser/?tab=comments#comment-113005
+				!prevTime && this._tTime && prevIteration !== iteration && this._tTime - prevIteration * cycleDuration - this._dur <= 0 && (prevIteration = iteration); // edge case - if someone does addPause() at the very beginning of a repeating timeline, that pause is technically at the same spot as the end which causes this._time to get set to 0 when the totalTime would normally place the playhead at the end. See https://greensock.com/forums/topic/23823-closing-nav-animation-not-working-on-ie-and-iphone-6-maybe-other-older-browser/?tab=comments#comment-113005 also, this._tTime - prevIteration * cycleDuration - this._dur <= 0 just checks to make sure it wasn't previously in the "repeatDelay" portion
 				if (yoyo && (iteration & 1)) {
 					time = dur - time;
 					isYoyo = 1;
@@ -1644,7 +1650,7 @@ export class Timeline extends Animation {
 				this._zTime = totalTime;
 				prevTime = 0; // upon init, the playhead should always go forward; someone could invalidate() a completed timeline and then if they restart(), that would make child tweens render in reverse order which could lock in the wrong starting values if they build on each other, like tl.to(obj, {x: 100}).to(obj, {x: 0}).
 			}
-			if (!prevTime && time && !suppressEvents) {
+			if (!prevTime && time && !suppressEvents && !iteration) {
 				_callback(this, "onStart");
 				if (this._tTime !== tTime) { // in case the onStart triggered a render at a different spot, eject. Like if someone did animation.pause(0.5) or something inside the onStart.
 					return this;
@@ -2502,7 +2508,7 @@ export class Tween extends Animation {
 				this.ratio = ratio = 1 - ratio;
 			}
 
-			if (time && !prevTime && !suppressEvents) {
+			if (time && !prevTime && !suppressEvents && !iteration) {
 				_callback(this, "onStart");
 				if (this._tTime !== tTime) { // in case the onStart triggered a render at a different spot, eject. Like if someone did animation.pause(0.5) or something inside the onStart.
 					return this;
@@ -3215,7 +3221,7 @@ export const gsap = _gsap.registerPlugin({
 	_buildModifierPlugin("snap", snap)
 ) || _gsap; //to prevent the core plugins from being dropped via aggressive tree shaking, we must include them in the variable declaration in this way.
 
-Tween.version = Timeline.version = gsap.version = "3.11.4";
+Tween.version = Timeline.version = gsap.version = "3.11.5";
 _coreReady = 1;
 _windowExists() && _wake();
 

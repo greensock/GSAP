@@ -20,9 +20,9 @@ View the <a href="https://greensock.com/docs">full documentation here</a>, inclu
 
 ### CDN
 ```html
-<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.11.4/gsap.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/gsap@3.11/dist/gsap.min.js"></script>
 ```
-Click the green "Get GSAP Now" button at <a href="https://greensock.com/?download=GSAP-JS">greensock.com</a> for more options and installation instructions, including CDN URLs for various plugins. 
+See <a href="https://www.jsdelivr.com/gsap">JSDelivr's dedicated GSAP page</a> for quick CDN links to the core files/plugins. There are more <a href="https://greensock.com/docs/v3/Installation#cdn">installation instructions</a> at GreenSock.com.
 
 **Every major ad network excludes GSAP from file size calculations** and most have it on their own CDNs, so contact them for the appropriate URL(s). 
 
@@ -102,4 +102,4 @@ There are 3 main reasons anyone signs up for <a href="https://greensock.com/club
 ### License
 GreenSock's standard "no charge" license can be viewed at <a href="https://greensock.com/standard-license">http://greensock.com/standard-license</a>. <a href="https://greensock.com/club/">Club GreenSock</a> members are granted additional rights. See <a href="https://greensock.com/licensing/">http://greensock.com/licensing/</a> for details. Why doesn't GreenSock use an MIT (or similar) open source license, and why is that a **good** thing? This article explains it all: <a href="https://greensock.com/why-license/" target="_blank">http://greensock.com/why-license/</a>
 
-Copyright (c) 2008-2022, GreenSock. All rights reserved. 
+Copyright (c) 2008-2023, GreenSock. All rights reserved. 

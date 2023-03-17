@@ -1,8 +1,8 @@
 /*!
- * Flip 3.11.4
+ * Flip 3.11.5
  * https://greensock.com
  *
- * @license Copyright 2008-2022, GreenSock. All rights reserved.
+ * @license Copyright 2008-2023, GreenSock. All rights reserved.
  * Subject to the terms at https://greensock.com/standard-license or for
  * Club GreenSock members, the agreement issued with that membership.
  * @author: Jack Doyle, jack@greensock.com
@@ -12,7 +12,7 @@
 import { getGlobalMatrix, _getDocScrollTop, _getDocScrollLeft, Matrix2D, _setDoc, _getCTM } from "./utils/matrix.js";
 
 let _id = 1,
-	_toArray, gsap, _batch, _batchAction, _body, _closestTenth,
+	_toArray, gsap, _batch, _batchAction, _body, _closestTenth, _getStyleSaver,
 	_forEachBatch = (batch, name) => batch.actions.forEach(a => a.vars[name] && a.vars[name](a)),
 	_batchLookup = {},
 	_RAD2DEG = 180 / Math.PI,
@@ -194,8 +194,7 @@ let _id = 1,
 	_fit = (fromState, toState, scale, applyProps, fitChild, vars) => {
 		let { element, cache, parent, x, y } = fromState,
 			{ width, height, scaleX, scaleY, rotation, bounds } = toState,
-			cssText = vars && element.style.cssText,
-			transform = vars && element.getBBox && element.getAttribute("transform"),
+			styles = vars && _getStyleSaver && _getStyleSaver(element, "transform"), // requires at least 3.11.5
 			dimensionState = fromState,
 			{e, f} = toState.matrix,
 			deep = fromState.bounds.width !== bounds.width || fromState.bounds.height !== bounds.height || fromState.scaleX !== scaleX || fromState.scaleY !== scaleY || fromState.rotation !== rotation,
@@ -255,9 +254,7 @@ let _id = 1,
 		x = _closestTenth(x, 0.02);
 		y = _closestTenth(y, 0.02);
 		if (vars && !(vars instanceof ElementState)) { // revert
-			element.style.cssText = cssText;
-			element.getBBox && element.setAttribute("transform", transform || "");
-			cache.uncache = 1;
+			styles && styles.revert();
 		} else { // or apply the transform immediately
 			cache.x = x + "px";
 			cache.y = y + "px";
@@ -1008,13 +1005,14 @@ export class Flip {
 			gsap = core;
 			_setDoc(_body);
 			_toArray = gsap.utils.toArray;
+			_getStyleSaver = gsap.core.getStyleSaver;
 			let snap = gsap.utils.snap(0.1);
 			_closestTenth = (value, add) => snap(parseFloat(value) + add);
 		}
 	}
 }
 
-Flip.version = "3.11.4";
+Flip.version = "3.11.5";
 
 // function whenImagesLoad(el, func) {
 // 	let pending = [],

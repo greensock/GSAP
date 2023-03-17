@@ -364,10 +364,10 @@
 	}
 
 	/*!
-	 * Flip 3.11.4
+	 * Flip 3.11.5
 	 * https://greensock.com
 	 *
-	 * @license Copyright 2008-2022, GreenSock. All rights reserved.
+	 * @license Copyright 2008-2023, GreenSock. All rights reserved.
 	 * Subject to the terms at https://greensock.com/standard-license or for
 	 * Club GreenSock members, the agreement issued with that membership.
 	 * @author: Jack Doyle, jack@greensock.com
@@ -380,6 +380,7 @@
 	    _batchAction,
 	    _body$1,
 	    _closestTenth,
+	    _getStyleSaver,
 	    _forEachBatch = function _forEachBatch(batch, name) {
 	  return batch.actions.forEach(function (a) {
 	    return a.vars[name] && a.vars[name](a);
@@ -685,8 +686,7 @@
 	      scaleY = toState.scaleY,
 	      rotation = toState.rotation,
 	      bounds = toState.bounds,
-	      cssText = vars && element.style.cssText,
-	      transform = vars && element.getBBox && element.getAttribute("transform"),
+	      styles = vars && _getStyleSaver && _getStyleSaver(element, "transform"),
 	      dimensionState = fromState,
 	      _toState$matrix = toState.matrix,
 	      e = _toState$matrix.e,
@@ -772,9 +772,7 @@
 	  y = _closestTenth(y, 0.02);
 
 	  if (vars && !(vars instanceof ElementState)) {
-	    element.style.cssText = cssText;
-	    element.getBBox && element.setAttribute("transform", transform || "");
-	    cache.uncache = 1;
+	    styles && styles.revert();
 	  } else {
 	    cache.x = x + "px";
 	    cache.y = y + "px";
@@ -1797,6 +1795,7 @@
 	      _setDoc(_body$1);
 
 	      _toArray = gsap.utils.toArray;
+	      _getStyleSaver = gsap.core.getStyleSaver;
 	      var snap = gsap.utils.snap(0.1);
 
 	      _closestTenth = function _closestTenth(value, add) {
@@ -1807,7 +1806,7 @@
 
 	  return Flip;
 	}();
-	Flip.version = "3.11.4";
+	Flip.version = "3.11.5";
 	typeof window !== "undefined" && window.gsap && window.gsap.registerPlugin(Flip);
 
 	exports.Flip = Flip;
