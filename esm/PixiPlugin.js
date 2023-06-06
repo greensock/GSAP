@@ -1,5 +1,5 @@
 /*!
- * PixiPlugin 3.11.5
+ * PixiPlugin 3.12.0
  * https://greensock.com
  *
  * @license Copyright 2008-2023, GreenSock. All rights reserved.
@@ -33,7 +33,11 @@ var gsap,
     _lumR = 0.212671,
     _lumG = 0.715160,
     _lumB = 0.072169,
-    _applyMatrix = function _applyMatrix(m, m2) {
+    _filterClass = function _filterClass(name) {
+  return _isFunction(_PIXI[name]) ? _PIXI[name] : _PIXI.filters[name];
+},
+    // in PIXI 7.1, filters moved from PIXI.filters to just PIXI
+_applyMatrix = function _applyMatrix(m, m2) {
   var temp = [],
       i = 0,
       z = 0,
@@ -77,10 +81,11 @@ var gsap,
   return _applyMatrix([n, 0, 0, 0, 0.5 * (1 - n), 0, n, 0, 0, 0.5 * (1 - n), 0, 0, n, 0, 0.5 * (1 - n), 0, 0, 0, 1, 0], m);
 },
     _getFilter = function _getFilter(target, type) {
-  var filterClass = _PIXI.filters[type],
+  var filterClass = _filterClass(type),
       filters = target.filters || [],
       i = filters.length,
       filter;
+
   filterClass || _warn(type + " not found. PixiPlugin.registerPIXI(PIXI)");
 
   while (--i > -1) {
@@ -106,7 +111,9 @@ var gsap,
   plugin._props.push(p);
 },
     _applyBrightnessToMatrix = function _applyBrightnessToMatrix(brightness, matrix) {
-  var temp = new _PIXI.filters.ColorMatrixFilter();
+  var filterClass = _filterClass("ColorMatrixFilter"),
+      temp = filterClass();
+
   temp.matrix = matrix;
   temp.brightness(brightness, true);
   return temp.matrix;
@@ -368,7 +375,7 @@ for (i = 0; i < _xyContexts.length; i++) {
 }
 
 export var PixiPlugin = {
-  version: "3.11.5",
+  version: "3.12.0",
   name: "pixi",
   register: function register(core, Plugin, propTween) {
     gsap = core;
@@ -384,7 +391,8 @@ export var PixiPlugin = {
     _PIXI || _initCore();
 
     if (!_PIXI || !(target instanceof _PIXI.DisplayObject)) {
-      console.warn(target, "is not a DisplayObject or PIXI was not found. PixiPlugin.registerPIXI(PIXI);");
+      _warn(target, "is not a DisplayObject or PIXI was not found. PixiPlugin.registerPIXI(PIXI);");
+
       return false;
     }
 

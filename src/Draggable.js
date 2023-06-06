@@ -1,5 +1,5 @@
 /*!
- * Draggable 3.11.5
+ * Draggable 3.12.0
  * https://greensock.com
  *
  * @license Copyright 2008-2023, GreenSock. All rights reserved.
@@ -319,9 +319,9 @@ let gsap, _win, _doc, _docElement, _body, _tempDiv, _placeholderDiv, _coreInitte
 		}
 		return vars;
 	},
-	_isClickable = element => { //sometimes it's convenient to mark an element as clickable by adding a data-clickable="true" attribute (in which case we won't preventDefault() the mouse/touch event). This method checks if the element is an <a>, <input>, or <button> or has an onclick or has the data-clickable or contentEditable attribute set to true (or any of its parent elements).
+	_isClickable = element => { //sometimes it's convenient to mark an element as clickable by adding a data-clickable="true" attribute (in which case we won't preventDefault() the mouse/touch event). This method checks if the element is an <a>, <input>, or <button> or has the data-clickable or contentEditable attribute set to true (or any of its parent elements).
 		let data;
-		return (!element || !element.getAttribute || element === _body) ? false : ((data = element.getAttribute("data-clickable")) === "true" || (data !== "false" && (element.onclick || _clickableTagExp.test(element.nodeName + "") || element.getAttribute("contentEditable") === "true"))) ? true : _isClickable(element.parentNode);
+		return (!element || !element.getAttribute || element === _body) ? false : ((data = element.getAttribute("data-clickable")) === "true" || (data !== "false" && (_clickableTagExp.test(element.nodeName + "") || element.getAttribute("contentEditable") === "true"))) ? true : _isClickable(element.parentNode);
 	},
 	_setSelectable = (elements, selectable) => {
 		let i = elements.length,
@@ -1823,7 +1823,10 @@ export class Draggable extends EventDispatcher {
 			}
 			_removeScrollListener(target, updateScroll);
 			enabled = false;
-			InertiaPlugin && type !== "soft" && InertiaPlugin.untrack(scrollProxy || target, (xyMode ? "x,y" : rotationMode ? "rotation" : "top,left"));
+			if (InertiaPlugin && type !== "soft") {
+				InertiaPlugin.untrack(scrollProxy || target, (xyMode ? "x,y" : rotationMode ? "rotation" : "top,left"));
+				self.tween && self.kill();
+			}
 			scrollProxy && scrollProxy.disable();
 			_removeFromRenderQueue(render);
 			self.isDragging = self.isPressed = isClicking = false;
@@ -1930,7 +1933,7 @@ export class Draggable extends EventDispatcher {
 _setDefaults(Draggable.prototype, {pointerX:0, pointerY: 0, startX: 0, startY: 0, deltaX: 0, deltaY: 0, isDragging: false, isPressed: false});
 
 Draggable.zIndex = 1000;
-Draggable.version = "3.11.5";
+Draggable.version = "3.12.0";
 
 _getGSAP() && gsap.registerPlugin(Draggable);
 

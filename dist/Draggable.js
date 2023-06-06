@@ -851,7 +851,7 @@
   },
       _isClickable = function _isClickable(element) {
     var data;
-    return !element || !element.getAttribute || element === _body$1 ? false : (data = element.getAttribute("data-clickable")) === "true" || data !== "false" && (element.onclick || _clickableTagExp.test(element.nodeName + "") || element.getAttribute("contentEditable") === "true") ? true : _isClickable(element.parentNode);
+    return !element || !element.getAttribute || element === _body$1 ? false : (data = element.getAttribute("data-clickable")) === "true" || data !== "false" && (_clickableTagExp.test(element.nodeName + "") || element.getAttribute("contentEditable") === "true") ? true : _isClickable(element.parentNode);
   },
       _setSelectable = function _setSelectable(elements, selectable) {
     var i = elements.length,
@@ -2807,7 +2807,12 @@
         _removeScrollListener(target, updateScroll);
 
         enabled = false;
-        InertiaPlugin && type !== "soft" && InertiaPlugin.untrack(scrollProxy || target, xyMode ? "x,y" : rotationMode ? "rotation" : "top,left");
+
+        if (InertiaPlugin && type !== "soft") {
+          InertiaPlugin.untrack(scrollProxy || target, xyMode ? "x,y" : rotationMode ? "rotation" : "top,left");
+          self.tween && self.kill();
+        }
+
         scrollProxy && scrollProxy.disable();
 
         _removeFromRenderQueue(render);
@@ -2949,7 +2954,7 @@
   });
 
   Draggable.zIndex = 1000;
-  Draggable.version = "3.11.5";
+  Draggable.version = "3.12.0";
   _getGSAP() && gsap.registerPlugin(Draggable);
 
   exports.Draggable = Draggable;

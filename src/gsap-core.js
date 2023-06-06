@@ -1,5 +1,5 @@
 /*!
- * GSAP 3.11.5
+ * GSAP 3.12.0
  * https://greensock.com
  *
  * @license Copyright 2008-2023, GreenSock. All rights reserved.
@@ -210,7 +210,7 @@ let _config = {
 		child._next = child._prev = child.parent = null; // don't delete the _dp just so we can revert if necessary. But parent should be null to indicate the item isn't in a linked list.
 	},
 	_removeFromParent = (child, onlyIfParentHasAutoRemove) => {
-		child.parent && (!onlyIfParentHasAutoRemove || child.parent.autoRemoveChildren) && child.parent.remove(child);
+		child.parent && (!onlyIfParentHasAutoRemove || child.parent.autoRemoveChildren) && child.parent.remove && child.parent.remove(child);
 		child._act = 0;
 	},
 	_uncache = (animation, child) => {
@@ -658,32 +658,34 @@ let _config = {
 	_quickTween,
 	_registerPluginQueue = [],
 	_createPlugin = config => {
-		if (!_windowExists()) {
-			_registerPluginQueue.push(config);
-			return;
-		}
-		config = !config.name && config.default || config; //UMD packaging wraps things oddly, so for example MotionPathHelper becomes {MotionPathHelper:MotionPathHelper, default:MotionPathHelper}.
-		let name = config.name,
-			isFunc = _isFunction(config),
-			Plugin = (name && !isFunc && config.init) ? function() { this._props = []; } : config, //in case someone passes in an object that's not a plugin, like CustomEase
-			instanceDefaults = {init:_emptyFunc, render:_renderPropTweens, add:_addPropTween, kill:_killPropTweensOf, modifier:_addPluginModifier, rawVars:0},
-			statics = {targetTest:0, get:0, getSetter:_getSetter, aliases:{}, register:0};
-		_wake();
-		if (config !== Plugin) {
-			if (_plugins[name]) {
-				return;
+		if (_windowExists() && config) { // edge case: some build tools may pass in a null/undefined value
+			config = !config.name && config.default || config; //UMD packaging wraps things oddly, so for example MotionPathHelper becomes {MotionPathHelper:MotionPathHelper, default:MotionPathHelper}.
+			let name = config.name,
+				isFunc = _isFunction(config),
+				Plugin = (name && !isFunc && config.init) ? function () {
+					this._props = [];
+				} : config, //in case someone passes in an object that's not a plugin, like CustomEase
+				instanceDefaults = {init: _emptyFunc, render: _renderPropTweens, add: _addPropTween, kill: _killPropTweensOf, modifier: _addPluginModifier, rawVars: 0},
+				statics = {targetTest: 0, get: 0, getSetter: _getSetter, aliases: {}, register: 0};
+			_wake();
+			if (config !== Plugin) {
+				if (_plugins[name]) {
+					return;
+				}
+				_setDefaults(Plugin, _setDefaults(_copyExcluding(config, instanceDefaults), statics)); //static methods
+				_merge(Plugin.prototype, _merge(instanceDefaults, _copyExcluding(config, statics))); //instance methods
+				_plugins[(Plugin.prop = name)] = Plugin;
+				if (config.targetTest) {
+					_harnessPlugins.push(Plugin);
+					_reservedProps[name] = 1;
+				}
+				name = (name === "css" ? "CSS" : name.charAt(0).toUpperCase() + name.substr(1)) + "Plugin"; //for the global name. "motionPath" should become MotionPathPlugin
 			}
-			_setDefaults(Plugin, _setDefaults(_copyExcluding(config, instanceDefaults), statics)); //static methods
-			_merge(Plugin.prototype, _merge(instanceDefaults, _copyExcluding(config, statics))); //instance methods
-			_plugins[(Plugin.prop = name)] = Plugin;
-			if (config.targetTest) {
-				_harnessPlugins.push(Plugin);
-				_reservedProps[name] = 1;
-			}
-			name = (name === "css" ? "CSS" : name.charAt(0).toUpperCase() + name.substr(1)) + "Plugin"; //for the global name. "motionPath" should become MotionPathPlugin
+			_addGlobal(name, Plugin);
+			config.register && config.register(gsap, Plugin, PropTween);
+		} else {
+			config && _registerPluginQueue.push(config);
 		}
-		_addGlobal(name, Plugin);
-		config.register && config.register(gsap, Plugin, PropTween);
 	},
 
 
@@ -2838,6 +2840,7 @@ let _media = [],
 	_listeners = {},
 	_emptyArray = [],
 	_lastMediaTime = 0,
+	_contextID = 0,
 	_dispatch = type => (_listeners[type] || _emptyArray).map(f => f()),
 	_onMediaChange = () => {
 		let time = Date.now(),
@@ -2874,6 +2877,7 @@ class Context {
 		this.data = [];
 		this._r = []; // returned/cleanup functions
 		this.isReverted = false;
+		this.id = _contextID++; // to work around issues that frameworks like Vue cause by making things into Proxies which make it impossible to do something like _media.indexOf(this) because "this" would no longer refer to the Context instance itself - it'd refer to a Proxy! We needed a way to identify the context uniquely
 		func && this.add(func);
 	}
 	add(name, func, scope) {
@@ -2930,7 +2934,7 @@ class Context {
 			});
 			// save as an object so that we can cache the globalTime for each tween to optimize performance during the sort
 			tweens.map(t => { return {g: t.globalTime(0), t}}).sort((a, b) => b.g - a.g || -1).forEach(o => o.t.revert(revert)); // note: all of the _startAt tweens should be reverted in reverse order that they were created, and they'll all have the same globalTime (-1) so the " || -1" in the sort keeps the order properly.
-			this.data.forEach(e => !(e instanceof Animation) && e.revert && e.revert(revert));
+			this.data.forEach(e => e instanceof Timeline ? (e.data !== "nested") && e.kill() : !(e instanceof Tween) && e.revert && e.revert(revert));
 			this._r.forEach(f => f(revert, this));
 			this.isReverted = true;
 		} else {
@@ -2938,8 +2942,10 @@ class Context {
 		}
 		this.clear();
 		if (matchMedia) {
-			let i = _media.indexOf(this);
-			!!~i && _media.splice(i, 1);
+			let i = _media.length;
+			while (i--) { // previously, we checked _media.indexOf(this), but some frameworks like Vue enforce Proxy objects that make it impossible to get the proper result that way, so we must use a unique ID number instead.
+				_media[i].id === this.id && _media.splice(i, 1);
+			}
 		}
 	}
 	revert(config) {
@@ -2960,6 +2966,7 @@ class MatchMedia {
 		let context = new Context(0, scope || this.scope),
 			cond = context.conditions = {},
 			mq, p, active;
+		_context && !context.selector && (context.selector = _context.selector); // in case a context is created inside a context. Like a gsap.matchMedia() that's inside a scoped gsap.context()
 		this.contexts.push(context);
 		func = context.add("onMatch", func);
 		context.queries = conditions;
@@ -3221,7 +3228,7 @@ export const gsap = _gsap.registerPlugin({
 	_buildModifierPlugin("snap", snap)
 ) || _gsap; //to prevent the core plugins from being dropped via aggressive tree shaking, we must include them in the variable declaration in this way.
 
-Tween.version = Timeline.version = gsap.version = "3.11.5";
+Tween.version = Timeline.version = gsap.version = "3.12.0";
 _coreReady = 1;
 _windowExists() && _wake();
 

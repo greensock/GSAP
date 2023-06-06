@@ -1,5 +1,5 @@
 /*!
- * Flip 3.11.5
+ * Flip 3.12.0
  * https://greensock.com
  *
  * @license Copyright 2008-2023, GreenSock. All rights reserved.
@@ -836,7 +836,7 @@ _makeAbsolute = function _makeAbsolute(elState, fallbackNode, ignoreBatch) {
   var anim = _batch ? _batch.timeline : animation;
 
   anim.revert = function () {
-    return _killFlip(anim, 1);
+    return _killFlip(anim, 1, 1);
   }; // a Flip timeline should behave very different when reverting - it should actually jump to the end so that styles get cleared out.
 
 
@@ -846,9 +846,9 @@ _makeAbsolute = function _makeAbsolute(elState, fallbackNode, ignoreBatch) {
   tl.vars.onInterrupt && tl.vars.onInterrupt.apply(tl, tl.vars.onInterruptParams || []);
   tl.getChildren(true, false, true).forEach(_interrupt);
 },
-    _killFlip = function _killFlip(tl, action) {
+    _killFlip = function _killFlip(tl, action, force) {
   // action: 0 = nothing, 1 = complete, 2 = only kill (don't complete)
-  if (tl && tl.progress() < 1 && !tl.paused()) {
+  if (tl && tl.progress() < 1 && (!tl.paused() || force)) {
     if (action) {
       _interrupt(tl);
 
@@ -1497,7 +1497,7 @@ export var Flip = /*#__PURE__*/function () {
 
   return Flip;
 }();
-Flip.version = "3.11.5"; // function whenImagesLoad(el, func) {
+Flip.version = "3.12.0"; // function whenImagesLoad(el, func) {
 // 	let pending = [],
 // 		onLoad = e => {
 // 			pending.splice(pending.indexOf(e.target), 1);

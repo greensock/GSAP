@@ -1,5 +1,5 @@
 /*!
- * PixiPlugin 3.11.5
+ * PixiPlugin 3.12.0
  * https://greensock.com
  *
  * @license Copyright 2008-2023, GreenSock. All rights reserved.
@@ -18,6 +18,7 @@ let gsap, _win, _splitColor, _coreInitted, _PIXI, PropTween, _getSetter, _isV4,
 	_lumR = 0.212671,
 	_lumG = 0.715160,
 	_lumB = 0.072169,
+	_filterClass = name => _isFunction(_PIXI[name]) ? _PIXI[name] : _PIXI.filters[name], // in PIXI 7.1, filters moved from PIXI.filters to just PIXI
 	_applyMatrix = (m, m2) => {
 		let temp = [],
 			i = 0,
@@ -55,7 +56,7 @@ let gsap, _win, _splitColor, _coreInitted, _PIXI, PropTween, _getSetter, _isV4,
 	},
 	_setContrast = (m, n) => _applyMatrix([n,0,0,0,0.5 * (1 - n), 0,n,0,0,0.5 * (1 - n), 0,0,n,0,0.5 * (1 - n), 0,0,0,1,0], m),
 	_getFilter = (target, type) => {
-		let filterClass = _PIXI.filters[type],
+		let filterClass = _filterClass(type),
 			filters = target.filters || [],
 			i = filters.length,
 			filter;
@@ -78,7 +79,8 @@ let gsap, _win, _splitColor, _coreInitted, _PIXI, PropTween, _getSetter, _isV4,
 		plugin._props.push(p);
 	},
 	_applyBrightnessToMatrix = (brightness, matrix) => {
-		let temp = new _PIXI.filters.ColorMatrixFilter();
+		let filterClass = _filterClass("ColorMatrixFilter"),
+			temp = filterClass();
 		temp.matrix = matrix;
 		temp.brightness(brightness, true);
 		return temp.matrix;
@@ -259,7 +261,7 @@ for (i = 0; i < _xyContexts.length; i++) {
 
 
 export const PixiPlugin = {
-	version:"3.11.5",
+	version:"3.12.0",
 	name:"pixi",
 	register(core, Plugin, propTween) {
 		gsap = core;
@@ -273,7 +275,7 @@ export const PixiPlugin = {
 	init(target, values, tween, index, targets) {
 		_PIXI || _initCore();
 		if (!_PIXI || !(target instanceof _PIXI.DisplayObject)) {
-			console.warn(target, "is not a DisplayObject or PIXI was not found. PixiPlugin.registerPIXI(PIXI);");
+			_warn(target, "is not a DisplayObject or PIXI was not found. PixiPlugin.registerPIXI(PIXI);");
 			return false;
 		}
 		let context, axis, value, colorMatrix, filter, p, padding, i, data;

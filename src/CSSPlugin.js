@@ -1,5 +1,5 @@
 /*!
- * CSSPlugin 3.11.5
+ * CSSPlugin 3.12.0
  * https://greensock.com
  *
  * Copyright 2008-2023, GreenSock. All rights reserved.
@@ -52,7 +52,7 @@ let _win, _doc, _docElement, _pluginInitted, _tempDiv, _tempDivStyler, _recentSe
 	_saveStyle = function(property, isNotCSS) {
 		let target = this.target,
 			style = target.style;
-		if (property in _transformProps) {
+		if ((property in _transformProps) && style) {
 			this.tfm = this.tfm || {};
 			if (property !== "transform") {
 				property = _propertyAliases[property] || property;

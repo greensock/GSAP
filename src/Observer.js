@@ -1,5 +1,5 @@
 /*!
- * Observer 3.11.5
+ * Observer 3.12.0
  * https://greensock.com
  *
  * @license Copyright 2008-2023, GreenSock. All rights reserved.
@@ -11,7 +11,6 @@
 
 let gsap, _coreInitted, _clamp, _win, _doc, _docEl, _body, _isTouch, _pointerType, ScrollTrigger, _root, _normalizer, _eventTypes, _context,
 	_getGSAP = () => gsap || (typeof(window) !== "undefined" && (gsap = window.gsap) && gsap.registerPlugin && gsap),
-	_passThrough = p => p,
 	_startup = 1,
 	_observers = [],
 	_scrollers = [],
@@ -56,7 +55,7 @@ let gsap, _coreInitted, _clamp, _win, _doc, _docEl, _body, _isTouch, _pointerTyp
 	},
 	_horizontal = {s: _scrollLeft, p: "left", p2: "Left", os: "right", os2: "Right", d: "width", d2: "Width", a: "x", sc: _scrollCacheFunc(function(value) { return arguments.length ? _win.scrollTo(value, _vertical.sc()) : _win.pageXOffset || _doc[_scrollLeft] || _docEl[_scrollLeft] || _body[_scrollLeft] || 0})},
 	_vertical = {s: _scrollTop, p: "top", p2: "Top", os: "bottom", os2: "Bottom", d: "height", d2: "Height", a: "y", op: _horizontal, sc: _scrollCacheFunc(function(value) { return arguments.length ? _win.scrollTo(_horizontal.sc(), value) : _win.pageYOffset || _doc[_scrollTop] || _docEl[_scrollTop] || _body[_scrollTop] || 0})},
-	_getTarget = t => gsap.utils.toArray(t)[0] || (typeof(t) === "string" && gsap.config().nullTargetWarn !== false ? console.warn("Element not found:", t) : null),
+	_getTarget = (t, self) => ((self && self._ctx && self._ctx.selector) || gsap.utils.toArray)(t)[0] || (typeof(t) === "string" && gsap.config().nullTargetWarn !== false ? console.warn("Element not found:", t) : null),
 
 	_getScrollFunc = (element, {s, sc}) => { // we store the scroller functions in an alternating sequenced Array like [element, verticalScrollFunc, horizontalScrollFunc, ...] so that we can minimize memory, maximize performance, and we also record the last position as a ".rec" property in order to revert to that after refreshing to ensure things don't shift around.
 		_isViewport(element) && (element = _doc.scrollingElement || _docEl);
@@ -411,7 +410,7 @@ export class Observer {
 
 }
 
-Observer.version = "3.11.5";
+Observer.version = "3.12.0";
 Observer.create = vars => new Observer(vars);
 Observer.register = _initCore;
 Observer.getAll = () => _observers.slice();
