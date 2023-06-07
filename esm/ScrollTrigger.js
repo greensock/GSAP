@@ -1,5 +1,5 @@
 /*!
- * ScrollTrigger 3.12.0
+ * ScrollTrigger 3.12.1
  * https://greensock.com
  *
  * @license Copyright 2008-2023, GreenSock. All rights reserved.
@@ -1748,6 +1748,16 @@ export var ScrollTrigger = /*#__PURE__*/function () {
 
     self.setPositions = function (newStart, newEnd, keepClamp, pinOffset) {
       // doesn't persist after refresh()! Intended to be a way to override values that were set during refresh(), like you could set it in onRefresh()
+      if (containerAnimation) {
+        // convert ratios into scroll positions. Remember, start/end values on ScrollTriggers that have a containerAnimation refer to the time (in seconds), NOT scroll positions.
+        var st = containerAnimation.scrollTrigger,
+            duration = containerAnimation.duration(),
+            _change = st.end - st.start;
+
+        newStart = st.start + _change * newStart / duration;
+        newEnd = st.start + _change * newEnd / duration;
+      }
+
       self.refresh(false, false, {
         start: _keepClamp(newStart, keepClamp && !!self._startClamp),
         end: _keepClamp(newEnd, keepClamp && !!self._endClamp)
@@ -2114,7 +2124,7 @@ export var ScrollTrigger = /*#__PURE__*/function () {
 
   return ScrollTrigger;
 }();
-ScrollTrigger.version = "3.12.0";
+ScrollTrigger.version = "3.12.1";
 
 ScrollTrigger.saveStyles = function (targets) {
   return targets ? _toArray(targets).forEach(function (target) {

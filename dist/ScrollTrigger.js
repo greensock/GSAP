@@ -21,7 +21,7 @@
   }
 
   /*!
-   * Observer 3.12.0
+   * Observer 3.12.1
    * https://greensock.com
    *
    * @license Copyright 2008-2023, GreenSock. All rights reserved.
@@ -659,7 +659,7 @@
 
     return Observer;
   }();
-  Observer.version = "3.12.0";
+  Observer.version = "3.12.1";
 
   Observer.create = function (vars) {
     return new Observer(vars);
@@ -680,7 +680,7 @@
   _getGSAP() && gsap.registerPlugin(Observer);
 
   /*!
-   * ScrollTrigger 3.12.0
+   * ScrollTrigger 3.12.1
    * https://greensock.com
    *
    * @license Copyright 2008-2023, GreenSock. All rights reserved.
@@ -2341,6 +2341,15 @@
       };
 
       self.setPositions = function (newStart, newEnd, keepClamp, pinOffset) {
+        if (containerAnimation) {
+          var st = containerAnimation.scrollTrigger,
+              duration = containerAnimation.duration(),
+              _change = st.end - st.start;
+
+          newStart = st.start + _change * newStart / duration;
+          newEnd = st.start + _change * newEnd / duration;
+        }
+
         self.refresh(false, false, {
           start: _keepClamp(newStart, keepClamp && !!self._startClamp),
           end: _keepClamp(newEnd, keepClamp && !!self._endClamp)
@@ -2694,7 +2703,7 @@
 
     return ScrollTrigger;
   }();
-  ScrollTrigger$1.version = "3.12.0";
+  ScrollTrigger$1.version = "3.12.1";
 
   ScrollTrigger$1.saveStyles = function (targets) {
     return targets ? _toArray(targets).forEach(function (target) {

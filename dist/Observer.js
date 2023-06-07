@@ -21,7 +21,7 @@
   }
 
   /*!
-   * Observer 3.12.0
+   * Observer 3.12.1
    * https://greensock.com
    *
    * @license Copyright 2008-2023, GreenSock. All rights reserved.
@@ -659,7 +659,7 @@
 
     return Observer;
   }();
-  Observer.version = "3.12.0";
+  Observer.version = "3.12.1";
 
   Observer.create = function (vars) {
     return new Observer(vars);

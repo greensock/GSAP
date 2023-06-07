@@ -1,5 +1,5 @@
 /*!
- * ScrollTrigger 3.12.0
+ * ScrollTrigger 3.12.1
  * https://greensock.com
  *
  * @license Copyright 2008-2023, GreenSock. All rights reserved.
@@ -1158,6 +1158,13 @@ export class ScrollTrigger {
 		self.getTween = snap => snap && tweenTo ? tweenTo.tween : scrubTween;
 
 		self.setPositions = (newStart, newEnd, keepClamp, pinOffset) => { // doesn't persist after refresh()! Intended to be a way to override values that were set during refresh(), like you could set it in onRefresh()
+			if (containerAnimation) { // convert ratios into scroll positions. Remember, start/end values on ScrollTriggers that have a containerAnimation refer to the time (in seconds), NOT scroll positions.
+				let st = containerAnimation.scrollTrigger,
+					duration = containerAnimation.duration(),
+					change = st.end - st.start;
+				newStart = st.start + change * newStart / duration;
+				newEnd = st.start + change * newEnd / duration;
+			}
 			self.refresh(false, false, {start: _keepClamp(newStart, keepClamp && !!self._startClamp), end: _keepClamp(newEnd, keepClamp && !!self._endClamp)}, pinOffset);
 			self.update();
 		};
@@ -1420,7 +1427,7 @@ export class ScrollTrigger {
 
 }
 
-ScrollTrigger.version = "3.12.0";
+ScrollTrigger.version = "3.12.1";
 ScrollTrigger.saveStyles = targets => targets ? _toArray(targets).forEach(target => { // saved styles are recorded in a consecutive alternating Array, like [element, cssText, transform attribute, cache, matchMedia, ...]
 	if (target && target.style) {
 		let i = _savedStyles.indexOf(target);
