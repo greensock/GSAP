@@ -1,5 +1,5 @@
 /*!
- * Observer 3.12.1
+ * Observer 3.12.2
  * https://greensock.com
  *
  * @license Copyright 2008-2023, GreenSock. All rights reserved.
@@ -62,7 +62,7 @@ let gsap, _coreInitted, _clamp, _win, _doc, _docEl, _body, _isTouch, _pointerTyp
 		let i = _scrollers.indexOf(element),
 			offset = sc === _vertical.sc ? 1 : 2;
 		!~i && (i = _scrollers.push(element) - 1);
-		_scrollers[i + offset] || element.addEventListener("scroll", _onScroll); // clear the cache when a scroll occurs
+		_scrollers[i + offset] || _addListener(element, "scroll", _onScroll); // clear the cache when a scroll occurs
 		let prev = _scrollers[i + offset],
 			func = prev || (_scrollers[i + offset] = _scrollCacheFunc(_getProxyProp(element, s), true) || (_isViewport(element) ? sc : _scrollCacheFunc(function(value) { return arguments.length ? (element[s] = value) : element[s]; })));
 		func.target = element;
@@ -410,7 +410,7 @@ export class Observer {
 
 }
 
-Observer.version = "3.12.1";
+Observer.version = "3.12.2";
 Observer.create = vars => new Observer(vars);
 Observer.register = _initCore;
 Observer.getAll = () => _observers.slice();

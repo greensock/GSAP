@@ -21,7 +21,7 @@
   }
 
   /*!
-   * Observer 3.12.1
+   * Observer 3.12.2
    * https://greensock.com
    *
    * @license Copyright 2008-2023, GreenSock. All rights reserved.
@@ -147,7 +147,7 @@
         offset = sc === _vertical.sc ? 1 : 2;
 
     !~i && (i = _scrollers.push(element) - 1);
-    _scrollers[i + offset] || element.addEventListener("scroll", _onScroll);
+    _scrollers[i + offset] || _addListener(element, "scroll", _onScroll);
     var prev = _scrollers[i + offset],
         func = prev || (_scrollers[i + offset] = _scrollCacheFunc(_getProxyProp(element, s), true) || (_isViewport(element) ? sc : _scrollCacheFunc(function (value) {
       return arguments.length ? element[s] = value : element[s];
@@ -659,7 +659,7 @@
 
     return Observer;
   }();
-  Observer.version = "3.12.1";
+  Observer.version = "3.12.2";
 
   Observer.create = function (vars) {
     return new Observer(vars);
@@ -680,7 +680,7 @@
   _getGSAP() && gsap.registerPlugin(Observer);
 
   /*!
-   * ScrollTrigger 3.12.1
+   * ScrollTrigger 3.12.2
    * https://greensock.com
    *
    * @license Copyright 2008-2023, GreenSock. All rights reserved.
@@ -718,6 +718,8 @@
       _fixIOSBug,
       _context$1,
       _scrollRestoration,
+      _div100vh,
+      _100vh,
       _limitCallbacks,
       _startup$1 = 1,
       _getTime$1 = Date.now,
@@ -756,10 +758,13 @@
       _isViewport$1 = function _isViewport(e) {
     return !!~_root$1.indexOf(e);
   },
+      _getViewportDimension = function _getViewportDimension(dimensionProperty) {
+    return (dimensionProperty === "Height" ? _100vh : _win$1["inner" + dimensionProperty]) || _docEl$1["client" + dimensionProperty] || _body$1["client" + dimensionProperty];
+  },
       _getBoundsFunc = function _getBoundsFunc(element) {
     return _getProxyProp(element, "getBoundingClientRect") || (_isViewport$1(element) ? function () {
       _winOffsets.width = _win$1.innerWidth;
-      _winOffsets.height = _win$1.innerHeight;
+      _winOffsets.height = _100vh;
       return _winOffsets;
     } : function () {
       return _getBounds(element);
@@ -772,7 +777,7 @@
     return (a = _getProxyProp(scroller, "getBoundingClientRect")) ? function () {
       return a()[d];
     } : function () {
-      return (isViewport ? _win$1["inner" + d2] : scroller["client" + d2]) || 0;
+      return (isViewport ? _getViewportDimension(d2) : scroller["client" + d2]) || 0;
     };
   },
       _getOffsetsFunc = function _getOffsetsFunc(element, isViewport) {
@@ -785,7 +790,7 @@
         d2 = _ref2.d2,
         d = _ref2.d,
         a = _ref2.a;
-    return Math.max(0, (s = "scroll" + d2) && (a = _getProxyProp(element, s)) ? a() - _getBoundsFunc(element)()[d] : _isViewport$1(element) ? (_docEl$1[s] || _body$1[s]) - (_win$1["inner" + d2] || _docEl$1["client" + d2] || _body$1["client" + d2]) : element[s] - element["offset" + d2]);
+    return Math.max(0, (s = "scroll" + d2) && (a = _getProxyProp(element, s)) ? a() - _getBoundsFunc(element)()[d] : _isViewport$1(element) ? (_docEl$1[s] || _body$1[s]) - _getViewportDimension(d2) : element[s] - element["offset" + d2]);
   },
       _iterateAutoRefresh = function _iterateAutoRefresh(func, events) {
     for (var i = 0; i < _autoRefresh.length; i += 3) {
@@ -1116,12 +1121,21 @@
       });
     }
   },
+      _refresh100vh = function _refresh100vh() {
+    _body$1.appendChild(_div100vh);
+
+    _100vh = _div100vh.offsetHeight || _win$1.innerHeight;
+
+    _body$1.removeChild(_div100vh);
+  },
       _refreshAll = function _refreshAll(force, skipRevert) {
     if (_lastScrollTime && !force) {
       _addListener$1(ScrollTrigger$1, "scrollEnd", _softRefresh);
 
       return;
     }
+
+    _refresh100vh();
 
     _refreshingAll = ScrollTrigger$1.isRefreshing = true;
 
@@ -1879,7 +1893,7 @@
         !_refreshingAll && onRefreshInit && onRefreshInit(self);
         _refreshing = self;
 
-        if (tweenTo.tween) {
+        if (tweenTo.tween && !position) {
           tweenTo.tween.kill();
           tweenTo.tween = 0;
         }
@@ -2109,7 +2123,6 @@
 
         if (snapDelayedCall) {
           lastSnap = -1;
-          self.isActive && scrollFunc(start + change * prevProgress);
           snapDelayedCall.restart(true);
         }
 
@@ -2323,8 +2336,7 @@
 
           _addListener$1(scroller, "resize", _onResize);
 
-          _addListener$1(isViewport ? _doc$1 : scroller, "scroll", _onScroll$1);
-
+          isViewport || _addListener$1(scroller, "scroll", _onScroll$1);
           onRefreshInit && _addListener$1(ScrollTrigger, "refreshInit", onRefreshInit);
 
           if (reset !== false) {
@@ -2392,7 +2404,7 @@
 
             _removeListener$1(scroller, "resize", _onResize);
 
-            _removeListener$1(scroller, "scroll", _onScroll$1);
+            isViewport || _removeListener$1(scroller, "scroll", _onScroll$1);
           }
         }
       };
@@ -2533,6 +2545,11 @@
 
         if (_body$1) {
           _enabled = 1;
+          _div100vh = document.createElement("div");
+          _div100vh.style.height = "100vh";
+          _div100vh.style.position = "absolute";
+
+          _refresh100vh();
 
           _rafBugFix();
 
@@ -2703,7 +2720,7 @@
 
     return ScrollTrigger;
   }();
-  ScrollTrigger$1.version = "3.12.1";
+  ScrollTrigger$1.version = "3.12.2";
 
   ScrollTrigger$1.saveStyles = function (targets) {
     return targets ? _toArray(targets).forEach(function (target) {

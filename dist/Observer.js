@@ -21,7 +21,7 @@
   }
 
   /*!
-   * Observer 3.12.1
+   * Observer 3.12.2
    * https://greensock.com
    *
    * @license Copyright 2008-2023, GreenSock. All rights reserved.
@@ -147,7 +147,7 @@
         offset = sc === _vertical.sc ? 1 : 2;
 
     !~i && (i = exports._scrollers.push(element) - 1);
-    exports._scrollers[i + offset] || element.addEventListener("scroll", _onScroll);
+    exports._scrollers[i + offset] || _addListener(element, "scroll", _onScroll);
     var prev = exports._scrollers[i + offset],
         func = prev || (exports._scrollers[i + offset] = _scrollCacheFunc(_getProxyProp(element, s), true) || (_isViewport(element) ? sc : _scrollCacheFunc(function (value) {
       return arguments.length ? element[s] = value : element[s];
@@ -659,7 +659,7 @@
 
     return Observer;
   }();
-  Observer.version = "3.12.1";
+  Observer.version = "3.12.2";
 
   Observer.create = function (vars) {
     return new Observer(vars);

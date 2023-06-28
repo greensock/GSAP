@@ -1,5 +1,5 @@
 /*!
- * EaselPlugin 3.12.1
+ * EaselPlugin 3.12.2
  * https://greensock.com
  *
  * @license Copyright 2008-2023, GreenSock. All rights reserved.
@@ -215,7 +215,7 @@ let gsap, _coreInitted, _win, _createJS, _ColorFilter, _ColorMatrixFilter,
 
 
 export const EaselPlugin = {
-	version: "3.12.1",
+	version: "3.12.2",
 	name: "easel",
 	init(target, value, tween, index, targets) {
 		if (!_coreInitted) {

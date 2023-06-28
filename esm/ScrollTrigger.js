@@ -1,5 +1,5 @@
 /*!
- * ScrollTrigger 3.12.1
+ * ScrollTrigger 3.12.2
  * https://greensock.com
  *
  * @license Copyright 2008-2023, GreenSock. All rights reserved.
@@ -40,6 +40,8 @@ var gsap,
     _fixIOSBug,
     _context,
     _scrollRestoration,
+    _div100vh,
+    _100vh,
     _limitCallbacks,
     // if true, we'll only trigger callbacks if the active state toggles, so if you scroll immediately past both the start and end positions of a ScrollTrigger (thus inactive to inactive), neither its onEnter nor onLeave will be called. This is useful during startup.
 _startup = 1,
@@ -80,10 +82,13 @@ _pointerDownHandler = function _pointerDownHandler() {
     _isViewport = function _isViewport(e) {
   return !!~_root.indexOf(e);
 },
+    _getViewportDimension = function _getViewportDimension(dimensionProperty) {
+  return (dimensionProperty === "Height" ? _100vh : _win["inner" + dimensionProperty]) || _docEl["client" + dimensionProperty] || _body["client" + dimensionProperty];
+},
     _getBoundsFunc = function _getBoundsFunc(element) {
   return _getProxyProp(element, "getBoundingClientRect") || (_isViewport(element) ? function () {
     _winOffsets.width = _win.innerWidth;
-    _winOffsets.height = _win.innerHeight;
+    _winOffsets.height = _100vh;
     return _winOffsets;
   } : function () {
     return _getBounds(element);
@@ -96,7 +101,7 @@ _pointerDownHandler = function _pointerDownHandler() {
   return (a = _getProxyProp(scroller, "getBoundingClientRect")) ? function () {
     return a()[d];
   } : function () {
-    return (isViewport ? _win["inner" + d2] : scroller["client" + d2]) || 0;
+    return (isViewport ? _getViewportDimension(d2) : scroller["client" + d2]) || 0;
   };
 },
     _getOffsetsFunc = function _getOffsetsFunc(element, isViewport) {
@@ -109,7 +114,7 @@ _pointerDownHandler = function _pointerDownHandler() {
       d2 = _ref2.d2,
       d = _ref2.d,
       a = _ref2.a;
-  return Math.max(0, (s = "scroll" + d2) && (a = _getProxyProp(element, s)) ? a() - _getBoundsFunc(element)()[d] : _isViewport(element) ? (_docEl[s] || _body[s]) - (_win["inner" + d2] || _docEl["client" + d2] || _body["client" + d2]) : element[s] - element["offset" + d2]);
+  return Math.max(0, (s = "scroll" + d2) && (a = _getProxyProp(element, s)) ? a() - _getBoundsFunc(element)()[d] : _isViewport(element) ? (_docEl[s] || _body[s]) - _getViewportDimension(d2) : element[s] - element["offset" + d2]);
 },
     _iterateAutoRefresh = function _iterateAutoRefresh(func, events) {
   for (var i = 0; i < _autoRefresh.length; i += 3) {
@@ -448,12 +453,21 @@ _revertRecorded = function _revertRecorded(media) {
     });
   }
 },
+    _refresh100vh = function _refresh100vh() {
+  _body.appendChild(_div100vh);
+
+  _100vh = _div100vh.offsetHeight || _win.innerHeight;
+
+  _body.removeChild(_div100vh);
+},
     _refreshAll = function _refreshAll(force, skipRevert) {
   if (_lastScrollTime && !force) {
     _addListener(ScrollTrigger, "scrollEnd", _softRefresh);
 
     return;
   }
+
+  _refresh100vh();
 
   _refreshingAll = ScrollTrigger.isRefreshing = true;
 
@@ -1255,7 +1269,8 @@ export var ScrollTrigger = /*#__PURE__*/function () {
       !_refreshingAll && onRefreshInit && onRefreshInit(self);
       _refreshing = self;
 
-      if (tweenTo.tween) {
+      if (tweenTo.tween && !position) {
+        // we skip this if a position is passed in because typically that's from .setPositions() and it's best to allow in-progress snapping to continue.
         tweenTo.tween.kill();
         tweenTo.tween = 0;
       }
@@ -1501,8 +1516,8 @@ export var ScrollTrigger = /*#__PURE__*/function () {
       lastRefresh = _getTime();
 
       if (snapDelayedCall) {
-        lastSnap = -1;
-        self.isActive && scrollFunc(start + change * prevProgress); // just so snapping gets re-enabled, clear out any recorded last value
+        lastSnap = -1; // just so snapping gets re-enabled, clear out any recorded last value
+        // self.isActive && scrollFunc(start + change * prevProgress); // previously this line was here to ensure that when snapping kicks in, it's from the previous progress but in some cases that's not desirable, like an all-page ScrollTrigger when new content gets added to the page, that'd totally change the progress.
 
         snapDelayedCall.restart(true);
       }
@@ -1729,8 +1744,7 @@ export var ScrollTrigger = /*#__PURE__*/function () {
 
         _addListener(scroller, "resize", _onResize);
 
-        _addListener(isViewport ? _doc : scroller, "scroll", _onScroll);
-
+        isViewport || _addListener(scroller, "scroll", _onScroll);
         onRefreshInit && _addListener(ScrollTrigger, "refreshInit", onRefreshInit);
 
         if (reset !== false) {
@@ -1800,7 +1814,7 @@ export var ScrollTrigger = /*#__PURE__*/function () {
 
           _removeListener(scroller, "resize", _onResize);
 
-          _removeListener(scroller, "scroll", _onScroll);
+          isViewport || _removeListener(scroller, "scroll", _onScroll);
         }
       }
     };
@@ -1944,6 +1958,12 @@ export var ScrollTrigger = /*#__PURE__*/function () {
 
       if (_body) {
         _enabled = 1;
+        _div100vh = document.createElement("div"); // to solve mobile browser address bar show/hide resizing, we shouldn't rely on window.innerHeight. Instead, use a <div> with its height set to 100vh and measure that since that's what the scrolling is based on anyway and it's not affected by address bar showing/hiding.
+
+        _div100vh.style.height = "100vh";
+        _div100vh.style.position = "absolute";
+
+        _refresh100vh();
 
         _rafBugFix();
 
@@ -2124,7 +2144,7 @@ export var ScrollTrigger = /*#__PURE__*/function () {
 
   return ScrollTrigger;
 }();
-ScrollTrigger.version = "3.12.1";
+ScrollTrigger.version = "3.12.2";
 
 ScrollTrigger.saveStyles = function (targets) {
   return targets ? _toArray(targets).forEach(function (target) {

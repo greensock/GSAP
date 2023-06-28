@@ -3,7 +3,7 @@ function _assertThisInitialized(self) { if (self === void 0) { throw new Referen
 function _inheritsLoose(subClass, superClass) { subClass.prototype = Object.create(superClass.prototype); subClass.prototype.constructor = subClass; subClass.__proto__ = superClass; }
 
 /*!
- * Draggable 3.12.1
+ * Draggable 3.12.2
  * https://greensock.com
  *
  * @license Copyright 2008-2023, GreenSock. All rights reserved.
@@ -2547,7 +2547,7 @@ export var Draggable = /*#__PURE__*/function (_EventDispatcher) {
 
       if (InertiaPlugin && type !== "soft") {
         InertiaPlugin.untrack(scrollProxy || target, xyMode ? "x,y" : rotationMode ? "rotation" : "top,left");
-        self.tween && self.kill();
+        self.tween && self.tween.kill();
       }
 
       scrollProxy && scrollProxy.disable();
@@ -2693,6 +2693,6 @@ _setDefaults(Draggable.prototype, {
 });
 
 Draggable.zIndex = 1000;
-Draggable.version = "3.12.1";
+Draggable.version = "3.12.2";
 _getGSAP() && gsap.registerPlugin(Draggable);
 export { Draggable as default };

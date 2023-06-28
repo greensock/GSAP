@@ -1,5 +1,5 @@
 /*!
- * ScrollTrigger 3.12.1
+ * ScrollTrigger 3.12.2
  * https://greensock.com
  *
  * @license Copyright 2008-2023, GreenSock. All rights reserved.
@@ -11,7 +11,7 @@
 
 import { Observer, _getTarget, _vertical, _horizontal, _scrollers, _proxies, _getScrollFunc, _getProxyProp, _getVelocityProp } from "./Observer.js";
 
-let gsap, _coreInitted, _win, _doc, _docEl, _body, _root, _resizeDelay, _toArray, _clamp, _time2, _syncInterval, _refreshing, _pointerIsDown, _transformProp, _i, _prevWidth, _prevHeight, _autoRefresh, _sort, _suppressOverwrites, _ignoreResize, _normalizer, _ignoreMobileResize, _baseScreenHeight, _baseScreenWidth, _fixIOSBug, _context, _scrollRestoration,
+let gsap, _coreInitted, _win, _doc, _docEl, _body, _root, _resizeDelay, _toArray, _clamp, _time2, _syncInterval, _refreshing, _pointerIsDown, _transformProp, _i, _prevWidth, _prevHeight, _autoRefresh, _sort, _suppressOverwrites, _ignoreResize, _normalizer, _ignoreMobileResize, _baseScreenHeight, _baseScreenWidth, _fixIOSBug, _context, _scrollRestoration, _div100vh, _100vh,
 	_limitCallbacks, // if true, we'll only trigger callbacks if the active state toggles, so if you scroll immediately past both the start and end positions of a ScrollTrigger (thus inactive to inactive), neither its onEnter nor onLeave will be called. This is useful during startup.
 	_startup = 1,
 	_getTime = Date.now,
@@ -32,10 +32,11 @@ let gsap, _coreInitted, _win, _doc, _docEl, _body, _root, _resizeDelay, _toArray
 	_windowExists = () => typeof(window) !== "undefined",
 	_getGSAP = () => gsap || (_windowExists() && (gsap = window.gsap) && gsap.registerPlugin && gsap),
 	_isViewport = e => !!~_root.indexOf(e),
-	_getBoundsFunc = element => _getProxyProp(element, "getBoundingClientRect") || (_isViewport(element) ? () => {_winOffsets.width = _win.innerWidth; _winOffsets.height = _win.innerHeight; return _winOffsets;} : () => _getBounds(element)),
-	_getSizeFunc = (scroller, isViewport, {d, d2, a}) => (a = _getProxyProp(scroller, "getBoundingClientRect")) ? () => a()[d] : () => (isViewport ? _win["inner" + d2] : scroller["client" + d2]) || 0,
+	_getViewportDimension = dimensionProperty => (dimensionProperty === "Height" ? _100vh : _win["inner" + dimensionProperty]) || _docEl["client" + dimensionProperty] || _body["client" + dimensionProperty],
+	_getBoundsFunc = element => _getProxyProp(element, "getBoundingClientRect") || (_isViewport(element) ? () => {_winOffsets.width = _win.innerWidth; _winOffsets.height = _100vh; return _winOffsets;} : () => _getBounds(element)),
+	_getSizeFunc = (scroller, isViewport, {d, d2, a}) => (a = _getProxyProp(scroller, "getBoundingClientRect")) ? () => a()[d] : () => (isViewport ? _getViewportDimension(d2) : scroller["client" + d2]) || 0,
 	_getOffsetsFunc = (element, isViewport) => !isViewport || ~_proxies.indexOf(element) ? _getBoundsFunc(element) : () => _winOffsets,
-	_maxScroll = (element, {s, d2, d, a}) => Math.max(0, (s = "scroll" + d2) && (a = _getProxyProp(element, s)) ? a() - _getBoundsFunc(element)()[d] : _isViewport(element) ? (_docEl[s] || _body[s]) - (_win["inner" + d2] || _docEl["client" + d2] || _body["client" + d2]) : element[s] - element["offset" + d2]),
+	_maxScroll = (element, {s, d2, d, a}) => Math.max(0, (s = "scroll" + d2) && (a = _getProxyProp(element, s)) ? a() - _getBoundsFunc(element)()[d] : _isViewport(element) ? (_docEl[s] || _body[s]) - _getViewportDimension(d2) : element[s] - element["offset" + d2]),
 	_iterateAutoRefresh = (func, events) => {
 		for (let i = 0; i < _autoRefresh.length; i += 3) {
 			(!events || ~events.indexOf(_autoRefresh[i+1])) && func(_autoRefresh[i], _autoRefresh[i+1], _autoRefresh[i+2]);
@@ -253,11 +254,17 @@ let gsap, _coreInitted, _win, _doc, _docEl, _body, _root, _resizeDelay, _toArray
 			requestAnimationFrame(() => id === _refreshID && _refreshAll(true));
 		}
 	},
+	_refresh100vh = () => {
+		_body.appendChild(_div100vh);
+		_100vh = _div100vh.offsetHeight || _win.innerHeight;
+		_body.removeChild(_div100vh);
+	},
 	_refreshAll = (force, skipRevert) => {
 		if (_lastScrollTime && !force) {
 			_addListener(ScrollTrigger, "scrollEnd", _softRefresh);
 			return;
 		}
+		_refresh100vh();
 		_refreshingAll = ScrollTrigger.isRefreshing = true;
 		_scrollers.forEach(obj => _isFunction(obj) && ++obj.cacheID && (obj.rec = obj())); // force the clearing of the cache because some browsers take a little while to dispatch the "scroll" event and the user may have changed the scroll position and then called ScrollTrigger.refresh() right away
 		let refreshInits = _dispatch("refreshInit");
@@ -804,7 +811,7 @@ export class ScrollTrigger {
 			}
 			!_refreshingAll && onRefreshInit && onRefreshInit(self);
 			_refreshing = self;
-			if (tweenTo.tween) {
+			if (tweenTo.tween && !position) { // we skip this if a position is passed in because typically that's from .setPositions() and it's best to allow in-progress snapping to continue.
 				tweenTo.tween.kill();
 				tweenTo.tween = 0;
 			}
@@ -979,8 +986,8 @@ export class ScrollTrigger {
 			self.revert(false, true);
 			lastRefresh = _getTime();
 			if (snapDelayedCall) {
-				lastSnap = -1;
-				self.isActive && scrollFunc(start + change * prevProgress); // just so snapping gets re-enabled, clear out any recorded last value
+				lastSnap = -1; // just so snapping gets re-enabled, clear out any recorded last value
+				// self.isActive && scrollFunc(start + change * prevProgress); // previously this line was here to ensure that when snapping kicks in, it's from the previous progress but in some cases that's not desirable, like an all-page ScrollTrigger when new content gets added to the page, that'd totally change the progress.
 				snapDelayedCall.restart(true);
 			}
 			_refreshing = 0;
@@ -1145,7 +1152,7 @@ export class ScrollTrigger {
 			if (!self.enabled) {
 				self.enabled = true;
 				_addListener(scroller, "resize", _onResize);
-				_addListener(isViewport ? _doc : scroller, "scroll", _onScroll);
+				isViewport || _addListener(scroller, "scroll", _onScroll);
 				onRefreshInit && _addListener(ScrollTrigger, "refreshInit", onRefreshInit);
 				if (reset !== false) {
 					self.progress = prevProgress = 0;
@@ -1198,7 +1205,7 @@ export class ScrollTrigger {
 						}
 					}
 					_removeListener(scroller, "resize", _onResize);
-					_removeListener(scroller, "scroll", _onScroll);
+					isViewport || _removeListener(scroller, "scroll", _onScroll);
 				}
 			}
 		};
@@ -1303,6 +1310,10 @@ export class ScrollTrigger {
 			gsap.core.globals("ScrollTrigger", ScrollTrigger); // must register the global manually because in Internet Explorer, functions (classes) don't have a "name" property.
 			if (_body) {
 				_enabled = 1;
+				_div100vh = document.createElement("div"); // to solve mobile browser address bar show/hide resizing, we shouldn't rely on window.innerHeight. Instead, use a <div> with its height set to 100vh and measure that since that's what the scrolling is based on anyway and it's not affected by address bar showing/hiding.
+				_div100vh.style.height = "100vh";
+				_div100vh.style.position = "absolute";
+				_refresh100vh();
 				_rafBugFix();
 				Observer.register(gsap);
 				// isTouch is 0 if no touch, 1 if ONLY touch, and 2 if it can accommodate touch but also other types like mouse/pointer.
@@ -1427,7 +1438,7 @@ export class ScrollTrigger {
 
 }
 
-ScrollTrigger.version = "3.12.1";
+ScrollTrigger.version = "3.12.2";
 ScrollTrigger.saveStyles = targets => targets ? _toArray(targets).forEach(target => { // saved styles are recorded in a consecutive alternating Array, like [element, cssText, transform attribute, cache, matchMedia, ...]
 	if (target && target.style) {
 		let i = _savedStyles.indexOf(target);

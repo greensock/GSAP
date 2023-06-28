@@ -1,5 +1,5 @@
 /*!
- * PixiPlugin 3.12.1
+ * PixiPlugin 3.12.2
  * https://greensock.com
  *
  * @license Copyright 2008-2023, GreenSock. All rights reserved.
@@ -112,7 +112,7 @@ _applyMatrix = function _applyMatrix(m, m2) {
 },
     _applyBrightnessToMatrix = function _applyBrightnessToMatrix(brightness, matrix) {
   var filterClass = _filterClass("ColorMatrixFilter"),
-      temp = filterClass();
+      temp = new filterClass();
 
   temp.matrix = matrix;
   temp.brightness(brightness, true);
@@ -375,7 +375,7 @@ for (i = 0; i < _xyContexts.length; i++) {
 }
 
 export var PixiPlugin = {
-  version: "3.12.1",
+  version: "3.12.2",
   name: "pixi",
   register: function register(core, Plugin, propTween) {
     gsap = core;

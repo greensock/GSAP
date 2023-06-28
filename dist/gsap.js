@@ -19,7 +19,7 @@
   }
 
   /*!
-   * GSAP 3.12.1
+   * GSAP 3.12.2
    * https://greensock.com
    *
    * @license Copyright 2008-2023, GreenSock. All rights reserved.
@@ -389,7 +389,7 @@
       _postAddChecks = function _postAddChecks(timeline, child) {
     var t;
 
-    if (child._time || child._initted && !child._dur) {
+    if (child._time || !child._dur && child._initted || child._start < timeline._time && (child._dur || !child.add)) {
       t = _parentToChildTotalTime(timeline.rawTime(), child);
 
       if (!child._dur || _clamp(0, child.totalDuration(), t) - child._tTime > _tinyNum) {
@@ -1728,7 +1728,7 @@
         animation = animation._dp;
       }
 
-      return !this.parent && this._sat ? this._sat.vars.immediateRender ? -1 : this._sat.globalTime(rawTime) : time;
+      return !this.parent && this._sat ? this._sat.vars.immediateRender ? -Infinity : this._sat.globalTime(rawTime) : time;
     };
 
     _proto.repeat = function repeat(value) {
@@ -2026,7 +2026,7 @@
             var rewinding = yoyo && prevIteration & 1,
                 doesWrap = rewinding === (yoyo && iteration & 1);
             iteration < prevIteration && (rewinding = !rewinding);
-            prevTime = rewinding ? 0 : dur;
+            prevTime = rewinding ? 0 : tTime % dur ? dur : tTime;
             this._lock = 1;
             this.render(prevTime || (isYoyo ? 0 : _roundPrecise(iteration * cycleDuration)), suppressEvents, !dur)._lock = 0;
             this._tTime = tTime;
@@ -3699,12 +3699,12 @@
             t: t
           };
         }).sort(function (a, b) {
-          return b.g - a.g || -1;
+          return b.g - a.g || -Infinity;
         }).forEach(function (o) {
           return o.t.revert(revert);
         });
         this.data.forEach(function (e) {
-          return e instanceof Timeline ? e.data !== "nested" && e.kill() : !(e instanceof Tween) && e.revert && e.revert(revert);
+          return !(e instanceof Tween) && e.revert && e.revert(revert);
         });
 
         this._r.forEach(function (f) {
@@ -4119,7 +4119,7 @@
       }
     }
   }, _buildModifierPlugin("roundProps", _roundModifier), _buildModifierPlugin("modifiers"), _buildModifierPlugin("snap", snap)) || _gsap;
-  Tween.version = Timeline.version = gsap.version = "3.12.1";
+  Tween.version = Timeline.version = gsap.version = "3.12.2";
   _coreReady = 1;
   _windowExists() && _wake();
   var Power0 = _easeMap.Power0,

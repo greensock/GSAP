@@ -1,5 +1,5 @@
 /*!
- * Draggable 3.12.1
+ * Draggable 3.12.2
  * https://greensock.com
  *
  * @license Copyright 2008-2023, GreenSock. All rights reserved.
@@ -1825,7 +1825,7 @@ export class Draggable extends EventDispatcher {
 			enabled = false;
 			if (InertiaPlugin && type !== "soft") {
 				InertiaPlugin.untrack(scrollProxy || target, (xyMode ? "x,y" : rotationMode ? "rotation" : "top,left"));
-				self.tween && self.kill();
+				self.tween && self.tween.kill();
 			}
 			scrollProxy && scrollProxy.disable();
 			_removeFromRenderQueue(render);
@@ -1933,7 +1933,7 @@ export class Draggable extends EventDispatcher {
 _setDefaults(Draggable.prototype, {pointerX:0, pointerY: 0, startX: 0, startY: 0, deltaX: 0, deltaY: 0, isDragging: false, isPressed: false});
 
 Draggable.zIndex = 1000;
-Draggable.version = "3.12.1";
+Draggable.version = "3.12.2";
 
 _getGSAP() && gsap.registerPlugin(Draggable);
 
