@@ -1,10 +1,10 @@
 /*!
- * Observer 3.12.2
- * https://greensock.com
+ * Observer 3.12.3
+ * https://gsap.com
  *
  * @license Copyright 2008-2023, GreenSock. All rights reserved.
- * Subject to the terms at https://greensock.com/standard-license or for
- * Club GreenSock members, the agreement issued with that membership.
+ * Subject to the terms at https://gsap.com/standard-license or for
+ * Club GSAP members, the agreement issued with that membership.
  * @author: Jack Doyle, jack@greensock.com
 */
 /* eslint-disable */
@@ -114,7 +114,7 @@ let gsap, _coreInitted, _clamp, _win, _doc, _docEl, _body, _isTouch, _pointerTyp
 	},
 	_initCore = core => {
 		gsap = core || _getGSAP();
-		if (gsap && typeof(document) !== "undefined" && document.body) {
+		if (!_coreInitted && gsap && typeof(document) !== "undefined" && document.body) {
 			_win = window;
 			_doc = document;
 			_docEl = _doc.documentElement;
@@ -272,12 +272,14 @@ export class Observer {
 				if (_ignoreCheck(e, 1)) {return;}
 				_removeListener(isNormalizer ? target : ownerDoc, _eventTypes[1], _onDrag, true);
 				let isTrackingDrag = !isNaN(self.y - self.startY),
-					wasDragging = self.isDragging && (Math.abs(self.x - self.startX) > 3 || Math.abs(self.y - self.startY) > 3), // some touch devices need some wiggle room in terms of sensing clicks - the finger may move a few pixels.
+					wasDragging = self.isDragging,
+					isDragNotClick = wasDragging && (Math.abs(self.x - self.startX) > 3 || Math.abs(self.y - self.startY) > 3), // some touch devices need some wiggle room in terms of sensing clicks - the finger may move a few pixels.
 					eventData = _getEvent(e);
-				if (!wasDragging && isTrackingDrag) {
+				if (!isDragNotClick && isTrackingDrag) {
 					self._vx.reset();
 					self._vy.reset();
-					if (preventDefault && allowClicks) {
+					//if (preventDefault && allowClicks && self.isPressed) { // check isPressed because in a rare edge case, the inputObserver in ScrollTrigger may stopPropagation() on the press/drag, so the onRelease may get fired without the onPress/onDrag ever getting called, thus it could trigger a click to occur on a link after scroll-dragging it.
+					if (preventDefault && allowClicks) { // check isPressed because in a rare edge case, the inputObserver in ScrollTrigger may stopPropagation() on the press/drag, so the onRelease may get fired without the onPress/onDrag ever getting called, thus it could trigger a click to occur on a link after scroll-dragging it.
 						gsap.delayedCall(0.08, () => { // some browsers (like Firefox) won't trust script-generated clicks, so if the user tries to click on a video to play it, for example, it simply won't work. Since a regular "click" event will most likely be generated anyway (one that has its isTrusted flag set to true), we must slightly delay our script-generated click so that the "real"/trusted one is prioritized. Remember, when there are duplicate events in quick succession, we suppress all but the first one. Some browsers don't even trigger the "real" one at all, so our synthetic one is a safety valve that ensures that no matter what, a click event does get dispatched.
 							if (_getTime() - onClickTime > 300 && !e.defaultPrevented) {
 								if (e.target.click) { //some browsers (like mobile Safari) don't properly trigger the click event
@@ -292,9 +294,9 @@ export class Observer {
 					}
 				}
 				self.isDragging = self.isGesturing = self.isPressed = false;
-				onStop && !isNormalizer && onStopDelayedCall.restart(true);
+				onStop && wasDragging && !isNormalizer && onStopDelayedCall.restart(true);
 				onDragEnd && wasDragging && onDragEnd(self);
-				onRelease && onRelease(self, wasDragging);
+				onRelease && onRelease(self, isDragNotClick);
 			},
 			_onGestureStart = e => e.touches && e.touches.length > 1 && (self.isGesturing = true) && onGestureStart(e, self.isDragging),
 			_onGestureEnd = () => (self.isGesturing = false) || onGestureEnd(self),
@@ -324,6 +326,7 @@ export class Observer {
 				self.x = x;
 				self.y = y;
 				moved = true;
+				onStop && onStopDelayedCall.restart(true);
 				(dx || dy) && onTouchOrPointerDelta(dx, dy);
 			},
 			_onHover = e => {self.event = e; onHover(self);},
@@ -410,7 +413,7 @@ export class Observer {
 
 }
 
-Observer.version = "3.12.2";
+Observer.version = "3.12.3";
 Observer.create = vars => new Observer(vars);
 Observer.register = _initCore;
 Observer.getAll = () => _observers.slice();

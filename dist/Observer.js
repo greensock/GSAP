@@ -21,12 +21,12 @@
   }
 
   /*!
-   * Observer 3.12.2
-   * https://greensock.com
+   * Observer 3.12.3
+   * https://gsap.com
    *
    * @license Copyright 2008-2023, GreenSock. All rights reserved.
-   * Subject to the terms at https://greensock.com/standard-license or for
-   * Club GreenSock members, the agreement issued with that membership.
+   * Subject to the terms at https://gsap.com/standard-license or for
+   * Club GSAP members, the agreement issued with that membership.
    * @author: Jack Doyle, jack@greensock.com
   */
   var gsap,
@@ -212,7 +212,7 @@
       _initCore = function _initCore(core) {
     gsap = core || _getGSAP();
 
-    if (gsap && typeof document !== "undefined" && document.body) {
+    if (!_coreInitted && gsap && typeof document !== "undefined" && document.body) {
       _win = window;
       _doc = document;
       _docEl = _doc.documentElement;
@@ -463,10 +463,11 @@
         _removeListener(isNormalizer ? target : ownerDoc, _eventTypes[1], _onDrag, true);
 
         var isTrackingDrag = !isNaN(self.y - self.startY),
-            wasDragging = self.isDragging && (Math.abs(self.x - self.startX) > 3 || Math.abs(self.y - self.startY) > 3),
+            wasDragging = self.isDragging,
+            isDragNotClick = wasDragging && (Math.abs(self.x - self.startX) > 3 || Math.abs(self.y - self.startY) > 3),
             eventData = _getEvent(e);
 
-        if (!wasDragging && isTrackingDrag) {
+        if (!isDragNotClick && isTrackingDrag) {
           self._vx.reset();
 
           self._vy.reset();
@@ -487,9 +488,9 @@
         }
 
         self.isDragging = self.isGesturing = self.isPressed = false;
-        onStop && !isNormalizer && onStopDelayedCall.restart(true);
+        onStop && wasDragging && !isNormalizer && onStopDelayedCall.restart(true);
         onDragEnd && wasDragging && onDragEnd(self);
-        onRelease && onRelease(self, wasDragging);
+        onRelease && onRelease(self, isDragNotClick);
       },
           _onGestureStart = function _onGestureStart(e) {
         return e.touches && e.touches.length > 1 && (self.isGesturing = true) && onGestureStart(e, self.isDragging);
@@ -532,6 +533,7 @@
         self.x = x;
         self.y = y;
         moved = true;
+        onStop && onStopDelayedCall.restart(true);
         (dx || dy) && onTouchOrPointerDelta(dx, dy);
       },
           _onHover = function _onHover(e) {
@@ -659,7 +661,7 @@
 
     return Observer;
   }();
-  Observer.version = "3.12.2";
+  Observer.version = "3.12.3";
 
   Observer.create = function (vars) {
     return new Observer(vars);

@@ -1,10 +1,10 @@
 /*!
- * ScrollTrigger 3.12.2
- * https://greensock.com
+ * ScrollTrigger 3.12.3
+ * https://gsap.com
  *
  * @license Copyright 2008-2023, GreenSock. All rights reserved.
- * Subject to the terms at https://greensock.com/standard-license or for
- * Club GreenSock members, the agreement issued with that membership.
+ * Subject to the terms at https://gsap.com/standard-license or for
+ * Club GSAP members, the agreement issued with that membership.
  * @author: Jack Doyle, jack@greensock.com
 */
 
@@ -42,6 +42,8 @@ var gsap,
     _scrollRestoration,
     _div100vh,
     _100vh,
+    _isReverted,
+    _clampingMax,
     _limitCallbacks,
     // if true, we'll only trigger callbacks if the active state toggles, so if you scroll immediately past both the start and end positions of a ScrollTrigger (thus inactive to inactive), neither its onEnter nor onLeave will be called. This is useful during startup.
 _startup = 1,
@@ -138,7 +140,9 @@ _pointerDownHandler = function _pointerDownHandler() {
 },
     _callback = function _callback(self, func) {
   if (self.enabled) {
-    var result = func(self);
+    var result = self._ctx ? self._ctx.add(function () {
+      return func(self);
+    }) : func(self);
     result && result.totalTime && (self.callbackAnimation = result);
   }
 },
@@ -430,6 +434,7 @@ _revertRecorded = function _revertRecorded(media) {
     }
   }
 
+  _isReverted = true;
   media && _revertRecorded(media);
   media || _dispatch("revert");
 },
@@ -456,9 +461,14 @@ _revertRecorded = function _revertRecorded(media) {
     _refresh100vh = function _refresh100vh() {
   _body.appendChild(_div100vh);
 
-  _100vh = _div100vh.offsetHeight || _win.innerHeight;
+  _100vh = !_normalizer && _div100vh.offsetHeight || _win.innerHeight;
 
   _body.removeChild(_div100vh);
+},
+    _hideAllMarkers = function _hideAllMarkers(hide) {
+  return _toArray(".gsap-marker-start, .gsap-marker-end, .gsap-marker-scroller-start, .gsap-marker-scroller-end").forEach(function (el) {
+    return el.style.display = hide ? "none" : "block";
+  });
 },
     _refreshAll = function _refreshAll(force, skipRevert) {
   if (_lastScrollTime && !force) {
@@ -494,7 +504,9 @@ _revertRecorded = function _revertRecorded(media) {
   }); // don't loop with _i because during a refresh() someone could call ScrollTrigger.update() which would iterate through _i resulting in a skip.
 
 
-  _triggers.forEach(function (t, i) {
+  _isReverted = false;
+
+  _triggers.forEach(function (t) {
     // nested pins (pinnedContainer) with pinSpacing may expand the container, so we must accommodate that here.
     if (t._subPinOffset && t.pin) {
       var prop = t.vars.horizontal ? "offsetWidth" : "offsetHeight",
@@ -505,13 +517,22 @@ _revertRecorded = function _revertRecorded(media) {
     }
   });
 
+  _clampingMax = 1; // pinSpacing might be propping a page open, thus when we .setPositions() to clamp a ScrollTrigger's end we should leave the pinSpacing alone. That's what this flag is for.
+
+  _hideAllMarkers(true);
+
   _triggers.forEach(function (t) {
     // the scroller's max scroll position may change after all the ScrollTriggers refreshed (like pinning could push it down), so we need to loop back and correct any with end: "max". Same for anything with a clamped end
-    var max = _maxScroll(t.scroller, t._dir);
+    var max = _maxScroll(t.scroller, t._dir),
+        endClamp = t.vars.end === "max" || t._endClamp && t.end > max,
+        startClamp = t._startClamp && t.start >= max;
 
-    (t.vars.end === "max" || t._endClamp && t.end > max) && t.setPositions(t.start, Math.max(t.start + 1, max), true);
+    (endClamp || startClamp) && t.setPositions(startClamp ? max - 1 : t.start, endClamp ? Math.max(startClamp ? max : t.start + 1, max) : t.end, true);
   });
 
+  _hideAllMarkers(false);
+
+  _clampingMax = 0;
   refreshInits.forEach(function (result) {
     return result && result.render && result.render(-1);
   }); // if the onRefreshInit() returns an animation (typically a gsap.set()), revert it. This makes it easy to put things in a certain spot before refreshing for measurement purposes, and then put things back.
@@ -546,7 +567,8 @@ _revertRecorded = function _revertRecorded(media) {
     _direction = 1,
     _primary,
     _updateAll = function _updateAll(force) {
-  if (!_refreshingAll || force === 2) {
+  if (force === 2 || !_refreshingAll && !_isReverted) {
+    // _isReverted could be true if, for example, a matchMedia() is in the process of executing. We don't want to update during the time everything is reverted.
     ScrollTrigger.isUpdating = true;
     _primary && _primary.update(0); // ScrollSmoother uses refreshPriority -9999 to become the primary that gets updated before all others because it affects the scroll position.
 
@@ -864,8 +886,7 @@ _getTweenCreator = function _getTweenCreator(scroller, direction) {
 
     vars.onUpdate = function () {
       _scrollers.cache++;
-
-      _updateAll();
+      getTween.tween && _updateAll(); // if it was interrupted/killed, like in a context.revert(), don't force an updateAll()
     };
 
     vars.onComplete = function () {
@@ -1037,7 +1058,7 @@ export var ScrollTrigger = /*#__PURE__*/function () {
 
     if (animation) {
       animation.vars.lazy = false;
-      animation._initted && !self.isReverted || animation.vars.immediateRender !== false && vars.immediateRender !== false && animation.duration() && animation.render(0, true, true); // special case: if this ScrollTrigger gets re-initted, a from() tween with a stagger could get initted initially and then reverted on the re-init which means it'll need to get rendered again here to properly display things. Otherwise, See https://greensock.com/forums/topic/36777-scrollsmoother-splittext-nextjs/ and https://codepen.io/GreenSock/pen/eYPyPpd?editors=0010
+      animation._initted && !self.isReverted || animation.vars.immediateRender !== false && vars.immediateRender !== false && animation.duration() && animation.render(0, true, true); // special case: if this ScrollTrigger gets re-initted, a from() tween with a stagger could get initted initially and then reverted on the re-init which means it'll need to get rendered again here to properly display things. Otherwise, See https://gsap.com/forums/topic/36777-scrollsmoother-splittext-nextjs/ and https://codepen.io/GreenSock/pen/eYPyPpd?editors=0010
 
       self.animation = animation.pause();
       animation.scrollTrigger = self;
@@ -1110,6 +1131,8 @@ export var ScrollTrigger = /*#__PURE__*/function () {
               onComplete: function onComplete() {
                 self.update();
                 lastSnap = scrollFunc();
+                scrubTween && animation && animation.progress(endValue); // the resolution of the scrollbar is limited, so we should correct the scrubbed animation's playhead at the end to match EXACTLY where it was supposed to snap
+
                 snap1 = snap2 = animation && !isToggle ? animation.totalProgress() : self.progress;
                 onSnapComplete && onSnapComplete(self);
                 _onComplete && _onComplete(self);
@@ -1398,7 +1421,7 @@ export var ScrollTrigger = /*#__PURE__*/function () {
         gsap.set([markerStart, markerEnd], cs);
       }
 
-      if (pin) {
+      if (pin && !(_clampingMax && self.end >= _maxScroll(scroller, direction))) {
         cs = _getComputedStyle(pin);
         isVertical = direction === _vertical;
         scroll = scrollFunc(); // recalculate because the triggers can affect the scroll
@@ -1406,7 +1429,7 @@ export var ScrollTrigger = /*#__PURE__*/function () {
         pinStart = parseFloat(pinGetter(direction.a)) + otherPinOffset;
 
         if (!max && end > 1) {
-          // makes sure the scroller has a scrollbar, otherwise if something has width: 100%, for example, it would be too big (exclude the scrollbar). See https://greensock.com/forums/topic/25182-scrolltrigger-width-of-page-increase-where-markers-are-set-to-false/
+          // makes sure the scroller has a scrollbar, otherwise if something has width: 100%, for example, it would be too big (exclude the scrollbar). See https://gsap.com/forums/topic/25182-scrolltrigger-width-of-page-increase-where-markers-are-set-to-false/
           forcedOverflow = (isViewport ? _doc.scrollingElement || _docEl : scroller).style;
           forcedOverflow = {
             style: forcedOverflow,
@@ -1430,7 +1453,12 @@ export var ScrollTrigger = /*#__PURE__*/function () {
           spacerState = [pinSpacing + direction.os2, change + otherPinOffset + _px];
           spacerState.t = spacer;
           i = pinSpacing === _padding ? _getSize(pin, direction) + change + otherPinOffset : 0;
-          i && spacerState.push(direction.d, i + _px); // for box-sizing: border-box (must include padding).
+
+          if (i) {
+            spacerState.push(direction.d, i + _px); // for box-sizing: border-box (must include padding).
+
+            spacer.style.flexBasis !== "auto" && (spacer.style.flexBasis = i + _px);
+          }
 
           _setState(spacerState);
 
@@ -2042,7 +2070,7 @@ export var ScrollTrigger = /*#__PURE__*/function () {
         _addListener(_doc, "touchcancel", _passThrough); // some older Android devices intermittently stop dispatching "touchmove" events if we don't listen for "touchcancel" on the document.
 
 
-        _addListener(_body, "touchstart", _passThrough); //works around Safari bug: https://greensock.com/forums/topic/21450-draggable-in-iframe-on-mobile-is-buggy/
+        _addListener(_body, "touchstart", _passThrough); //works around Safari bug: https://gsap.com/forums/topic/21450-draggable-in-iframe-on-mobile-is-buggy/
 
 
         _multiListener(_addListener, _doc, "pointerdown,touchstart,mousedown", _pointerDownHandler);
@@ -2144,7 +2172,7 @@ export var ScrollTrigger = /*#__PURE__*/function () {
 
   return ScrollTrigger;
 }();
-ScrollTrigger.version = "3.12.2";
+ScrollTrigger.version = "3.12.3";
 
 ScrollTrigger.saveStyles = function (targets) {
   return targets ? _toArray(targets).forEach(function (target) {
@@ -2575,7 +2603,9 @@ ScrollTrigger.normalizeScroll = function (vars) {
   }
 
   if (vars === false) {
-    return _normalizer && _normalizer.kill();
+    _normalizer && _normalizer.kill();
+    _normalizer = vars;
+    return;
   }
 
   var normalizer = vars instanceof Observer ? vars : _getScrollNormalizer(vars);

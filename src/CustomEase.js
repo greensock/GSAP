@@ -1,10 +1,10 @@
 /*!
- * CustomEase 3.12.2
- * https://greensock.com
+ * CustomEase 3.12.3
+ * https://gsap.com
  *
  * @license Copyright 2008-2023, GreenSock. All rights reserved.
- * Subject to the terms at https://greensock.com/standard-license or for
- * Club GreenSock members, the agreement issued with that membership.
+ * Subject to the terms at https://gsap.com/standard-license or for
+ * Club GSAP members, the agreement issued with that membership.
  * @author: Jack Doyle, jack@greensock.com
 */
 /* eslint-disable */
@@ -25,7 +25,7 @@ let gsap, _coreInitted,
 	_bigNum = 1e20,
 	_round = value => ~~(value * 1000 + (value < 0 ? -.5 : .5)) / 1000,
 	_bonusValidated = 1, //<name>CustomEase</name>
-	_numExp = /[-+=\.]*\d+[\.e\-\+]*\d*[e\-\+]*\d*/gi, //finds any numbers, including ones that start with += or -=, negative numbers, and ones in scientific notation like 1e-8.
+	_numExp = /[-+=.]*\d+[.e\-+]*\d*[e\-+]*\d*/gi, //finds any numbers, including ones that start with += or -=, negative numbers, and ones in scientific notation like 1e-8.
 	_needsParsingExp = /[cLlsSaAhHvVtTqQ]/g,
 	_findMinimum = values => {
 		let l = values.length,
@@ -270,6 +270,6 @@ export class CustomEase {
 
 _getGSAP() && gsap.registerPlugin(CustomEase);
 
-CustomEase.version = "3.12.2";
+CustomEase.version = "3.12.3";
 
 export { CustomEase as default };

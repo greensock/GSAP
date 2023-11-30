@@ -152,11 +152,12 @@ declare class ScrollSmoother {
    *
    * @param {gsap.DOMTarget} target
    * @param {string} position - like "top center" or "50% bottom-=50px"
+   * @param {boolean} ignoreSpeed
    * @returns {number} The numeric offset (scroll position)
    * @memberof ScrollSmoother
    * @link https://greensock.com/docs/v3/Plugins/ScrollSmoother/offset()
    */
-  offset(target: gsap.DOMTarget, position?: string): number;
+  offset(target: gsap.DOMTarget, position?: string, ignoreSpeed?: boolean): number;
 
   /**
    * Sets the paused state - if true, nothing will scroll (except via .scrollTop() or .scrollTo() on this instance). Serves as a getter and setter function

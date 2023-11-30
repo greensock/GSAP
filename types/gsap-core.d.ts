@@ -25,7 +25,8 @@ declare namespace gsap {
   type TweenTarget = string | object | null; 
 
   type Callback = (...args: any[]) => void | null;
-  type ContextFunc = (context: Context) => Function | any | void;
+  type ContextSafeFunc = (func: Function) => Function;
+  type ContextFunc = (context: Context, contextSafe?: ContextSafeFunc) => Function | any | void;
   type CallbackType = "onComplete" | "onInterrupt" | "onRepeat" | "onReverseComplete" | "onStart" | "onUpdate";
   type TickerCallback = (time: number, deltaTime: number, frame: number, elapsed: number) => void | null;
 
@@ -179,7 +180,7 @@ declare namespace gsap {
       | "circ" | "circ.in" | "circ.out" | "circ.inOut"
       | "elastic" | "elastic.in" | "elastic.out" | "elastic.inOut"
       | "expo" | "expo.in" | "expo.out" | "expo.inOut"
-      | "sine" | "sine.in" | "sine.out" | "sine.inOut" | string;
+      | "sine" | "sine.in" | "sine.out" | "sine.inOut" | ({} & string);
 
   interface TweenVars extends AnimationVars {
     delay?: TweenValue;

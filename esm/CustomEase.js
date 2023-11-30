@@ -1,10 +1,10 @@
 /*!
- * CustomEase 3.12.2
- * https://greensock.com
+ * CustomEase 3.12.3
+ * https://gsap.com
  *
  * @license Copyright 2008-2023, GreenSock. All rights reserved.
- * Subject to the terms at https://greensock.com/standard-license or for
- * Club GreenSock members, the agreement issued with that membership.
+ * Subject to the terms at https://gsap.com/standard-license or for
+ * Club GSAP members, the agreement issued with that membership.
  * @author: Jack Doyle, jack@greensock.com
 */
 
@@ -32,7 +32,7 @@ var gsap,
 },
     _bonusValidated = 1,
     //<name>CustomEase</name>
-_numExp = /[-+=\.]*\d+[\.e\-\+]*\d*[e\-\+]*\d*/gi,
+_numExp = /[-+=.]*\d+[.e\-+]*\d*[e\-+]*\d*/gi,
     //finds any numbers, including ones that start with += or -=, negative numbers, and ones in scientific notation like 1e-8.
 _needsParsingExp = /[cLlsSaAhHvVtTqQ]/g,
     _findMinimum = function _findMinimum(values) {
@@ -367,5 +367,5 @@ export var CustomEase = /*#__PURE__*/function () {
   return CustomEase;
 }();
 _getGSAP() && gsap.registerPlugin(CustomEase);
-CustomEase.version = "3.12.2";
+CustomEase.version = "3.12.3";
 export { CustomEase as default };

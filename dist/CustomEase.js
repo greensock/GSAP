@@ -355,12 +355,12 @@
 	}
 
 	/*!
-	 * CustomEase 3.12.2
-	 * https://greensock.com
+	 * CustomEase 3.12.3
+	 * https://gsap.com
 	 *
 	 * @license Copyright 2008-2023, GreenSock. All rights reserved.
-	 * Subject to the terms at https://greensock.com/standard-license or for
-	 * Club GreenSock members, the agreement issued with that membership.
+	 * Subject to the terms at https://gsap.com/standard-license or for
+	 * Club GSAP members, the agreement issued with that membership.
 	 * @author: Jack Doyle, jack@greensock.com
 	*/
 
@@ -383,7 +383,7 @@
 	    _round$1 = function _round(value) {
 	  return ~~(value * 1000 + (value < 0 ? -.5 : .5)) / 1000;
 	},
-	    _numExp = /[-+=\.]*\d+[\.e\-\+]*\d*[e\-\+]*\d*/gi,
+	    _numExp = /[-+=.]*\d+[.e\-+]*\d*[e\-+]*\d*/gi,
 	    _needsParsingExp = /[cLlsSaAhHvVtTqQ]/g,
 	    _findMinimum = function _findMinimum(values) {
 	  var l = values.length,
@@ -704,7 +704,7 @@
 	  return CustomEase;
 	}();
 	_getGSAP() && gsap.registerPlugin(CustomEase);
-	CustomEase.version = "3.12.2";
+	CustomEase.version = "3.12.3";
 
 	exports.CustomEase = CustomEase;
 	exports.default = CustomEase;

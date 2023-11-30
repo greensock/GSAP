@@ -683,7 +683,7 @@ declare namespace ScrollTrigger {
   type Callback = (self: ScrollTrigger) => any;
   type BatchCallback = (targets: Element[], triggers: ScrollTrigger[]) => any;
   type NumFunc = () => number;
-  type SnapFunc = (value: number) => number;
+  type SnapFunc = (value: number, self?: ScrollTrigger) => number;
   type SnapDirectionalFunc = (value: number, direction?: number, threshold?: number) => number;
   type GetterSetterNumFunc = (value?: number) => number | void;
   type GetterRectFunc = () => RectObj;

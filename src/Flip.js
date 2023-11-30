@@ -1,10 +1,10 @@
 /*!
- * Flip 3.12.2
- * https://greensock.com
+ * Flip 3.12.3
+ * https://gsap.com
  *
  * @license Copyright 2008-2023, GreenSock. All rights reserved.
- * Subject to the terms at https://greensock.com/standard-license or for
- * Club GreenSock members, the agreement issued with that membership.
+ * Subject to the terms at https://gsap.com/standard-license or for
+ * Club GSAP members, the agreement issued with that membership.
  * @author: Jack Doyle, jack@greensock.com
 */
 /* eslint-disable */
@@ -952,10 +952,11 @@ export class Flip {
 			fitChild = vars && vars.fitChild && _getEl(vars.fitChild),
 			before = _parseElementState(toEl, props, simple, fromEl),
 			after = _parseElementState(fromEl, 0, simple, before),
-			inlineProps = props ? _memoizedRemoveProps[props] : _removeProps;
+			inlineProps = props ? _memoizedRemoveProps[props] : _removeProps,
+			ctx = gsap.context();
 		props && _applyProps(v, before.props);
+		_recordInlineStyles(after, inlineProps);
 		if (runBackwards) {
-			_recordInlineStyles(after, inlineProps);
 			("immediateRender" in v) || (v.immediateRender = true);
 			v.onComplete = function() {
 				_applyInlineStyles(after);
@@ -964,6 +965,7 @@ export class Flip {
 		}
 		absolute && _makeAbsolute(after, before);
 		v = _fit(after, before, scale || fitChild, props, fitChild, v.duration || getVars ? v : 0);
+		ctx && !getVars && ctx.add(() => () => _applyInlineStyles(after));
 		return getVars ? v : v.duration ? gsap.to(after.element, v) : null;
 	}
 
@@ -1012,7 +1014,7 @@ export class Flip {
 	}
 }
 
-Flip.version = "3.12.2";
+Flip.version = "3.12.3";
 
 // function whenImagesLoad(el, func) {
 // 	let pending = [],

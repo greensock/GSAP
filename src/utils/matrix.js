@@ -1,10 +1,10 @@
 /*!
- * matrix 3.12.2
- * https://greensock.com
+ * matrix 3.12.3
+ * https://gsap.com
  *
  * Copyright 2008-2023, GreenSock. All rights reserved.
- * Subject to the terms at https://greensock.com/standard-license or for
- * Club GreenSock members, the agreement issued with that membership.
+ * Subject to the terms at https://gsap.com/standard-license or for
+ * Club GSAP members, the agreement issued with that membership.
  * @author: Jack Doyle, jack@greensock.com
 */
 /* eslint-disable */
@@ -29,15 +29,17 @@ let _doc, _win, _docElement, _body,	_divContainer, _svgContainer, _identityMatri
 			_gEl = _doc.createElementNS("http://www.w3.org/2000/svg", "g");
 			// prevent any existing CSS from transforming it
 			_gEl.style.transform = "none";
-			// now test for the offset reporting bug. Use feature detection instead of browser sniffing to make things more bulletproof and future-proof. Hopefully Safari will fix their bug soon but it's 2020 and it's still not fixed.
+			// now test for the offset reporting bug. Use feature detection instead of browser sniffing to make things more bulletproof and future-proof. Hopefully Safari will fix their bug soon.
 			let d1 = doc.createElement("div"),
-				d2 = doc.createElement("div");
-			_body.appendChild(d1);
-			d1.appendChild(d2);
-			d1.style.position = "static";
-			d1.style[_transformProp] = "translate3d(0,0,1px)";
-			_hasOffsetBug = (d2.offsetParent !== d1);
-			_body.removeChild(d1);
+				d2 = doc.createElement("div"),
+				root = doc && (doc.body || doc.firstElementChild);
+			if (root && root.appendChild) {
+				root.appendChild(d1);
+				d1.appendChild(d2);
+				d1.setAttribute("style", "position:static;transform:translate3d(0,0,1px)");
+				_hasOffsetBug = (d2.offsetParent !== d1);
+				root.removeChild(d1);
+			}
 		}
 		return doc;
 	},
@@ -117,7 +119,7 @@ let _doc, _win, _docElement, _body,	_divContainer, _svgContainer, _identityMatri
 		}
 		throw "Need document and parent.";
 	},
-	_consolidate = m => { // replaces SVGTransformList.consolidate() because a bug in Firefox causes it to break pointer events. See https://greensock.com/forums/topic/23248-touch-is-not-working-on-draggable-in-firefox-windows-v324/?tab=comments#comment-109800
+	_consolidate = m => { // replaces SVGTransformList.consolidate() because a bug in Firefox causes it to break pointer events. See https://gsap.com/forums/topic/23248-touch-is-not-working-on-draggable-in-firefox-windows-v324/?tab=comments#comment-109800
 		let c = new Matrix2D(),
 			i = 0;
 		for (; i < m.numberOfItems; i++) {
@@ -158,7 +160,7 @@ let _doc, _win, _docElement, _body,	_divContainer, _svgContainer, _identityMatri
 			} else if (element.getBBox) {
 				b = element.getBBox();
 				m = element.transform ? element.transform.baseVal : {}; // IE11 doesn't follow the spec.
-				m = !m.numberOfItems ? _identityMatrix : m.numberOfItems > 1 ? _consolidate(m) : m.getItem(0).matrix; // don't call m.consolidate().matrix because a bug in Firefox makes pointer events not work when consolidate() is called on the same tick as getBoundingClientRect()! See https://greensock.com/forums/topic/23248-touch-is-not-working-on-draggable-in-firefox-windows-v324/?tab=comments#comment-109800
+				m = !m.numberOfItems ? _identityMatrix : m.numberOfItems > 1 ? _consolidate(m) : m.getItem(0).matrix; // don't call m.consolidate().matrix because a bug in Firefox makes pointer events not work when consolidate() is called on the same tick as getBoundingClientRect()! See https://gsap.com/forums/topic/23248-touch-is-not-working-on-draggable-in-firefox-windows-v324/?tab=comments#comment-109800
 				x = m.a * b.x + m.c * b.y;
 				y = m.b * b.x + m.d * b.y;
 			} else { // may be a <mask> which has no getBBox() so just use defaults instead of throwing errors.

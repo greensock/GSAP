@@ -1,8 +1,8 @@
 {
     "name": "gsap",
-    "version": "3.12.2",
-    "description": "GSAP is a robust JavaScript toolset that turns developers into animation superheroes. Build high-performance animations that work in **every** major browser. Animate CSS, SVG, canvas, React, Vue, WebGL, colors, strings, motion paths, generic objects...anything JavaScript can touch! The ScrollTrigger plugin lets you create jaw-dropping scroll-based animations with minimal code. No other library delivers such advanced sequencing, reliability, and tight control while solving real-world problems on millions of sites. GSAP works around countless browser inconsistencies; your animations **just work**. At its core, GSAP is a high-speed property manipulator, updating values over time with extreme accuracy. It's up to 20x faster than jQuery! See https://greensock.com/why-gsap/ for what makes GSAP so special.",
-    "homepage": "https://greensock.com",
+    "version": "3.12.3",
+    "description": "GSAP is a robust JavaScript toolset that turns developers into animation superheroes. Build high-performance animations that work in **every** major browser. Animate CSS, SVG, canvas, React, Vue, WebGL, colors, strings, motion paths, generic objects...anything JavaScript can touch! The ScrollTrigger plugin lets you create jaw-dropping scroll-based animations with minimal code. No other library delivers such advanced sequencing, reliability, and tight control while solving real-world problems on millions of sites. GSAP works around countless browser inconsistencies; your animations **just work**. At its core, GSAP is a high-speed property manipulator, updating values over time with extreme accuracy. It's up to 20x faster than jQuery!",
+    "homepage": "https://gsap.com",
 	"module": "esm/index.js",
 	"main": "dist/gsap.js",
     "types": "types/index.d.ts",
@@ -35,12 +35,12 @@
        {
            "name": "Jack Doyle",
 		   "email": "jack@greensock.com",
-           "web": "https://greensock.com" 
+           "web": "https://gsap.com"
        } 
    ],
-  "license": "Standard 'no charge' license: https://greensock.com/standard-license. Club GreenSock members get more: https://greensock.com/licensing/. Why GreenSock doesn't employ an MIT license: https://greensock.com/why-license/",
+  "license": "Standard 'no charge' license: https://gsap.com/standard-license. Club GSAP members get more: https://gsap.com/licensing/. Why GreenSock doesn't employ an MIT license: https://gsap.com/why-license/",
    "bugs": {
-       "url": "https://greensock.com/forums/"
+       "url": "https://gsap.com/community/"
    },
    "repository": {
       "type": "git",

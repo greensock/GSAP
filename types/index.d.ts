@@ -1,5 +1,5 @@
 // Type definitions for gsap 3
-// Project: https://greensock.com/
+// Project: https://gsap.com/
 // Definitions by: Jack Doyle <https://github.com/jackdoyle>
 //                 Blake Bowen <https://github.com/OSUblake>
 //                 Pedro Tavares <https://github.com/dipscom>

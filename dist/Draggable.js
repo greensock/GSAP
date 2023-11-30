@@ -49,16 +49,16 @@
       _gEl = _doc.createElementNS("http://www.w3.org/2000/svg", "g");
       _gEl.style.transform = "none";
       var d1 = doc.createElement("div"),
-          d2 = doc.createElement("div");
+          d2 = doc.createElement("div"),
+          root = doc && (doc.body || doc.firstElementChild);
 
-      _body.appendChild(d1);
-
-      d1.appendChild(d2);
-      d1.style.position = "static";
-      d1.style[_transformProp] = "translate3d(0,0,1px)";
-      _hasOffsetBug = d2.offsetParent !== d1;
-
-      _body.removeChild(d1);
+      if (root && root.appendChild) {
+        root.appendChild(d1);
+        d1.appendChild(d2);
+        d1.setAttribute("style", "position:static;transform:translate3d(0,0,1px)");
+        _hasOffsetBug = d2.offsetParent !== d1;
+        root.removeChild(d1);
+      }
     }
 
     return doc;
@@ -2954,7 +2954,7 @@
   });
 
   Draggable.zIndex = 1000;
-  Draggable.version = "3.12.2";
+  Draggable.version = "3.12.3";
   _getGSAP() && gsap.registerPlugin(Draggable);
 
   exports.Draggable = Draggable;

@@ -1129,16 +1129,16 @@
 	    _gEl = _doc.createElementNS("http://www.w3.org/2000/svg", "g");
 	    _gEl.style.transform = "none";
 	    var d1 = doc.createElement("div"),
-	        d2 = doc.createElement("div");
+	        d2 = doc.createElement("div"),
+	        root = doc && (doc.body || doc.firstElementChild);
 
-	    _body.appendChild(d1);
-
-	    d1.appendChild(d2);
-	    d1.style.position = "static";
-	    d1.style[_transformProp] = "translate3d(0,0,1px)";
-	    _hasOffsetBug = d2.offsetParent !== d1;
-
-	    _body.removeChild(d1);
+	    if (root && root.appendChild) {
+	      root.appendChild(d1);
+	      d1.appendChild(d2);
+	      d1.setAttribute("style", "position:static;transform:translate3d(0,0,1px)");
+	      _hasOffsetBug = d2.offsetParent !== d1;
+	      root.removeChild(d1);
+	    }
 	  }
 
 	  return doc;
@@ -1458,12 +1458,12 @@
 	}
 
 	/*!
-	 * MotionPathPlugin 3.12.2
-	 * https://greensock.com
+	 * MotionPathPlugin 3.12.3
+	 * https://gsap.com
 	 *
 	 * @license Copyright 2008-2023, GreenSock. All rights reserved.
-	 * Subject to the terms at https://greensock.com/standard-license or for
-	 * Club GreenSock members, the agreement issued with that membership.
+	 * Subject to the terms at https://gsap.com/standard-license or for
+	 * Club GSAP members, the agreement issued with that membership.
 	 * @author: Jack Doyle, jack@greensock.com
 	*/
 
@@ -1654,7 +1654,7 @@
 	};
 
 	var MotionPathPlugin = {
-	  version: "3.12.2",
+	  version: "3.12.3",
 	  name: "motionPath",
 	  register: function register(core, Plugin, propTween) {
 	    gsap = core;

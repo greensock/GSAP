@@ -35,16 +35,16 @@
 	    _gEl = _doc.createElementNS("http://www.w3.org/2000/svg", "g");
 	    _gEl.style.transform = "none";
 	    var d1 = doc.createElement("div"),
-	        d2 = doc.createElement("div");
+	        d2 = doc.createElement("div"),
+	        root = doc && (doc.body || doc.firstElementChild);
 
-	    _body.appendChild(d1);
-
-	    d1.appendChild(d2);
-	    d1.style.position = "static";
-	    d1.style[_transformProp] = "translate3d(0,0,1px)";
-	    _hasOffsetBug = d2.offsetParent !== d1;
-
-	    _body.removeChild(d1);
+	    if (root && root.appendChild) {
+	      root.appendChild(d1);
+	      d1.appendChild(d2);
+	      d1.setAttribute("style", "position:static;transform:translate3d(0,0,1px)");
+	      _hasOffsetBug = d2.offsetParent !== d1;
+	      root.removeChild(d1);
+	    }
 	  }
 
 	  return doc;
@@ -364,12 +364,12 @@
 	}
 
 	/*!
-	 * Flip 3.12.2
-	 * https://greensock.com
+	 * Flip 3.12.3
+	 * https://gsap.com
 	 *
 	 * @license Copyright 2008-2023, GreenSock. All rights reserved.
-	 * Subject to the terms at https://greensock.com/standard-license or for
-	 * Club GreenSock members, the agreement issued with that membership.
+	 * Subject to the terms at https://gsap.com/standard-license or for
+	 * Club GSAP members, the agreement issued with that membership.
 	 * @author: Jack Doyle, jack@greensock.com
 	*/
 
@@ -1732,13 +1732,14 @@
 	        fitChild = vars && vars.fitChild && _getEl(vars.fitChild),
 	        before = _parseElementState(toEl, props, simple, fromEl),
 	        after = _parseElementState(fromEl, 0, simple, before),
-	        inlineProps = props ? _memoizedRemoveProps[props] : _removeProps;
+	        inlineProps = props ? _memoizedRemoveProps[props] : _removeProps,
+	        ctx = gsap.context();
 
 	    props && _applyProps(v, before.props);
 
-	    if (runBackwards) {
-	      _recordInlineStyles(after, inlineProps);
+	    _recordInlineStyles(after, inlineProps);
 
+	    if (runBackwards) {
 	      "immediateRender" in v || (v.immediateRender = true);
 
 	      v.onComplete = function () {
@@ -1750,6 +1751,11 @@
 
 	    absolute && _makeAbsolute(after, before);
 	    v = _fit(after, before, scale || fitChild, props, fitChild, v.duration || getVars ? v : 0);
+	    ctx && !getVars && ctx.add(function () {
+	      return function () {
+	        return _applyInlineStyles(after);
+	      };
+	    });
 	    return getVars ? v : v.duration ? gsap.to(after.element, v) : null;
 	  };
 
@@ -1806,7 +1812,7 @@
 
 	  return Flip;
 	}();
-	Flip.version = "3.12.2";
+	Flip.version = "3.12.3";
 	typeof window !== "undefined" && window.gsap && window.gsap.registerPlugin(Flip);
 
 	exports.Flip = Flip;

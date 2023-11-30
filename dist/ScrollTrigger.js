@@ -21,12 +21,12 @@
   }
 
   /*!
-   * Observer 3.12.2
-   * https://greensock.com
+   * Observer 3.12.3
+   * https://gsap.com
    *
    * @license Copyright 2008-2023, GreenSock. All rights reserved.
-   * Subject to the terms at https://greensock.com/standard-license or for
-   * Club GreenSock members, the agreement issued with that membership.
+   * Subject to the terms at https://gsap.com/standard-license or for
+   * Club GSAP members, the agreement issued with that membership.
    * @author: Jack Doyle, jack@greensock.com
   */
   var gsap,
@@ -212,7 +212,7 @@
       _initCore = function _initCore(core) {
     gsap = core || _getGSAP();
 
-    if (gsap && typeof document !== "undefined" && document.body) {
+    if (!_coreInitted && gsap && typeof document !== "undefined" && document.body) {
       _win = window;
       _doc = document;
       _docEl = _doc.documentElement;
@@ -463,10 +463,11 @@
         _removeListener(isNormalizer ? target : ownerDoc, _eventTypes[1], _onDrag, true);
 
         var isTrackingDrag = !isNaN(self.y - self.startY),
-            wasDragging = self.isDragging && (Math.abs(self.x - self.startX) > 3 || Math.abs(self.y - self.startY) > 3),
+            wasDragging = self.isDragging,
+            isDragNotClick = wasDragging && (Math.abs(self.x - self.startX) > 3 || Math.abs(self.y - self.startY) > 3),
             eventData = _getEvent(e);
 
-        if (!wasDragging && isTrackingDrag) {
+        if (!isDragNotClick && isTrackingDrag) {
           self._vx.reset();
 
           self._vy.reset();
@@ -487,9 +488,9 @@
         }
 
         self.isDragging = self.isGesturing = self.isPressed = false;
-        onStop && !isNormalizer && onStopDelayedCall.restart(true);
+        onStop && wasDragging && !isNormalizer && onStopDelayedCall.restart(true);
         onDragEnd && wasDragging && onDragEnd(self);
-        onRelease && onRelease(self, wasDragging);
+        onRelease && onRelease(self, isDragNotClick);
       },
           _onGestureStart = function _onGestureStart(e) {
         return e.touches && e.touches.length > 1 && (self.isGesturing = true) && onGestureStart(e, self.isDragging);
@@ -532,6 +533,7 @@
         self.x = x;
         self.y = y;
         moved = true;
+        onStop && onStopDelayedCall.restart(true);
         (dx || dy) && onTouchOrPointerDelta(dx, dy);
       },
           _onHover = function _onHover(e) {
@@ -659,7 +661,7 @@
 
     return Observer;
   }();
-  Observer.version = "3.12.2";
+  Observer.version = "3.12.3";
 
   Observer.create = function (vars) {
     return new Observer(vars);
@@ -680,12 +682,12 @@
   _getGSAP() && gsap.registerPlugin(Observer);
 
   /*!
-   * ScrollTrigger 3.12.2
-   * https://greensock.com
+   * ScrollTrigger 3.12.3
+   * https://gsap.com
    *
    * @license Copyright 2008-2023, GreenSock. All rights reserved.
-   * Subject to the terms at https://greensock.com/standard-license or for
-   * Club GreenSock members, the agreement issued with that membership.
+   * Subject to the terms at https://gsap.com/standard-license or for
+   * Club GSAP members, the agreement issued with that membership.
    * @author: Jack Doyle, jack@greensock.com
   */
 
@@ -720,6 +722,8 @@
       _scrollRestoration,
       _div100vh,
       _100vh,
+      _isReverted,
+      _clampingMax,
       _limitCallbacks,
       _startup$1 = 1,
       _getTime$1 = Date.now,
@@ -814,7 +818,9 @@
   },
       _callback = function _callback(self, func) {
     if (self.enabled) {
-      var result = func(self);
+      var result = self._ctx ? self._ctx.add(function () {
+        return func(self);
+      }) : func(self);
       result && result.totalTime && (self.callbackAnimation = result);
     }
   },
@@ -1100,6 +1106,7 @@
       }
     }
 
+    _isReverted = true;
     media && _revertRecorded(media);
     media || _dispatch("revert");
   },
@@ -1124,9 +1131,14 @@
       _refresh100vh = function _refresh100vh() {
     _body$1.appendChild(_div100vh);
 
-    _100vh = _div100vh.offsetHeight || _win$1.innerHeight;
+    _100vh = !_normalizer$1 && _div100vh.offsetHeight || _win$1.innerHeight;
 
     _body$1.removeChild(_div100vh);
+  },
+      _hideAllMarkers = function _hideAllMarkers(hide) {
+    return _toArray(".gsap-marker-start, .gsap-marker-end, .gsap-marker-scroller-start, .gsap-marker-scroller-end").forEach(function (el) {
+      return el.style.display = hide ? "none" : "block";
+    });
   },
       _refreshAll = function _refreshAll(force, skipRevert) {
     if (_lastScrollTime && !force) {
@@ -1159,7 +1171,9 @@
       return t.refresh();
     });
 
-    _triggers.forEach(function (t, i) {
+    _isReverted = false;
+
+    _triggers.forEach(function (t) {
       if (t._subPinOffset && t.pin) {
         var prop = t.vars.horizontal ? "offsetWidth" : "offsetHeight",
             original = t.pin[prop];
@@ -1169,12 +1183,21 @@
       }
     });
 
-    _triggers.forEach(function (t) {
-      var max = _maxScroll(t.scroller, t._dir);
+    _clampingMax = 1;
 
-      (t.vars.end === "max" || t._endClamp && t.end > max) && t.setPositions(t.start, Math.max(t.start + 1, max), true);
+    _hideAllMarkers(true);
+
+    _triggers.forEach(function (t) {
+      var max = _maxScroll(t.scroller, t._dir),
+          endClamp = t.vars.end === "max" || t._endClamp && t.end > max,
+          startClamp = t._startClamp && t.start >= max;
+
+      (endClamp || startClamp) && t.setPositions(startClamp ? max - 1 : t.start, endClamp ? Math.max(startClamp ? max : t.start + 1, max) : t.end, true);
     });
 
+    _hideAllMarkers(false);
+
+    _clampingMax = 0;
     refreshInits.forEach(function (result) {
       return result && result.render && result.render(-1);
     });
@@ -1209,7 +1232,7 @@
       _direction = 1,
       _primary,
       _updateAll = function _updateAll(force) {
-    if (!_refreshingAll || force === 2) {
+    if (force === 2 || !_refreshingAll && !_isReverted) {
       ScrollTrigger$1.isUpdating = true;
       _primary && _primary.update(0);
 
@@ -1504,8 +1527,7 @@
 
       vars.onUpdate = function () {
         _scrollers.cache++;
-
-        _updateAll();
+        getTween.tween && _updateAll();
       };
 
       vars.onComplete = function () {
@@ -1743,6 +1765,7 @@
                 onComplete: function onComplete() {
                   self.update();
                   lastSnap = scrollFunc();
+                  scrubTween && animation && animation.progress(endValue);
                   snap1 = snap2 = animation && !isToggle ? animation.totalProgress() : self.progress;
                   onSnapComplete && onSnapComplete(self);
                   _onComplete && _onComplete(self);
@@ -2012,7 +2035,7 @@
           gsap$1.set([markerStart, markerEnd], cs);
         }
 
-        if (pin) {
+        if (pin && !(_clampingMax && self.end >= _maxScroll(scroller, direction))) {
           cs = _getComputedStyle(pin);
           isVertical = direction === _vertical;
           scroll = scrollFunc();
@@ -2040,7 +2063,11 @@
             spacerState = [pinSpacing + direction.os2, change + otherPinOffset + _px];
             spacerState.t = spacer;
             i = pinSpacing === _padding ? _getSize(pin, direction) + change + otherPinOffset : 0;
-            i && spacerState.push(direction.d, i + _px);
+
+            if (i) {
+              spacerState.push(direction.d, i + _px);
+              spacer.style.flexBasis !== "auto" && (spacer.style.flexBasis = i + _px);
+            }
 
             _setState(spacerState);
 
@@ -2720,7 +2747,7 @@
 
     return ScrollTrigger;
   }();
-  ScrollTrigger$1.version = "3.12.2";
+  ScrollTrigger$1.version = "3.12.3";
 
   ScrollTrigger$1.saveStyles = function (targets) {
     return targets ? _toArray(targets).forEach(function (target) {
@@ -3135,7 +3162,9 @@
     }
 
     if (vars === false) {
-      return _normalizer$1 && _normalizer$1.kill();
+      _normalizer$1 && _normalizer$1.kill();
+      _normalizer$1 = vars;
+      return;
     }
 
     var normalizer = vars instanceof Observer ? vars : _getScrollNormalizer(vars);

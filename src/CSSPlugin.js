@@ -1,10 +1,10 @@
 /*!
- * CSSPlugin 3.12.2
- * https://greensock.com
+ * CSSPlugin 3.12.3
+ * https://gsap.com
  *
  * Copyright 2008-2023, GreenSock. All rights reserved.
- * Subject to the terms at https://greensock.com/standard-license or for
- * Club GreenSock members, the agreement issued with that membership.
+ * Subject to the terms at https://gsap.com/standard-license or for
+ * Club GSAP members, the agreement issued with that membership.
  * @author: Jack Doyle, jack@greensock.com
 */
 /* eslint-disable */
@@ -51,17 +51,19 @@ let _win, _doc, _docElement, _pluginInitted, _tempDiv, _tempDivStyler, _recentSe
 	_transformOriginProp = _transformProp + "Origin",
 	_saveStyle = function(property, isNotCSS) {
 		let target = this.target,
-			style = target.style;
+			style = target.style,
+			cache = target._gsap;
 		if ((property in _transformProps) && style) {
 			this.tfm = this.tfm || {};
 			if (property !== "transform") {
 				property = _propertyAliases[property] || property;
-				~property.indexOf(",") ? property.split(",").forEach(a => this.tfm[a] = _get(target, a)) : (this.tfm[property] = target._gsap.x ? target._gsap[property] : _get(target, property)); // note: scale would map to "scaleX,scaleY", thus we loop and apply them both.
+				~property.indexOf(",") ? property.split(",").forEach(a => this.tfm[a] = _get(target, a)) : (this.tfm[property] = cache.x ? cache[property] : _get(target, property)); // note: scale would map to "scaleX,scaleY", thus we loop and apply them both.
+				property === _transformOriginProp && (this.tfm.zOrigin = cache.zOrigin);
 			} else {
 				return _propertyAliases.transform.split(",").forEach(p => _saveStyle.call(this, p, isNotCSS));
 			}
 			if (this.props.indexOf(_transformProp) >= 0) { return; }
-			if (target._gsap.svg) {
+			if (cache.svg) {
 				this.svgo = target.getAttribute("data-svg-origin");
 				this.props.push(_transformOriginProp, isNotCSS, "");
 			}
@@ -96,6 +98,11 @@ let _win, _doc, _docElement, _pluginInitted, _tempDiv, _tempDivStyler, _recentSe
 			i = _reverting();
 			if ((!i || !i.isStart) && !style[_transformProp]) {
 				_removeIndependentTransforms(style);
+				if (cache.zOrigin && style[_transformOriginProp]) {
+					style[_transformOriginProp] += " " + cache.zOrigin + "px"; // since we're uncaching, we must put the zOrigin back into the transformOrigin so that we can pull it out accurately when we parse again. Otherwise, we'd lose the z portion of the origin since we extract it to protect from Safari bugs.
+					cache.zOrigin = 0;
+					cache.renderTransform();
+				}
 				cache.uncache = 1; // if it's a startAt that's being reverted in the _initTween() of the core, we don't need to uncache transforms. This is purely a performance optimization.
 			}
 		}
@@ -114,7 +121,7 @@ let _win, _doc, _docElement, _pluginInitted, _tempDiv, _tempDivStyler, _recentSe
 	_supports3D,
 	_createElement = (type, ns) => {
 		let e = _doc.createElementNS ? _doc.createElementNS((ns || "http://www.w3.org/1999/xhtml").replace(/^https/, "http"), type) : _doc.createElement(type); //some servers swap in https for http in the namespace which can break things, making "style" inaccessible.
-		return e.style ? e : _doc.createElement(type); //some environments won't allow access to the element's style when created with a namespace in which case we default to the standard createElement() to work around the issue. Also note that when GSAP is embedded directly inside an SVG file, createElement() won't allow access to the style object in Firefox (see https://greensock.com/forums/topic/20215-problem-using-tweenmax-in-standalone-self-containing-svg-file-err-cannot-set-property-csstext-of-undefined/).
+		return e && e.style ? e : _doc.createElement(type); //some environments won't allow access to the element's style when created with a namespace in which case we default to the standard createElement() to work around the issue. Also note that when GSAP is embedded directly inside an SVG file, createElement() won't allow access to the style object in Firefox (see https://gsap.com/forums/topic/20215-problem-using-tweenmax-in-standalone-self-containing-svg-file-err-cannot-set-property-csstext-of-undefined/).
 	},
 	_getComputedProperty = (target, property, skipPrefixFallback) => {
 		let cs = getComputedStyle(target);
@@ -198,15 +205,17 @@ let _win, _doc, _docElement, _pluginInitted, _tempDiv, _tempDivStyler, _recentSe
 	_isSVG = e => !!(e.getCTM && (!e.parentNode || e.ownerSVGElement) && _getBBox(e)), //reports if the element is an SVG on which getBBox() actually works
 	_removeProperty = (target, property) => {
 		if (property) {
-			let style = target.style;
+			let style = target.style,
+				first2Chars;
 			if (property in _transformProps && property !== _transformOriginProp) {
 				property = _transformProp;
 			}
 			if (style.removeProperty) {
-				if (property.substr(0,2) === "ms" || property.substr(0,6) === "webkit") { //Microsoft and some Webkit browsers don't conform to the standard of capitalizing the first prefix character, so we adjust so that when we prefix the caps with a dash, it's correct (otherwise it'd be "ms-transform" instead of "-ms-transform" for IE9, for example)
+				first2Chars = property.substr(0,2);
+				if (first2Chars === "ms" || property.substr(0,6) === "webkit") { //Microsoft and some Webkit browsers don't conform to the standard of capitalizing the first prefix character, so we adjust so that when we prefix the caps with a dash, it's correct (otherwise it'd be "ms-transform" instead of "-ms-transform" for IE9, for example)
 					property = "-" + property;
 				}
-				style.removeProperty(property.replace(_capsExp, "-$1").toLowerCase());
+				style.removeProperty(first2Chars === "--" ? property : property.replace(_capsExp, "-$1").toLowerCase());
 			} else { //note: old versions of IE use "removeAttribute()" instead of "removeProperty()"
 				style.removeAttribute(property);
 			}
@@ -255,12 +264,19 @@ let _win, _doc, _docElement, _pluginInitted, _tempDiv, _tempDivStyler, _recentSe
 		if (cache && toPercent && cache.width && horizontal && cache.time === _ticker.time && !cache.uncache) {
 			return _round(curValue / cache.width * amount);
 		} else {
-			(toPercent || curUnit === "%") && !_nonStandardLayouts[_getComputedProperty(parent, "display")] && (style.position = _getComputedProperty(target, "position"));
-			(parent === target) && (style.position = "static"); // like for borderRadius, if it's a % we must have it relative to the target itself but that may not have position: relative or position: absolute in which case it'd go up the chain until it finds its offsetParent (bad). position: static protects against that.
-			parent.appendChild(_tempDiv);
-			px = _tempDiv[measureProperty];
-			parent.removeChild(_tempDiv);
-			style.position = "absolute";
+			if (toPercent && (property === "height" || property === "width")) { // if we're dealing with width/height that's inside a container with padding and/or it's a flexbox/grid container, we must apply it to the target itself rather than the _tempDiv in order to ensure complete accuracy, factoring in the parent's padding.
+				let v = target.style[property];
+				target.style[property] = amount + unit;
+				px = target[measureProperty];
+				v ? (target.style[property] = v) : _removeProperty(target, property);
+			} else {
+				(toPercent || curUnit === "%") && !_nonStandardLayouts[_getComputedProperty(parent, "display")] && (style.position = _getComputedProperty(target, "position"));
+				(parent === target) && (style.position = "static"); // like for borderRadius, if it's a % we must have it relative to the target itself but that may not have position: relative or position: absolute in which case it'd go up the chain until it finds its offsetParent (bad). position: static protects against that.
+				parent.appendChild(_tempDiv);
+				px = _tempDiv[measureProperty];
+				parent.removeChild(_tempDiv);
+				style.position = "absolute";
+			}
 			if (horizontal && toPercent) {
 				cache = _getCache(parent);
 				cache.time = _ticker.time;
@@ -291,14 +307,14 @@ let _win, _doc, _docElement, _pluginInitted, _tempDiv, _tempDivStyler, _recentSe
 
 	},
 	_tweenComplexCSSString = function(target, prop, start, end) { // note: we call _tweenComplexCSSString.call(pluginInstance...) to ensure that it's scoped properly. We may call it from within a plugin too, thus "this" would refer to the plugin.
-		if (!start || start === "none") { // some browsers like Safari actually PREFER the prefixed property and mis-report the unprefixed value like clipPath (BUG). In other words, even though clipPath exists in the style ("clipPath" in target.style) and it's set in the CSS properly (along with -webkit-clip-path), Safari reports clipPath as "none" whereas WebkitClipPath reports accurately like "ellipse(100% 0% at 50% 0%)", so in this case we must SWITCH to using the prefixed property instead. See https://greensock.com/forums/topic/18310-clippath-doesnt-work-on-ios/
+		if (!start || start === "none") { // some browsers like Safari actually PREFER the prefixed property and mis-report the unprefixed value like clipPath (BUG). In other words, even though clipPath exists in the style ("clipPath" in target.style) and it's set in the CSS properly (along with -webkit-clip-path), Safari reports clipPath as "none" whereas WebkitClipPath reports accurately like "ellipse(100% 0% at 50% 0%)", so in this case we must SWITCH to using the prefixed property instead. See https://gsap.com/forums/topic/18310-clippath-doesnt-work-on-ios/
 			let p = _checkPropPrefix(prop, target, 1),
 				s = p && _getComputedProperty(target, p, 1);
 			if (s && s !== start) {
 				prop = p;
 				start = s;
 			} else if (prop === "borderColor") {
-				start = _getComputedProperty(target, "borderTopColor"); // Firefox bug: always reports "borderColor" as "", so we must fall back to borderTopColor. See https://greensock.com/forums/topic/24583-how-to-return-colors-that-i-had-after-reverse/
+				start = _getComputedProperty(target, "borderTopColor"); // Firefox bug: always reports "borderColor" as "", so we must fall back to borderTopColor. See https://gsap.com/forums/topic/24583-how-to-return-colors-that-i-had-after-reverse/
 			}
 		}
 		let pt = new PropTween(this._pt, target.style, prop, 0, 1, _renderComplexString),
@@ -310,9 +326,10 @@ let _win, _doc, _docElement, _pluginInitted, _tempDiv, _tempDivStyler, _recentSe
 		start += ""; // ensure values are strings
 		end += "";
 		if (end === "auto") {
+			startValue = target.style[prop];
 			target.style[prop] = end;
 			end = _getComputedProperty(target, prop) || end;
-			target.style[prop] = start;
+			startValue ? (target.style[prop] = startValue) : _removeProperty(target, prop);
 		}
 		a = [start, end];
 		_colorStringFilter(a); // pass an array with the starting and ending values and let the filter do whatever it needs to the values. If colors are found, it returns true and then we must match where the color shows up order-wise because for things like boxShadow, sometimes the browser provides the computed values with the color FIRST, but the user provides it with the color LAST, so flip them if necessary. Same for drop-shadow().
@@ -476,7 +493,7 @@ let _win, _doc, _docElement, _pluginInitted, _tempDiv, _tempDivStyler, _recentSe
 				}
 			}
 			cache.classPT = plugin._pt = new PropTween(plugin._pt, target, "className", 0, 0, _renderClassName, data, 0, -11);
-			if (style.cssText !== cssText) { //only apply if things change. Otherwise, in cases like a background-image that's pulled dynamically, it could cause a refresh. See https://greensock.com/forums/topic/20368-possible-gsap-bug-switching-classnames-in-chrome/.
+			if (style.cssText !== cssText) { //only apply if things change. Otherwise, in cases like a background-image that's pulled dynamically, it could cause a refresh. See https://gsap.com/forums/topic/20368-possible-gsap-bug-switching-classnames-in-chrome/.
 				style.cssText = cssText; //we recorded cssText before we swapped classes and ran _getAllStyles() because in cases when a className tween is overwritten, we remove all the related tweening properties from that class change (otherwise class-specific stuff can't override properties we've directly set on the target's style object due to specificity).
 			}
 			_parseTransform(target, true); //to clear the caching of transforms
@@ -538,12 +555,7 @@ let _win, _doc, _docElement, _pluginInitted, _tempDiv, _tempDivStyler, _recentSe
 			yOriginOld = cache.yOrigin || 0,
 			xOffsetOld = cache.xOffset || 0,
 			yOffsetOld = cache.yOffset || 0,
-			a = matrix[0],
-			b = matrix[1],
-			c = matrix[2],
-			d = matrix[3],
-			tx = matrix[4],
-			ty = matrix[5],
+			[a, b, c, d, tx, ty] = matrix,
 			originSplit = origin.split(" "),
 			xOrigin = parseFloat(originSplit[0]) || 0,
 			yOrigin = parseFloat(originSplit[1]) || 0,
@@ -552,11 +564,16 @@ let _win, _doc, _docElement, _pluginInitted, _tempDiv, _tempDivStyler, _recentSe
 			bounds = _getBBox(target);
 			xOrigin = bounds.x + (~originSplit[0].indexOf("%") ? xOrigin / 100 * bounds.width : xOrigin);
 			yOrigin = bounds.y + (~((originSplit[1] || originSplit[0]).indexOf("%")) ? yOrigin / 100 * bounds.height : yOrigin);
+			if (!("xOrigin" in cache) && (xOrigin || yOrigin)) {
+				xOrigin -= bounds.x;
+				yOrigin -= bounds.y;
+			}
 		} else if (matrix !== _identity2DMatrix && (determinant = (a * d - b * c))) { //if it's zero (like if scaleX and scaleY are zero), skip it to avoid errors with dividing by zero.
 			x = xOrigin * (d / determinant) + yOrigin * (-c / determinant) + ((c * ty - d * tx) / determinant);
 			y = xOrigin * (-b / determinant) + yOrigin * (a / determinant) - ((a * ty - b * tx) / determinant);
 			xOrigin = x;
 			yOrigin = y;
+			// theory: we only had to do this for smoothing and it assumes that the previous one was not originIsAbsolute.
 		}
 		if (smooth || (smooth !== false && cache.smooth)) {
 			tx = xOrigin - xOriginOld;
@@ -734,10 +751,10 @@ let _win, _doc, _docElement, _pluginInitted, _tempDiv, _tempDivStyler, _recentSe
 		cache.skewX = skewX + deg;
 		cache.skewY = skewY + deg;
 		cache.transformPerspective = perspective + px;
-		if ((cache.zOrigin = parseFloat(origin.split(" ")[2]) || 0)) {
+		if ((cache.zOrigin = parseFloat(origin.split(" ")[2]) || (!uncache && cache.zOrigin) || 0)) {
 			style[_transformOriginProp] = _firstTwoOnly(origin);
 		}
-		cache.xOffset = cache.yOffset = 0;
+		cache.svg || (cache.xOffset = cache.yOffset = 0);
 		cache.force3D = _config.force3D;
 		cache.renderTransform = cache.svg ? _renderSVGTransforms : _supports3D ? _renderCSSTransforms : _renderNon3DTransforms;
 		cache.uncache = 0;
@@ -1001,7 +1018,7 @@ export const CSSPlugin = {
 				if (startAt && p in startAt) { // in case someone hard-codes a complex value as the start, like top: "calc(2vh / 2)". Without this, it'd use the computed value (always in px)
 					startValue = typeof(startAt[p]) === "function" ? startAt[p].call(tween, index, target, targets) : startAt[p];
 					_isString(startValue) && ~startValue.indexOf("random(") && (startValue = _replaceRandom(startValue));
-					getUnit(startValue + "") || (startValue += _config.units[p] || getUnit(_get(target, p)) || ""); // for cases when someone passes in a unitless value like {x: 100}; if we try setting translate(100, 0px) it won't work.
+					getUnit(startValue + "") || startValue === "auto" || (startValue += _config.units[p] || getUnit(_get(target, p)) || ""); // for cases when someone passes in a unitless value like {x: 100}; if we try setting translate(100, 0px) it won't work.
 					(startValue + "").charAt(1) === "=" && (startValue = _get(target, p)); // can't work with relative values
 				} else {
 					startValue = _get(target, p);

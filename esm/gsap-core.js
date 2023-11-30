@@ -3,12 +3,12 @@ function _assertThisInitialized(self) { if (self === void 0) { throw new Referen
 function _inheritsLoose(subClass, superClass) { subClass.prototype = Object.create(superClass.prototype); subClass.prototype.constructor = subClass; subClass.__proto__ = superClass; }
 
 /*!
- * GSAP 3.12.2
- * https://greensock.com
+ * GSAP 3.12.3
+ * https://gsap.com
  *
  * @license Copyright 2008-2023, GreenSock. All rights reserved.
- * Subject to the terms at https://greensock.com/standard-license or for
- * Club GreenSock members, the agreement issued with that membership.
+ * Subject to the terms at https://gsap.com/standard-license or for
+ * Club GSAP members, the agreement issued with that membership.
  * @author: Jack Doyle, jack@greensock.com
 */
 
@@ -731,7 +731,7 @@ distribute = function distribute(v) {
 
         while (max < (max = a[wrapAt++].getBoundingClientRect().left) && wrapAt < l) {}
 
-        wrapAt--;
+        wrapAt < l && wrapAt--;
       }
 
       distances = cache[l] = [];
@@ -1760,7 +1760,7 @@ export var Animation = /*#__PURE__*/function () {
   // }
   ;
 
-  _proto.timeScale = function timeScale(value) {
+  _proto.timeScale = function timeScale(value, suppressEvents) {
     if (!arguments.length) {
       return this._rts === -_tinyNum ? 0 : this._rts; // recorded timeScale. Special case: if someone calls reverse() on an animation with timeScale of 0, we assign it -_tinyNum to remember it's reversed.
     }
@@ -1777,7 +1777,7 @@ export var Animation = /*#__PURE__*/function () {
     this._rts = +value || 0;
     this._ts = this._ps || value === -_tinyNum ? 0 : this._rts; // _ts is the functional timeScale which would be 0 if the animation is paused.
 
-    this.totalTime(_clamp(-Math.abs(this._delay), this._tDur, tTime), true);
+    this.totalTime(_clamp(-Math.abs(this._delay), this._tDur, tTime), suppressEvents !== false);
 
     _setEnd(this); // if parent.smoothChildTiming was false, the end time didn't get updated in the _alignPlayhead() method, so do it here.
 
@@ -1853,11 +1853,11 @@ export var Animation = /*#__PURE__*/function () {
         time = arguments.length ? rawTime : animation.rawTime();
 
     while (animation) {
-      time = animation._start + time / (animation._ts || 1);
+      time = animation._start + time / (Math.abs(animation._ts) || 1);
       animation = animation._dp;
     }
 
-    return !this.parent && this._sat ? this._sat.vars.immediateRender ? -Infinity : this._sat.globalTime(rawTime) : time; // the _startAt tweens for .fromTo() and .from() that have immediateRender should always be FIRST in the timeline (important for context.revert()). "_sat" stands for _startAtTween, referring to the parent tween that created the _startAt. We must discern if that tween had immediateRender so that we can know whether or not to prioritize it in revert().
+    return !this.parent && this._sat ? this._sat.globalTime(rawTime) : time; // the _startAt tweens for .fromTo() and .from() that have immediateRender should always be FIRST in the timeline (important for context.revert()). "_sat" stands for _startAtTween, referring to the parent tween that created the _startAt. We must discern if that tween had immediateRender so that we can know whether or not to prioritize it in revert().
   };
 
   _proto.repeat = function repeat(value) {
@@ -2158,7 +2158,7 @@ export var Timeline = /*#__PURE__*/function (_Animation) {
         }
 
         prevIteration = _animationCycle(this._tTime, cycleDuration);
-        !prevTime && this._tTime && prevIteration !== iteration && this._tTime - prevIteration * cycleDuration - this._dur <= 0 && (prevIteration = iteration); // edge case - if someone does addPause() at the very beginning of a repeating timeline, that pause is technically at the same spot as the end which causes this._time to get set to 0 when the totalTime would normally place the playhead at the end. See https://greensock.com/forums/topic/23823-closing-nav-animation-not-working-on-ie-and-iphone-6-maybe-other-older-browser/?tab=comments#comment-113005 also, this._tTime - prevIteration * cycleDuration - this._dur <= 0 just checks to make sure it wasn't previously in the "repeatDelay" portion
+        !prevTime && this._tTime && prevIteration !== iteration && this._tTime - prevIteration * cycleDuration - this._dur <= 0 && (prevIteration = iteration); // edge case - if someone does addPause() at the very beginning of a repeating timeline, that pause is technically at the same spot as the end which causes this._time to get set to 0 when the totalTime would normally place the playhead at the end. See https://gsap.com/forums/topic/23823-closing-nav-animation-not-working-on-ie-and-iphone-6-maybe-other-older-browser/?tab=comments#comment-113005 also, this._tTime - prevIteration * cycleDuration - this._dur <= 0 just checks to make sure it wasn't previously in the "repeatDelay" portion
 
         if (yoyo && iteration & 1) {
           time = dur - time;
@@ -2870,8 +2870,6 @@ _forceAllPropTweens,
       immediateRender = vars.immediateRender,
       lazy = vars.lazy,
       onUpdate = vars.onUpdate,
-      onUpdateParams = vars.onUpdateParams,
-      callbackScope = vars.callbackScope,
       runBackwards = vars.runBackwards,
       yoyoEase = vars.yoyoEase,
       keyframes = vars.keyframes,
@@ -2934,9 +2932,9 @@ _forceAllPropTweens,
         lazy: !prevStartAt && _isNotFalse(lazy),
         startAt: null,
         delay: 0,
-        onUpdate: onUpdate,
-        onUpdateParams: onUpdateParams,
-        callbackScope: callbackScope,
+        onUpdate: onUpdate && function () {
+          return _callback(tween, "onUpdate");
+        },
         stagger: 0
       }, startAt))); //copy the properties/values into a new object to avoid collisions, like var to = {x:0}, from = {x:500}; timeline.fromTo(e, from, to).fromTo(e, to, from);
 
@@ -3045,7 +3043,7 @@ _forceAllPropTweens,
 
   keyframes && time <= 0 && tl.render(_bigNum, true, true); // if there's a 0% keyframe, it'll render in the "before" state for any staggered/delayed animations thus when the following tween initializes, it'll use the "before" state instead of the "after" state as the initial values.
 },
-    _updatePropTweens = function _updatePropTweens(tween, property, value, start, startIsRelative, ratio, time) {
+    _updatePropTweens = function _updatePropTweens(tween, property, value, start, startIsRelative, ratio, time, skipRecursion) {
   var ptCache = (tween._pt && tween._ptCache || (tween._ptCache = {}))[property],
       pt,
       rootPT,
@@ -3080,7 +3078,7 @@ _forceAllPropTweens,
         _initTween(tween, time);
 
         _forceAllPropTweens = 0;
-        return 1;
+        return skipRecursion ? _warn(property + " not eligible for reset") : 1; // if someone tries to do a quickTo() on a special property like borderRadius which must get split into 4 different properties, that's not eligible for .resetTo().
       }
 
       ptCache.push(pt);
@@ -3203,7 +3201,7 @@ export var Tween = /*#__PURE__*/function (_Animation2) {
         curTarget,
         staggerFunc,
         staggerVarsToMerge;
-    _this3._targets = parsedTargets.length ? _harness(parsedTargets) : _warn("GSAP target " + targets + " not found. https://greensock.com", !_config.nullTargetWarn) || [];
+    _this3._targets = parsedTargets.length ? _harness(parsedTargets) : _warn("GSAP target " + targets + " not found. https://gsap.com", !_config.nullTargetWarn) || [];
     _this3._ptLookup = []; //PropTween lookup. An array containing an object for each target, having keys for each tweening property
 
     _this3._overwrite = overwrite;
@@ -3374,7 +3372,7 @@ export var Tween = /*#__PURE__*/function (_Animation2) {
         } else {
           iteration = ~~(tTime / cycleDuration);
 
-          if (iteration && iteration === tTime / cycleDuration) {
+          if (iteration && iteration === _roundPrecise(tTime / cycleDuration)) {
             time = dur;
             iteration--;
           }
@@ -3391,7 +3389,7 @@ export var Tween = /*#__PURE__*/function (_Animation2) {
 
         prevIteration = _animationCycle(this._tTime, cycleDuration);
 
-        if (time === prevTime && !force && this._initted) {
+        if (time === prevTime && !force && this._initted && iteration === prevIteration) {
           //could be during the repeatDelay part. No need to render and fire callbacks.
           this._tTime = tTime;
           return this;
@@ -3400,7 +3398,8 @@ export var Tween = /*#__PURE__*/function (_Animation2) {
         if (iteration !== prevIteration) {
           timeline && this._yEase && _propagateYoyoEase(timeline, isYoyo); //repeatRefresh functionality
 
-          if (this.vars.repeatRefresh && !isYoyo && !this._lock) {
+          if (this.vars.repeatRefresh && !isYoyo && !this._lock && this._time !== dur && this._initted) {
+            // this._time will === dur when we render at EXACTLY the end of an iteration. Without this condition, it'd often do the repeatRefresh render TWICE (again on the very next tick).
             this._lock = force = 1; //force, otherwise if lazy is true, the _attemptInitTween() will return and we'll jump out and get caught bouncing on each tick.
 
             this.render(_roundPrecise(cycleDuration * iteration), true).invalidate()._lock = 0;
@@ -3415,8 +3414,8 @@ export var Tween = /*#__PURE__*/function (_Animation2) {
           return this;
         }
 
-        if (prevTime !== this._time) {
-          // rare edge case - during initialization, an onUpdate in the _startAt (.fromTo()) might force this tween to render at a different spot in which case we should ditch this render() call so that it doesn't revert the values.
+        if (prevTime !== this._time && !(force && this.vars.repeatRefresh && iteration !== prevIteration)) {
+          // rare edge case - during initialization, an onUpdate in the _startAt (.fromTo()) might force this tween to render at a different spot in which case we should ditch this render() call so that it doesn't revert the values. But we also don't want to dump if we're doing a repeatRefresh render!
           return this;
         }
 
@@ -3496,7 +3495,7 @@ export var Tween = /*#__PURE__*/function (_Animation2) {
     return _Animation2.prototype.invalidate.call(this, soft);
   };
 
-  _proto3.resetTo = function resetTo(property, value, start, startIsRelative) {
+  _proto3.resetTo = function resetTo(property, value, start, startIsRelative, skipRecursion) {
     _tickerActive || _ticker.wake();
     this._ts || this.play();
     var time = Math.min(this._dur, (this._dp._time - this._start) * this._ts),
@@ -3512,8 +3511,8 @@ export var Tween = /*#__PURE__*/function (_Animation2) {
     // 	}
     // } else {
 
-    if (_updatePropTweens(this, property, value, start, startIsRelative, ratio, time)) {
-      return this.resetTo(property, value, start, startIsRelative); // if a PropTween wasn't found for the property, it'll get forced with a re-initialization so we need to jump out and start over again.
+    if (_updatePropTweens(this, property, value, start, startIsRelative, ratio, time, skipRecursion)) {
+      return this.resetTo(property, value, start, startIsRelative, 1); // if a PropTween wasn't found for the property, it'll get forced with a re-initialization so we need to jump out and start over again.
     } //}
 
 
@@ -3894,7 +3893,9 @@ var _media = [],
     _dispatch("matchMediaRevert");
 
     matches.forEach(function (c) {
-      return c.onMatch(c);
+      return c.onMatch(c, function (func) {
+        return c.add(null, func);
+      });
     });
     _lastMediaTime = time;
 
@@ -3945,7 +3946,9 @@ var Context = /*#__PURE__*/function () {
     };
 
     self.last = f;
-    return name === _isFunction ? f(self) : name ? self[name] = f : f;
+    return name === _isFunction ? f(self, function (func) {
+      return self.add(null, func);
+    }) : name ? self[name] = f : f;
   };
 
   _proto5.ignore = function ignore(func) {
@@ -3971,37 +3974,57 @@ var Context = /*#__PURE__*/function () {
     var _this4 = this;
 
     if (revert) {
-      var tweens = this.getTweens();
-      this.data.forEach(function (t) {
-        // Flip plugin tweens are very different in that they should actually be pushed to their end. The plugin replaces the timeline's .revert() method to do exactly that. But we also need to remove any of those nested tweens inside the flip timeline so that they don't get individually reverted.
-        if (t.data === "isFlip") {
-          t.revert();
-          t.getChildren(true, true, false).forEach(function (tween) {
-            return tweens.splice(tweens.indexOf(tween), 1);
-          });
+      (function () {
+        var tweens = _this4.getTweens(),
+            i = _this4.data.length,
+            t;
+
+        while (i--) {
+          // Flip plugin tweens are very different in that they should actually be pushed to their end. The plugin replaces the timeline's .revert() method to do exactly that. But we also need to remove any of those nested tweens inside the flip timeline so that they don't get individually reverted.
+          t = _this4.data[i];
+
+          if (t.data === "isFlip") {
+            t.revert();
+            t.getChildren(true, true, false).forEach(function (tween) {
+              return tweens.splice(tweens.indexOf(tween), 1);
+            });
+          }
+        } // save as an object so that we can cache the globalTime for each tween to optimize performance during the sort
+
+
+        tweens.map(function (t) {
+          return {
+            g: t._dur || t._delay || t._sat && !t._sat.vars.immediateRender ? t.globalTime(0) : -Infinity,
+            t: t
+          };
+        }).sort(function (a, b) {
+          return b.g - a.g || -Infinity;
+        }).forEach(function (o) {
+          return o.t.revert(revert);
+        }); // note: all of the _startAt tweens should be reverted in reverse order that they were created, and they'll all have the same globalTime (-1) so the " || -1" in the sort keeps the order properly.
+
+        i = _this4.data.length;
+
+        while (i--) {
+          // make sure we loop backwards so that, for example, SplitTexts that were created later on the same element get reverted first
+          t = _this4.data[i];
+
+          if (t instanceof Timeline) {
+            if (t.data !== "nested") {
+              t.scrollTrigger && t.scrollTrigger.revert();
+              t.kill(); // don't revert() the timeline because that's duplicating efforts since we already reverted all the tweens
+            }
+          } else {
+            !(t instanceof Tween) && t.revert && t.revert(revert);
+          }
         }
-      }); // save as an object so that we can cache the globalTime for each tween to optimize performance during the sort
 
-      tweens.map(function (t) {
-        return {
-          g: t.globalTime(0),
-          t: t
-        };
-      }).sort(function (a, b) {
-        return b.g - a.g || -Infinity;
-      }).forEach(function (o) {
-        return o.t.revert(revert);
-      }); // note: all of the _startAt tweens should be reverted in reverse order that they were created, and they'll all have the same globalTime (-1) so the " || -1" in the sort keeps the order properly.
+        _this4._r.forEach(function (f) {
+          return f(revert, _this4);
+        });
 
-      this.data.forEach(function (e) {
-        return !(e instanceof Tween) && e.revert && e.revert(revert);
-      });
-
-      this._r.forEach(function (f) {
-        return f(revert, _this4);
-      });
-
-      this.isReverted = true;
+        _this4.isReverted = true;
+      })();
     } else {
       this.data.forEach(function (e) {
         return e.kill && e.kill();
@@ -4064,7 +4087,9 @@ var MatchMedia = /*#__PURE__*/function () {
       }
     }
 
-    active && func(context);
+    active && func(context, function (f) {
+      return context.add(null, f);
+    });
     return this;
   } // refresh() {
   // 	let time = _lastMediaTime,
@@ -4434,7 +4459,7 @@ export var gsap = _gsap.registerPlugin({
   }
 }, _buildModifierPlugin("roundProps", _roundModifier), _buildModifierPlugin("modifiers"), _buildModifierPlugin("snap", snap)) || _gsap; //to prevent the core plugins from being dropped via aggressive tree shaking, we must include them in the variable declaration in this way.
 
-Tween.version = Timeline.version = gsap.version = "3.12.2";
+Tween.version = Timeline.version = gsap.version = "3.12.3";
 _coreReady = 1;
 _windowExists() && _wake();
 var Power0 = _easeMap.Power0,

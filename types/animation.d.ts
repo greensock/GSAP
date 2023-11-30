@@ -504,11 +504,12 @@ declare namespace gsap.core {
      * ```
      *
      * @param {number} value
+     * @param {boolean} suppressEvents
      * @returns {Animation} The animation
      * @memberof Animation
      * @link https://greensock.com/docs/v3/GSAP/Tween/timeScale()
      */
-    timeScale(value: number): this;
+    timeScale(value: number, suppressEvents?: boolean): this;
 
     /**
      * Gets the time scale of the given animation.
