@@ -1,5 +1,5 @@
 /*!
- * ScrollTrigger 3.12.3
+ * ScrollTrigger 3.12.4
  * https://gsap.com
  *
  * @license Copyright 2008-2023, GreenSock. All rights reserved.
@@ -471,7 +471,7 @@ _revertRecorded = function _revertRecorded(media) {
   });
 },
     _refreshAll = function _refreshAll(force, skipRevert) {
-  if (_lastScrollTime && !force) {
+  if (_lastScrollTime && !force && !_isReverted) {
     _addListener(ScrollTrigger, "scrollEnd", _softRefresh);
 
     return;
@@ -2172,7 +2172,7 @@ export var ScrollTrigger = /*#__PURE__*/function () {
 
   return ScrollTrigger;
 }();
-ScrollTrigger.version = "3.12.3";
+ScrollTrigger.version = "3.12.4";
 
 ScrollTrigger.saveStyles = function (targets) {
   return targets ? _toArray(targets).forEach(function (target) {

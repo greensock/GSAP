@@ -2,6 +2,7 @@ declare class SplitText {
   readonly chars: Element[];
   readonly lines: Element[];
   readonly words: Element[];
+  readonly elements: Element[];
   readonly selector: string | Function;
 
   constructor(target: gsap.DOMTarget, vars?: SplitText.Vars);

@@ -1,5 +1,5 @@
 /*!
- * CSSPlugin 3.12.3
+ * CSSPlugin 3.12.4
  * https://gsap.com
  *
  * Copyright 2008-2023, GreenSock. All rights reserved.
@@ -764,12 +764,10 @@ _identity2DMatrix = [1, 0, 0, 1, 0, 0],
   if (!originIsAbsolute) {
     bounds = _getBBox(target);
     xOrigin = bounds.x + (~originSplit[0].indexOf("%") ? xOrigin / 100 * bounds.width : xOrigin);
-    yOrigin = bounds.y + (~(originSplit[1] || originSplit[0]).indexOf("%") ? yOrigin / 100 * bounds.height : yOrigin);
-
-    if (!("xOrigin" in cache) && (xOrigin || yOrigin)) {
-      xOrigin -= bounds.x;
-      yOrigin -= bounds.y;
-    }
+    yOrigin = bounds.y + (~(originSplit[1] || originSplit[0]).indexOf("%") ? yOrigin / 100 * bounds.height : yOrigin); // if (!("xOrigin" in cache) && (xOrigin || yOrigin)) { // added in 3.12.3, reverted in 3.12.4; requires more exploration
+    // 	xOrigin -= bounds.x;
+    // 	yOrigin -= bounds.y;
+    // }
   } else if (matrix !== _identity2DMatrix && (determinant = a * d - b * c)) {
     //if it's zero (like if scaleX and scaleY are zero), skip it to avoid errors with dividing by zero.
     x = xOrigin * (d / determinant) + yOrigin * (-c / determinant) + (c * ty - d * tx) / determinant;
@@ -1015,7 +1013,7 @@ _identity2DMatrix = [1, 0, 0, 1, 0, 0],
     style[_transformOriginProp] = _firstTwoOnly(origin);
   }
 
-  cache.svg || (cache.xOffset = cache.yOffset = 0);
+  cache.xOffset = cache.yOffset = 0;
   cache.force3D = _config.force3D;
   cache.renderTransform = cache.svg ? _renderSVGTransforms : _supports3D ? _renderCSSTransforms : _renderNon3DTransforms;
   cache.uncache = 0;

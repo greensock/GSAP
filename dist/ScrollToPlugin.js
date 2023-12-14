@@ -5,7 +5,7 @@
 }(this, (function (exports) { 'use strict';
 
 	/*!
-	 * ScrollToPlugin 3.12.3
+	 * ScrollToPlugin 3.12.4
 	 * https://gsap.com
 	 *
 	 * @license Copyright 2008-2023, GreenSock. All rights reserved.
@@ -128,7 +128,7 @@
 	};
 
 	var ScrollToPlugin = {
-	  version: "3.12.3",
+	  version: "3.12.4",
 	  name: "scrollTo",
 	  rawVars: 1,
 	  register: function register(core) {
@@ -249,7 +249,8 @@
 	    ScrollTrigger && ScrollTrigger.update();
 	  },
 	  kill: function kill(property) {
-	    var both = property === "scrollTo";
+	    var both = property === "scrollTo",
+	        i = this._props.indexOf(property);
 
 	    if (both || property === "scrollTo_x") {
 	      this.skipX = 1;
@@ -258,6 +259,9 @@
 	    if (both || property === "scrollTo_y") {
 	      this.skipY = 1;
 	    }
+
+	    i > -1 && this._props.splice(i, 1);
+	    return !this._props.length;
 	  }
 	};
 	ScrollToPlugin.max = _max;

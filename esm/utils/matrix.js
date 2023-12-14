@@ -1,5 +1,5 @@
 /*!
- * matrix 3.12.3
+ * matrix 3.12.4
  * https://gsap.com
  *
  * Copyright 2008-2023, GreenSock. All rights reserved.

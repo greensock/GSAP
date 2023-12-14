@@ -1,5 +1,5 @@
 /*!
- * MotionPathPlugin 3.12.3
+ * MotionPathPlugin 3.12.4
  * https://gsap.com
  *
  * @license Copyright 2008-2023, GreenSock. All rights reserved.
@@ -217,7 +217,7 @@ _segmentToRawPath = function _segmentToRawPath(plugin, segment, target, x, y, sl
 };
 
 export var MotionPathPlugin = {
-  version: "3.12.3",
+  version: "3.12.4",
   name: "motionPath",
   register: function register(core, Plugin, propTween) {
     gsap = core;

@@ -355,7 +355,7 @@
 	}
 
 	/*!
-	 * CustomEase 3.12.3
+	 * CustomEase 3.12.4
 	 * https://gsap.com
 	 *
 	 * @license Copyright 2008-2023, GreenSock. All rights reserved.
@@ -704,7 +704,7 @@
 	  return CustomEase;
 	}();
 	_getGSAP() && gsap.registerPlugin(CustomEase);
-	CustomEase.version = "3.12.3";
+	CustomEase.version = "3.12.4";
 
 	exports.CustomEase = CustomEase;
 	exports.default = CustomEase;

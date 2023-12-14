@@ -3,7 +3,7 @@ function _defineProperties(target, props) { for (var i = 0; i < props.length; i+
 function _createClass(Constructor, protoProps, staticProps) { if (protoProps) _defineProperties(Constructor.prototype, protoProps); if (staticProps) _defineProperties(Constructor, staticProps); return Constructor; }
 
 /*!
- * Observer 3.12.3
+ * Observer 3.12.4
  * https://gsap.com
  *
  * @license Copyright 2008-2023, GreenSock. All rights reserved.
@@ -664,7 +664,7 @@ export var Observer = /*#__PURE__*/function () {
 
   return Observer;
 }();
-Observer.version = "3.12.3";
+Observer.version = "3.12.4";
 
 Observer.create = function (vars) {
   return new Observer(vars);

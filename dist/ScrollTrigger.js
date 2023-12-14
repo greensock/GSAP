@@ -21,7 +21,7 @@
   }
 
   /*!
-   * Observer 3.12.3
+   * Observer 3.12.4
    * https://gsap.com
    *
    * @license Copyright 2008-2023, GreenSock. All rights reserved.
@@ -661,7 +661,7 @@
 
     return Observer;
   }();
-  Observer.version = "3.12.3";
+  Observer.version = "3.12.4";
 
   Observer.create = function (vars) {
     return new Observer(vars);
@@ -682,7 +682,7 @@
   _getGSAP() && gsap.registerPlugin(Observer);
 
   /*!
-   * ScrollTrigger 3.12.3
+   * ScrollTrigger 3.12.4
    * https://gsap.com
    *
    * @license Copyright 2008-2023, GreenSock. All rights reserved.
@@ -1141,7 +1141,7 @@
     });
   },
       _refreshAll = function _refreshAll(force, skipRevert) {
-    if (_lastScrollTime && !force) {
+    if (_lastScrollTime && !force && !_isReverted) {
       _addListener$1(ScrollTrigger$1, "scrollEnd", _softRefresh);
 
       return;
@@ -2747,7 +2747,7 @@
 
     return ScrollTrigger;
   }();
-  ScrollTrigger$1.version = "3.12.3";
+  ScrollTrigger$1.version = "3.12.4";
 
   ScrollTrigger$1.saveStyles = function (targets) {
     return targets ? _toArray(targets).forEach(function (target) {

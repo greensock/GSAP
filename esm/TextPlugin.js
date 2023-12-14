@@ -1,5 +1,5 @@
 /*!
- * TextPlugin 3.12.3
+ * TextPlugin 3.12.4
  * https://gsap.com
  *
  * @license Copyright 2008-2023, GreenSock. All rights reserved.
@@ -18,7 +18,7 @@ var gsap,
 };
 
 export var TextPlugin = {
-  version: "3.12.3",
+  version: "3.12.4",
   name: "text",
   init: function init(target, value, tween) {
     typeof value !== "object" && (value = {

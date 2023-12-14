@@ -5,7 +5,7 @@
 }(this, (function (exports) { 'use strict';
 
 	/*!
-	 * PixiPlugin 3.12.3
+	 * PixiPlugin 3.12.4
 	 * https://gsap.com
 	 *
 	 * @license Copyright 2008-2023, GreenSock. All rights reserved.
@@ -374,7 +374,7 @@
 	}
 
 	var PixiPlugin = {
-	  version: "3.12.3",
+	  version: "3.12.4",
 	  name: "pixi",
 	  register: function register(core, Plugin, propTween) {
 	    gsap = core;

@@ -21,7 +21,7 @@
   }
 
   /*!
-   * Observer 3.12.3
+   * Observer 3.12.4
    * https://gsap.com
    *
    * @license Copyright 2008-2023, GreenSock. All rights reserved.
@@ -661,7 +661,7 @@
 
     return Observer;
   }();
-  Observer.version = "3.12.3";
+  Observer.version = "3.12.4";
 
   Observer.create = function (vars) {
     return new Observer(vars);

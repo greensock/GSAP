@@ -1,5 +1,5 @@
 /*!
- * ScrollTrigger 3.12.3
+ * ScrollTrigger 3.12.4
  * https://gsap.com
  *
  * @license Copyright 2008-2023, GreenSock. All rights reserved.
@@ -262,7 +262,7 @@ let gsap, _coreInitted, _win, _doc, _docEl, _body, _root, _resizeDelay, _toArray
 	},
 	_hideAllMarkers = hide => _toArray(".gsap-marker-start, .gsap-marker-end, .gsap-marker-scroller-start, .gsap-marker-scroller-end").forEach(el => el.style.display = hide ? "none" : "block"),
 	_refreshAll = (force, skipRevert) => {
-		if (_lastScrollTime && !force) {
+		if (_lastScrollTime && !force && !_isReverted) {
 			_addListener(ScrollTrigger, "scrollEnd", _softRefresh);
 			return;
 		}
@@ -1451,7 +1451,7 @@ export class ScrollTrigger {
 
 }
 
-ScrollTrigger.version = "3.12.3";
+ScrollTrigger.version = "3.12.4";
 ScrollTrigger.saveStyles = targets => targets ? _toArray(targets).forEach(target => { // saved styles are recorded in a consecutive alternating Array, like [element, cssText, transform attribute, cache, matchMedia, ...]
 	if (target && target.style) {
 		let i = _savedStyles.indexOf(target);

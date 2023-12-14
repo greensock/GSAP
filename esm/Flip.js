@@ -1,5 +1,5 @@
 /*!
- * Flip 3.12.3
+ * Flip 3.12.4
  * https://gsap.com
  *
  * @license Copyright 2008-2023, GreenSock. All rights reserved.
@@ -1503,7 +1503,7 @@ export var Flip = /*#__PURE__*/function () {
 
   return Flip;
 }();
-Flip.version = "3.12.3"; // function whenImagesLoad(el, func) {
+Flip.version = "3.12.4"; // function whenImagesLoad(el, func) {
 // 	let pending = [],
 // 		onLoad = e => {
 // 			pending.splice(pending.indexOf(e.target), 1);
