@@ -21,10 +21,10 @@
   }
 
   /*!
-   * Observer 3.12.4
+   * Observer 3.12.5
    * https://gsap.com
    *
-   * @license Copyright 2008-2023, GreenSock. All rights reserved.
+   * @license Copyright 2008-2024, GreenSock. All rights reserved.
    * Subject to the terms at https://gsap.com/standard-license or for
    * Club GSAP members, the agreement issued with that membership.
    * @author: Jack Doyle, jack@greensock.com
@@ -74,9 +74,9 @@
       _isViewport = function _isViewport(el) {
     return !!~_root.indexOf(el);
   },
-      _addListener = function _addListener(element, type, func, nonPassive, capture) {
+      _addListener = function _addListener(element, type, func, passive, capture) {
     return element.addEventListener(type, func, {
-      passive: !nonPassive,
+      passive: passive !== false,
       capture: !!capture
     });
   },
@@ -312,6 +312,7 @@
           self = this,
           prevDeltaX = 0,
           prevDeltaY = 0,
+          passive = vars.passive || !preventDefault,
           scrollFuncX = _getScrollFunc(target, _horizontal),
           scrollFuncY = _getScrollFunc(target, _vertical),
           scrollX = scrollFuncX(),
@@ -450,7 +451,7 @@
 
         self._vy.reset();
 
-        _addListener(isNormalizer ? target : ownerDoc, _eventTypes[1], _onDrag, preventDefault, true);
+        _addListener(isNormalizer ? target : ownerDoc, _eventTypes[1], _onDrag, passive, true);
 
         self.deltaX = self.deltaY = 0;
         onPress && onPress(self);
@@ -562,17 +563,17 @@
         if (!self.isEnabled) {
           _addListener(isViewport ? ownerDoc : target, "scroll", _onScroll);
 
-          type.indexOf("scroll") >= 0 && _addListener(isViewport ? ownerDoc : target, "scroll", onScroll, preventDefault, capture);
-          type.indexOf("wheel") >= 0 && _addListener(target, "wheel", _onWheel, preventDefault, capture);
+          type.indexOf("scroll") >= 0 && _addListener(isViewport ? ownerDoc : target, "scroll", onScroll, passive, capture);
+          type.indexOf("wheel") >= 0 && _addListener(target, "wheel", _onWheel, passive, capture);
 
           if (type.indexOf("touch") >= 0 && _isTouch || type.indexOf("pointer") >= 0) {
-            _addListener(target, _eventTypes[0], _onPress, preventDefault, capture);
+            _addListener(target, _eventTypes[0], _onPress, passive, capture);
 
             _addListener(ownerDoc, _eventTypes[2], _onRelease);
 
             _addListener(ownerDoc, _eventTypes[3], _onRelease);
 
-            allowClicks && _addListener(target, "click", clickCapture, false, true);
+            allowClicks && _addListener(target, "click", clickCapture, true, true);
             onClick && _addListener(target, "click", _onClick);
             onGestureStart && _addListener(ownerDoc, "gesturestart", _onGestureStart);
             onGestureEnd && _addListener(ownerDoc, "gestureend", _onGestureEnd);
@@ -661,7 +662,7 @@
 
     return Observer;
   }();
-  Observer.version = "3.12.4";
+  Observer.version = "3.12.5";
 
   Observer.create = function (vars) {
     return new Observer(vars);
@@ -682,10 +683,10 @@
   _getGSAP() && gsap.registerPlugin(Observer);
 
   /*!
-   * ScrollTrigger 3.12.4
+   * ScrollTrigger 3.12.5
    * https://gsap.com
    *
-   * @license Copyright 2008-2023, GreenSock. All rights reserved.
+   * @license Copyright 2008-2024, GreenSock. All rights reserved.
    * Subject to the terms at https://gsap.com/standard-license or for
    * Club GSAP members, the agreement issued with that membership.
    * @author: Jack Doyle, jack@greensock.com
@@ -1519,6 +1520,7 @@
       change1 = change1 || scrollTo - initialValue;
       tween && tween.kill();
       vars[prop] = scrollTo;
+      vars.inherit = false;
       vars.modifiers = modifiers;
 
       modifiers[prop] = function () {
@@ -1686,6 +1688,7 @@
           scrubTween ? scrubTween.duration(value) : scrubTween = gsap$1.to(animation, {
             ease: "expo",
             totalProgress: "+=0",
+            inherit: false,
             duration: scrubSmooth,
             paused: true,
             onComplete: function onComplete() {
@@ -1739,12 +1742,15 @@
                 velocity = refreshedRecently ? 0 : (totalProgress - snap2) / (_getTime$1() - _time2) * 1000 || 0,
                 change1 = gsap$1.utils.clamp(-progress, 1 - progress, _abs(velocity / 2) * velocity / 0.185),
                 naturalEnd = progress + (snap.inertia === false ? 0 : change1),
-                endValue = _clamp$1(0, 1, snapFunc(naturalEnd, self)),
-                endScroll = Math.round(start + endValue * change),
+                endValue,
+                endScroll,
                 _snap = snap,
                 onStart = _snap.onStart,
                 _onInterrupt = _snap.onInterrupt,
                 _onComplete = _snap.onComplete;
+            endValue = snapFunc(naturalEnd, self);
+            _isNumber(endValue) || (endValue = naturalEnd);
+            endScroll = Math.round(start + endValue * change);
 
             if (scroll <= end && scroll >= start && endScroll !== scroll) {
               if (tween && !tween._initted && tween.data <= _abs(endScroll - scroll)) {
@@ -1765,7 +1771,11 @@
                 onComplete: function onComplete() {
                   self.update();
                   lastSnap = scrollFunc();
-                  scrubTween && animation && animation.progress(endValue);
+
+                  if (animation) {
+                    scrubTween ? scrubTween.resetTo("totalProgress", endValue, animation._tTime / animation._tDur) : animation.progress(endValue);
+                  }
+
                   snap1 = snap2 = animation && !isToggle ? animation.totalProgress() : self.progress;
                   onSnapComplete && onSnapComplete(self);
                   _onComplete && _onComplete(self);
@@ -2080,6 +2090,9 @@
             }
 
             useFixedPosition && scrollFunc(prevScroll);
+          } else {
+            i = _getSize(pin, direction);
+            i && spacer.style.flexBasis !== "auto" && (spacer.style.flexBasis = i + _px);
           }
 
           if (useFixedPosition) {
@@ -2156,7 +2169,7 @@
         _refreshing = 0;
         animation && isToggle && (animation._initted || prevAnimProgress) && animation.progress() !== prevAnimProgress && animation.progress(prevAnimProgress || 0, true).render(animation.time(), true, true);
 
-        if (isFirstRefresh || prevProgress !== self.progress || containerAnimation) {
+        if (isFirstRefresh || prevProgress !== self.progress || containerAnimation || invalidateOnRefresh) {
           animation && !isToggle && animation.totalProgress(containerAnimation && start < -0.001 && !prevProgress ? gsap$1.utils.normalize(start, end, 0) : prevProgress, true);
           self.progress = isFirstRefresh || (scroll1 - start) / change === prevProgress ? 0 : prevProgress;
         }
@@ -2241,7 +2254,13 @@
           }
         }
 
-        anticipatePin && !clipped && pin && !_refreshing && !_startup$1 && _lastScrollTime && start < scroll + (scroll - scroll2) / (_getTime$1() - _time2) * anticipatePin && (clipped = 0.0001);
+        if (anticipatePin && pin && !_refreshing && !_startup$1 && _lastScrollTime) {
+          if (!clipped && start < scroll + (scroll - scroll2) / (_getTime$1() - _time2) * anticipatePin) {
+            clipped = 0.0001;
+          } else if (clipped === 1 && end > scroll + (scroll - scroll2) / (_getTime$1() - _time2) * anticipatePin) {
+            clipped = 0.9999;
+          }
+        }
 
         if (clipped !== prevProgress && self.enabled) {
           isActive = self.isActive = !!clipped && clipped < 1;
@@ -2583,6 +2602,7 @@
           Observer.register(gsap$1);
           ScrollTrigger.isTouch = Observer.isTouch;
           _fixIOSBug = Observer.isTouch && /(iPad|iPhone|iPod|Mac)/g.test(navigator.userAgent);
+          _ignoreMobileResize = Observer.isTouch === 1;
 
           _addListener$1(_win$1, "wheel", _onScroll$1);
 
@@ -2747,7 +2767,7 @@
 
     return ScrollTrigger;
   }();
-  ScrollTrigger$1.version = "3.12.4";
+  ScrollTrigger$1.version = "3.12.5";
 
   ScrollTrigger$1.saveStyles = function (targets) {
     return targets ? _toArray(targets).forEach(function (target) {
@@ -3129,6 +3149,7 @@
     tween = gsap$1.to(self, {
       ease: "power4",
       paused: true,
+      inherit: false,
       scrollX: normalizeScrollX ? "+=0.1" : "+=0",
       scrollY: "+=0.1",
       modifiers: {

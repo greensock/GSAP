@@ -21,10 +21,10 @@
   }
 
   /*!
-   * Observer 3.12.4
+   * Observer 3.12.5
    * https://gsap.com
    *
-   * @license Copyright 2008-2023, GreenSock. All rights reserved.
+   * @license Copyright 2008-2024, GreenSock. All rights reserved.
    * Subject to the terms at https://gsap.com/standard-license or for
    * Club GSAP members, the agreement issued with that membership.
    * @author: Jack Doyle, jack@greensock.com
@@ -74,9 +74,9 @@
       _isViewport = function _isViewport(el) {
     return !!~_root.indexOf(el);
   },
-      _addListener = function _addListener(element, type, func, nonPassive, capture) {
+      _addListener = function _addListener(element, type, func, passive, capture) {
     return element.addEventListener(type, func, {
-      passive: !nonPassive,
+      passive: passive !== false,
       capture: !!capture
     });
   },
@@ -312,6 +312,7 @@
           self = this,
           prevDeltaX = 0,
           prevDeltaY = 0,
+          passive = vars.passive || !preventDefault,
           scrollFuncX = _getScrollFunc(target, _horizontal),
           scrollFuncY = _getScrollFunc(target, _vertical),
           scrollX = scrollFuncX(),
@@ -450,7 +451,7 @@
 
         self._vy.reset();
 
-        _addListener(isNormalizer ? target : ownerDoc, _eventTypes[1], _onDrag, preventDefault, true);
+        _addListener(isNormalizer ? target : ownerDoc, _eventTypes[1], _onDrag, passive, true);
 
         self.deltaX = self.deltaY = 0;
         onPress && onPress(self);
@@ -562,17 +563,17 @@
         if (!self.isEnabled) {
           _addListener(isViewport ? ownerDoc : target, "scroll", _onScroll);
 
-          type.indexOf("scroll") >= 0 && _addListener(isViewport ? ownerDoc : target, "scroll", onScroll, preventDefault, capture);
-          type.indexOf("wheel") >= 0 && _addListener(target, "wheel", _onWheel, preventDefault, capture);
+          type.indexOf("scroll") >= 0 && _addListener(isViewport ? ownerDoc : target, "scroll", onScroll, passive, capture);
+          type.indexOf("wheel") >= 0 && _addListener(target, "wheel", _onWheel, passive, capture);
 
           if (type.indexOf("touch") >= 0 && _isTouch || type.indexOf("pointer") >= 0) {
-            _addListener(target, _eventTypes[0], _onPress, preventDefault, capture);
+            _addListener(target, _eventTypes[0], _onPress, passive, capture);
 
             _addListener(ownerDoc, _eventTypes[2], _onRelease);
 
             _addListener(ownerDoc, _eventTypes[3], _onRelease);
 
-            allowClicks && _addListener(target, "click", clickCapture, false, true);
+            allowClicks && _addListener(target, "click", clickCapture, true, true);
             onClick && _addListener(target, "click", _onClick);
             onGestureStart && _addListener(ownerDoc, "gesturestart", _onGestureStart);
             onGestureEnd && _addListener(ownerDoc, "gestureend", _onGestureEnd);
@@ -661,7 +662,7 @@
 
     return Observer;
   }();
-  Observer.version = "3.12.4";
+  Observer.version = "3.12.5";
 
   Observer.create = function (vars) {
     return new Observer(vars);

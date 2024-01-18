@@ -1,8 +1,8 @@
 /*!
- * ScrollTrigger 3.12.4
+ * ScrollTrigger 3.12.5
  * https://gsap.com
  *
- * @license Copyright 2008-2023, GreenSock. All rights reserved.
+ * @license Copyright 2008-2024, GreenSock. All rights reserved.
  * Subject to the terms at https://gsap.com/standard-license or for
  * Club GSAP members, the agreement issued with that membership.
  * @author: Jack Doyle, jack@greensock.com
@@ -567,6 +567,7 @@ let gsap, _coreInitted, _win, _doc, _docEl, _body, _root, _resizeDelay, _toArray
 				change1 = change1 || (scrollTo - initialValue);
 				tween && tween.kill();
 				vars[prop] = scrollTo;
+				vars.inherit = false;
 				vars.modifiers = modifiers;
 				modifiers[prop] = () => checkForInterruption(initialValue + change1 * tween.ratio + change2 * tween.ratio * tween.ratio);
 				vars.onUpdate = () => {
@@ -653,7 +654,7 @@ export class ScrollTrigger {
 				scrubTween && scrubTween.progress(1).kill();
 				scrubTween = 0;
 			} else {
-				scrubTween ? scrubTween.duration(value) : (scrubTween = gsap.to(animation, {ease: "expo", totalProgress: "+=0", duration: scrubSmooth, paused: true, onComplete: () => onScrubComplete && onScrubComplete(self)}));
+				scrubTween ? scrubTween.duration(value) : (scrubTween = gsap.to(animation, {ease: "expo", totalProgress: "+=0", inherit: false, duration: scrubSmooth, paused: true, onComplete: () => onScrubComplete && onScrubComplete(self)}));
 			}
 		};
 		if (animation) {
@@ -686,9 +687,11 @@ export class ScrollTrigger {
 						velocity = refreshedRecently ? 0 : ((totalProgress - snap2) / (_getTime() - _time2) * 1000) || 0,
 						change1 = gsap.utils.clamp(-progress, 1 - progress, _abs(velocity / 2) * velocity / 0.185),
 						naturalEnd = progress + (snap.inertia === false ? 0 : change1),
-						endValue = _clamp(0, 1, snapFunc(naturalEnd, self)),
-						endScroll = Math.round(start + endValue * change),
+						endValue, endScroll,
 						{ onStart, onInterrupt, onComplete } = snap;
+					endValue = snapFunc(naturalEnd, self);
+					_isNumber(endValue) || (endValue = naturalEnd); // in case the function didn't return a number, fall back to using the naturalEnd
+					endScroll = Math.round(start + endValue * change);
 					if (scroll <= end && scroll >= start && endScroll !== scroll) {
 						if (tween && !tween._initted && tween.data <= _abs(endScroll - scroll)) { // there's an overlapping snap! So we must figure out which one is closer and let that tween live.
 							return;
@@ -701,10 +704,12 @@ export class ScrollTrigger {
 							ease: snap.ease || "power3",
 							data: _abs(endScroll - scroll), // record the distance so that if another snap tween occurs (conflict) we can prioritize the closest snap.
 							onInterrupt: () => snapDelayedCall.restart(true) && onInterrupt && onInterrupt(self),
-							onComplete: () => {
+							onComplete() {
 								self.update();
 								lastSnap = scrollFunc();
-								scrubTween && animation && animation.progress(endValue); // the resolution of the scrollbar is limited, so we should correct the scrubbed animation's playhead at the end to match EXACTLY where it was supposed to snap
+								if (animation) { // the resolution of the scrollbar is limited, so we should correct the scrubbed animation's playhead at the end to match EXACTLY where it was supposed to snap
+									scrubTween ? scrubTween.resetTo("totalProgress", endValue, animation._tTime / animation._tDur) : animation.progress(endValue);
+								}
 								snap1 = snap2 = animation && !isToggle ? animation.totalProgress() : self.progress;
 								onSnapComplete && onSnapComplete(self);
 								onComplete && onComplete(self);
@@ -944,6 +949,9 @@ export class ScrollTrigger {
 						});
 					}
 					useFixedPosition && scrollFunc(prevScroll);
+				} else {
+					i = _getSize(pin, direction);
+					i && spacer.style.flexBasis !== "auto" && (spacer.style.flexBasis = i + _px);
 				}
 				if (useFixedPosition) {
 					override = {
@@ -1005,7 +1013,7 @@ export class ScrollTrigger {
 			}
 			_refreshing = 0;
 			animation && isToggle && (animation._initted || prevAnimProgress) && animation.progress() !== prevAnimProgress && animation.progress(prevAnimProgress || 0, true).render(animation.time(), true, true); // must force a re-render because if saveStyles() was used on the target(s), the styles could have been wiped out during the refresh().
-			if (isFirstRefresh || prevProgress !== self.progress || containerAnimation) { // ensures that the direction is set properly (when refreshing, progress is set back to 0 initially, then back again to wherever it needs to be) and that callbacks are triggered.
+			if (isFirstRefresh || prevProgress !== self.progress || containerAnimation || invalidateOnRefresh) { // ensures that the direction is set properly (when refreshing, progress is set back to 0 initially, then back again to wherever it needs to be) and that callbacks are triggered.
 				animation && !isToggle && animation.totalProgress(containerAnimation && start < -0.001 && !prevProgress ? gsap.utils.normalize(start, end, 0) : prevProgress, true); // to avoid issues where animation callbacks like onStart aren't triggered.
 				self.progress = isFirstRefresh || ((scroll1 - start) / change === prevProgress) ? 0 : prevProgress;
 			}
@@ -1066,7 +1074,13 @@ export class ScrollTrigger {
 				}
 			}
 			// anticipate the pinning a few ticks ahead of time based on velocity to avoid a visual glitch due to the fact that most browsers do scrolling on a separate thread (not synced with requestAnimationFrame).
-			(anticipatePin && !clipped && pin && !_refreshing && !_startup && _lastScrollTime && start < scroll + ((scroll - scroll2) / (_getTime() - _time2)) * anticipatePin) && (clipped = 0.0001);
+			if (anticipatePin && pin && !_refreshing && !_startup && _lastScrollTime) {
+				if (!clipped && start < scroll + ((scroll - scroll2) / (_getTime() - _time2)) * anticipatePin) {
+					clipped = 0.0001;
+				} else if (clipped === 1 && end > scroll + ((scroll - scroll2) / (_getTime() - _time2)) * anticipatePin) {
+					clipped = 0.9999;
+				}
+			}
 			if (clipped !== prevProgress && self.enabled) {
 				isActive = self.isActive = !!clipped && clipped < 1;
 				wasActive = !!prevProgress && prevProgress < 1;
@@ -1332,6 +1346,7 @@ export class ScrollTrigger {
 				// isTouch is 0 if no touch, 1 if ONLY touch, and 2 if it can accommodate touch but also other types like mouse/pointer.
 				ScrollTrigger.isTouch = Observer.isTouch;
 				_fixIOSBug = Observer.isTouch && /(iPad|iPhone|iPod|Mac)/g.test(navigator.userAgent); // since 2017, iOS has had a bug that causes event.clientX/Y to be inaccurate when a scroll occurs, thus we must alternate ignoring every other touchmove event to work around it. See https://bugs.webkit.org/show_bug.cgi?id=181954 and https://codepen.io/GreenSock/pen/ExbrPNa/087cef197dc35445a0951e8935c41503
+				_ignoreMobileResize = Observer.isTouch === 1;
 				_addListener(_win, "wheel", _onScroll); // mostly for 3rd party smooth scrolling libraries.
 				_root = [_win, _doc, _docEl, _body];
 				if (gsap.matchMedia) {
@@ -1451,7 +1466,7 @@ export class ScrollTrigger {
 
 }
 
-ScrollTrigger.version = "3.12.4";
+ScrollTrigger.version = "3.12.5";
 ScrollTrigger.saveStyles = targets => targets ? _toArray(targets).forEach(target => { // saved styles are recorded in a consecutive alternating Array, like [element, cssText, transform attribute, cache, matchMedia, ...]
 	if (target && target.style) {
 		let i = _savedStyles.indexOf(target);
@@ -1706,7 +1721,7 @@ let _clampScrollAndGetDurationMultiplier = (scrollFunc, current, end, max) => {
 		_fixIOSBug && !scrollFuncY() && scrollFuncY(1); // iOS bug causes event.clientY values to freak out (wildly inaccurate) if the scroll position is exactly 0.
 		_fixIOSBug && gsap.ticker.add(_passThrough); // prevent the ticker from sleeping
 		onStopDelayedCall = self._dc;
-		tween = gsap.to(self, {ease: "power4", paused: true, scrollX: normalizeScrollX ? "+=0.1" : "+=0", scrollY: "+=0.1", modifiers: {scrollY: _interruptionTracker(scrollFuncY, scrollFuncY(), () => tween.pause())	}, onUpdate: _updateAll, onComplete: onStopDelayedCall.vars.onComplete}); // we need the modifier to sense if the scroll position is altered outside of the momentum tween (like with a scrollTo tween) so we can pause() it to prevent conflicts.
+		tween = gsap.to(self, {ease: "power4", paused: true, inherit: false, scrollX: normalizeScrollX ? "+=0.1" : "+=0", scrollY: "+=0.1", modifiers: {scrollY: _interruptionTracker(scrollFuncY, scrollFuncY(), () => tween.pause())	}, onUpdate: _updateAll, onComplete: onStopDelayedCall.vars.onComplete}); // we need the modifier to sense if the scroll position is altered outside of the momentum tween (like with a scrollTo tween) so we can pause() it to prevent conflicts.
 		return self;
 	};
 

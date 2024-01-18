@@ -1,8 +1,8 @@
 /*!
- * Observer 3.12.4
+ * Observer 3.12.5
  * https://gsap.com
  *
- * @license Copyright 2008-2023, GreenSock. All rights reserved.
+ * @license Copyright 2008-2024, GreenSock. All rights reserved.
  * Subject to the terms at https://gsap.com/standard-license or for
  * Club GSAP members, the agreement issued with that membership.
  * @author: Jack Doyle, jack@greensock.com
@@ -30,7 +30,7 @@ let gsap, _coreInitted, _clamp, _win, _doc, _docEl, _body, _isTouch, _pointerTyp
 	},
 	_getProxyProp = (element, property) => ~_proxies.indexOf(element) && _proxies[_proxies.indexOf(element) + 1][property],
 	_isViewport = el => !!~_root.indexOf(el),
-	_addListener = (element, type, func, nonPassive, capture) => element.addEventListener(type, func, {passive: !nonPassive, capture: !!capture}),
+	_addListener = (element, type, func, passive, capture) => element.addEventListener(type, func, {passive: passive !== false, capture: !!capture}),
 	_removeListener = (element, type, func, capture) => element.removeEventListener(type, func, !!capture),
 	_scrollLeft = "scrollLeft",
 	_scrollTop = "scrollTop",
@@ -159,6 +159,7 @@ export class Observer {
 			self = this,
 			prevDeltaX = 0,
 			prevDeltaY = 0,
+			passive = vars.passive || !preventDefault,
 			scrollFuncX = _getScrollFunc(target, _horizontal),
 			scrollFuncY = _getScrollFunc(target, _vertical),
 			scrollX = scrollFuncX(),
@@ -264,7 +265,7 @@ export class Observer {
 				self.startY = self.y = e.clientY;
 				self._vx.reset(); // otherwise the t2 may be stale if the user touches and flicks super fast and releases in less than 2 requestAnimationFrame ticks, causing velocity to be 0.
 				self._vy.reset();
-				_addListener(isNormalizer ? target : ownerDoc, _eventTypes[1], _onDrag, preventDefault, true);
+				_addListener(isNormalizer ? target : ownerDoc, _eventTypes[1], _onDrag, passive, true);
 				self.deltaX = self.deltaY = 0;
 				onPress && onPress(self);
 			},
@@ -279,7 +280,7 @@ export class Observer {
 					self._vx.reset();
 					self._vy.reset();
 					//if (preventDefault && allowClicks && self.isPressed) { // check isPressed because in a rare edge case, the inputObserver in ScrollTrigger may stopPropagation() on the press/drag, so the onRelease may get fired without the onPress/onDrag ever getting called, thus it could trigger a click to occur on a link after scroll-dragging it.
-					if (preventDefault && allowClicks) { // check isPressed because in a rare edge case, the inputObserver in ScrollTrigger may stopPropagation() on the press/drag, so the onRelease may get fired without the onPress/onDrag ever getting called, thus it could trigger a click to occur on a link after scroll-dragging it.
+					if (preventDefault && allowClicks) {
 						gsap.delayedCall(0.08, () => { // some browsers (like Firefox) won't trust script-generated clicks, so if the user tries to click on a video to play it, for example, it simply won't work. Since a regular "click" event will most likely be generated anyway (one that has its isTrusted flag set to true), we must slightly delay our script-generated click so that the "real"/trusted one is prioritized. Remember, when there are duplicate events in quick succession, we suppress all but the first one. Some browsers don't even trigger the "real" one at all, so our synthetic one is a safety valve that ensures that no matter what, a click event does get dispatched.
 							if (_getTime() - onClickTime > 300 && !e.defaultPrevented) {
 								if (e.target.click) { //some browsers (like mobile Safari) don't properly trigger the click event
@@ -345,13 +346,13 @@ export class Observer {
 		self.enable = e => {
 			if (!self.isEnabled) {
 				_addListener(isViewport ? ownerDoc : target, "scroll", _onScroll);
-				type.indexOf("scroll") >= 0 && _addListener(isViewport ? ownerDoc : target, "scroll", onScroll, preventDefault, capture);
-				type.indexOf("wheel") >= 0 && _addListener(target, "wheel", _onWheel, preventDefault, capture);
+				type.indexOf("scroll") >= 0 && _addListener(isViewport ? ownerDoc : target, "scroll", onScroll, passive, capture);
+				type.indexOf("wheel") >= 0 && _addListener(target, "wheel", _onWheel, passive, capture);
 				if ((type.indexOf("touch") >= 0 && _isTouch) || type.indexOf("pointer") >= 0) {
-					_addListener(target, _eventTypes[0], _onPress, preventDefault, capture);
+					_addListener(target, _eventTypes[0], _onPress, passive, capture);
 					_addListener(ownerDoc, _eventTypes[2], _onRelease);
 					_addListener(ownerDoc, _eventTypes[3], _onRelease);
-					allowClicks && _addListener(target, "click", clickCapture, false, true);
+					allowClicks && _addListener(target, "click", clickCapture, true, true);
 					onClick && _addListener(target, "click", _onClick);
 					onGestureStart && _addListener(ownerDoc, "gesturestart", _onGestureStart);
 					onGestureEnd && _addListener(ownerDoc, "gestureend", _onGestureEnd);
@@ -413,7 +414,7 @@ export class Observer {
 
 }
 
-Observer.version = "3.12.4";
+Observer.version = "3.12.5";
 Observer.create = vars => new Observer(vars);
 Observer.register = _initCore;
 Observer.getAll = () => _observers.slice();

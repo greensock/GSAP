@@ -1795,6 +1795,7 @@
           self.tween = tween = gsap.to(scrollProxy || target, {
             inertia: inertia,
             data: "_draggable",
+            inherit: false,
             onComplete: onThrowComplete,
             onInterrupt: onThrowInterrupt,
             onUpdate: vars.fastMode ? _dispatchEvent : syncXY,
@@ -2954,7 +2955,7 @@
   });
 
   Draggable.zIndex = 1000;
-  Draggable.version = "3.12.4";
+  Draggable.version = "3.12.5";
   _getGSAP() && gsap.registerPlugin(Draggable);
 
   exports.Draggable = Draggable;

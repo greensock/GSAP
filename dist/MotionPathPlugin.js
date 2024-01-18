@@ -41,7 +41,7 @@
 	  var segment = rawPath[segIndex],
 	      shift = t === 1 ? 6 : subdivideSegment(segment, i, t);
 
-	  if (shift && shift + i + 2 < segment.length) {
+	  if ((shift || !t) && shift + i + 2 < segment.length) {
 	    rawPath.splice(segIndex, 0, segment.slice(0, i + shift + 2));
 	    segment.splice(0, i + shift);
 	    return 1;
@@ -1458,10 +1458,10 @@
 	}
 
 	/*!
-	 * MotionPathPlugin 3.12.4
+	 * MotionPathPlugin 3.12.5
 	 * https://gsap.com
 	 *
-	 * @license Copyright 2008-2023, GreenSock. All rights reserved.
+	 * @license Copyright 2008-2024, GreenSock. All rights reserved.
 	 * Subject to the terms at https://gsap.com/standard-license or for
 	 * Club GSAP members, the agreement issued with that membership.
 	 * @author: Jack Doyle, jack@greensock.com
@@ -1654,7 +1654,7 @@
 	};
 
 	var MotionPathPlugin = {
-	  version: "3.12.4",
+	  version: "3.12.5",
 	  name: "motionPath",
 	  register: function register(core, Plugin, propTween) {
 	    gsap = core;

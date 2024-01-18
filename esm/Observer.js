@@ -3,10 +3,10 @@ function _defineProperties(target, props) { for (var i = 0; i < props.length; i+
 function _createClass(Constructor, protoProps, staticProps) { if (protoProps) _defineProperties(Constructor.prototype, protoProps); if (staticProps) _defineProperties(Constructor, staticProps); return Constructor; }
 
 /*!
- * Observer 3.12.4
+ * Observer 3.12.5
  * https://gsap.com
  *
- * @license Copyright 2008-2023, GreenSock. All rights reserved.
+ * @license Copyright 2008-2024, GreenSock. All rights reserved.
  * Subject to the terms at https://gsap.com/standard-license or for
  * Club GSAP members, the agreement issued with that membership.
  * @author: Jack Doyle, jack@greensock.com
@@ -58,9 +58,9 @@ var gsap,
     _isViewport = function _isViewport(el) {
   return !!~_root.indexOf(el);
 },
-    _addListener = function _addListener(element, type, func, nonPassive, capture) {
+    _addListener = function _addListener(element, type, func, passive, capture) {
   return element.addEventListener(type, func, {
-    passive: !nonPassive,
+    passive: passive !== false,
     capture: !!capture
   });
 },
@@ -304,6 +304,7 @@ export var Observer = /*#__PURE__*/function () {
         self = this,
         prevDeltaX = 0,
         prevDeltaY = 0,
+        passive = vars.passive || !preventDefault,
         scrollFuncX = _getScrollFunc(target, _horizontal),
         scrollFuncY = _getScrollFunc(target, _vertical),
         scrollX = scrollFuncX(),
@@ -447,7 +448,7 @@ export var Observer = /*#__PURE__*/function () {
 
       self._vy.reset();
 
-      _addListener(isNormalizer ? target : ownerDoc, _eventTypes[1], _onDrag, preventDefault, true);
+      _addListener(isNormalizer ? target : ownerDoc, _eventTypes[1], _onDrag, passive, true);
 
       self.deltaX = self.deltaY = 0;
       onPress && onPress(self);
@@ -472,7 +473,6 @@ export var Observer = /*#__PURE__*/function () {
 
 
         if (preventDefault && allowClicks) {
-          // check isPressed because in a rare edge case, the inputObserver in ScrollTrigger may stopPropagation() on the press/drag, so the onRelease may get fired without the onPress/onDrag ever getting called, thus it could trigger a click to occur on a link after scroll-dragging it.
           gsap.delayedCall(0.08, function () {
             // some browsers (like Firefox) won't trust script-generated clicks, so if the user tries to click on a video to play it, for example, it simply won't work. Since a regular "click" event will most likely be generated anyway (one that has its isTrusted flag set to true), we must slightly delay our script-generated click so that the "real"/trusted one is prioritized. Remember, when there are duplicate events in quick succession, we suppress all but the first one. Some browsers don't even trigger the "real" one at all, so our synthetic one is a safety valve that ensures that no matter what, a click event does get dispatched.
             if (_getTime() - onClickTime > 300 && !e.defaultPrevented) {
@@ -564,17 +564,17 @@ export var Observer = /*#__PURE__*/function () {
       if (!self.isEnabled) {
         _addListener(isViewport ? ownerDoc : target, "scroll", _onScroll);
 
-        type.indexOf("scroll") >= 0 && _addListener(isViewport ? ownerDoc : target, "scroll", onScroll, preventDefault, capture);
-        type.indexOf("wheel") >= 0 && _addListener(target, "wheel", _onWheel, preventDefault, capture);
+        type.indexOf("scroll") >= 0 && _addListener(isViewport ? ownerDoc : target, "scroll", onScroll, passive, capture);
+        type.indexOf("wheel") >= 0 && _addListener(target, "wheel", _onWheel, passive, capture);
 
         if (type.indexOf("touch") >= 0 && _isTouch || type.indexOf("pointer") >= 0) {
-          _addListener(target, _eventTypes[0], _onPress, preventDefault, capture);
+          _addListener(target, _eventTypes[0], _onPress, passive, capture);
 
           _addListener(ownerDoc, _eventTypes[2], _onRelease);
 
           _addListener(ownerDoc, _eventTypes[3], _onRelease);
 
-          allowClicks && _addListener(target, "click", clickCapture, false, true);
+          allowClicks && _addListener(target, "click", clickCapture, true, true);
           onClick && _addListener(target, "click", _onClick);
           onGestureStart && _addListener(ownerDoc, "gesturestart", _onGestureStart);
           onGestureEnd && _addListener(ownerDoc, "gestureend", _onGestureEnd);
@@ -664,7 +664,7 @@ export var Observer = /*#__PURE__*/function () {
 
   return Observer;
 }();
-Observer.version = "3.12.4";
+Observer.version = "3.12.5";
 
 Observer.create = function (vars) {
   return new Observer(vars);

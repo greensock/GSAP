@@ -1,15 +1,15 @@
 /*!
- * PixiPlugin 3.12.4
+ * PixiPlugin 3.12.5
  * https://gsap.com
  *
- * @license Copyright 2008-2023, GreenSock. All rights reserved.
+ * @license Copyright 2008-2024, GreenSock. All rights reserved.
  * Subject to the terms at https://gsap.com/standard-license or for
  * Club GSAP members, the agreement issued with that membership.
  * @author: Jack Doyle, jack@greensock.com
 */
 /* eslint-disable */
 
-let gsap, _win, _splitColor, _coreInitted, _PIXI, PropTween, _getSetter, _isV4,
+let gsap, _splitColor, _coreInitted, _PIXI, PropTween, _getSetter, _isV4,
 	_windowExists = () => typeof(window) !== "undefined",
 	_getGSAP = () => gsap || (_windowExists() && (gsap = window.gsap) && gsap.registerPlugin && gsap),
 	_isFunction = value => typeof(value) === "function",
@@ -243,10 +243,9 @@ let gsap, _win, _splitColor, _coreInitted, _PIXI, PropTween, _getSetter, _isV4,
 		return pt;
 	},
 	_initCore = () => {
-		if (_windowExists()) {
-			_win = window;
+		if (!_coreInitted) {
 			gsap = _getGSAP();
-			_PIXI = _coreInitted = _PIXI || _win.PIXI;
+			_PIXI = _coreInitted = _PIXI || (_windowExists() && window.PIXI);
 			_isV4 = _PIXI && _PIXI.VERSION && _PIXI.VERSION.charAt(0) === "4";
 			_splitColor = color => gsap.utils.splitColor((color + "").substr(0,2) === "0x" ? "#" + color.substr(2) : color); // some colors in PIXI are reported as "0xFF4421" instead of "#FF4421".
 		}
@@ -261,21 +260,22 @@ for (i = 0; i < _xyContexts.length; i++) {
 
 
 export const PixiPlugin = {
-	version:"3.12.4",
-	name:"pixi",
+	version: "3.12.5",
+	name: "pixi",
 	register(core, Plugin, propTween) {
 		gsap = core;
 		PropTween = propTween;
 		_getSetter = Plugin.getSetter;
 		_initCore();
 	},
+	headless: true, // doesn't need window
 	registerPIXI(pixi) {
 		_PIXI = pixi;
 	},
 	init(target, values, tween, index, targets) {
 		_PIXI || _initCore();
-		if (!_PIXI || !(target instanceof _PIXI.DisplayObject)) {
-			_warn(target, "is not a DisplayObject or PIXI was not found. PixiPlugin.registerPIXI(PIXI);");
+		if (!_PIXI) {
+			_warn("PIXI was not found. PixiPlugin.registerPIXI(PIXI);");
 			return false;
 		}
 		let context, axis, value, colorMatrix, filter, p, padding, i, data;

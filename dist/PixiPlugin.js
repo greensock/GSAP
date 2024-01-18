@@ -5,16 +5,15 @@
 }(this, (function (exports) { 'use strict';
 
 	/*!
-	 * PixiPlugin 3.12.4
+	 * PixiPlugin 3.12.5
 	 * https://gsap.com
 	 *
-	 * @license Copyright 2008-2023, GreenSock. All rights reserved.
+	 * @license Copyright 2008-2024, GreenSock. All rights reserved.
 	 * Subject to the terms at https://gsap.com/standard-license or for
 	 * Club GSAP members, the agreement issued with that membership.
 	 * @author: Jack Doyle, jack@greensock.com
 	*/
 	var gsap,
-	    _win,
 	    _splitColor,
 	    _coreInitted,
 	    _PIXI,
@@ -353,10 +352,9 @@
 	  return pt;
 	},
 	    _initCore = function _initCore() {
-	  if (_windowExists()) {
-	    _win = window;
+	  if (!_coreInitted) {
 	    gsap = _getGSAP();
-	    _PIXI = _coreInitted = _PIXI || _win.PIXI;
+	    _PIXI = _coreInitted = _PIXI || _windowExists() && window.PIXI;
 	    _isV4 = _PIXI && _PIXI.VERSION && _PIXI.VERSION.charAt(0) === "4";
 
 	    _splitColor = function _splitColor(color) {
@@ -374,7 +372,7 @@
 	}
 
 	var PixiPlugin = {
-	  version: "3.12.4",
+	  version: "3.12.5",
 	  name: "pixi",
 	  register: function register(core, Plugin, propTween) {
 	    gsap = core;
@@ -383,14 +381,15 @@
 
 	    _initCore();
 	  },
+	  headless: true,
 	  registerPIXI: function registerPIXI(pixi) {
 	    _PIXI = pixi;
 	  },
 	  init: function init(target, values, tween, index, targets) {
 	    _PIXI || _initCore();
 
-	    if (!_PIXI || !(target instanceof _PIXI.DisplayObject)) {
-	      _warn(target);
+	    if (!_PIXI) {
+	      _warn("PIXI was not found. PixiPlugin.registerPIXI(PIXI);");
 
 	      return false;
 	    }

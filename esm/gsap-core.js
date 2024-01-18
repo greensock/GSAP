@@ -3,10 +3,10 @@ function _assertThisInitialized(self) { if (self === void 0) { throw new Referen
 function _inheritsLoose(subClass, superClass) { subClass.prototype = Object.create(superClass.prototype); subClass.prototype.constructor = subClass; subClass.__proto__ = superClass; }
 
 /*!
- * GSAP 3.12.4
+ * GSAP 3.12.5
  * https://gsap.com
  *
- * @license Copyright 2008-2023, GreenSock. All rights reserved.
+ * @license Copyright 2008-2024, GreenSock. All rights reserved.
  * Subject to the terms at https://gsap.com/standard-license or for
  * Club GSAP members, the agreement issued with that membership.
  * @author: Jack Doyle, jack@greensock.com
@@ -1001,10 +1001,11 @@ distribute = function distribute(v) {
     _quickTween,
     _registerPluginQueue = [],
     _createPlugin = function _createPlugin(config) {
-  if (_windowExists() && config) {
-    // edge case: some build tools may pass in a null/undefined value
-    config = !config.name && config["default"] || config; //UMD packaging wraps things oddly, so for example MotionPathHelper becomes {MotionPathHelper:MotionPathHelper, default:MotionPathHelper}.
+  if (!config) return;
+  config = !config.name && config["default"] || config; // UMD packaging wraps things oddly, so for example MotionPathHelper becomes {MotionPathHelper:MotionPathHelper, default:MotionPathHelper}.
 
+  if (_windowExists() || config.headless) {
+    // edge case: some build tools may pass in a null/undefined value
     var name = config.name,
         isFunc = _isFunction(config),
         Plugin = name && !isFunc && config.init ? function () {
@@ -1055,7 +1056,7 @@ distribute = function distribute(v) {
 
     config.register && config.register(gsap, Plugin, PropTween);
   } else {
-    config && _registerPluginQueue.push(config);
+    _registerPluginQueue.push(config);
   }
 },
 
@@ -1294,7 +1295,7 @@ _tickerActive,
         time,
         frame;
 
-    elapsed > _lagThreshold && (_startTime += elapsed - _adjustedLag);
+    (elapsed > _lagThreshold || elapsed < 0) && (_startTime += elapsed - _adjustedLag);
     _lastUpdate += elapsed;
     time = _lastUpdate - _startTime;
     overlap = time - _nextTime;
@@ -1336,11 +1337,10 @@ _tickerActive,
 
           _install(_installScope || _win.GreenSockGlobals || !_win.gsap && _win || {});
 
-          _raf = _win.requestAnimationFrame;
-
           _registerPluginQueue.forEach(_createPlugin);
         }
 
+        _raf = typeof requestAnimationFrame !== "undefined" && requestAnimationFrame;
         _id && _self.sleep();
 
         _req = _raf || function (f) {
@@ -1353,7 +1353,7 @@ _tickerActive,
       }
     },
     sleep: function sleep() {
-      (_raf ? _win.cancelAnimationFrame : clearTimeout)(_id);
+      (_raf ? cancelAnimationFrame : clearTimeout)(_id);
       _tickerActive = 0;
       _req = _emptyFunc;
     },
@@ -3398,8 +3398,8 @@ export var Tween = /*#__PURE__*/function (_Animation2) {
         if (iteration !== prevIteration) {
           timeline && this._yEase && _propagateYoyoEase(timeline, isYoyo); //repeatRefresh functionality
 
-          if (this.vars.repeatRefresh && !isYoyo && !this._lock && this._time !== dur && this._initted) {
-            // this._time will === dur when we render at EXACTLY the end of an iteration. Without this condition, it'd often do the repeatRefresh render TWICE (again on the very next tick).
+          if (this.vars.repeatRefresh && !isYoyo && !this._lock && this._time !== cycleDuration && this._initted) {
+            // this._time will === cycleDuration when we render at EXACTLY the end of an iteration. Without this condition, it'd often do the repeatRefresh render TWICE (again on the very next tick).
             this._lock = force = 1; //force, otherwise if lazy is true, the _attemptInitTween() will return and we'll jump out and get caught bouncing on each tick.
 
             this.render(_roundPrecise(cycleDuration * iteration), true).invalidate()._lock = 0;
@@ -3456,7 +3456,7 @@ export var Tween = /*#__PURE__*/function (_Animation2) {
         pt = pt._next;
       }
 
-      timeline && timeline.render(totalTime < 0 ? totalTime : !time && isYoyo ? -_tinyNum : timeline._dur * timeline._ease(time / this._dur), suppressEvents, force) || this._startAt && (this._zTime = totalTime);
+      timeline && timeline.render(totalTime < 0 ? totalTime : timeline._dur * timeline._ease(time / this._dur), suppressEvents, force) || this._startAt && (this._zTime = totalTime);
 
       if (this._onUpdate && !suppressEvents) {
         isNegative && _rewindStartAt(this, totalTime, suppressEvents, force); //note: for performance reasons, we tuck this conditional logic inside less traveled areas (most tweens don't have an onUpdate). We'd just have it at the end before the onComplete, but the values should be updated before any onUpdate is called, so we ALSO put it here and then if it's not called, we do so later near the onComplete.
@@ -4054,6 +4054,7 @@ var MatchMedia = /*#__PURE__*/function () {
   function MatchMedia(scope) {
     this.contexts = [];
     this.scope = scope;
+    _context && _context.data.push(this);
   }
 
   var _proto6 = MatchMedia.prototype;
@@ -4459,7 +4460,7 @@ export var gsap = _gsap.registerPlugin({
   }
 }, _buildModifierPlugin("roundProps", _roundModifier), _buildModifierPlugin("modifiers"), _buildModifierPlugin("snap", snap)) || _gsap; //to prevent the core plugins from being dropped via aggressive tree shaking, we must include them in the variable declaration in this way.
 
-Tween.version = Timeline.version = gsap.version = "3.12.4";
+Tween.version = Timeline.version = gsap.version = "3.12.5";
 _coreReady = 1;
 _windowExists() && _wake();
 var Power0 = _easeMap.Power0,

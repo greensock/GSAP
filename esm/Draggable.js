@@ -3,10 +3,10 @@ function _assertThisInitialized(self) { if (self === void 0) { throw new Referen
 function _inheritsLoose(subClass, superClass) { subClass.prototype = Object.create(superClass.prototype); subClass.prototype.constructor = subClass; subClass.__proto__ = superClass; }
 
 /*!
- * Draggable 3.12.4
+ * Draggable 3.12.5
  * https://gsap.com
  *
- * @license Copyright 2008-2023, GreenSock. All rights reserved.
+ * @license Copyright 2008-2024, GreenSock. All rights reserved.
  * Subject to the terms at https://gsap.com/standard-license or for
  * Club GSAP members, the agreement issued with that membership.
  * @author: Jack Doyle, jack@greensock.com
@@ -1471,6 +1471,7 @@ export var Draggable = /*#__PURE__*/function (_EventDispatcher) {
         self.tween = tween = gsap.to(scrollProxy || target, {
           inertia: inertia,
           data: "_draggable",
+          inherit: false,
           onComplete: onThrowComplete,
           onInterrupt: onThrowInterrupt,
           onUpdate: vars.fastMode ? _dispatchEvent : syncXY,
@@ -2693,6 +2694,6 @@ _setDefaults(Draggable.prototype, {
 });
 
 Draggable.zIndex = 1000;
-Draggable.version = "3.12.4";
+Draggable.version = "3.12.5";
 _getGSAP() && gsap.registerPlugin(Draggable);
 export { Draggable as default };

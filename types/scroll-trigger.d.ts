@@ -90,10 +90,11 @@ declare class ScrollTrigger {
    * ```
    *
    * @static
+   * @param {string} [scrollRestoration]
    * @memberof ScrollTrigger
    * @link https://greensock.com/docs/v3/Plugins/ScrollTrigger/static.clearScrollMemory()
    */
-  static clearScrollMemory(): void;
+  static clearScrollMemory(scrollRestoration?: string): void;
 
   /**
    * Configure ScrollTrigger

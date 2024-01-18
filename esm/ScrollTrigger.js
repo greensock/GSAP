@@ -1,8 +1,8 @@
 /*!
- * ScrollTrigger 3.12.4
+ * ScrollTrigger 3.12.5
  * https://gsap.com
  *
- * @license Copyright 2008-2023, GreenSock. All rights reserved.
+ * @license Copyright 2008-2024, GreenSock. All rights reserved.
  * Subject to the terms at https://gsap.com/standard-license or for
  * Club GSAP members, the agreement issued with that membership.
  * @author: Jack Doyle, jack@greensock.com
@@ -878,6 +878,7 @@ _getTweenCreator = function _getTweenCreator(scroller, direction) {
     change1 = change1 || scrollTo - initialValue;
     tween && tween.kill();
     vars[prop] = scrollTo;
+    vars.inherit = false;
     vars.modifiers = modifiers;
 
     modifiers[prop] = function () {
@@ -1047,6 +1048,7 @@ export var ScrollTrigger = /*#__PURE__*/function () {
         scrubTween ? scrubTween.duration(value) : scrubTween = gsap.to(animation, {
           ease: "expo",
           totalProgress: "+=0",
+          inherit: false,
           duration: scrubSmooth,
           paused: true,
           onComplete: function onComplete() {
@@ -1103,12 +1105,16 @@ export var ScrollTrigger = /*#__PURE__*/function () {
               velocity = refreshedRecently ? 0 : (totalProgress - snap2) / (_getTime() - _time2) * 1000 || 0,
               change1 = gsap.utils.clamp(-progress, 1 - progress, _abs(velocity / 2) * velocity / 0.185),
               naturalEnd = progress + (snap.inertia === false ? 0 : change1),
-              endValue = _clamp(0, 1, snapFunc(naturalEnd, self)),
-              endScroll = Math.round(start + endValue * change),
+              endValue,
+              endScroll,
               _snap = snap,
               onStart = _snap.onStart,
               _onInterrupt = _snap.onInterrupt,
               _onComplete = _snap.onComplete;
+          endValue = snapFunc(naturalEnd, self);
+          _isNumber(endValue) || (endValue = naturalEnd); // in case the function didn't return a number, fall back to using the naturalEnd
+
+          endScroll = Math.round(start + endValue * change);
 
           if (scroll <= end && scroll >= start && endScroll !== scroll) {
             if (tween && !tween._initted && tween.data <= _abs(endScroll - scroll)) {
@@ -1131,7 +1137,11 @@ export var ScrollTrigger = /*#__PURE__*/function () {
               onComplete: function onComplete() {
                 self.update();
                 lastSnap = scrollFunc();
-                scrubTween && animation && animation.progress(endValue); // the resolution of the scrollbar is limited, so we should correct the scrubbed animation's playhead at the end to match EXACTLY where it was supposed to snap
+
+                if (animation) {
+                  // the resolution of the scrollbar is limited, so we should correct the scrubbed animation's playhead at the end to match EXACTLY where it was supposed to snap
+                  scrubTween ? scrubTween.resetTo("totalProgress", endValue, animation._tTime / animation._tDur) : animation.progress(endValue);
+                }
 
                 snap1 = snap2 = animation && !isToggle ? animation.totalProgress() : self.progress;
                 onSnapComplete && onSnapComplete(self);
@@ -1472,6 +1482,9 @@ export var ScrollTrigger = /*#__PURE__*/function () {
           }
 
           useFixedPosition && scrollFunc(prevScroll);
+        } else {
+          i = _getSize(pin, direction);
+          i && spacer.style.flexBasis !== "auto" && (spacer.style.flexBasis = i + _px);
         }
 
         if (useFixedPosition) {
@@ -1553,7 +1566,7 @@ export var ScrollTrigger = /*#__PURE__*/function () {
       _refreshing = 0;
       animation && isToggle && (animation._initted || prevAnimProgress) && animation.progress() !== prevAnimProgress && animation.progress(prevAnimProgress || 0, true).render(animation.time(), true, true); // must force a re-render because if saveStyles() was used on the target(s), the styles could have been wiped out during the refresh().
 
-      if (isFirstRefresh || prevProgress !== self.progress || containerAnimation) {
+      if (isFirstRefresh || prevProgress !== self.progress || containerAnimation || invalidateOnRefresh) {
         // ensures that the direction is set properly (when refreshing, progress is set back to 0 initially, then back again to wherever it needs to be) and that callbacks are triggered.
         animation && !isToggle && animation.totalProgress(containerAnimation && start < -0.001 && !prevProgress ? gsap.utils.normalize(start, end, 0) : prevProgress, true); // to avoid issues where animation callbacks like onStart aren't triggered.
 
@@ -1643,7 +1656,13 @@ export var ScrollTrigger = /*#__PURE__*/function () {
       } // anticipate the pinning a few ticks ahead of time based on velocity to avoid a visual glitch due to the fact that most browsers do scrolling on a separate thread (not synced with requestAnimationFrame).
 
 
-      anticipatePin && !clipped && pin && !_refreshing && !_startup && _lastScrollTime && start < scroll + (scroll - scroll2) / (_getTime() - _time2) * anticipatePin && (clipped = 0.0001);
+      if (anticipatePin && pin && !_refreshing && !_startup && _lastScrollTime) {
+        if (!clipped && start < scroll + (scroll - scroll2) / (_getTime() - _time2) * anticipatePin) {
+          clipped = 0.0001;
+        } else if (clipped === 1 && end > scroll + (scroll - scroll2) / (_getTime() - _time2) * anticipatePin) {
+          clipped = 0.9999;
+        }
+      }
 
       if (clipped !== prevProgress && self.enabled) {
         isActive = self.isActive = !!clipped && clipped < 1;
@@ -2000,6 +2019,8 @@ export var ScrollTrigger = /*#__PURE__*/function () {
         ScrollTrigger.isTouch = Observer.isTouch;
         _fixIOSBug = Observer.isTouch && /(iPad|iPhone|iPod|Mac)/g.test(navigator.userAgent); // since 2017, iOS has had a bug that causes event.clientX/Y to be inaccurate when a scroll occurs, thus we must alternate ignoring every other touchmove event to work around it. See https://bugs.webkit.org/show_bug.cgi?id=181954 and https://codepen.io/GreenSock/pen/ExbrPNa/087cef197dc35445a0951e8935c41503
 
+        _ignoreMobileResize = Observer.isTouch === 1;
+
         _addListener(_win, "wheel", _onScroll); // mostly for 3rd party smooth scrolling libraries.
 
 
@@ -2172,7 +2193,7 @@ export var ScrollTrigger = /*#__PURE__*/function () {
 
   return ScrollTrigger;
 }();
-ScrollTrigger.version = "3.12.4";
+ScrollTrigger.version = "3.12.5";
 
 ScrollTrigger.saveStyles = function (targets) {
   return targets ? _toArray(targets).forEach(function (target) {
@@ -2569,6 +2590,7 @@ _inputObserver = function _inputObserver(target, type, inputs, nested) {
   tween = gsap.to(self, {
     ease: "power4",
     paused: true,
+    inherit: false,
     scrollX: normalizeScrollX ? "+=0.1" : "+=0",
     scrollY: "+=0.1",
     modifiers: {

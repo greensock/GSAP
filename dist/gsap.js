@@ -19,10 +19,10 @@
   }
 
   /*!
-   * GSAP 3.12.4
+   * GSAP 3.12.5
    * https://gsap.com
    *
-   * @license Copyright 2008-2023, GreenSock. All rights reserved.
+   * @license Copyright 2008-2024, GreenSock. All rights reserved.
    * Subject to the terms at https://gsap.com/standard-license or for
    * Club GSAP members, the agreement issued with that membership.
    * @author: Jack Doyle, jack@greensock.com
@@ -964,9 +964,10 @@
       _quickTween,
       _registerPluginQueue = [],
       _createPlugin = function _createPlugin(config) {
-    if (_windowExists() && config) {
-      config = !config.name && config["default"] || config;
+    if (!config) return;
+    config = !config.name && config["default"] || config;
 
+    if (_windowExists() || config.headless) {
       var name = config.name,
           isFunc = _isFunction(config),
           Plugin = name && !isFunc && config.init ? function () {
@@ -1014,7 +1015,7 @@
 
       config.register && config.register(gsap, Plugin, PropTween);
     } else {
-      config && _registerPluginQueue.push(config);
+      _registerPluginQueue.push(config);
     }
   },
       _255 = 255,
@@ -1230,7 +1231,7 @@
           time,
           frame;
 
-      elapsed > _lagThreshold && (_startTime += elapsed - _adjustedLag);
+      (elapsed > _lagThreshold || elapsed < 0) && (_startTime += elapsed - _adjustedLag);
       _lastUpdate += elapsed;
       time = _lastUpdate - _startTime;
       overlap = time - _nextTime;
@@ -1271,11 +1272,10 @@
 
             _install(_installScope || _win.GreenSockGlobals || !_win.gsap && _win || {});
 
-            _raf = _win.requestAnimationFrame;
-
             _registerPluginQueue.forEach(_createPlugin);
           }
 
+          _raf = typeof requestAnimationFrame !== "undefined" && requestAnimationFrame;
           _id && _self.sleep();
 
           _req = _raf || function (f) {
@@ -1288,7 +1288,7 @@
         }
       },
       sleep: function sleep() {
-        (_raf ? _win.cancelAnimationFrame : clearTimeout)(_id);
+        (_raf ? cancelAnimationFrame : clearTimeout)(_id);
         _tickerActive = 0;
         _req = _emptyFunc;
       },
@@ -3160,7 +3160,7 @@
           if (iteration !== prevIteration) {
             timeline && this._yEase && _propagateYoyoEase(timeline, isYoyo);
 
-            if (this.vars.repeatRefresh && !isYoyo && !this._lock && this._time !== dur && this._initted) {
+            if (this.vars.repeatRefresh && !isYoyo && !this._lock && this._time !== cycleDuration && this._initted) {
               this._lock = force = 1;
               this.render(_roundPrecise(cycleDuration * iteration), true).invalidate()._lock = 0;
             }
@@ -3211,7 +3211,7 @@
           pt = pt._next;
         }
 
-        timeline && timeline.render(totalTime < 0 ? totalTime : !time && isYoyo ? -_tinyNum : timeline._dur * timeline._ease(time / this._dur), suppressEvents, force) || this._startAt && (this._zTime = totalTime);
+        timeline && timeline.render(totalTime < 0 ? totalTime : timeline._dur * timeline._ease(time / this._dur), suppressEvents, force) || this._startAt && (this._zTime = totalTime);
 
         if (this._onUpdate && !suppressEvents) {
           isNegative && _rewindStartAt(this, totalTime, suppressEvents, force);
@@ -3761,6 +3761,7 @@
     function MatchMedia(scope) {
       this.contexts = [];
       this.scope = scope;
+      _context && _context.data.push(this);
     }
 
     var _proto6 = MatchMedia.prototype;
@@ -4142,7 +4143,7 @@
       }
     }
   }, _buildModifierPlugin("roundProps", _roundModifier), _buildModifierPlugin("modifiers"), _buildModifierPlugin("snap", snap)) || _gsap;
-  Tween.version = Timeline.version = gsap.version = "3.12.4";
+  Tween.version = Timeline.version = gsap.version = "3.12.5";
   _coreReady = 1;
   _windowExists() && _wake();
   var Power0 = _easeMap.Power0,

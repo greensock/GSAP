@@ -1,8 +1,8 @@
 /*!
- * paths 3.12.4
+ * paths 3.12.5
  * https://gsap.com
  *
- * Copyright 2008-2023, GreenSock. All rights reserved.
+ * Copyright 2008-2024, GreenSock. All rights reserved.
  * Subject to the terms at https://gsap.com/standard-license or for
  * Club GSAP members, the agreement issued with that membership.
  * @author: Jack Doyle, jack@greensock.com
@@ -33,7 +33,7 @@ let _svgPathExp = /[achlmqstvz]|(-?\d*\.?\d*(?:e[\-+]?\d+)?)[0-9]/ig,
 	_splitSegment = (rawPath, segIndex, i, t) => {
 		let segment = rawPath[segIndex],
 			shift = t === 1 ? 6 : subdivideSegment(segment, i, t);
-		if (shift && shift + i + 2 < segment.length) {
+		if ((shift || !t) && shift + i + 2 < segment.length) {
 			rawPath.splice(segIndex, 0, segment.slice(0, i + shift + 2));
 			segment.splice(0, i + shift);
 			return 1;
