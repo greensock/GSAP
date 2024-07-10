@@ -481,7 +481,7 @@ declare namespace gsap.core {
      * Tween linearly from a particular time or label to another time or label and then stops. 
      *
      * ```js
-     * tl.tweenFromTo("myLabel", 5}); // tween from myLabel to the 5 second mark
+     * tl.tweenFromTo({"myLabel", 5}); // tween from myLabel to the 5 second mark
      * ```
      *
      * @param {Position} fromPosition
