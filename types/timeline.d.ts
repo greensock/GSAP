@@ -90,7 +90,7 @@ declare namespace gsap.core {
      *
      * ```js
      * tl.clear();     // empty the timeline not including labels
-     * tl.clear(true); // empy the timeline including labels
+     * tl.clear(true); // empty the timeline including labels
      * ```
      *
      * @param {boolean} labels
