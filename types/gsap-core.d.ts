@@ -364,7 +364,7 @@ declare namespace gsap {
    * @memberof gsap
    * @link https://greensock.com/docs/v3/GSAP/gsap.getById()
    */
-  function getById<T extends core.Animation>(id: string | number): T;
+  function getById<T extends core.Animation>(id: string | number): T|undefined;
 
   /**
    * Gets the specified property of the target (or first of the targets) if it exists.
