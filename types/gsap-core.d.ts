@@ -657,25 +657,25 @@ declare namespace gsap {
 // TODO: Move to files where declared
 /**
  * @deprecated since 3.0.0
- * @link https://greensock.com/3-migration/
+ * @link https://greensock.com/3-release-notes/
  */
 declare class TweenLite extends gsap.core.Tween {}
 
 /**
  * @deprecated since 3.0.0
- * @link https://greensock.com/3-migration/
+ * @link https://greensock.com/3-release-notes/
  */
 declare class TweenMax extends gsap.core.Tween {}
 
 /**
  * @deprecated since 3.0.0
- * @link https://greensock.com/3-migration/
+ * @link https://greensock.com/3-release-notes/
  */
 declare class TimelineLite extends gsap.core.Timeline {}
 
 /**
  * @deprecated since 3.0.0
- * @link https://greensock.com/3-migration/
+ * @link https://greensock.com/3-release-notes/
  */
 declare class TimelineMax extends gsap.core.Timeline {}
 
@@ -686,25 +686,25 @@ declare module "gsap/gsap-core" {
   // TODO: Move to files where declared
   /**
    * @deprecated since 3.0.0
-   * @link https://greensock.com/3-migration/
+   * @link https://greensock.com/3-release-notes/
    */
   export class TweenLite extends gsap.core.Tween {}
 
   /**
    * @deprecated since 3.0.0
-   * @link https://greensock.com/3-migration/
+   * @link https://greensock.com/3-release-notes/
    */
   export class TweenMax extends gsap.core.Tween {}
 
   /**
    * @deprecated since 3.0.0
-   * @link https://greensock.com/3-migration/
+   * @link https://greensock.com/3-release-notes/
    */
   export class TimelineLite extends gsap.core.Timeline {}
 
   /**
    * @deprecated since 3.0.0
-   * @link https://greensock.com/3-migration/
+   * @link https://greensock.com/3-release-notes/
    */
   export class TimelineMax extends gsap.core.Timeline {}
 
