@@ -1,8 +1,8 @@
 /*!
- * Observer 3.12.5
+ * Observer 3.12.6
  * https://gsap.com
  *
- * @license Copyright 2008-2024, GreenSock. All rights reserved.
+ * @license Copyright 2008-2025, GreenSock. All rights reserved.
  * Subject to the terms at https://gsap.com/standard-license or for
  * Club GSAP members, the agreement issued with that membership.
  * @author: Jack Doyle, jack@greensock.com
@@ -159,7 +159,7 @@ export class Observer {
 			self = this,
 			prevDeltaX = 0,
 			prevDeltaY = 0,
-			passive = vars.passive || !preventDefault,
+			passive = vars.passive || (!preventDefault && vars.passive !== false),
 			scrollFuncX = _getScrollFunc(target, _horizontal),
 			scrollFuncY = _getScrollFunc(target, _vertical),
 			scrollX = scrollFuncX(),
@@ -203,8 +203,9 @@ export class Observer {
 				if (moved || dragged) {
 					onMove && onMove(self);
 					if (dragged) {
-						onDrag(self);
-						dragged = false;
+						onDragStart && dragged === 1 && onDragStart(self);
+						onDrag && onDrag(self);
+						dragged = 0;
 					}
 					moved = false;
 				}
@@ -247,11 +248,10 @@ export class Observer {
 					isDragging = self.isDragging;
 				self.x = x;
 				self.y = y;
-				if (isDragging || Math.abs(self.startX - x) >= dragMinimum || Math.abs(self.startY - y) >= dragMinimum) {
-					onDrag && (dragged = true);
+				if (isDragging || ((dx || dy) && (Math.abs(self.startX - x) >= dragMinimum || Math.abs(self.startY - y) >= dragMinimum))) {
+					dragged = isDragging ? 2 : 1; // dragged: 0 = not dragging, 1 = first drag, 2 = normal drag
 					isDragging || (self.isDragging = true);
 					onTouchOrPointerDelta(dx, dy);
-					isDragging || onDragStart && onDragStart(self);
 				}
 			},
 			_onPress = self.onPress = e => {
@@ -296,6 +296,7 @@ export class Observer {
 				}
 				self.isDragging = self.isGesturing = self.isPressed = false;
 				onStop && wasDragging && !isNormalizer && onStopDelayedCall.restart(true);
+				dragged && update(); // in case debouncing, we don't want onDrag to fire AFTER onDragEnd().
 				onDragEnd && wasDragging && onDragEnd(self);
 				onRelease && onRelease(self, isDragNotClick);
 			},
@@ -361,6 +362,11 @@ export class Observer {
 					onMove && _addListener(target, _pointerType + "move", _onMove);
 				}
 				self.isEnabled = true;
+				self.isDragging = self.isGesturing = self.isPressed = moved = dragged = false;
+				self._vx.reset();
+				self._vy.reset();
+				scrollX = scrollFuncX();
+				scrollY = scrollFuncY();
 				e && e.type && _onPress(e);
 				onEnable && onEnable(self);
 			}
@@ -414,7 +420,7 @@ export class Observer {
 
 }
 
-Observer.version = "3.12.5";
+Observer.version = "3.12.6";
 Observer.create = vars => new Observer(vars);
 Observer.register = _initCore;
 Observer.getAll = () => _observers.slice();

@@ -355,10 +355,10 @@
 	}
 
 	/*!
-	 * CustomEase 3.12.5
+	 * CustomEase 3.12.6
 	 * https://gsap.com
 	 *
-	 * @license Copyright 2008-2024, GreenSock. All rights reserved.
+	 * @license Copyright 2008-2025, GreenSock. All rights reserved.
 	 * Subject to the terms at https://gsap.com/standard-license or for
 	 * Club GSAP members, the agreement issued with that membership.
 	 * @author: Jack Doyle, jack@greensock.com
@@ -590,7 +590,9 @@
 	        }
 	      }
 
-	      lookup[l - 1].cy = points[points.length - 1].y - a1;
+	      j = points[points.length - 1];
+	      lookup[l - 1].cy = j.y - a1;
+	      lookup[l - 1].cx = j.x - lookup[lookup.length - 1].x;
 	    } else {
 	      for (i = 0; i < l; i++) {
 	        if (point.nx < i * inc) {
@@ -703,8 +705,9 @@
 
 	  return CustomEase;
 	}();
+	CustomEase.version = "3.12.6";
+	CustomEase.headless = true;
 	_getGSAP() && gsap.registerPlugin(CustomEase);
-	CustomEase.version = "3.12.5";
 
 	exports.CustomEase = CustomEase;
 	exports.default = CustomEase;

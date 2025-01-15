@@ -38,12 +38,12 @@ declare class ScrollTrigger {
    * ```
    *
    * @static
-   * @param {"scrollStart" | "scrollEnd" | "refreshInit" | "refresh"} event
+   * @param {"scrollStart" | "scrollEnd" | "refreshInit" | "refresh" | "revert"} event
    * @param {gsap.Callback} callback
    * @memberof ScrollTrigger
    * @link https://greensock.com/docs/v3/Plugins/ScrollTrigger/static.addEventListener()
    */
-  static addEventListener(event: "scrollStart" | "scrollEnd" | "refreshInit" | "refresh" | "matchMedia", callback: gsap.Callback): void;
+  static addEventListener(event: "scrollStart" | "scrollEnd" | "refreshInit" | "refresh" | "matchMedia" | "revert", callback: gsap.Callback): void;
 
   /**
    * Creates a coordinated group of ScrollTriggers (one for each target element) that batch their callbacks within a certain interval

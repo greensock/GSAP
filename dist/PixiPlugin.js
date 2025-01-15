@@ -5,10 +5,10 @@
 }(this, (function (exports) { 'use strict';
 
 	/*!
-	 * PixiPlugin 3.12.5
+	 * PixiPlugin 3.12.6
 	 * https://gsap.com
 	 *
-	 * @license Copyright 2008-2024, GreenSock. All rights reserved.
+	 * @license Copyright 2008-2025, GreenSock. All rights reserved.
 	 * Subject to the terms at https://gsap.com/standard-license or for
 	 * Club GSAP members, the agreement issued with that membership.
 	 * @author: Jack Doyle, jack@greensock.com
@@ -20,6 +20,7 @@
 	    PropTween,
 	    _getSetter,
 	    _isV4,
+	    _isV8Plus,
 	    _windowExists = function _windowExists() {
 	  return typeof window !== "undefined";
 	},
@@ -264,7 +265,10 @@
 	    _renderDirtyCache = function _renderDirtyCache(ratio, _ref2) {
 	  var g = _ref2.g;
 
-	  if (g) {
+	  if (_isV8Plus) {
+	    g.fill();
+	    g.stroke();
+	  } else if (g) {
 	    g.dirty++;
 	    g.clearDirty++;
 	  }
@@ -290,7 +294,8 @@
 	    _colorProps = {
 	  tint: 1,
 	  lineColor: 1,
-	  fillColor: 1
+	  fillColor: 1,
+	  strokeColor: 1
 	},
 	    _xyContexts = "position,scale,skew,pivot,anchor,tilePosition,tileScale".split(","),
 	    _contexts = {
@@ -355,7 +360,9 @@
 	  if (!_coreInitted) {
 	    gsap = _getGSAP();
 	    _PIXI = _coreInitted = _PIXI || _windowExists() && window.PIXI;
-	    _isV4 = _PIXI && _PIXI.VERSION && _PIXI.VERSION.charAt(0) === "4";
+	    var version = _PIXI && _PIXI.VERSION && parseFloat(_PIXI.VERSION.split(".")[0]) || 0;
+	    _isV4 = version === 4;
+	    _isV8Plus = version >= 8;
 
 	    _splitColor = function _splitColor(color) {
 	      return gsap.utils.splitColor((color + "").substr(0, 2) === "0x" ? "#" + color.substr(2) : color);
@@ -372,7 +379,7 @@
 	}
 
 	var PixiPlugin = {
-	  version: "3.12.5",
+	  version: "3.12.6",
 	  name: "pixi",
 	  register: function register(core, Plugin, propTween) {
 	    gsap = core;
@@ -394,7 +401,7 @@
 	      return false;
 	    }
 
-	    var context, axis, value, colorMatrix, filter, p, padding, i, data;
+	    var context, axis, value, colorMatrix, filter, p, padding, i, data, subProp;
 
 	    for (p in values) {
 	      context = _contexts[p];
@@ -427,15 +434,17 @@
 	          }
 	        }
 	      } else if (_colorProps[p]) {
-	        if ((p === "lineColor" || p === "fillColor") && target instanceof _PIXI.Graphics) {
-	          data = (target.geometry || target).graphicsData;
+	        if ((p === "lineColor" || p === "fillColor" || p === "strokeColor") && target instanceof _PIXI.Graphics) {
+	          data = "fillStyle" in target ? [target] : (target.geometry || target).graphicsData;
+	          subProp = p.substr(0, p.length - 5);
+	          _isV8Plus && subProp === "line" && (subProp = "stroke");
 	          this._pt = new PropTween(this._pt, target, p, 0, 0, _renderDirtyCache, {
 	            g: target.geometry || target
 	          });
 	          i = data.length;
 
 	          while (--i > -1) {
-	            _addColorTween(_isV4 ? data[i] : data[i][p.substr(0, 4) + "Style"], _isV4 ? p : "color", value, this);
+	            _addColorTween(_isV4 ? data[i] : data[i][subProp + "Style"], _isV4 ? p : "color", value, this);
 	          }
 	        } else {
 	          _addColorTween(target, p, value, this);

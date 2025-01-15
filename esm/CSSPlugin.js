@@ -1,8 +1,8 @@
 /*!
- * CSSPlugin 3.12.5
+ * CSSPlugin 3.12.6
  * https://gsap.com
  *
- * Copyright 2008-2024, GreenSock. All rights reserved.
+ * Copyright 2008-2025, GreenSock. All rights reserved.
  * Subject to the terms at https://gsap.com/standard-license or for
  * Club GSAP members, the agreement issued with that membership.
  * @author: Jack Doyle, jack@greensock.com
@@ -134,7 +134,15 @@ _renderRoundedCSSProp = function _renderRoundedCSSProp(ratio, data) {
 
   for (i = 0; i < props.length; i += 3) {
     // stored like this: property, isNotCSS, value
-    props[i + 1] ? target[props[i]] = props[i + 2] : props[i + 2] ? style[props[i]] = props[i + 2] : style.removeProperty(props[i].substr(0, 2) === "--" ? props[i] : props[i].replace(_capsExp, "-$1").toLowerCase());
+    if (!props[i + 1]) {
+      props[i + 2] ? style[props[i]] = props[i + 2] : style.removeProperty(props[i].substr(0, 2) === "--" ? props[i] : props[i].replace(_capsExp, "-$1").toLowerCase());
+    } else if (props[i + 1] === 2) {
+      // non-CSS value (function-based)
+      target[props[i]](props[i + 2]);
+    } else {
+      // non-CSS value (not function-based)
+      target[props[i]] = props[i + 2];
+    }
   }
 
   if (this.tfm) {
@@ -172,9 +180,10 @@ _renderRoundedCSSProp = function _renderRoundedCSSProp(ratio, data) {
   };
   target._gsap || gsap.core.getCache(target); // just make sure there's a _gsap cache defined because we read from it in _saveStyle() and it's more efficient to just check it here once.
 
-  properties && properties.split(",").forEach(function (p) {
+  properties && target.style && target.nodeType && properties.split(",").forEach(function (p) {
     return saver.save(p);
-  });
+  }); // make sure it's a DOM node too.
+
   return saver;
 },
     _supports3D,
@@ -221,41 +230,26 @@ _renderRoundedCSSProp = function _renderRoundedCSSProp(ratio, data) {
     _pluginInitted = 1;
   }
 },
-    _getBBoxHack = function _getBBoxHack(swapIfPossible) {
+    _getReparentedCloneBBox = function _getReparentedCloneBBox(target) {
   //works around issues in some browsers (like Firefox) that don't correctly report getBBox() on SVG elements inside a <defs> element and/or <mask>. We try creating an SVG, adding it to the documentElement and toss the element in there so that it's definitely part of the rendering tree, then grab the bbox and if it works, we actually swap out the original getBBox() method for our own that does these extra steps whenever getBBox is needed. This helps ensure that performance is optimal (only do all these extra steps when absolutely necessary...most elements don't need it).
-  var svg = _createElement("svg", this.ownerSVGElement && this.ownerSVGElement.getAttribute("xmlns") || "http://www.w3.org/2000/svg"),
-      oldParent = this.parentNode,
-      oldSibling = this.nextSibling,
-      oldCSS = this.style.cssText,
+  var owner = target.ownerSVGElement,
+      svg = _createElement("svg", owner && owner.getAttribute("xmlns") || "http://www.w3.org/2000/svg"),
+      clone = target.cloneNode(true),
       bbox;
+
+  clone.style.display = "block";
+  svg.appendChild(clone);
 
   _docElement.appendChild(svg);
 
-  svg.appendChild(this);
-  this.style.display = "block";
+  try {
+    bbox = clone.getBBox();
+  } catch (e) {}
 
-  if (swapIfPossible) {
-    try {
-      bbox = this.getBBox();
-      this._gsapBBox = this.getBBox; //store the original
-
-      this.getBBox = _getBBoxHack;
-    } catch (e) {}
-  } else if (this._gsapBBox) {
-    bbox = this._gsapBBox();
-  }
-
-  if (oldParent) {
-    if (oldSibling) {
-      oldParent.insertBefore(this, oldSibling);
-    } else {
-      oldParent.appendChild(this);
-    }
-  }
+  svg.removeChild(clone);
 
   _docElement.removeChild(svg);
 
-  this.style.cssText = oldCSS;
   return bbox;
 },
     _getAttributeFallbacks = function _getAttributeFallbacks(target, attributesArray) {
@@ -268,15 +262,16 @@ _renderRoundedCSSProp = function _renderRoundedCSSProp(ratio, data) {
   }
 },
     _getBBox = function _getBBox(target) {
-  var bounds;
+  var bounds, cloned;
 
   try {
     bounds = target.getBBox(); //Firefox throws errors if you try calling getBBox() on an SVG element that's not rendered (like in a <symbol> or <defs>). https://bugzilla.mozilla.org/show_bug.cgi?id=612118
   } catch (error) {
-    bounds = _getBBoxHack.call(target, true);
+    bounds = _getReparentedCloneBBox(target);
+    cloned = 1;
   }
 
-  bounds && (bounds.width || bounds.height) || target.getBBox === _getBBoxHack || (bounds = _getBBoxHack.call(target, true)); //some browsers (like Firefox) misreport the bounds if the element has zero width and height (it just assumes it's at x:0, y:0), thus we need to manually grab the position in that case.
+  bounds && (bounds.width || bounds.height) || cloned || (bounds = _getReparentedCloneBBox(target)); //some browsers (like Firefox) misreport the bounds if the element has zero width and height (it just assumes it's at x:0, y:0), thus we need to manually grab the position in that case.
 
   return bounds && !bounds.width && !bounds.x && !bounds.y ? {
     x: +_getAttributeFallbacks(target, ["x", "cx", "x1"]) || 0,
@@ -362,7 +357,7 @@ _convertToUnit = function _convertToUnit(target, property, value, unit) {
   }
 
   style[horizontal ? "width" : "height"] = amount + (toPixels ? curUnit : unit);
-  parent = ~property.indexOf("adius") || unit === "em" && target.appendChild && !isRootSVG ? target : target.parentNode;
+  parent = unit !== "rem" && ~property.indexOf("adius") || unit === "em" && target.appendChild && !isRootSVG ? target : target.parentNode;
 
   if (isSVG) {
     parent = (target.ownerSVGElement || {}).parentNode;
@@ -593,6 +588,7 @@ _convertToUnit = function _convertToUnit(target, property, value, unit) {
 
       if (cache) {
         cache.svg && target.removeAttribute("transform");
+        style.scale = style.rotate = style.translate = "none";
 
         _parseTransform(target, 1); // force all the cached values back to "normal"/identity, otherwise if there's another tween that's already set to render transforms on this element, it could display the wrong values.
 
@@ -720,8 +716,8 @@ _identity2DMatrix = [1, 0, 0, 1, 0, 0],
     style.display = "block";
     parent = target.parentNode;
 
-    if (!parent || !target.offsetParent) {
-      // note: in 3.3.0 we switched target.offsetParent to _doc.body.contains(target) to avoid [sometimes unnecessary] MutationObserver calls but that wasn't adequate because there are edge cases where nested position: fixed elements need to get reparented to accurately sense transforms. See https://github.com/greensock/GSAP/issues/388 and https://github.com/greensock/GSAP/issues/375
+    if (!parent || !target.offsetParent && !target.getBoundingClientRect().width) {
+      // note: in 3.3.0 we switched target.offsetParent to _doc.body.contains(target) to avoid [sometimes unnecessary] MutationObserver calls but that wasn't adequate because there are edge cases where nested position: fixed elements need to get reparented to accurately sense transforms. See https://github.com/greensock/GSAP/issues/388 and https://github.com/greensock/GSAP/issues/375. Note: position: fixed elements report a null offsetParent but they could also be invisible because they're in an ancestor with display: none, so we check getBoundingClientRect(). We only want to alter the DOM if we absolutely have to because it can cause iframe content to reload, like a Vimeo video.
       addedToDOM = 1; //flag
 
       nextSibling = target.nextElementSibling;
@@ -1516,7 +1512,7 @@ export var CSSPlugin = {
           _tweenComplexCSSString.call(this, target, p, startValue, relative ? relative + endValue : endValue);
         }
 
-        isTransformRelated || (p in style ? inlineProps.push(p, 0, style[p]) : inlineProps.push(p, 1, startValue || target[p]));
+        isTransformRelated || (p in style ? inlineProps.push(p, 0, style[p]) : typeof target[p] === "function" ? inlineProps.push(p, 2, target[p]()) : inlineProps.push(p, 1, startValue || target[p]));
         props.push(p);
       }
     }

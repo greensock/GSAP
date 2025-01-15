@@ -1,8 +1,8 @@
 /*!
- * MotionPathPlugin 3.12.5
+ * MotionPathPlugin 3.12.6
  * https://gsap.com
  *
- * @license Copyright 2008-2024, GreenSock. All rights reserved.
+ * @license Copyright 2008-2025, GreenSock. All rights reserved.
  * Subject to the terms at https://gsap.com/standard-license or for
  * Club GSAP members, the agreement issued with that membership.
  * @author: Jack Doyle, jack@greensock.com
@@ -217,7 +217,7 @@ _segmentToRawPath = function _segmentToRawPath(plugin, segment, target, x, y, sl
 };
 
 export var MotionPathPlugin = {
-  version: "3.12.5",
+  version: "3.12.6",
   name: "motionPath",
   register: function register(core, Plugin, propTween) {
     gsap = core;
@@ -298,6 +298,8 @@ export var MotionPathPlugin = {
 
       _addDimensionalPropTween(this, target, vars.y || "y", rawPath, "y", vars.unitY || "px");
     }
+
+    tween.vars.immediateRender && this.render(tween.progress(), this);
   },
   render: function render(ratio, data) {
     var rawPaths = data.rawPaths,

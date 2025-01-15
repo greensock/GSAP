@@ -1,8 +1,8 @@
 /*!
- * GSAP 3.12.5
+ * GSAP 3.12.6
  * https://gsap.com
  *
- * @license Copyright 2008-2024, GreenSock. All rights reserved.
+ * @license Copyright 2008-2025, GreenSock. All rights reserved.
  * Subject to the terms at https://gsap.com/standard-license or for
  * Club GSAP members, the agreement issued with that membership.
  * @author: Jack Doyle, jack@greensock.com
@@ -237,7 +237,7 @@ let _config = {
 	_elapsedCycleDuration = animation => animation._repeat ? _animationCycle(animation._tTime, (animation = animation.duration() + animation._rDelay)) * animation : 0,
 	// feed in the totalTime and cycleDuration and it'll return the cycle (iteration minus 1) and if the playhead is exactly at the very END, it will NOT bump up to the next cycle.
 	_animationCycle = (tTime, cycleDuration) => {
-		let whole = Math.floor(tTime /= cycleDuration);
+		let whole = Math.floor(tTime = _roundPrecise(tTime / cycleDuration));
 		return tTime && (whole === tTime) ? whole - 1 : whole;
 	},
 	_parentToChildTotalTime = (parentTime, child) => (parentTime - child._start) * child._ts + (child._ts >= 0 ? 0 : (child._dirty ? child.totalDuration() : child._tDur)),
@@ -445,7 +445,7 @@ let _config = {
 			return toArray(v, el.querySelectorAll ? el : el === value ? _warn("Invalid scope") || _doc.createElement("div") : value);
 		};
 	},
-	shuffle = a => a.sort(() => .5 - Math.random()), // alternative that's a bit faster and more reliably diverse but bigger:   for (let j, v, i = a.length; i; j = Math.floor(Math.random() * i), v = a[--i], a[i] = a[j], a[j] = v); return a;
+	shuffle = a => a.sort(() => .5 - Math.random()), // alternative that's a bit faster and more reliably diverse but bigger:   for (let j, v, i = a.length; i; j = (Math.random() * i) | 0, v = a[--i], a[i] = a[j], a[j] = v); return a;
 	//for distributing values across an array. Can accept a number, a function or (most commonly) a function which can contain the following properties: {base, amount, from, ease, grid, axis, length, each}. Returns a function that expects the following parameters: index, target, array. Recognizes the following
 	distribute = v => {
 		if (_isFunction(v)) {
@@ -1101,7 +1101,7 @@ _insertEase("Elastic", _configElastic("in"), _configElastic("out"), _configElast
 		easeOut = p => (p < n1) ? n * p * p : (p < n2) ? n * (p - 1.5 / c) ** 2 + .75 : (p < n3) ? n * (p -= 2.25 / c) * p + .9375 : n * (p - 2.625 / c) ** 2 + .984375;
 	_insertEase("Bounce", p => 1 - easeOut(1 - p), easeOut);
 })(7.5625, 2.75);
-_insertEase("Expo", p => p ? 2 ** (10 * (p - 1)) : 0);
+_insertEase("Expo", p => (2 ** (10 * (p - 1))) * p + p * p * p * p * p * p * (1-p)); // previously 2 ** (10 * (p - 1)) but that doesn't end up with the value quite at the right spot so we do a blended ease to ensure it lands where it should perfectly.
 _insertEase("Circ", p => -(_sqrt(1 - (p * p)) - 1));
 _insertEase("Sine", p => p === 1 ? 1 : -_cos(p * _HALF_PI) + 1);
 _insertEase("Back", _configBack("in"), _configBack("out"), _configBack());
@@ -1246,7 +1246,7 @@ export class Animation {
 	}
 
 	totalProgress(value, suppressEvents) {
-		return arguments.length ? this.totalTime( this.totalDuration() * value, suppressEvents) : this.totalDuration() ? Math.min(1, this._tTime / this._tDur) : this.rawTime() > 0 ? 1 : 0;
+		return arguments.length ? this.totalTime( this.totalDuration() * value, suppressEvents) : this.totalDuration() ? Math.min(1, this._tTime / this._tDur) : this.rawTime() >= 0 && this._initted ? 1 : 0;
 	}
 
 	progress(value, suppressEvents) {
@@ -1293,6 +1293,8 @@ export class Animation {
 		if (!arguments.length) {
 			return this._ps;
 		}
+		// possible future addition - if an animation is removed from its parent and then .restart() or .play() or .resume() is called, perhaps we should force it back into the globalTimeline but be careful because what if it's already at its end? We don't want it to just persist forever and not get released for GC.
+		// !this.parent && !value && this._tTime < this._tDur && this !== _globalTimeline && _globalTimeline.add(this);
 		if (this._ps !== value) {
 			this._ps = value;
 			if (value) {
@@ -1380,7 +1382,9 @@ export class Animation {
 	}
 
 	restart(includeDelay, suppressEvents) {
-		return this.play().totalTime(includeDelay ? -this._delay : 0, _isNotFalse(suppressEvents));
+		this.play().totalTime(includeDelay ? -this._delay : 0, _isNotFalse(suppressEvents));
+		this._dur || (this._zTime = -_tinyNum); // ensures onComplete fires on a zero-duration animation that gets restarted.
+		return this;
 	}
 
 	play(from, suppressEvents) {
@@ -1586,8 +1590,9 @@ export class Timeline extends Animation {
 					iteration = this._repeat;
 					time = dur;
 				} else {
-					iteration = ~~(tTime / cycleDuration);
-					if (iteration && iteration === tTime / cycleDuration) {
+					prevIteration = _roundPrecise(tTime / cycleDuration); // full decimal version of iterations, not the previous iteration (we're reusing prevIteration variable for efficiency)
+					iteration = ~~prevIteration;
+					if (iteration && iteration === prevIteration) {
 						time = dur;
 						iteration--;
 					}
@@ -1670,7 +1675,7 @@ export class Timeline extends Animation {
 						child.render(child._ts > 0 ? (time - child._start) * child._ts : (child._dirty ? child.totalDuration() : child._tDur) + (time - child._start) * child._ts, suppressEvents, force);
 						if (time !== this._time || (!this._ts && !prevPaused)) { //in case a tween pauses or seeks the timeline when rendering, like inside of an onUpdate/onComplete
 							pauseTween = 0;
-							next && (tTime += (this._zTime = -_tinyNum));  // it didn't finish rendering, so flag zTime as negative so that so that the next time render() is called it'll be forced (to render any remaining children)
+							next && (tTime += (this._zTime = -_tinyNum));  // it didn't finish rendering, so flag zTime as negative so that the next time render() is called it'll be forced (to render any remaining children)
 							break;
 						}
 					}
@@ -1769,7 +1774,7 @@ export class Timeline extends Animation {
 		if (_isFunction(child)) {
 			return this.killTweensOf(child);
 		}
-		_removeLinkedListItem(this, child);
+		child.parent === this && _removeLinkedListItem(this, child);
 		if (child === this._recent) {
 			this._recent = this._last;
 		}
@@ -2444,7 +2449,7 @@ export class Tween extends Animation {
 			time, pt, iteration, cycleDuration, prevIteration, isYoyo, ratio, timeline, yoyoEase;
 		if (!dur) {
 			_renderZeroDurationTween(this, totalTime, suppressEvents, force);
-		} else if (tTime !== this._tTime || !totalTime || force || (!this._initted && this._tTime) || (this._startAt && (this._zTime < 0) !== isNegative)) { //this senses if we're crossing over the start time, in which case we must record _zTime and force the render, but we do it in this lengthy conditional way for performance reasons (usually we can skip the calculations): this._initted && (this._zTime < 0) !== (totalTime < 0)
+		} else if (tTime !== this._tTime || !totalTime || force || (!this._initted && this._tTime) || (this._startAt && (this._zTime < 0) !== isNegative) || this._lazy) { // this senses if we're crossing over the start time, in which case we must record _zTime and force the render, but we do it in this lengthy conditional way for performance reasons (usually we can skip the calculations): this._initted && (this._zTime < 0) !== (totalTime < 0)
 			time = tTime;
 			timeline = this.timeline;
 			if (this._repeat) { //adjust the time for repeats and yoyos
@@ -2457,12 +2462,14 @@ export class Tween extends Animation {
 					iteration = this._repeat;
 					time = dur;
 				} else {
-					iteration = ~~(tTime / cycleDuration);
-					if (iteration && iteration === _roundPrecise(tTime / cycleDuration)) {
+					prevIteration = _roundPrecise(tTime / cycleDuration); // full decimal version of iterations, not the previous iteration (we're reusing prevIteration variable for efficiency)
+					iteration = ~~prevIteration;
+					if (iteration && iteration === prevIteration) {
 						time = dur;
 						iteration--;
+					} else if (time > dur) {
+						time = dur;
 					}
-					time > dur && (time = dur);
 				}
 				isYoyo = this._yoyo && (iteration & 1);
 				if (isYoyo) {
@@ -2478,7 +2485,7 @@ export class Tween extends Animation {
 				if (iteration !== prevIteration) {
 					timeline && this._yEase && _propagateYoyoEase(timeline, isYoyo);
 					//repeatRefresh functionality
-					if (this.vars.repeatRefresh && !isYoyo && !this._lock && this._time !== cycleDuration && this._initted) { // this._time will === cycleDuration when we render at EXACTLY the end of an iteration. Without this condition, it'd often do the repeatRefresh render TWICE (again on the very next tick).
+					if (this.vars.repeatRefresh && !isYoyo && !this._lock && time !== cycleDuration && this._initted) { // this._time will === cycleDuration when we render at EXACTLY the end of an iteration. Without this condition, it'd often do the repeatRefresh render TWICE (again on the very next tick).
 						this._lock = force = 1; //force, otherwise if lazy is true, the _attemptInitTween() will return and we'll jump out and get caught bouncing on each tick.
 						this.render(_roundPrecise(cycleDuration * iteration), true).invalidate()._lock = 0;
 					}
@@ -2583,7 +2590,8 @@ export class Tween extends Animation {
 	kill(targets, vars = "all") {
 		if (!targets && (!vars || vars === "all")) {
 			this._lazy = this._pt = 0;
-			return this.parent ? _interrupt(this) : this;
+			this.parent ? _interrupt(this) : this.scrollTrigger && this.scrollTrigger.kill(!!_reverting);
+			return this;
 		}
 		if (this.timeline) {
 			let tDur = this.timeline.totalDuration();
@@ -2963,6 +2971,12 @@ class Context {
 			}
 		}
 	}
+
+	// killWithCleanup() {
+	// 	this.kill();
+	// 	this._r.forEach(f => f(false, this));
+	// }
+
 	revert(config) {
 		this.kill(config || {});
 	}
@@ -3068,7 +3082,7 @@ const _gsap = {
 		return Plugin ? setter : value => setter(target, p, unit ? value + unit : value, cache, 1);
 	},
 	quickTo(target, property, vars) {
-		let tween = gsap.to(target, _merge({[property]: "+=0.1", paused: true}, vars || {})),
+		let tween = gsap.to(target, _setDefaults({[property]: "+=0.1", paused: true, stagger: 0}, vars || {})),
 			func = (value, start, startIsRelative) => tween.resetTo(property, value, start, startIsRelative);
 		func.tween = tween;
 		return func;
@@ -3244,7 +3258,7 @@ export const gsap = _gsap.registerPlugin({
 	_buildModifierPlugin("snap", snap)
 ) || _gsap; //to prevent the core plugins from being dropped via aggressive tree shaking, we must include them in the variable declaration in this way.
 
-Tween.version = Timeline.version = gsap.version = "3.12.5";
+Tween.version = Timeline.version = gsap.version = "3.12.6";
 _coreReady = 1;
 _windowExists() && _wake();
 

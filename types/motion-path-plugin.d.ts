@@ -1,7 +1,7 @@
 declare namespace gsap {
 
   interface PathObject {
-    [propName: string]: number;
+    [propName: string]: number | string;
   }
 
   interface TweenVars {
@@ -253,18 +253,20 @@ declare namespace gsap.plugins {
 }
 
 declare namespace MotionPath {
+
+  type NumFunc = (i: number, target: object | Element) => number;
   interface Vars {
     align?: string | Element;
     alignOrigin?: number[];
     autoRotate?: boolean | number;
     curviness?: number;
-    end?: number;
+    end?: number | NumFunc;
     offsetX?: number;
     offsetY?: number;
-    path?: gsap.SVGPathValue | gsap.TweenValue | gsap.Point2D[]| gsap.PathObject[];
+    path?: gsap.SVGPathValue | gsap.TweenValue | gsap.Point2D[] | gsap.PathObject[];
     relative?: boolean;
     resolution?: number;
-    start?: number;
+    start?: number | NumFunc;
     type?: string;
     useRadians?: boolean;
     fromCurrent?: boolean;

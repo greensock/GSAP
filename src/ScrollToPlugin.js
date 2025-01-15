@@ -1,8 +1,8 @@
 /*!
- * ScrollToPlugin 3.12.5
+ * ScrollToPlugin 3.12.6
  * https://gsap.com
  *
- * @license Copyright 2008-2024, GreenSock. All rights reserved.
+ * @license Copyright 2008-2025, GreenSock. All rights reserved.
  * Subject to the terms at https://gsap.com/standard-license or for
  * Club GSAP members, the agreement issued with that membership.
  * @author: Jack Doyle, jack@greensock.com
@@ -76,7 +76,7 @@ let gsap, _coreInitted, _window, _docEl, _body, _toArray, _config, ScrollTrigger
 
 
 export const ScrollToPlugin = {
-	version: "3.12.5",
+	version: "3.12.6",
 	name: "scrollTo",
 	rawVars: 1,
 	register(core) {
@@ -92,7 +92,7 @@ export const ScrollToPlugin = {
 		data.tween = tween;
 		value = _clean(value, index, target, targets);
 		data.vars = value;
-		data.autoKill = !!value.autoKill;
+		data.autoKill = !!("autoKill" in value ? value : _config).autoKill;
 		data.getX = _buildGetter(target, "x");
 		data.getY = _buildGetter(target, "y");
 		data.x = data.xPrev = data.getX();
@@ -185,6 +185,12 @@ export const ScrollToPlugin = {
 ScrollToPlugin.max = _max;
 ScrollToPlugin.getOffset = _getOffset;
 ScrollToPlugin.buildGetter = _buildGetter;
+ScrollToPlugin.config = vars => {
+	_config || _initCore() || (_config = gsap.config()); // in case the window hasn't been defined yet.
+	for (let p in vars) {
+		_config[p] = vars[p];
+	}
+}
 
 _getGSAP() && gsap.registerPlugin(ScrollToPlugin);
 

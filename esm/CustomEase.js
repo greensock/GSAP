@@ -1,8 +1,8 @@
 /*!
- * CustomEase 3.12.5
+ * CustomEase 3.12.6
  * https://gsap.com
  *
- * @license Copyright 2008-2024, GreenSock. All rights reserved.
+ * @license Copyright 2008-2025, GreenSock. All rights reserved.
  * Subject to the terms at https://gsap.com/standard-license or for
  * Club GSAP members, the agreement issued with that membership.
  * @author: Jack Doyle, jack@greensock.com
@@ -249,7 +249,9 @@ export var CustomEase = /*#__PURE__*/function () {
         }
       }
 
-      lookup[l - 1].cy = points[points.length - 1].y - a1;
+      j = points[points.length - 1];
+      lookup[l - 1].cy = j.y - a1;
+      lookup[l - 1].cx = j.x - lookup[lookup.length - 1].x; //make sure it lands EXACTLY where it should. Otherwise, it might be something like 0.9999999999 instead of 1.
     } else {
       //this option is more accurate, ensuring that EVERY anchor is hit perfectly. Clipping across a bounce, for example, would never happen.
       for (i = 0; i < l; i++) {
@@ -366,6 +368,7 @@ export var CustomEase = /*#__PURE__*/function () {
 
   return CustomEase;
 }();
+CustomEase.version = "3.12.6";
+CustomEase.headless = true;
 _getGSAP() && gsap.registerPlugin(CustomEase);
-CustomEase.version = "3.12.5";
 export { CustomEase as default };

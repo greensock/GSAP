@@ -59,7 +59,7 @@ declare namespace gsap {
     conditions?: Conditions;
     queries?: object;
     add(methodName: string, func: Function, scope?: Element | string | object): Function;
-    add(func: Function, scope?: Element | string | object): void;
+    add<T extends (...args: any[]) => any>(func: T, scope?: Element | string | object): ReturnType<T>;
     ignore(func: Function): void;
     kill(revert?: boolean): void;
     revert(config?: object): void;
@@ -146,6 +146,7 @@ declare namespace gsap {
   interface StaggerVars extends CallbackVars, utils.DistributeConfig {
     repeat?: number;
     repeatDelay?: number;
+    repeatRefresh?: boolean;
     yoyo?: boolean;
     yoyoEase?: boolean | string | EaseFunction;
   }
@@ -360,11 +361,11 @@ declare namespace gsap {
    * ```
    *
    * @param {string | number} id
-   * @returns {Tween} Tween instance
+   * @returns {Tween | undefined} Tween instance
    * @memberof gsap
    * @link https://greensock.com/docs/v3/GSAP/gsap.getById()
    */
-  function getById<T extends core.Animation>(id: string | number): T;
+  function getById<T extends core.Animation>(id: string | number): T | undefined;
 
   /**
    * Gets the specified property of the target (or first of the targets) if it exists.
@@ -657,25 +658,25 @@ declare namespace gsap {
 // TODO: Move to files where declared
 /**
  * @deprecated since 3.0.0
- * @link https://greensock.com/3-migration/
+ * @link https://greensock.com/3-release-notes/
  */
 declare class TweenLite extends gsap.core.Tween {}
 
 /**
  * @deprecated since 3.0.0
- * @link https://greensock.com/3-migration/
+ * @link https://greensock.com/3-release-notes/
  */
 declare class TweenMax extends gsap.core.Tween {}
 
 /**
  * @deprecated since 3.0.0
- * @link https://greensock.com/3-migration/
+ * @link https://greensock.com/3-release-notes/
  */
 declare class TimelineLite extends gsap.core.Timeline {}
 
 /**
  * @deprecated since 3.0.0
- * @link https://greensock.com/3-migration/
+ * @link https://greensock.com/3-release-notes/
  */
 declare class TimelineMax extends gsap.core.Timeline {}
 
@@ -686,25 +687,25 @@ declare module "gsap/gsap-core" {
   // TODO: Move to files where declared
   /**
    * @deprecated since 3.0.0
-   * @link https://greensock.com/3-migration/
+   * @link https://greensock.com/3-release-notes/
    */
   export class TweenLite extends gsap.core.Tween {}
 
   /**
    * @deprecated since 3.0.0
-   * @link https://greensock.com/3-migration/
+   * @link https://greensock.com/3-release-notes/
    */
   export class TweenMax extends gsap.core.Tween {}
 
   /**
    * @deprecated since 3.0.0
-   * @link https://greensock.com/3-migration/
+   * @link https://greensock.com/3-release-notes/
    */
   export class TimelineLite extends gsap.core.Timeline {}
 
   /**
    * @deprecated since 3.0.0
-   * @link https://greensock.com/3-migration/
+   * @link https://greensock.com/3-release-notes/
    */
   export class TimelineMax extends gsap.core.Timeline {}
 

@@ -1,8 +1,8 @@
 /*!
- * Draggable 3.12.5
+ * Draggable 3.12.6
  * https://gsap.com
  *
- * @license Copyright 2008-2024, GreenSock. All rights reserved.
+ * @license Copyright 2008-2025, GreenSock. All rights reserved.
  * Subject to the terms at https://gsap.com/standard-license or for
  * Club GSAP members, the agreement issued with that membership.
  * @author: Jack Doyle, jack@greensock.com
@@ -1347,7 +1347,7 @@ export class Draggable extends EventDispatcher {
 						startElementY += 360;
 						self.y = y;
 					}
-					if (self.x !== startElementX || Math.abs(startElementY - y) > minimumMovement) {
+					if (self.x !== startElementX || Math.max(Math.abs(startPointerX - pointerX), Math.abs(startPointerY - pointerY)) > minimumMovement) {
 						self.y = y;
 						x = startElementX + (startElementY - y) * dragTolerance;
 					} else {
@@ -1784,7 +1784,7 @@ export class Draggable extends EventDispatcher {
 			if (InertiaPlugin && type !== "soft") {
 				InertiaPlugin.track(scrollProxy || target, (xyMode ? "x,y" : rotationMode ? "rotation" : "top,left"));
 			}
-			target._gsDragID = id = "d" + (_lookupCount++);
+			target._gsDragID = id = target._gsDragID || ("d" + (_lookupCount++));
 			_lookup[id] = self;
 			if (scrollProxy) {
 				scrollProxy.enable();
@@ -1934,7 +1934,7 @@ export class Draggable extends EventDispatcher {
 _setDefaults(Draggable.prototype, {pointerX:0, pointerY: 0, startX: 0, startY: 0, deltaX: 0, deltaY: 0, isDragging: false, isPressed: false});
 
 Draggable.zIndex = 1000;
-Draggable.version = "3.12.5";
+Draggable.version = "3.12.6";
 
 _getGSAP() && gsap.registerPlugin(Draggable);
 

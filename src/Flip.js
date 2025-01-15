@@ -1,8 +1,8 @@
 /*!
- * Flip 3.12.5
+ * Flip 3.12.6
  * https://gsap.com
  *
- * @license Copyright 2008-2024, GreenSock. All rights reserved.
+ * @license Copyright 2008-2025, GreenSock. All rights reserved.
  * Subject to the terms at https://gsap.com/standard-license or for
  * Club GSAP members, the agreement issued with that membership.
  * @author: Jack Doyle, jack@greensock.com
@@ -194,7 +194,7 @@ let _id = 1,
 	_fit = (fromState, toState, scale, applyProps, fitChild, vars) => {
 		let { element, cache, parent, x, y } = fromState,
 			{ width, height, scaleX, scaleY, rotation, bounds } = toState,
-			styles = vars && _getStyleSaver && _getStyleSaver(element, "transform"), // requires at least 3.11.5
+			styles = vars && _getStyleSaver && _getStyleSaver(element, "transform,width,height"), // requires at least 3.11.5
 			dimensionState = fromState,
 			{e, f} = toState.matrix,
 			deep = fromState.bounds.width !== bounds.width || fromState.bounds.height !== bounds.height || fromState.scaleX !== scaleX || fromState.scaleY !== scaleY || fromState.rotation !== rotation,
@@ -965,6 +965,7 @@ export class Flip {
 		}
 		absolute && _makeAbsolute(after, before);
 		v = _fit(after, before, scale || fitChild, props, fitChild, v.duration || getVars ? v : 0);
+		"zIndex" in vars && (v.zIndex = vars.zIndex);
 		ctx && !getVars && ctx.add(() => () => _applyInlineStyles(after));
 		return getVars ? v : v.duration ? gsap.to(after.element, v) : null;
 	}
@@ -1014,7 +1015,7 @@ export class Flip {
 	}
 }
 
-Flip.version = "3.12.5";
+Flip.version = "3.12.6";
 
 // function whenImagesLoad(el, func) {
 // 	let pending = [],

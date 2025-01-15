@@ -90,7 +90,7 @@ declare namespace gsap.core {
      *
      * ```js
      * tl.clear();     // empty the timeline not including labels
-     * tl.clear(true); // empy the timeline including labels
+     * tl.clear(true); // empty the timeline including labels
      * ```
      *
      * @param {boolean} labels
@@ -481,7 +481,7 @@ declare namespace gsap.core {
      * Tween linearly from a particular time or label to another time or label and then stops. 
      *
      * ```js
-     * tl.tweenFromTo("myLabel", 5}); // tween from myLabel to the 5 second mark
+     * tl.tweenFromTo("myLabel", 5); // tween from myLabel to the 5 second mark
      * ```
      *
      * @param {Position} fromPosition
@@ -497,7 +497,7 @@ declare namespace gsap.core {
      * Tween linearly to a particular time and then stops. 
      *
      * ```js
-     * tl.tweenTo("myLabel"}); // tween to myLabel
+     * tl.tweenTo("myLabel"); // tween to myLabel
      * ```
      *
      * @param {Position} position

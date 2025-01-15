@@ -2159,7 +2159,7 @@
             self.y = y;
           }
 
-          if (self.x !== startElementX || Math.abs(startElementY - y) > minimumMovement) {
+          if (self.x !== startElementX || Math.max(Math.abs(startPointerX - pointerX), Math.abs(startPointerY - pointerY)) > minimumMovement) {
             self.y = y;
             x = startElementX + (startElementY - y) * dragTolerance;
           } else {
@@ -2749,7 +2749,7 @@
           InertiaPlugin.track(scrollProxy || target, xyMode ? "x,y" : rotationMode ? "rotation" : "top,left");
         }
 
-        target._gsDragID = id = "d" + _lookupCount++;
+        target._gsDragID = id = target._gsDragID || "d" + _lookupCount++;
         _lookup[id] = self;
 
         if (scrollProxy) {
@@ -2955,7 +2955,7 @@
   });
 
   Draggable.zIndex = 1000;
-  Draggable.version = "3.12.5";
+  Draggable.version = "3.12.6";
   _getGSAP() && gsap.registerPlugin(Draggable);
 
   exports.Draggable = Draggable;

@@ -74,7 +74,7 @@ There's a <a href="https://www.npmjs.com/package/@gsap/react">@gsap/react</a> pa
 * <a href="https://gsap.com/">gsap.com</a>
 * <a href="https://gsap.com/get-started/">Getting started guide</a>
 * <a href="https://gsap.com/docs/">Docs</a>
-* <a href="https://gsap.com/resources/demos">Demos &amp; starter templates</a>
+* <a href="https://gsap.com/demos">Demos &amp; starter templates</a>
 * <a href="https://gsap.com/community/">Community forums</a>
 * <a href="https://gsap.com/docs/v3/Eases">Ease Visualizer</a>
 * <a href="https://gsap.com/showcase">Showcase</a>
@@ -101,4 +101,4 @@ Ask in the friendly <a href="https://gsap.com/community/">GSAP forums</a>. Or sh
 ### License
 GreenSock's standard "no charge" license can be viewed at <a href="https://gsap.com/standard-license">https://gsap.com/standard-license</a>. <a href="https://gsap.com/pricing/">Club GSAP</a> members are granted additional rights. See <a href="https://gsap.com/licensing/">https://gsap.com/licensing/</a> for details. Why doesn't GSAP use an MIT (or similar) open source license, and why is that a **good** thing? This article explains it all: <a href="https://gsap.com/why-license/" target="_blank">https://gsap.com/why-license/</a>
 
-Copyright (c) 2008-2023, GreenSock. All rights reserved.
+Copyright (c) 2008-2025, GreenSock Inc. All rights reserved.

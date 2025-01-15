@@ -1,8 +1,8 @@
 /*!
- * TextPlugin 3.12.5
+ * TextPlugin 3.12.6
  * https://gsap.com
  *
- * @license Copyright 2008-2024, GreenSock. All rights reserved.
+ * @license Copyright 2008-2025, GreenSock. All rights reserved.
  * Subject to the terms at https://gsap.com/standard-license or for
  * Club GSAP members, the agreement issued with that membership.
  * @author: Jack Doyle, jack@greensock.com
@@ -18,7 +18,7 @@ var gsap,
 };
 
 export var TextPlugin = {
-  version: "3.12.5",
+  version: "3.12.6",
   name: "text",
   init: function init(target, value, tween) {
     typeof value !== "object" && (value = {
@@ -56,10 +56,10 @@ export var TextPlugin = {
       return;
     }
 
-    original = splitInnerHTML(target, delimiter, false, preserveSpaces);
+    original = splitInnerHTML(target, delimiter, false, preserveSpaces, data.svg);
     _tempDiv || (_tempDiv = document.createElement("div"));
     _tempDiv.innerHTML = value.value;
-    text = splitInnerHTML(_tempDiv, delimiter, false, preserveSpaces);
+    text = splitInnerHTML(_tempDiv, delimiter, false, preserveSpaces, data.svg);
     data.from = tween._from;
 
     if ((data.from || rtl) && !(rtl && data.from)) {

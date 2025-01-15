@@ -1,8 +1,8 @@
 /*!
- * CSSRulePlugin 3.12.5
+ * CSSRulePlugin 3.12.6
  * https://gsap.com
  *
- * @license Copyright 2008-2024, GreenSock. All rights reserved.
+ * @license Copyright 2008-2025, GreenSock. All rights reserved.
  * Subject to the terms at https://gsap.com/standard-license or for
  * Club GSAP members, the agreement issued with that membership.
  * @author: Jack Doyle, jack@greensock.com
@@ -49,7 +49,7 @@ var gsap,
 };
 
 export var CSSRulePlugin = {
-  version: "3.12.5",
+  version: "3.12.6",
   name: "cssRule",
   init: function init(target, value, tween, index, targets) {
     if (!_checkRegister() || typeof target.cssText === "undefined") {

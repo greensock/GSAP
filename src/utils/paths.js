@@ -1,8 +1,8 @@
 /*!
- * paths 3.12.5
+ * paths 3.12.6
  * https://gsap.com
  *
- * Copyright 2008-2024, GreenSock. All rights reserved.
+ * Copyright 2008-2025, GreenSock. All rights reserved.
  * Subject to the terms at https://gsap.com/standard-license or for
  * Club GSAP members, the agreement issued with that membership.
  * @author: Jack Doyle, jack@greensock.com
@@ -1218,5 +1218,30 @@ export function pointToScreen(svgElement, point) {
 	}
 	return point.matrixTransform(svgElement.getScreenCTM());
 }
-
+// takes a <path> and normalizes all of its coordinates to values between 0 and 1
+export function normalizePath(path) {
+  path = gsap.utils.toArray(path);
+  if (!path[0].hasAttribute("d")) {
+    path = gsap.utils.toArray(path[0].children);
+  }
+  if (path.length > 1) {
+    path.forEach(normalizePath);
+    return path;
+  }
+  let _svgPathExp = /[achlmqstvz]|(-?\d*\.?\d*(?:e[\-+]?\d+)?)[0-9]/ig,
+      _scientific = /[\+\-]?\d*\.?\d+e[\+\-]?\d+/ig,
+      d = path[0].getAttribute("d"),
+      a = d.replace(_scientific, m => { let n = +m; return (n < 0.0001 && n > -0.0001) ? 0 : n; }).match(_svgPathExp),
+      nums = a.filter(n => !isNaN(n)).map(n => +n),
+      normalize = gsap.utils.normalize(Math.min(...nums), Math.max(...nums)),
+      finals = a.map(val => isNaN(val) ? val : normalize(+val)),
+      s = "",
+      prevWasCommand;
+  finals.forEach((value, i) => {
+    let isCommand = isNaN(value)
+    s += (isCommand && i ? " " : prevWasCommand || !i ? "" : ",") + value;
+    prevWasCommand = isCommand;
+  });
+  path[0].setAttribute("d", s);
+}
 */
