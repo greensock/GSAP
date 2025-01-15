@@ -1,5 +1,5 @@
 /*!
- * Draggable 3.12.6
+ * Draggable 3.12.7
  * https://gsap.com
  *
  * @license Copyright 2008-2025, GreenSock. All rights reserved.
@@ -1934,7 +1934,7 @@ export class Draggable extends EventDispatcher {
 _setDefaults(Draggable.prototype, {pointerX:0, pointerY: 0, startX: 0, startY: 0, deltaX: 0, deltaY: 0, isDragging: false, isPressed: false});
 
 Draggable.zIndex = 1000;
-Draggable.version = "3.12.6";
+Draggable.version = "3.12.7";
 
 _getGSAP() && gsap.registerPlugin(Draggable);
 

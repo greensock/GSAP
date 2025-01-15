@@ -1,5 +1,5 @@
 /*!
- * ScrollToPlugin 3.12.6
+ * ScrollToPlugin 3.12.7
  * https://gsap.com
  *
  * @license Copyright 2008-2025, GreenSock. All rights reserved.
@@ -76,7 +76,7 @@ let gsap, _coreInitted, _window, _docEl, _body, _toArray, _config, ScrollTrigger
 
 
 export const ScrollToPlugin = {
-	version: "3.12.6",
+	version: "3.12.7",
 	name: "scrollTo",
 	rawVars: 1,
 	register(core) {

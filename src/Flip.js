@@ -1,5 +1,5 @@
 /*!
- * Flip 3.12.6
+ * Flip 3.12.7
  * https://gsap.com
  *
  * @license Copyright 2008-2025, GreenSock. All rights reserved.
@@ -965,7 +965,7 @@ export class Flip {
 		}
 		absolute && _makeAbsolute(after, before);
 		v = _fit(after, before, scale || fitChild, props, fitChild, v.duration || getVars ? v : 0);
-		"zIndex" in vars && (v.zIndex = vars.zIndex);
+		typeof(vars) === "object" && "zIndex" in vars && (v.zIndex = vars.zIndex);
 		ctx && !getVars && ctx.add(() => () => _applyInlineStyles(after));
 		return getVars ? v : v.duration ? gsap.to(after.element, v) : null;
 	}
@@ -1015,7 +1015,7 @@ export class Flip {
 	}
 }
 
-Flip.version = "3.12.6";
+Flip.version = "3.12.7";
 
 // function whenImagesLoad(el, func) {
 // 	let pending = [],

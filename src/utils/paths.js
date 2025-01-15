@@ -1,5 +1,5 @@
 /*!
- * paths 3.12.6
+ * paths 3.12.7
  * https://gsap.com
  *
  * Copyright 2008-2025, GreenSock. All rights reserved.

@@ -88,7 +88,7 @@
 	}
 
 	/*!
-	 * TextPlugin 3.12.6
+	 * TextPlugin 3.12.7
 	 * https://gsap.com
 	 *
 	 * @license Copyright 2008-2025, GreenSock. All rights reserved.
@@ -104,7 +104,7 @@
 	};
 
 	var TextPlugin = {
-	  version: "3.12.6",
+	  version: "3.12.7",
 	  name: "text",
 	  init: function init(target, value, tween) {
 	    typeof value !== "object" && (value = {

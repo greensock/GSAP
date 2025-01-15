@@ -1,5 +1,5 @@
 /*!
- * ScrollTrigger 3.12.6
+ * ScrollTrigger 3.12.7
  * https://gsap.com
  *
  * @license Copyright 2008-2025, GreenSock. All rights reserved.
@@ -653,7 +653,6 @@ _revertRecorded = function _revertRecorded(media) {
     spacerStyle.flexBasis = cs.flexBasis || "auto";
     spacerStyle.overflow = "visible";
     spacerStyle.boxSizing = "border-box";
-    spacerStyle.pointerEvents = "none";
     spacerStyle[_width] = _getSize(pin, _horizontal) + _px;
     spacerStyle[_height] = _getSize(pin, _vertical) + _px;
     spacerStyle[_padding] = pinStyle[_margin] = pinStyle[_top] = pinStyle[_left] = "0";
@@ -2212,7 +2211,7 @@ export var ScrollTrigger = /*#__PURE__*/function () {
 
   return ScrollTrigger;
 }();
-ScrollTrigger.version = "3.12.6";
+ScrollTrigger.version = "3.12.7";
 
 ScrollTrigger.saveStyles = function (targets) {
   return targets ? _toArray(targets).forEach(function (target) {

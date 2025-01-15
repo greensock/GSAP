@@ -1,5 +1,5 @@
 /*!
- * ScrollTrigger 3.12.6
+ * ScrollTrigger 3.12.7
  * https://gsap.com
  *
  * @license Copyright 2008-2025, GreenSock. All rights reserved.
@@ -386,7 +386,6 @@ let gsap, _coreInitted, _win, _doc, _docEl, _body, _root, _resizeDelay, _toArray
 			spacerStyle.flexBasis = cs.flexBasis || "auto";
 			spacerStyle.overflow = "visible";
 			spacerStyle.boxSizing = "border-box";
-			spacerStyle.pointerEvents = "none";
 			spacerStyle[_width] = _getSize(pin, _horizontal) + _px;
 			spacerStyle[_height] = _getSize(pin, _vertical) + _px;
 			spacerStyle[_padding] = pinStyle[_margin] = pinStyle[_top] = pinStyle[_left] = "0";
@@ -1476,7 +1475,7 @@ export class ScrollTrigger {
 
 }
 
-ScrollTrigger.version = "3.12.6";
+ScrollTrigger.version = "3.12.7";
 ScrollTrigger.saveStyles = targets => targets ? _toArray(targets).forEach(target => { // saved styles are recorded in a consecutive alternating Array, like [element, cssText, transform attribute, cache, matchMedia, ...]
 	if (target && target.style) {
 		let i = _savedStyles.indexOf(target);

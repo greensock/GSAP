@@ -21,7 +21,7 @@
   }
 
   /*!
-   * Observer 3.12.6
+   * Observer 3.12.7
    * https://gsap.com
    *
    * @license Copyright 2008-2025, GreenSock. All rights reserved.
@@ -671,7 +671,7 @@
 
     return Observer;
   }();
-  Observer.version = "3.12.6";
+  Observer.version = "3.12.7";
 
   Observer.create = function (vars) {
     return new Observer(vars);
@@ -692,7 +692,7 @@
   _getGSAP() && gsap.registerPlugin(Observer);
 
   /*!
-   * ScrollTrigger 3.12.6
+   * ScrollTrigger 3.12.7
    * https://gsap.com
    *
    * @license Copyright 2008-2025, GreenSock. All rights reserved.
@@ -1326,7 +1326,6 @@
       spacerStyle.flexBasis = cs.flexBasis || "auto";
       spacerStyle.overflow = "visible";
       spacerStyle.boxSizing = "border-box";
-      spacerStyle.pointerEvents = "none";
       spacerStyle[_width] = _getSize(pin, _horizontal) + _px;
       spacerStyle[_height] = _getSize(pin, _vertical) + _px;
       spacerStyle[_padding] = pinStyle[_margin] = pinStyle[_top] = pinStyle[_left] = "0";
@@ -2791,7 +2790,7 @@
 
     return ScrollTrigger;
   }();
-  ScrollTrigger$1.version = "3.12.6";
+  ScrollTrigger$1.version = "3.12.7";
 
   ScrollTrigger$1.saveStyles = function (targets) {
     return targets ? _toArray(targets).forEach(function (target) {
