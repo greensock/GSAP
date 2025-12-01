@@ -12,6 +12,11 @@ let _doc, _win, _docElement, _body,	_divContainer, _svgContainer, _identityMatri
 	_transformProp = "transform",
 	_transformOriginProp = _transformProp + "Origin",
 	_hasOffsetBug,
+	_setStyle = (element, props) => {
+		for (let key in props) {
+			element.style[key] = props[key];
+		}
+	},
 	_setDoc = element => {
 		let doc = element.ownerDocument || element;
 		if (!(_transformProp in element.style) && "msTransform" in element.style) { //to improve compatibility with old Microsoft browsers
@@ -35,7 +40,7 @@ let _doc, _win, _docElement, _body,	_divContainer, _svgContainer, _identityMatri
 			if (root && root.appendChild) {
 				root.appendChild(d1);
 				d1.appendChild(d2);
-				d1.setAttribute("style", "position:static;transform:translate3d(0,0,1px)");
+				_setStyle(d1, {position:"static", transform:"translate3d(0,0,1px)"});
 				_hasOffsetBug = (d2.offsetParent !== d1);
 				root.removeChild(d1);
 			}
@@ -95,15 +100,19 @@ let _doc, _win, _docElement, _body,	_divContainer, _svgContainer, _identityMatri
 				type = svg ? (i ? "rect" : "g") : "div",
 				x = i !== 2 ? 0 : 100,
 				y = i === 3 ? 100 : 0,
-				css = "position:absolute;display:block;pointer-events:none;margin:0;padding:0;",
+				css = {position:"absolute", display:"block", pointerEvents:"none", margin:"0", padding:"0"},
 				e = _doc.createElementNS ? _doc.createElementNS(ns.replace(/^https/, "http"), type) : _doc.createElement(type);
 			if (i) {
 				if (!svg) {
 					if (!_divContainer) {
 						_divContainer = _createSibling(element);
-						_divContainer.style.cssText = css;
+						_setStyle(_divContainer, css);
 					}
-					e.style.cssText = css + "width:0.1px;height:0.1px;top:" + y + "px;left:" + x + "px";
+					_setStyle(e, css);
+					e.style.width = "0.1px";
+					e.style.height = "0.1px";
+					e.style.top = y + "px";
+					e.style.left = x + "px";
 					_divContainer.appendChild(e);
 
 				} else {
