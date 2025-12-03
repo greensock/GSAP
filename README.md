@@ -1,8 +1,8 @@
 # GSAP (GreenSock Animation Platform)
 
-[![GSAP - Animate anything](https://gsap.com/GSAP-share-image.png)](http://gsap.com)
+[![GSAP - Animate anything](https://gsap.com/GSAP-share-image.png)](https://gsap.com)
 
-GSAP is a **framework-agnostic** JavaScript animation library that turns developers into animation superheroes. Build high-performance animations that work in **every** major browser. Animate CSS, SVG, canvas, React, Vue, WebGL, colors, strings, motion paths, generic objects...anything JavaScript can touch! GSAP's <a href="https://gsap.com/docs/v3/Plugins/ScrollTrigger/">ScrollTrigger</a> plugin delivers jaw-dropping scroll-based animations with minimal code. <a href="https://gsap.com/docs/v3/GSAP/gsap.matchMedia()">gsap.matchMedia()</a> makes building responsive, accessibility-friendly animations a breeze.
+GSAP is a **framework-agnostic** JavaScript animation library that turns developers into animation superheroes. Build high-performance animations that work in **every** major browser. Animate CSS, SVG, canvas, React, Vue, WebGL, colors, strings, motion paths, generic objects... anything JavaScript can touch! GSAP's <a href="https://gsap.com/docs/v3/Plugins/ScrollTrigger/">ScrollTrigger</a> plugin delivers jaw-dropping scroll-based animations with minimal code. <a href="https://gsap.com/docs/v3/GSAP/gsap.matchMedia()">gsap.matchMedia()</a> makes building responsive, accessibility-friendly animations a breeze.
 
 No other library delivers such advanced sequencing, reliability, and tight control while solving real-world problems on over 12 million sites. GSAP works around countless browser inconsistencies; your animations ***just work***. At its core, GSAP is a high-speed property manipulator, updating values over time with extreme accuracy. It's up to 20x faster than jQuery!
 
@@ -13,7 +13,7 @@ There are many optional <a href="https://gsap.com/docs/v3/Plugins">plugins</a> a
 
 ### Get Started
 
-[![Get Started with GSAP](http://gsap.com/_img/github/get-started.jpg)](http://gsap.com/get-started)
+[![Get Started with GSAP](https://gsap.com/_img/github/get-started.jpg)](https://gsap.com/get-started)
 
 
 ## Docs &amp; Installation
@@ -65,7 +65,7 @@ Thanks to [Webflow](https://webflow.com), GSAP is now **100% FREE** including AL
 
 If you're looking for scroll-driven animations, GSAP's <a href="https://gsap.com/docs/v3/Plugins/ScrollTrigger/">ScrollTrigger</a> plugin is the standard. There's a companion <a href="https://gsap.com/docs/v3/Plugins/ScrollSmoother/">ScrollSmoother</a> as well.
 
-[![ScrollTrigger](http://gsap.com/_img/github/scrolltrigger.jpg)](https://gsap.com/docs/v3/Plugins/ScrollTrigger)
+[![ScrollTrigger](https://gsap.com/_img/github/scrolltrigger.jpg)](https://gsap.com/docs/v3/Plugins/ScrollTrigger)
 
 ### Using React? 
 
