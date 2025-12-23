@@ -12,11 +12,11 @@
 /// <reference path="custom-wiggle.d.ts"/>
 /// <reference path="css-plugin.d.ts"/>
 /// <reference path="css-rule-plugin.d.ts"/>
-/// <reference path="draggable.d.ts"/>
+/// <reference path="Draggable.d.ts"/>
 /// <reference path="draw-svg-plugin.d.ts"/>
 /// <reference path="ease.d.ts"/>
 /// <reference path="easel-plugin.d.ts"/>
-/// <reference path="flip.d.ts"/>
+/// <reference path="Flip.d.ts"/>
 /// <reference path="gs-dev-tools.d.ts"/>
 /// <reference path="gsap-plugins.d.ts"/>
 /// <reference path="gsap-utils.d.ts"/>
@@ -24,7 +24,7 @@
 /// <reference path="morph-svg-plugin.d.ts"/>
 /// <reference path="motion-path-plugin.d.ts"/>
 /// <reference path="motion-path-helper.d.ts"/>
-/// <reference path="observer.d.ts"/>
+/// <reference path="Observer.d.ts"/>
 /// <reference path="physics-2d-plugin.d.ts"/>
 /// <reference path="physics-props-plugin.d.ts"/>
 /// <reference path="pixi-plugin.d.ts"/>
@@ -36,7 +36,7 @@
 /// <reference path="text-plugin.d.ts"/>
 /// <reference path="timeline.d.ts"/>
 /// <reference path="tween.d.ts"/>
-/// <reference path="utils/velocity-tracker.d.ts"/>
+/// <reference path="utils/VelocityTracker.d.ts"/>
 /// <reference path="gsap-core.d.ts"/>
 
 // Global types
