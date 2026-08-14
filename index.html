@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#050b15" />
+    <title>Compass Nexus — Descent Protocol</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div class="grain" aria-hidden="true"></div>
+    <header class="site-header">
+      <a class="brand" href="#arrival" aria-label="Compass Nexus home">
+        <span class="brand-mark"><i></i><i></i></span>
+        <span>COMPASS NEXUS</span>
+      </a>
+      <div class="flight-status">
+        <span class="status-pulse"></span>
+        <span>LIVE APPROACH</span>
+      </div>
+      <button class="menu-trigger" type="button" aria-label="Open navigation"><span></span><span></span></button>
+    </header>
+
+    <aside class="journey-rail" aria-label="Journey progress">
+      <span class="rail-number">01</span>
+      <span class="rail-line"><i class="rail-fill"></i></span>
+      <span class="rail-number">05</span>
+    </aside>
+
+    <main>
+      <section class="scene scene-arrival" id="arrival" data-scene="01">
+        <div class="cloud-field cloud-field-far"></div>
+        <div class="cloud-field cloud-field-near"></div>
+        <div class="aurora-haze"></div>
+        <div class="hero-content">
+          <p class="eyebrow">00° 12' 42.6&quot; N &nbsp;·&nbsp; NIGHT ROUTE</p>
+          <h1 class="hero-title"><span>THE WAY</span><em>IN</em></h1>
+          <p class="hero-copy">Follow the signal beneath the storm. A city-scale gateway waits where every direction converges.</p>
+        </div>
+        <div class="scroll-prompt"><span>SCROLL TO DESCEND</span><i></i></div>
+        <div class="scene-corner corner-top">CN / 001</div>
+        <div class="scene-corner corner-bottom">ALT. 10,400 M</div>
+      </section>
+
+      <section class="scene scene-clouds" id="clouds" data-scene="02">
+        <div class="storm-tunnel"></div>
+        <div class="radial-beam"></div>
+        <div class="cloud-bank cloud-bank-left"></div>
+        <div class="cloud-bank cloud-bank-right"></div>
+        <div class="scene-copy scene-copy-right">
+          <p class="eyebrow">PHASE 01 / ATMOSPHERE</p>
+          <h2>BREAK<br /><em>THE</em> CLOUDLINE.</h2>
+          <p>The route is not drawn on a map. It is revealed one layer at a time.</p>
+        </div>
+        <div class="altitude-readout"><span>DESCENT</span><strong>08,200</strong><small>METERS</small></div>
+      </section>
+
+      <section class="scene scene-orbit" id="orbit" data-scene="03">
+        <div class="city-glow"></div>
+        <div class="orbital-grid"></div>
+        <div class="direction direction-north">N</div>
+        <div class="direction direction-east">E</div>
+        <div class="direction direction-south">S</div>
+        <div class="direction direction-west">W</div>
+        <div class="orbit-ring orbit-ring-large"></div>
+        <div class="orbit-ring orbit-ring-small"></div>
+        <div class="approach-needle"><span></span></div>
+        <div class="scene-copy scene-copy-center">
+          <p class="eyebrow">PHASE 02 / ORIENTATION</p>
+          <h2>EVERY<br />ROAD <em>LEADS</em><br />HERE.</h2>
+        </div>
+        <div class="orbit-caption">VECTOR LOCKED <span>·</span> 118° SE</div>
+      </section>
+
+      <section class="scene scene-nexus" id="nexus" data-scene="04">
+        <div class="urban-grid"></div>
+        <div class="street street-one"></div>
+        <div class="street street-two"></div>
+        <div class="street street-three"></div>
+        <div class="street street-four"></div>
+        <div class="street street-five"></div>
+        <div class="nexus-rings"><i></i><i></i><i></i></div>
+        <div class="nexus-core"><span></span><b></b></div>
+        <div class="scene-copy scene-copy-left">
+          <p class="eyebrow">PHASE 03 / THE NEXUS</p>
+          <h2>THE CITY<br />TURNS <em>AROUND</em><br />YOU.</h2>
+          <p>A single point of arrival. A thousand trajectories beyond it.</p>
+        </div>
+        <div class="coordinates-card"><span>POSITION</span><strong>12.5918° N</strong><strong>77.6641° E</strong></div>
+      </section>
+
+      <section class="scene scene-touchdown" id="touchdown" data-scene="05">
+        <div class="touchdown-sky"></div>
+        <div class="landing-platform"><i></i><i></i><i></i></div>
+        <div class="beacon beacon-left"></div>
+        <div class="beacon beacon-right"></div>
+        <div class="touchdown-copy">
+          <p class="eyebrow">PHASE 04 / ARRIVAL</p>
+          <h2>WELCOME<br />TO THE <em>NEXUS.</em></h2>
+          <a class="explore-link" href="#arrival">BEGIN A NEW ROUTE <span>↗</span></a>
+        </div>
+        <footer class="scene-footer"><span>COMPASS NEXUS / 2026</span><span>BUILDING THE NEXT BEARING</span></footer>
+      </section>
+    </main>
+
+    <script type="module" src="app.js"></script>
+  </body>
+</html>
