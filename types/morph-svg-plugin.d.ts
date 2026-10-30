@@ -36,11 +36,11 @@ declare namespace gsap.plugins {
      * ```
      *
      * @param {SVGPathValue} path
-     * @returns {array} The RawPath
+     * @returns {RawPath} The RawPath
      * @memberof MorphSVGPlugin
      * @link https://greensock.com/docs/v3/Plugins/MorphSVGPlugin/static.getRawPath()
      */
-    getRawPath(path: SVGPathValue): string[];
+    getRawPath(path: SVGPathValue): RawPath;
 
     /**
      * Accepts two strings representing SVG path data and matches the number of points between them, returning an Array with the edited path data strings [shape1, shape2].
