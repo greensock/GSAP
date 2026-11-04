@@ -1,5 +1,5 @@
 /*!
- * Observer 3.15.0
+ * Observer 3.15.1
  * https://gsap.com
  *
  * @license Copyright 2008-2026, GreenSock. All rights reserved.
@@ -37,7 +37,7 @@ let gsap, _coreInitted, _clamp, _win, _doc, _docEl, _body, _isTouch, _pointerTyp
 	_scrollCacheFunc = (f, doNotCache) => {
 		let cachingFunc = value => { // since reading the scrollTop/scrollLeft/pageOffsetY/pageOffsetX can trigger a layout, this function allows us to cache the value so it only gets read fresh after a "scroll" event fires (or while we're refreshing because that can lengthen the page and alter the scroll position). when "soft" is true, that means don't actually set the scroll, but cache the new value instead (useful in ScrollSmoother)
 			if (value || value === 0) {
-				_startup && (_win.history.scrollRestoration = "manual"); // otherwise the new position will get overwritten by the browser onload.
+				_startup && _win.history.scrollRestoration !== "manual" && (_win.history.scrollRestoration = "manual"); // otherwise the new position will get overwritten by the browser onload.
 				let isNormalizing = _normalizer && _normalizer.isPressed;
 				value = cachingFunc.v = Math.round(value) || (_normalizer && _normalizer.iOS ? 1 : 0); //TODO: iOS Bug: if you allow it to go to 0, Safari can start to report super strange (wildly inaccurate) touch positions!
 				f(value);
@@ -428,7 +428,7 @@ export class Observer {
 
 }
 
-Observer.version = "3.15.0";
+Observer.version = "3.15.1";
 Observer.create = vars => new Observer(vars);
 Observer.register = _initCore;
 Observer.getAll = () => _observers.slice();

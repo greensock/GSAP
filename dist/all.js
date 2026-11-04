@@ -90,7 +90,7 @@
   }
 
   /*!
-   * GSAP 3.15.0
+   * GSAP 3.15.1
    * https://gsap.com
    *
    * @license Copyright 2008-2026, GreenSock. All rights reserved.
@@ -487,7 +487,7 @@
   },
       _addToTimeline = function _addToTimeline(timeline, child, position, skipChecks) {
     child.parent && _removeFromParent(child);
-    child._start = _roundPrecise((_isNumber(position) ? position : position || timeline !== _globalTimeline ? _parsePosition(timeline, position, child) : timeline._time) + child._delay);
+    child._start = _roundPrecise((_isNumber(position) ? position : !position && _isFromOrFromStart(child) && (!timeline._last || timeline._last._start >= timeline._time) ? timeline._last ? timeline._last._start : timeline._time : position || timeline !== _globalTimeline ? _parsePosition(timeline, position, child) : timeline._time) + child._delay);
     child._end = _roundPrecise(child._start + (child.totalDuration() / Math.abs(child.timeScale()) || 0));
 
     _addLinkedListItem(timeline, child, "_first", "_last", timeline._sort ? "_start" : 0);
@@ -1304,7 +1304,7 @@
         frame = ++_self.frame;
         _delta = time - _self.time * 1000;
         _self.time = time = time / 1000;
-        _nextTime += overlap + (overlap >= _gap ? 4 : _gap - overlap);
+        _nextTime += overlap + (overlap >= _gap ? 0 : _gap - overlap);
         dispatch = 1;
       }
 
@@ -1692,10 +1692,12 @@
         return this;
       }
 
-      var tTime = this.parent && this._ts ? _parentToChildTotalTime(this.parent._time, this) : this._tTime;
+      var tTime = this.parent && this._ts ? _parentToChildTotalTime(this.parent._time, this) : this._tTime,
+          wasReversed = this._rts < 0;
       this._rts = +value || 0;
       this._ts = this._ps || value === -_tinyNum ? 0 : this._rts;
-      this.totalTime(_clamp(-Math.abs(this._delay), this.totalDuration(), tTime), suppressEvents !== false);
+      var tDur = this.totalDuration();
+      if (wasReversed !== this._rts < 0 || tTime > 0 && tTime < tDur) this.totalTime(_clamp(-Math.abs(this._delay), tDur, tTime), suppressEvents !== false);
 
       _setEnd(this);
 
@@ -1717,7 +1719,26 @@
           _wake();
 
           this._ts = this._rts;
-          this.totalTime(this.parent && !this.parent.smoothChildTiming ? this.rawTime() : this._tTime || this._pTime, this.progress() === 1 && Math.abs(this._zTime) !== _tinyNum && (this._tTime -= _tinyNum));
+
+          var tTime = this.parent && !this.parent.smoothChildTiming ? this.rawTime() : this._tTime || this._pTime,
+              suppress = this.progress() === 1 && Math.abs(this._zTime) !== _tinyNum,
+              child;
+
+          if (suppress) {
+            this._tTime -= _tinyNum;
+            child = this._first;
+
+            while (child) {
+              if (!child._dur && child._zTime < 0 && child._ts && child._start <= tTime + _tinyNum) {
+                suppress = false;
+                break;
+              }
+
+              child = child._next;
+            }
+          }
+
+          this.totalTime(tTime, suppress);
         }
       }
 
@@ -2986,6 +3007,7 @@
     return _staggerPropsToSkip[name] = 1;
   });
 
+  _staggerTweenProps = _staggerTweenProps.split(",");
   var Tween = function (_Animation2) {
     _inheritsLoose(Tween, _Animation2);
 
@@ -3801,6 +3823,11 @@
         while (i--) {
           _media[i].id === this.id && _media.splice(i, 1);
         }
+
+        this._mqs && this._mqs.forEach(function (mq) {
+          return mq.removeListener ? mq.removeListener(_onMediaChange) : mq.removeEventListener("change", _onMediaChange);
+        });
+        this._mqs = null;
       }
     };
 
@@ -3844,6 +3871,7 @@
             _media.indexOf(context) < 0 && _media.push(context);
             (cond[p] = mq.matches) && (active = 1);
             mq.addListener ? mq.addListener(_onMediaChange) : mq.addEventListener("change", _onMediaChange);
+            (context._mqs || (context._mqs = [])).push(mq);
           }
         }
       }
@@ -4199,7 +4227,7 @@
       }
     }
   }, _buildModifierPlugin("roundProps", _roundModifier), _buildModifierPlugin("modifiers"), _buildModifierPlugin("snap", snap)) || _gsap;
-  Tween.version = Timeline.version = gsap.version = "3.15.0";
+  Tween.version = Timeline.version = gsap.version = "3.15.1";
   _coreReady = 1;
   _windowExists() && _wake();
   var Power0 = _easeMap.Power0,
@@ -7027,7 +7055,7 @@
   }
 
   /*!
-   * CustomEase 3.15.0
+   * CustomEase 3.15.1
    * https://gsap.com
    *
    * @license Copyright 2008-2026, GreenSock. All rights reserved.
@@ -7376,7 +7404,7 @@
 
     return CustomEase;
   }();
-  CustomEase.version = "3.15.0";
+  CustomEase.version = "3.15.1";
   CustomEase.headless = true;
   _getGSAP() && gsap$1.registerPlugin(CustomEase);
 
@@ -10344,11 +10372,11 @@
   });
 
   Draggable.zIndex = 1000;
-  Draggable.version = "3.15.0";
+  Draggable.version = "3.15.1";
   _getGSAP$1() && gsap$2.registerPlugin(Draggable);
 
   /*!
-   * CSSRulePlugin 3.15.0
+   * CSSRulePlugin 3.15.1
    * https://gsap.com
    *
    * @license Copyright 2008-2026, GreenSock. All rights reserved.
@@ -10393,7 +10421,7 @@
   };
 
   var CSSRulePlugin = {
-    version: "3.15.0",
+    version: "3.15.1",
     name: "cssRule",
     init: function init(target, value, tween, index, targets) {
       if (!_checkRegister() || typeof target.cssText === "undefined") {
@@ -10475,7 +10503,7 @@
   _getGSAP$2() && gsap$3.registerPlugin(CSSRulePlugin);
 
   /*!
-   * EaselPlugin 3.15.0
+   * EaselPlugin 3.15.1
    * https://gsap.com
    *
    * @license Copyright 2008-2026, GreenSock. All rights reserved.
@@ -10743,7 +10771,7 @@
   };
 
   var EaselPlugin = {
-    version: "3.15.0",
+    version: "3.15.1",
     name: "easel",
     init: function init(target, value, tween, index, targets) {
       if (!_coreInitted$4) {
@@ -10813,7 +10841,7 @@
   _getGSAP$3() && gsap$4.registerPlugin(EaselPlugin);
 
   /*!
-   * EasePack 3.15.0
+   * EasePack 3.15.1
    * https://gsap.com
    *
    * @license Copyright 2008-2026, GreenSock. All rights reserved.
@@ -11008,13 +11036,14 @@
 
   for (var p in EasePack) {
     EasePack[p].register = _initCore$5;
-    EasePack[p].version = "3.15.0";
+    EasePack[p].version = "3.15.1";
   }
 
+  EasePack.register = _initCore$5;
   _getGSAP$4() && gsap$5.registerPlugin(SlowMo);
 
   /*!
-   * Flip 3.15.0
+   * Flip 3.15.1
    * https://gsap.com
    *
    * @license Copyright 2008-2026, GreenSock. All rights reserved.
@@ -11083,7 +11112,8 @@
     paused: 1,
     nested: 1,
     prune: 1,
-    absoluteOnLeave: 1
+    absoluteOnLeave: 1,
+    scrollTrigger: 1
   },
       _fitReserved = {
     zIndex: 1,
@@ -11523,6 +11553,7 @@
         stagger = _vars.stagger,
         spin = _vars.spin,
         prune = _vars.prune,
+        scrollTrigger = _vars.scrollTrigger,
         props = ("props" in vars ? vars : fromState).props,
         tweenVars = _copy$1(vars, _reserved),
         animation = gsap$6.timeline({
@@ -11531,6 +11562,7 @@
       repeat: repeat,
       repeatDelay: repeatDelay,
       yoyo: yoyo,
+      scrollTrigger: scrollTrigger,
       data: "isFlip"
     }),
         remainingProps = tweenVars,
@@ -12499,11 +12531,11 @@
 
     return Flip;
   }();
-  Flip.version = "3.15.0";
+  Flip.version = "3.15.1";
   typeof window !== "undefined" && window.gsap && window.gsap.registerPlugin(Flip);
 
   /*!
-   * MotionPathPlugin 3.15.0
+   * MotionPathPlugin 3.15.1
    * https://gsap.com
    *
    * @license Copyright 2008-2026, GreenSock. All rights reserved.
@@ -12698,7 +12730,7 @@
   };
 
   var MotionPathPlugin = {
-    version: "3.15.0",
+    version: "3.15.1",
     name: "motionPath",
     register: function register(core, Plugin, propTween) {
       gsap$7 = core;
@@ -12846,7 +12878,7 @@
   _getGSAP$5() && gsap$7.registerPlugin(MotionPathPlugin);
 
   /*!
-   * Observer 3.15.0
+   * Observer 3.15.1
    * https://gsap.com
    *
    * @license Copyright 2008-2026, GreenSock. All rights reserved.
@@ -12915,7 +12947,7 @@
       _scrollCacheFunc = function _scrollCacheFunc(f, doNotCache) {
     var cachingFunc = function cachingFunc(value) {
       if (value || value === 0) {
-        _startup && (_win$5.history.scrollRestoration = "manual");
+        _startup && _win$5.history.scrollRestoration !== "manual" && (_win$5.history.scrollRestoration = "manual");
         var isNormalizing = _normalizer && _normalizer.isPressed;
         value = cachingFunc.v = Math.round(value) || (_normalizer && _normalizer.iOS ? 1 : 0);
         f(value);
@@ -13504,7 +13536,7 @@
 
     return Observer;
   }();
-  Observer.version = "3.15.0";
+  Observer.version = "3.15.1";
 
   Observer.create = function (vars) {
     return new Observer(vars);
@@ -13525,7 +13557,7 @@
   _getGSAP$6() && gsap$8.registerPlugin(Observer);
 
   /*!
-   * PixiPlugin 3.15.0
+   * PixiPlugin 3.15.1
    * https://gsap.com
    *
    * @license Copyright 2008-2026, GreenSock. All rights reserved.
@@ -13901,7 +13933,7 @@
   }
 
   var PixiPlugin = {
-    version: "3.15.0",
+    version: "3.15.1",
     name: "pixi",
     register: function register(core, Plugin, propTween) {
       gsap$9 = core;
@@ -13987,7 +14019,7 @@
   _getGSAP$7() && gsap$9.registerPlugin(PixiPlugin);
 
   /*!
-   * ScrollToPlugin 3.15.0
+   * ScrollToPlugin 3.15.1
    * https://gsap.com
    *
    * @license Copyright 2008-2026, GreenSock. All rights reserved.
@@ -14109,7 +14141,7 @@
   };
 
   var ScrollToPlugin = {
-    version: "3.15.0",
+    version: "3.15.1",
     name: "scrollTo",
     rawVars: 1,
     register: function register(core) {
@@ -14260,7 +14292,7 @@
   _getGSAP$8() && gsap$a.registerPlugin(ScrollToPlugin);
 
   /*!
-   * ScrollTrigger 3.15.0
+   * ScrollTrigger 3.15.1
    * https://gsap.com
    *
    * @license Copyright 2008-2026, GreenSock. All rights reserved.
@@ -14669,8 +14701,10 @@
     }
   },
       _recordScrollPositions = function _recordScrollPositions() {
-    return exports._scrollers.forEach(function (obj) {
-      return _isFunction$4(obj) && ++obj.cacheID && (obj.rec = obj());
+    exports._scrollers.cache++;
+
+    exports._scrollers.forEach(function (obj) {
+      return _isFunction$4(obj) && (obj.rec = obj());
     });
   },
       _revertAll = function _revertAll(kill, media) {
@@ -14697,7 +14731,11 @@
     (force || !_refreshingAll) && exports._scrollers.forEach(function (obj) {
       return _isFunction$4(obj) && obj.cacheID++ && (obj.rec = 0);
     });
-    _isString$4(scrollRestoration) && (_win$6.history.scrollRestoration = _scrollRestoration = scrollRestoration);
+
+    if (_isString$4(scrollRestoration)) {
+      _scrollRestoration = scrollRestoration;
+      _win$6.history.scrollRestoration !== scrollRestoration && (_win$6.history.scrollRestoration = scrollRestoration);
+    }
   },
       _refreshingAll,
       _refreshID = 0,
@@ -15246,6 +15284,7 @@
       self.scroller = scroller;
       self.scroll = containerAnimation ? containerAnimation.time.bind(containerAnimation) : scrollFunc;
       scroll1 = scrollFunc();
+      _isReverted && scrollFunc.rec == null && (scrollFunc.rec = scroll1);
       self.vars = vars;
       animation = animation || vars.animation;
 
@@ -15742,7 +15781,7 @@
         self.end = end;
         scroll1 = scroll2 = _refreshingAll ? prevScroll : scrollFunc();
 
-        if (!containerAnimation && !_refreshingAll) {
+        if (!containerAnimation && !_refreshingAll && !_isReverted) {
           scroll1 < prevScroll && scrollFunc(prevScroll);
           self.scroll.rec = 0;
         }
@@ -16060,7 +16099,7 @@
           return t.scroller === self.scroller && (i = 1);
         });
 
-        i || _refreshingAll || (self.scroll.rec = 0);
+        i || _refreshingAll || _isReverted || (self.scroll.rec = 0);
 
         if (animation) {
           animation.scrollTrigger = null;
@@ -16377,7 +16416,7 @@
 
     return ScrollTrigger;
   }();
-  ScrollTrigger$2.version = "3.15.0";
+  ScrollTrigger$2.version = "3.15.1";
 
   ScrollTrigger$2.saveStyles = function (targets) {
     return targets ? _toArray$4(targets).forEach(function (target) {
@@ -16913,7 +16952,7 @@
   }
 
   /*!
-   * TextPlugin 3.15.0
+   * TextPlugin 3.15.1
    * https://gsap.com
    *
    * @license Copyright 2008-2026, GreenSock. All rights reserved.
@@ -16928,7 +16967,7 @@
   };
 
   var TextPlugin = {
-    version: "3.15.0",
+    version: "3.15.1",
     name: "text",
     init: function init(target, value, tween) {
       typeof value !== "object" && (value = {
@@ -17073,7 +17112,7 @@
   _getGSAP$a() && gsap$c.registerPlugin(TextPlugin);
 
   /*!
-   * DrawSVGPlugin 3.15.0
+   * DrawSVGPlugin 3.15.1
    * https://gsap.com
    *
    * @license Copyright 2008-2026, GreenSock. All rights reserved.
@@ -17262,7 +17301,7 @@
   };
 
   var DrawSVGPlugin = {
-    version: "3.15.0",
+    version: "3.15.1",
     name: "drawSVG",
     register: function register(core) {
       gsap$d = core;
@@ -17371,7 +17410,7 @@
   _getGSAP$b() && gsap$d.registerPlugin(DrawSVGPlugin);
 
   /*!
-   * Physics2DPlugin 3.15.0
+   * Physics2DPlugin 3.15.1
    * https://gsap.com
    *
    * @license Copyright 2008-2026, GreenSock. All rights reserved.
@@ -17422,7 +17461,7 @@
   };
 
   var Physics2DPlugin = {
-    version: "3.15.0",
+    version: "3.15.1",
     name: "physics2D",
     register: _initCore$a,
     init: function init(target, value, tween) {
@@ -17526,7 +17565,7 @@
   _getGSAP$c() && gsap$e.registerPlugin(Physics2DPlugin);
 
   /*!
-   * PhysicsPropsPlugin 3.15.0
+   * PhysicsPropsPlugin 3.15.1
    * https://gsap.com
    *
    * @license Copyright 2008-2026, GreenSock. All rights reserved.
@@ -17578,7 +17617,7 @@
   };
 
   var PhysicsPropsPlugin = {
-    version: "3.15.0",
+    version: "3.15.1",
     name: "physicsProps",
     register: _initCore$b,
     init: function init(target, value, tween) {
@@ -17680,7 +17719,7 @@
   _getGSAP$d() && gsap$f.registerPlugin(PhysicsPropsPlugin);
 
   /*!
-   * ScrambleTextPlugin 3.15.0
+   * ScrambleTextPlugin 3.15.1
    * https://gsap.com
    *
    * @license Copyright 2008-2026, GreenSock. All rights reserved.
@@ -17741,7 +17780,7 @@
   };
 
   var ScrambleTextPlugin = {
-    version: "3.15.0",
+    version: "3.15.1",
     name: "scrambleText",
     register: function register(core, Plugin, propTween) {
       gsap$g = core;
@@ -17925,7 +17964,7 @@
   _getGSAP$e() && gsap$g.registerPlugin(ScrambleTextPlugin);
 
   /*!
-   * CustomBounce 3.15.0
+   * CustomBounce 3.15.1
    * https://gsap.com
    *
    * @license Copyright 2008-2026, GreenSock. All rights reserved.
@@ -18078,10 +18117,10 @@
     return CustomBounce;
   }();
   _getGSAP$f() && gsap$h.registerPlugin(CustomBounce);
-  CustomBounce.version = "3.15.0";
+  CustomBounce.version = "3.15.1";
 
   /*!
-   * CustomWiggle 3.15.0
+   * CustomWiggle 3.15.1
    * https://gsap.com
    *
    * @license Copyright 2008-2026, GreenSock. All rights reserved.
@@ -18233,10 +18272,10 @@
     return CustomWiggle;
   }();
   _getGSAP$g() && gsap$i.registerPlugin(CustomWiggle);
-  CustomWiggle.version = "3.15.0";
+  CustomWiggle.version = "3.15.1";
 
   /*!
-   * GSDevTools 3.15.0
+   * GSDevTools 3.15.1
    * https://gsap.com
    *
    * @license Copyright 2008-2026, GreenSock. All rights reserved.
@@ -19684,7 +19723,7 @@
     _context$4(this);
   };
 
-  GSDevTools.version = "3.15.0";
+  GSDevTools.version = "3.15.1";
   GSDevTools.globalRecordingTime = 2;
 
   GSDevTools.getById = function (id) {
@@ -19946,7 +19985,7 @@
   _getGSAP$i() && gsap$k.registerPlugin(VelocityTracker);
 
   /*!
-   * InertiaPlugin 3.15.0
+   * InertiaPlugin 3.15.1
    * https://gsap.com
    *
    * @license Copyright 2008-2026, GreenSock. All rights reserved.
@@ -20287,7 +20326,7 @@
   };
 
   var InertiaPlugin$1 = {
-    version: "3.15.0",
+    version: "3.15.1",
     name: "inertia",
     register: function register(core) {
       gsap$l = core;
@@ -21181,7 +21220,7 @@
   };
 
   var MorphSVGPlugin = {
-    version: "3.15.0",
+    version: "3.15.1",
     name: "morphSVG",
     rawVars: 1,
     register: function register(core, Plugin) {
@@ -23254,11 +23293,11 @@
     };
   };
 
-  PathEditor.version = "3.15.0";
+  PathEditor.version = "3.15.1";
   PathEditor.register = _initCore$j;
 
   /*!
-   * MotionPathHelper 3.15.0
+   * MotionPathHelper 3.15.1
    * https://gsap.com
    *
    * @license Copyright 2008-2026, GreenSock. All rights reserved.
@@ -23626,10 +23665,10 @@
     return PathEditor.create(path, vars);
   };
 
-  MotionPathHelper.version = "3.15.0";
+  MotionPathHelper.version = "3.15.1";
 
   /*!
-   * ScrollSmoother 3.15.0
+   * ScrollSmoother 3.15.1
    * https://gsap.com
    *
    * @license Copyright 2008-2026, GreenSock. All rights reserved.
@@ -24561,7 +24600,7 @@
 
     return ScrollSmoother;
   }();
-  ScrollSmoother.version = "3.15.0";
+  ScrollSmoother.version = "3.15.1";
 
   ScrollSmoother.create = function (vars) {
     return _mainInstance && vars && _mainInstance.content() === _toArray$9(vars.content)[0] ? _mainInstance : new ScrollSmoother(vars);
@@ -24574,12 +24613,13 @@
   _getGSAP$l() && gsap$p.registerPlugin(ScrollSmoother);
 
   /*!
-   * SplitText 3.15.0
+   * SplitText 3.15.1
    * https://gsap.com
    *
-   * @license Copyright 2026, GreenSock. All rights reserved. Subject to the terms at https://gsap.com/standard-license.
+   * @license Copyright 2008-2026, GreenSock. All rights reserved.
+   * Subject to the terms at https://gsap.com/standard-license
    * @author: Jack Doyle
-   */
+  */
   var gsap$q,
       _fonts,
       _splitProp = typeof Symbol === "function" ? Symbol() : "_split",
@@ -24728,6 +24768,7 @@
         elementBounds = element.getBoundingClientRect(),
         lastBounds = elementBounds,
         isPreformatted = !reduceWhiteSpace && window.getComputedStyle(element).whiteSpace.substring(0, 3) === "pre",
+        rtl = deepSlice && isNested && window.getComputedStyle(element).direction === "rtl",
         ignoredPreviousSibling = 0,
         wordsCollection = wordWrapper.collection,
         wordDelimIsNotSpace,
@@ -24819,6 +24860,13 @@
                 return s.segment;
               }), specialCharsRegEx) : wordText.match(charSplitRegEx) || _emptyArray$2;
 
+              if (specialCharsRegEx) {
+                var p = wordText.match(specialCharsRegEx);
+                p && p.some(function (s) {
+                  return curWordChars.indexOf(s) < 0;
+                }) && (curWordChars = wordText.match(charSplitRegEx) || _emptyArray$2);
+              }
+
               for (k = 0; k < curWordChars.length; k++) {
                 curWordEl.appendChild(curWordChars[k] === " " ? document.createTextNode(" ") : charWrapper(curWordChars[k]));
               }
@@ -24828,7 +24876,7 @@
               curTextContent = curNode.textContent = curTextContent.substring(wordText.length + 1, curTextContent.length);
               bounds = curWordEl.getBoundingClientRect();
 
-              if (bounds.top > lastBounds.top && bounds.left <= lastBounds.left) {
+              if (bounds.top > lastBounds.top && (rtl ? bounds.left >= lastBounds.left : bounds.left <= lastBounds.left)) {
                 clonedNode = element.cloneNode();
                 curSubNode = element.childNodes[0];
 
@@ -24897,7 +24945,6 @@
       };
 
       var orig = [],
-          timerId,
           checkWidths = function checkWidths() {
         var i = orig.length,
             o;
@@ -24919,8 +24966,8 @@
       this._data = {
         orig: orig,
         obs: typeof ResizeObserver !== "undefined" && new ResizeObserver(function () {
-          clearTimeout(timerId);
-          timerId = setTimeout(checkWidths, 200);
+          clearTimeout(_this._data.t);
+          _this._data.t = setTimeout(checkWidths, 200);
         })
       };
 
@@ -24996,6 +25043,7 @@
                   curNode,
                   toRemove = [],
                   lineStartIndex = 0,
+                  rtl = window.getComputedStyle(element).direction === "rtl",
                   allBounds = nodes.map(function (n) {
                 return n.nodeType === 1 ? n.getBoundingClientRect() : _emptyBounds;
               }),
@@ -25017,7 +25065,7 @@
                   } else {
                     curBounds = allBounds[i];
 
-                    if (i && curBounds.top > lastBounds.top && curBounds.left < lastBounds.left + lastBounds.width - 1) {
+                    if (i && curBounds.top > lastBounds.top && (rtl ? curBounds.left + curBounds.width > lastBounds.left + 1 : curBounds.left < lastBounds.left + lastBounds.width - 1)) {
                       wrapLine(lineStartIndex, i);
                       lineStartIndex = i;
                     }
@@ -25083,6 +25131,7 @@
               return s + "-mask";
             }).join(" "));
             maskEl.style.overflow = "clip";
+            maskEl.style.verticalAlign = "top";
             return maskEl;
           }));
         }
@@ -25104,8 +25153,11 @@
     };
 
     _proto.kill = function kill() {
-      var obs = this._data.obs;
+      var _this$_data = this._data,
+          obs = _this$_data.obs,
+          t = _this$_data.t;
       obs && obs.disconnect();
+      clearTimeout(t);
       _fonts == null ? void 0 : _fonts.removeEventListener("loadingdone", this._split);
     };
 
@@ -25113,9 +25165,9 @@
       var _a, _b;
 
       if (this.isSplit) {
-        var _this$_data = this._data,
-            orig = _this$_data.orig,
-            anim = _this$_data.anim;
+        var _this$_data2 = this._data,
+            orig = _this$_data2.orig,
+            anim = _this$_data2.anim;
         this.kill();
         orig.forEach(_revertOriginal);
         this.chars.length = this.words.length = this.lines.length = orig.length = this.masks.length = 0;
@@ -25153,7 +25205,7 @@
     return _SplitText;
   }();
 
-  _SplitText.version = "3.15.0";
+  _SplitText.version = "3.15.1";
   var SplitText = _SplitText;
 
   var gsapWithCSS = gsap.registerPlugin(CSSPlugin) || gsap,

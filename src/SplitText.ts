@@ -1,5 +1,5 @@
 /*!
- * SplitText 3.15.0
+ * SplitText 3.15.1
  * https://gsap.com
  *
  * @license Copyright 2008-2026, GreenSock. All rights reserved.
@@ -183,6 +183,7 @@ let gsap: any,
 			elementBounds: BoundingRect = element.getBoundingClientRect(),
 			lastBounds: BoundingRect = elementBounds,
 			isPreformatted: boolean = !reduceWhiteSpace && window.getComputedStyle(element).whiteSpace.substring(0, 3) === "pre",
+			rtl: boolean = deepSlice && isNested && window.getComputedStyle(element).direction === "rtl", // only the nested deepSlice subdivide needs this. In rtl a wrapped word resets to the right edge, so the wrap test is mirrored.
 			ignoredPreviousSibling: Element | number = 0,
 			wordsCollection: HTMLElement[] = wordWrapper.collection,
 			wordDelimIsNotSpace: boolean,
@@ -253,6 +254,11 @@ let gsap: any,
 						// split characters if necessary
 						if (charWrapper) {
 							curWordChars = _charSegmenter ? _stretchToFitSpecialChars([..._charSegmenter.segment(wordText)].map(s => s.segment), specialCharsRegEx) : wordText.match(charSplitRegEx) || _emptyArray;
+							// Intl.Segmenter can group specialChars tokens on different boundaries (Arabic ZWJ pairs are a common case) in ways _stretchToFitSpecialChars() can't reassemble. If any registered pattern isn't an exact segment, re-split the word with charSplitRegEx (specialChars + emoji regex), which honors those tokens.
+							if (specialCharsRegEx) {
+								let p = wordText.match(specialCharsRegEx);
+								p && p.some(s => curWordChars.indexOf(s) < 0) && (curWordChars = wordText.match(charSplitRegEx) || _emptyArray);
+							}
 							for (k = 0; k < curWordChars.length; k++) {
 								curWordEl.appendChild(curWordChars[k] === " " ? document.createTextNode(" ") : charWrapper(curWordChars[k]));
 							}
@@ -262,7 +268,7 @@ let gsap: any,
 						if (deepSlice && isNested) { 
 							curTextContent = curNode.textContent = curTextContent.substring(wordText.length+1, curTextContent.length); // remember that we've got to accommodate the word delimiter in the substring.
 							bounds = curWordEl.getBoundingClientRect();
-							if (bounds.top > lastBounds.top && bounds.left <= lastBounds.left) {
+							if (bounds.top > lastBounds.top && (rtl ? bounds.left >= lastBounds.left : bounds.left <= lastBounds.left)) {
 								clonedNode = element.cloneNode() as HTMLElement;
 								curSubNode = element.childNodes[0];
 								while (curSubNode && curSubNode !== curWordEl) {
@@ -308,6 +314,7 @@ export class SplitText {
 		anim?: {totalTime: (t?: number) => number, revert: () => void};
 		animTime?: number;
 		obs: ResizeObserver | false;
+		t?: number; // pending autoSplit resize debounce; kill() must clear it or a killed instance re-splits itself
 	};
 	vars: SplitTextConfig;
 	isSplit: boolean = false;
@@ -328,7 +335,6 @@ export class SplitText {
 		});
 		this._split = () => this.isSplit && this.split(this.vars);
 		let orig: SplitTextOriginal[] = [],
-			timerId: number,
 			checkWidths = () => {
 				let i: number = orig.length,
 					o: SplitTextOriginal;
@@ -342,7 +348,7 @@ export class SplitText {
 					}
 				}
 			};
-		this._data = {orig: orig, obs: typeof(ResizeObserver) !== "undefined" && new ResizeObserver(() => { clearTimeout(timerId); timerId = setTimeout(checkWidths, 200) as unknown as number})};
+		this._data = {orig: orig, obs: typeof(ResizeObserver) !== "undefined" && new ResizeObserver(() => { clearTimeout(this._data.t); this._data.t = setTimeout(checkWidths, 200) as unknown as number})};
 		
 		_context(this);
 		this.split(config);
@@ -388,6 +394,7 @@ export class SplitText {
 							curNode: Node, 
 							toRemove: Node[] = [],
 							lineStartIndex: number = 0,
+							rtl: boolean = window.getComputedStyle(element).direction === "rtl", // in rtl, a wrapped node resets to the right edge instead of the left, so the horizontal wrap test below is mirrored.
 							allBounds: BoundingRect[] = nodes.map((n) => n.nodeType === 1 ? (n as Element).getBoundingClientRect() : _emptyBounds), // do all these measurements at once so that we don't trigger layout thrashing
 							lastBounds: BoundingRect = _emptyBounds,
 							curBounds: BoundingRect;
@@ -403,7 +410,7 @@ export class SplitText {
 									lastBounds = _findNextValidBounds(allBounds, i);
 								} else {
 									curBounds = allBounds[i];
-									if (i && curBounds.top > lastBounds.top && curBounds.left < lastBounds.left + lastBounds.width - 1) {
+									if (i && curBounds.top > lastBounds.top && (rtl ? curBounds.left + curBounds.width > lastBounds.left + 1 : curBounds.left < lastBounds.left + lastBounds.width - 1)) {
 										wrapLine(lineStartIndex, i);
 										lineStartIndex = i;
 									}
@@ -453,6 +460,7 @@ export class SplitText {
 					maskEl.appendChild(el);
 					el.className && (maskEl.className = el.className.trim().split(" ").map((s: string) => s + "-mask").join(" "));
 					maskEl.style.overflow = "clip";
+					maskEl.style.verticalAlign = "top"; // otherwise Safari doesn't honor line-height on the masked element
 					return maskEl;
 				}));
 
@@ -475,8 +483,9 @@ export class SplitText {
 	}
 
 	kill() {
-		let {obs} = this._data;
+		let {obs, t} = this._data;
 		obs && obs.disconnect();
+		clearTimeout(t);
 		_fonts?.removeEventListener("loadingdone", this._split);
 	}
 
@@ -512,7 +521,7 @@ export class SplitText {
 		}
 	}
 
-	static readonly version: string = "3.15.0";
+	static readonly version: string = "3.15.1";
 }
 
 export { SplitText as default };

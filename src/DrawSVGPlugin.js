@@ -1,5 +1,5 @@
 /*!
- * DrawSVGPlugin 3.15.0
+ * DrawSVGPlugin 3.15.1
  * https://gsap.com
  *
  * @license Copyright 2008-2026, GreenSock. All rights reserved.
@@ -131,7 +131,7 @@ let gsap, _toArray, _doc, _win, _isEdge, _coreInitted, _warned, _getStyleSaver, 
 
 
 export const DrawSVGPlugin = {
-	version:"3.15.0",
+	version:"3.15.1",
 	name:"drawSVG",
 	register(core) {
 		gsap = core;

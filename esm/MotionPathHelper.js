@@ -1,5 +1,5 @@
 /*!
- * MotionPathHelper 3.15.0
+ * MotionPathHelper 3.15.1
  * https://gsap.com
  *
  * @license Copyright 2008-2026, GreenSock. All rights reserved.
@@ -376,5 +376,5 @@ MotionPathHelper.editPath = function (path, vars) {
   return PathEditor.create(path, vars);
 };
 
-MotionPathHelper.version = "3.15.0";
+MotionPathHelper.version = "3.15.1";
 export { MotionPathHelper as default };

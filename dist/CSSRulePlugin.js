@@ -5,7 +5,7 @@
 }(this, (function (exports) { 'use strict';
 
 	/*!
-	 * CSSRulePlugin 3.15.0
+	 * CSSRulePlugin 3.15.1
 	 * https://gsap.com
 	 *
 	 * @license Copyright 2008-2026, GreenSock. All rights reserved.
@@ -50,7 +50,7 @@
 	};
 
 	var CSSRulePlugin = {
-	  version: "3.15.0",
+	  version: "3.15.1",
 	  name: "cssRule",
 	  init: function init(target, value, tween, index, targets) {
 	    if (!_checkRegister() || typeof target.cssText === "undefined") {

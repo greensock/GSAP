@@ -1,5 +1,5 @@
 /*!
- * ScrollTrigger 3.15.0
+ * ScrollTrigger 3.15.1
  * https://gsap.com
  *
  * @license Copyright 2008-2026, GreenSock. All rights reserved.
@@ -419,12 +419,14 @@ _revertRecorded = function _revertRecorded(media) {
   }
 },
     _recordScrollPositions = function _recordScrollPositions() {
-  return _scrollers.forEach(function (obj) {
-    return _isFunction(obj) && ++obj.cacheID && (obj.rec = obj());
+  // record the current scroll position. Force a fresh read by bumping the shared cache (not each cacheID — after exactly one scroll event, ++cacheID can make cacheID === cache and return a stale value). Also some browsers take a little while to dispatch the "scroll" event and the user may have changed the scroll position and then called ScrollTrigger.refresh() right away
+  _scrollers.cache++;
+
+  _scrollers.forEach(function (obj) {
+    return _isFunction(obj) && (obj.rec = obj());
   });
 },
-    // record the current scroll position. Also force the clearing of the cache because some browsers take a little while to dispatch the "scroll" event and the user may have changed the scroll position and then called ScrollTrigger.refresh() right away
-_revertAll = function _revertAll(kill, media) {
+    _revertAll = function _revertAll(kill, media) {
   var trigger;
 
   for (_i = 0; _i < _triggers.length; _i++) {
@@ -449,7 +451,11 @@ _revertAll = function _revertAll(kill, media) {
   (force || !_refreshingAll) && _scrollers.forEach(function (obj) {
     return _isFunction(obj) && obj.cacheID++ && (obj.rec = 0);
   });
-  _isString(scrollRestoration) && (_win.history.scrollRestoration = _scrollRestoration = scrollRestoration);
+
+  if (_isString(scrollRestoration)) {
+    _scrollRestoration = scrollRestoration;
+    _win.history.scrollRestoration !== scrollRestoration && (_win.history.scrollRestoration = scrollRestoration);
+  }
 },
     _refreshingAll,
     _refreshID = 0,
@@ -1030,6 +1036,8 @@ export var ScrollTrigger = /*#__PURE__*/function () {
     self.scroller = scroller;
     self.scroll = containerAnimation ? containerAnimation.time.bind(containerAnimation) : scrollFunc;
     scroll1 = scrollFunc();
+    _isReverted && scrollFunc.rec == null && (scrollFunc.rec = scroll1); // if this scroller was first discovered while matchMedia was recreating contexts, it missed the initial scroll-position recording
+
     self.vars = vars;
     animation = animation || vars.animation;
 
@@ -1561,7 +1569,8 @@ export var ScrollTrigger = /*#__PURE__*/function () {
       self.end = end;
       scroll1 = scroll2 = _refreshingAll ? prevScroll : scrollFunc(); // reset velocity
 
-      if (!containerAnimation && !_refreshingAll) {
+      if (!containerAnimation && !_refreshingAll && !_isReverted) {
+        // preserve the recorded position throughout a matchMedia revert/recreate transaction
         scroll1 < prevScroll && scrollFunc(prevScroll);
         self.scroll.rec = 0;
       }
@@ -1889,7 +1898,7 @@ export var ScrollTrigger = /*#__PURE__*/function () {
 
       i >= 0 && _triggers.splice(i, 1);
       i === _i && _direction > 0 && _i--; // if we're in the middle of a refresh() or update(), splicing would cause skips in the index, so adjust...
-      // if no other ScrollTrigger instances of the same scroller are found, wipe out any recorded scroll position. Otherwise, in a single page application, for example, it could maintain scroll position when it really shouldn't.
+      // if no other ScrollTrigger instances of the same scroller are found, wipe out any recorded scroll position. Otherwise, in a single page application, for example, it could maintain scroll position when it really shouldn't. Skip while _isReverted so matchMediaInit's pre-revert recording survives context.kill before onMatch recreates triggers.
 
       i = 0;
 
@@ -1897,7 +1906,7 @@ export var ScrollTrigger = /*#__PURE__*/function () {
         return t.scroller === self.scroller && (i = 1);
       });
 
-      i || _refreshingAll || (self.scroll.rec = 0);
+      i || _refreshingAll || _isReverted || (self.scroll.rec = 0);
 
       if (animation) {
         animation.scrollTrigger = null;
@@ -2230,7 +2239,7 @@ export var ScrollTrigger = /*#__PURE__*/function () {
 
   return ScrollTrigger;
 }();
-ScrollTrigger.version = "3.15.0";
+ScrollTrigger.version = "3.15.1";
 
 ScrollTrigger.saveStyles = function (targets) {
   return targets ? _toArray(targets).forEach(function (target) {

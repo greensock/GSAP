@@ -1,5 +1,5 @@
 /*!
- * strings: 3.15.0
+ * strings: 3.15.1
  * https://gsap.com
  *
  * Copyright 2008-2026, GreenSock. All rights reserved.

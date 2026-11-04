@@ -98,7 +98,14 @@ declare namespace gsap.plugins {
   const snap: SnapPluginClass;
 
   // Data types shared between plugins
-  type RawPath = number[][]; 
+  interface PathSegment extends Array<number> {
+    closed?: boolean;
+  }
+
+  interface RawPath extends Array<PathSegment> {
+    totalPoints?: number;
+  }
+
   type Matrix2D = { a: number, b: number, c: number, d: number, e: number, f: number};
 }
 

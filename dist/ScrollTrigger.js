@@ -21,7 +21,7 @@
   }
 
   /*!
-   * Observer 3.15.0
+   * Observer 3.15.1
    * https://gsap.com
    *
    * @license Copyright 2008-2026, GreenSock. All rights reserved.
@@ -90,7 +90,7 @@
       _scrollCacheFunc = function _scrollCacheFunc(f, doNotCache) {
     var cachingFunc = function cachingFunc(value) {
       if (value || value === 0) {
-        _startup && (_win.history.scrollRestoration = "manual");
+        _startup && _win.history.scrollRestoration !== "manual" && (_win.history.scrollRestoration = "manual");
         var isNormalizing = _normalizer && _normalizer.isPressed;
         value = cachingFunc.v = Math.round(value) || (_normalizer && _normalizer.iOS ? 1 : 0);
         f(value);
@@ -679,7 +679,7 @@
 
     return Observer;
   }();
-  Observer.version = "3.15.0";
+  Observer.version = "3.15.1";
 
   Observer.create = function (vars) {
     return new Observer(vars);
@@ -700,7 +700,7 @@
   _getGSAP() && gsap.registerPlugin(Observer);
 
   /*!
-   * ScrollTrigger 3.15.0
+   * ScrollTrigger 3.15.1
    * https://gsap.com
    *
    * @license Copyright 2008-2026, GreenSock. All rights reserved.
@@ -1109,8 +1109,10 @@
     }
   },
       _recordScrollPositions = function _recordScrollPositions() {
-    return _scrollers.forEach(function (obj) {
-      return _isFunction(obj) && ++obj.cacheID && (obj.rec = obj());
+    _scrollers.cache++;
+
+    _scrollers.forEach(function (obj) {
+      return _isFunction(obj) && (obj.rec = obj());
     });
   },
       _revertAll = function _revertAll(kill, media) {
@@ -1137,7 +1139,11 @@
     (force || !_refreshingAll) && _scrollers.forEach(function (obj) {
       return _isFunction(obj) && obj.cacheID++ && (obj.rec = 0);
     });
-    _isString(scrollRestoration) && (_win$1.history.scrollRestoration = _scrollRestoration = scrollRestoration);
+
+    if (_isString(scrollRestoration)) {
+      _scrollRestoration = scrollRestoration;
+      _win$1.history.scrollRestoration !== scrollRestoration && (_win$1.history.scrollRestoration = scrollRestoration);
+    }
   },
       _refreshingAll,
       _refreshID = 0,
@@ -1686,6 +1692,7 @@
       self.scroller = scroller;
       self.scroll = containerAnimation ? containerAnimation.time.bind(containerAnimation) : scrollFunc;
       scroll1 = scrollFunc();
+      _isReverted && scrollFunc.rec == null && (scrollFunc.rec = scroll1);
       self.vars = vars;
       animation = animation || vars.animation;
 
@@ -2182,7 +2189,7 @@
         self.end = end;
         scroll1 = scroll2 = _refreshingAll ? prevScroll : scrollFunc();
 
-        if (!containerAnimation && !_refreshingAll) {
+        if (!containerAnimation && !_refreshingAll && !_isReverted) {
           scroll1 < prevScroll && scrollFunc(prevScroll);
           self.scroll.rec = 0;
         }
@@ -2500,7 +2507,7 @@
           return t.scroller === self.scroller && (i = 1);
         });
 
-        i || _refreshingAll || (self.scroll.rec = 0);
+        i || _refreshingAll || _isReverted || (self.scroll.rec = 0);
 
         if (animation) {
           animation.scrollTrigger = null;
@@ -2817,7 +2824,7 @@
 
     return ScrollTrigger;
   }();
-  ScrollTrigger$1.version = "3.15.0";
+  ScrollTrigger$1.version = "3.15.1";
 
   ScrollTrigger$1.saveStyles = function (targets) {
     return targets ? _toArray(targets).forEach(function (target) {

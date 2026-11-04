@@ -1,5 +1,5 @@
 /*!
- * InertiaPlugin 3.15.0
+ * InertiaPlugin 3.15.1
  * https://gsap.com
  *
  * @license Copyright 2008-2026, GreenSock. All rights reserved.
@@ -228,7 +228,7 @@ let gsap, _coreInitted, _parseEase, _toArray, _power3, _config, _getUnit, PropTw
 
 
 export const InertiaPlugin = {
-	version: "3.15.0",
+	version: "3.15.1",
 	name: "inertia",
 	register(core) {
 		gsap = core;

@@ -1,5 +1,5 @@
 /*!
- * Flip 3.15.0
+ * Flip 3.15.1
  * https://gsap.com
  *
  * @license Copyright 2008-2026, GreenSock. All rights reserved.
@@ -72,7 +72,8 @@ _callbacks = _listToArray("onStart,onUpdate,onComplete,onReverseComplete,onInter
   paused: 1,
   nested: 1,
   prune: 1,
-  absoluteOnLeave: 1
+  absoluteOnLeave: 1,
+  scrollTrigger: 1
 },
     _fitReserved = {
   zIndex: 1,
@@ -535,6 +536,7 @@ _makeAbsolute = function _makeAbsolute(elState, fallbackNode, ignoreBatch) {
       stagger = _vars.stagger,
       spin = _vars.spin,
       prune = _vars.prune,
+      scrollTrigger = _vars.scrollTrigger,
       props = ("props" in vars ? vars : fromState).props,
       tweenVars = _copy(vars, _reserved),
       animation = gsap.timeline({
@@ -543,6 +545,7 @@ _makeAbsolute = function _makeAbsolute(elState, fallbackNode, ignoreBatch) {
     repeat: repeat,
     repeatDelay: repeatDelay,
     yoyo: yoyo,
+    scrollTrigger: scrollTrigger,
     data: "isFlip"
   }),
       remainingProps = tweenVars,
@@ -1547,7 +1550,7 @@ export var Flip = /*#__PURE__*/function () {
 
   return Flip;
 }();
-Flip.version = "3.15.0"; // function whenImagesLoad(el, func) {
+Flip.version = "3.15.1"; // function whenImagesLoad(el, func) {
 // 	let pending = [],
 // 		onLoad = e => {
 // 			pending.splice(pending.indexOf(e.target), 1);

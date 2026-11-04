@@ -1,5 +1,5 @@
 /*!
- * ScrambleTextPlugin 3.15.0
+ * ScrambleTextPlugin 3.15.1
  * https://gsap.com
  *
  * @license Copyright 2008-2026, GreenSock. All rights reserved.
@@ -65,7 +65,7 @@ _spacesExp = /\s+/g,
 };
 
 export var ScrambleTextPlugin = {
-  version: "3.15.0",
+  version: "3.15.1",
   name: "scrambleText",
   register: function register(core, Plugin, propTween) {
     gsap = core;

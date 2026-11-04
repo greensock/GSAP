@@ -1,5 +1,5 @@
 /*!
- * Flip 3.15.0
+ * Flip 3.15.1
  * https://gsap.com
  *
  * @license Copyright 2008-2026, GreenSock. All rights reserved.
@@ -25,7 +25,7 @@ let _id = 1,
 	_getEl = target => _toArray(target)[0] || console.warn("Element not found:", target),
 	_round = value => Math.round(value * 10000) / 10000 || 0,
 	_toggleClass = (targets, className, action) => targets.forEach(el => el.classList[action](className)),
-	_reserved = {zIndex:1, kill:1, simple:1, spin:1, clearProps:1, targets:1, toggleClass:1, onComplete:1, onUpdate:1, onInterrupt:1, onStart:1, delay:1, repeat:1, repeatDelay:1, yoyo:1, scale:1, fade:1, absolute:1, props:1, onEnter:1, onLeave:1, custom:1, paused:1, nested:1, prune:1, absoluteOnLeave: 1},
+	_reserved = {zIndex:1, kill:1, simple:1, spin:1, clearProps:1, targets:1, toggleClass:1, onComplete:1, onUpdate:1, onInterrupt:1, onStart:1, delay:1, repeat:1, repeatDelay:1, yoyo:1, scale:1, fade:1, absolute:1, props:1, onEnter:1, onLeave:1, custom:1, paused:1, nested:1, prune:1, absoluteOnLeave: 1, scrollTrigger: 1},
 	_fitReserved = {zIndex:1, simple:1, clearProps:1, scale:1, absolute:1, fitChild:1, getVars:1, props:1},
 	_camelToDashed = p => p.replace(/([A-Z])/g, "-$1").toLowerCase(),
 	_copy = (obj, exclude) => {
@@ -322,10 +322,10 @@ let _id = 1,
 	_fromTo = (fromState, toState, vars, relative) => { // relative is -1 if "from()", and 1 if "to()"
 		(fromState instanceof FlipState && toState instanceof FlipState) || console.warn("Not a valid state object.");
 		vars = vars || {};
-		let { clearProps, onEnter, onLeave, absolute, absoluteOnLeave, custom, delay, paused, repeat, repeatDelay, yoyo, toggleClass, nested, zIndex, scale, fade, stagger, spin, prune } = vars,
+		let { clearProps, onEnter, onLeave, absolute, absoluteOnLeave, custom, delay, paused, repeat, repeatDelay, yoyo, toggleClass, nested, zIndex, scale, fade, stagger, spin, prune, scrollTrigger } = vars,
 			props = ("props" in vars ? vars : fromState).props,
 			tweenVars = _copy(vars, _reserved),
-			animation = gsap.timeline({ delay, paused, repeat, repeatDelay, yoyo, data: "isFlip" }),
+			animation = gsap.timeline({ delay, paused, repeat, repeatDelay, yoyo, scrollTrigger, data: "isFlip" }),
 			remainingProps = tweenVars,
 			entering = [],
 			leaving = [],
@@ -1041,7 +1041,7 @@ export class Flip {
 	}
 }
 
-Flip.version = "3.15.0";
+Flip.version = "3.15.1";
 
 // function whenImagesLoad(el, func) {
 // 	let pending = [],

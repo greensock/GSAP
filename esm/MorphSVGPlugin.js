@@ -1,7 +1,7 @@
 function _extends() { _extends = Object.assign || function (target) { for (var i = 1; i < arguments.length; i++) { var source = arguments[i]; for (var key in source) { if (Object.prototype.hasOwnProperty.call(source, key)) { target[key] = source[key]; } } } return target; }; return _extends.apply(this, arguments); }
 
 /*!
- * MorphSVGPlugin 3.15.0
+ * MorphSVGPlugin 3.15.1
  * https://gsap.com
  *
  * @license Copyright 2008-2026, GreenSock. All rights reserved.
@@ -826,7 +826,7 @@ _recordControlPointData = function _recordControlPointData(rawPath) {
 };
 
 export var MorphSVGPlugin = {
-  version: "3.15.0",
+  version: "3.15.1",
   name: "morphSVG",
   rawVars: 1,
   // otherwise "render" would be interpreted as a function-based value.

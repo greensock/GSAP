@@ -1,5 +1,5 @@
 /*!
- * GSAP 3.15.0
+ * GSAP 3.15.1
  * https://gsap.com
  *
  * @license Copyright 2008-2026, GreenSock. All rights reserved.
@@ -286,7 +286,7 @@ let _config = {
 	},
 	_addToTimeline = (timeline, child, position, skipChecks) => {
 		child.parent && _removeFromParent(child);
-		child._start = _roundPrecise((_isNumber(position) ? position : position || timeline !== _globalTimeline ? _parsePosition(timeline, position, child) : timeline._time) + child._delay);
+		child._start = _roundPrecise((_isNumber(position) ? position : !position && _isFromOrFromStart(child) && (!timeline._last || timeline._last._start >= timeline._time) ? (timeline._last ? timeline._last._start : timeline._time) : position || timeline !== _globalTimeline ? _parsePosition(timeline, position, child) : timeline._time) + child._delay); // a from()/startAt tween's internal _startAt gets added and then immediately removed, so skip _parsePosition() which calls duration() (a full walk of a dirty timeline, making large from() timelines O(n²)). Dropping it at the _last child's _start keeps the sorted insert O(1), and the playhead check avoids a render in _postAddChecks().
 		child._end = _roundPrecise(child._start + ((child.totalDuration() / Math.abs(child.timeScale())) || 0));
 		_addLinkedListItem(timeline, child, "_first", "_last", timeline._sort ? "_start" : 0);
 		_isFromOrFromStart(child) || (timeline._recent = child);
@@ -905,7 +905,7 @@ let _config = {
 					frame = ++_self.frame;
 					_delta = time - _self.time * 1000;
 					_self.time = time = time / 1000;
-					_nextTime += overlap + (overlap >= _gap ? 4 : _gap - overlap);
+					_nextTime += overlap + (overlap >= _gap ? 0 : _gap - overlap);
 					dispatch = 1;
 				}
 				manual || (_id = _req(_tick)); //make sure the request is made before we dispatch the "tick" event so that timing is maintained. Otherwise, if processing the "tick" requires a bunch of time (like 15ms) and we're using a setTimeout() that's based on 16.7ms, it'd technically take 31.7ms between frames otherwise.
@@ -1251,7 +1251,8 @@ export class Animation {
 		if (this._rts === value) {
 			return this;
 		}
-		let tTime = this.parent && this._ts ? _parentToChildTotalTime(this.parent._time, this) : this._tTime; // make sure to do the parentToChildTotalTime() BEFORE setting the new _ts because the old one must be used in that calculation.
+		let tTime = this.parent && this._ts ? _parentToChildTotalTime(this.parent._time, this) : this._tTime, // make sure to do the parentToChildTotalTime() BEFORE setting the new _ts because the old one must be used in that calculation.
+			wasReversed = this._rts < 0;
 
 		// future addition? Up side: fast and minimal file size. Down side: only works on this animation; if a timeline is reversed, for example, its childrens' onReverse wouldn't get called.
 		//(+value < 0 && this._rts >= 0) && _callback(this, "onReverse", true);
@@ -1259,7 +1260,8 @@ export class Animation {
 		// prioritize rendering where the parent's playhead lines up instead of this._tTime because there could be a tween that's animating another tween's timeScale in the same rendering loop (same parent), thus if the timeScale tween renders first, it would alter _start BEFORE _tTime was set on that tick (in the rendering loop), effectively freezing it until the timeScale tween finishes.
 		this._rts = +value || 0;
 		this._ts = (this._ps || value === -_tinyNum) ? 0 : this._rts; // _ts is the functional timeScale which would be 0 if the animation is paused.
-		this.totalTime(_clamp(-Math.abs(this._delay), this.totalDuration(), tTime), suppressEvents !== false);
+		let tDur = this.totalDuration();
+		if (wasReversed !== (this._rts < 0) || (tTime > 0 && tTime < tDur)) this.totalTime(_clamp(-Math.abs(this._delay), tDur, tTime), suppressEvents !== false);
 		_setEnd(this); // if parent.smoothChildTiming was false, the end time didn't get updated in the _alignPlayhead() method, so do it here.
 		return _recacheAncestors(this);
 	}
@@ -1279,7 +1281,22 @@ export class Animation {
 				_wake();
 				this._ts = this._rts;
 				//only defer to _pTime (pauseTime) if tTime is zero. Remember, someone could pause() an animation, then scrub the playhead and resume(). If the parent doesn't have smoothChildTiming, we render at the rawTime() because the startTime won't get updated.
-				this.totalTime(this.parent && !this.parent.smoothChildTiming ? this.rawTime() : this._tTime || this._pTime, (this.progress() === 1) && Math.abs(this._zTime) !== _tinyNum && (this._tTime -= _tinyNum)); // edge case: animation.progress(1).pause().play() wouldn't render again because the playhead is already at the end, but the call to totalTime() below will add it back to its parent...and not remove it again (since removing only happens upon rendering at a new time). Offsetting the _tTime slightly is done simply to cause the final render in totalTime() that'll pop it off its timeline (if autoRemoveChildren is true, of course). Check to make sure _zTime isn't -_tinyNum to avoid an edge case where the playhead is pushed to the end but INSIDE a tween/callback, the timeline itself is paused thus halting rendering and leaving a few unrendered. When resuming, it wouldn't render those otherwise.
+				// At progress===1, nudge _tTime so the resume render runs (autoRemoveChildren / progress(1).pause().play()). Don't suppress if a never-rendered zero-duration child (e.g. delayedCall(0) scheduled while idle) sits on the playhead — suppress would complete it silently and it would never fire.
+				let tTime = this.parent && !this.parent.smoothChildTiming ? this.rawTime() : this._tTime || this._pTime,
+					suppress = (this.progress() === 1) && Math.abs(this._zTime) !== _tinyNum,
+					child;
+				if (suppress) {
+					this._tTime -= _tinyNum;
+					child = this._first;
+					while (child) {
+						if (!child._dur && child._zTime < 0 && child._ts && child._start <= tTime + _tinyNum) {
+							suppress = false;
+							break;
+						}
+						child = child._next;
+					}
+				}
+				this.totalTime(tTime, suppress);
 			}
 		}
 		return this;
@@ -2288,7 +2305,7 @@ let _addComplexStringPropTween = function(target, prop, start, end, setter, stri
 	_staggerTweenProps = _callbackNames + "repeat,repeatDelay,yoyo,repeatRefresh,yoyoEase,easeReverse,autoRevert",
 	_staggerPropsToSkip = {};
 _forEachName(_staggerTweenProps + ",id,stagger,delay,duration,paused,scrollTrigger", name => _staggerPropsToSkip[name] = 1);
-
+_staggerTweenProps = _staggerTweenProps.split(",");
 
 
 
@@ -2955,6 +2972,8 @@ class Context {
 			while (i--) { // previously, we checked _media.indexOf(this), but some frameworks like Vue enforce Proxy objects that make it impossible to get the proper result that way, so we must use a unique ID number instead.
 				_media[i].id === this.id && _media.splice(i, 1);
 			}
+			this._mqs && this._mqs.forEach(mq => mq.removeListener ? mq.removeListener(_onMediaChange) : mq.removeEventListener("change", _onMediaChange));
+			this._mqs = null;
 		}
 	}
 
@@ -2995,6 +3014,7 @@ class MatchMedia {
 					_media.indexOf(context) < 0 && _media.push(context);
 					(cond[p] = mq.matches) && (active = 1);
 					mq.addListener ? mq.addListener(_onMediaChange) : mq.addEventListener("change", _onMediaChange);
+					(context._mqs || (context._mqs = [])).push(mq);
 				}
 			}
 		}
@@ -3246,7 +3266,7 @@ export const gsap = _gsap.registerPlugin({
 	_buildModifierPlugin("snap", snap)
 ) || _gsap; //to prevent the core plugins from being dropped via aggressive tree shaking, we must include them in the variable declaration in this way.
 
-Tween.version = Timeline.version = gsap.version = "3.15.0";
+Tween.version = Timeline.version = gsap.version = "3.15.1";
 _coreReady = 1;
 _windowExists() && _wake();
 

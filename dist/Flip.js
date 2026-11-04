@@ -378,7 +378,7 @@
 	}
 
 	/*!
-	 * Flip 3.15.0
+	 * Flip 3.15.1
 	 * https://gsap.com
 	 *
 	 * @license Copyright 2008-2026, GreenSock. All rights reserved.
@@ -447,7 +447,8 @@
 	  paused: 1,
 	  nested: 1,
 	  prune: 1,
-	  absoluteOnLeave: 1
+	  absoluteOnLeave: 1,
+	  scrollTrigger: 1
 	},
 	    _fitReserved = {
 	  zIndex: 1,
@@ -887,6 +888,7 @@
 	      stagger = _vars.stagger,
 	      spin = _vars.spin,
 	      prune = _vars.prune,
+	      scrollTrigger = _vars.scrollTrigger,
 	      props = ("props" in vars ? vars : fromState).props,
 	      tweenVars = _copy(vars, _reserved),
 	      animation = gsap.timeline({
@@ -895,6 +897,7 @@
 	    repeat: repeat,
 	    repeatDelay: repeatDelay,
 	    yoyo: yoyo,
+	    scrollTrigger: scrollTrigger,
 	    data: "isFlip"
 	  }),
 	      remainingProps = tweenVars,
@@ -1863,7 +1866,7 @@
 
 	  return Flip;
 	}();
-	Flip.version = "3.15.0";
+	Flip.version = "3.15.1";
 	typeof window !== "undefined" && window.gsap && window.gsap.registerPlugin(Flip);
 
 	exports.Flip = Flip;

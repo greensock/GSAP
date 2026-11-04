@@ -2982,11 +2982,11 @@
   });
 
   Draggable.zIndex = 1000;
-  Draggable.version = "3.15.0";
+  Draggable.version = "3.15.1";
   _getGSAP() && gsap.registerPlugin(Draggable);
 
   /*!
-   * GSDevTools 3.15.0
+   * GSDevTools 3.15.1
    * https://gsap.com
    *
    * @license Copyright 2008-2026, GreenSock. All rights reserved.
@@ -4434,7 +4434,7 @@
     _context$1(this);
   };
 
-  GSDevTools.version = "3.15.0";
+  GSDevTools.version = "3.15.1";
   GSDevTools.globalRecordingTime = 2;
 
   GSDevTools.getById = function (id) {

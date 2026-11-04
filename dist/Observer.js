@@ -21,7 +21,7 @@
   }
 
   /*!
-   * Observer 3.15.0
+   * Observer 3.15.1
    * https://gsap.com
    *
    * @license Copyright 2008-2026, GreenSock. All rights reserved.
@@ -90,7 +90,7 @@
       _scrollCacheFunc = function _scrollCacheFunc(f, doNotCache) {
     var cachingFunc = function cachingFunc(value) {
       if (value || value === 0) {
-        _startup && (_win.history.scrollRestoration = "manual");
+        _startup && _win.history.scrollRestoration !== "manual" && (_win.history.scrollRestoration = "manual");
         var isNormalizing = _normalizer && _normalizer.isPressed;
         value = cachingFunc.v = Math.round(value) || (_normalizer && _normalizer.iOS ? 1 : 0);
         f(value);
@@ -679,7 +679,7 @@
 
     return Observer;
   }();
-  Observer.version = "3.15.0";
+  Observer.version = "3.15.1";
 
   Observer.create = function (vars) {
     return new Observer(vars);

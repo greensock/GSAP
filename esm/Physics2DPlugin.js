@@ -1,5 +1,5 @@
 /*!
- * Physics2DPlugin 3.15.0
+ * Physics2DPlugin 3.15.1
  * https://gsap.com
  *
  * @license Copyright 2008-2026, GreenSock. All rights reserved.
@@ -55,7 +55,7 @@ var PhysicsProp = function PhysicsProp(target, p, velocity, acceleration, stepsP
 };
 
 export var Physics2DPlugin = {
-  version: "3.15.0",
+  version: "3.15.1",
   name: "physics2D",
   register: _initCore,
   init: function init(target, value, tween) {

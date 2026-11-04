@@ -1,11 +1,11 @@
 /*!
- * SplitText 3.15.0
+ * SplitText 3.15.1
  * https://gsap.com
  *
- * @license Copyright 2026, GreenSock. All rights reserved. Subject to the terms at https://gsap.com/standard-license.
+ * @license Copyright 2008-2026, GreenSock. All rights reserved.
+ * Subject to the terms at https://gsap.com/standard-license
  * @author: Jack Doyle
- */
-
+*/
 let gsap, _fonts, _splitProp = typeof Symbol === "function" ? Symbol() : "_split", _coreInitted, _initIfNecessary = () => _coreInitted || SplitText.register(window.gsap), _charSegmenter = typeof Intl !== "undefined" && "Segmenter" in Intl ? new Intl.Segmenter() : 0, _toArray = (r) => !r ? [] : typeof r === "string" ? _toArray(document.querySelectorAll(r)) : "length" in r ? Array.from(r).reduce((acc, cur) => {
   typeof cur === "string" ? acc.push(..._toArray(cur)) : acc.push(cur);
   return acc;
@@ -71,7 +71,7 @@ let gsap, _fonts, _splitProp = typeof Symbol === "function" ? Symbol() : "_split
   };
 }, _splitWordsAndCharsRecursively = (element, config, wordWrapper, charWrapper, prepForCharsOnly, deepSlice, ignore, charSplitRegEx, specialCharsRegEx, isNested) => {
   var _a;
-  let nodes = Array.from(element.childNodes), i = 0, { wordDelimiter, reduceWhiteSpace = true, prepareText } = config, elementBounds = element.getBoundingClientRect(), lastBounds = elementBounds, isPreformatted = !reduceWhiteSpace && window.getComputedStyle(element).whiteSpace.substring(0, 3) === "pre", ignoredPreviousSibling = 0, wordsCollection = wordWrapper.collection, wordDelimIsNotSpace, wordDelimString, wordDelimSplitter, curNode, words, curWordEl, startsWithSpace, endsWithSpace, j, bounds, curWordChars, clonedNode, curSubNode, tempSubNode, curTextContent, wordText, lastWordText, k;
+  let nodes = Array.from(element.childNodes), i = 0, { wordDelimiter, reduceWhiteSpace = true, prepareText } = config, elementBounds = element.getBoundingClientRect(), lastBounds = elementBounds, isPreformatted = !reduceWhiteSpace && window.getComputedStyle(element).whiteSpace.substring(0, 3) === "pre", rtl = deepSlice && isNested && window.getComputedStyle(element).direction === "rtl", ignoredPreviousSibling = 0, wordsCollection = wordWrapper.collection, wordDelimIsNotSpace, wordDelimString, wordDelimSplitter, curNode, words, curWordEl, startsWithSpace, endsWithSpace, j, bounds, curWordChars, clonedNode, curSubNode, tempSubNode, curTextContent, wordText, lastWordText, k;
   if (typeof wordDelimiter === "object") {
     wordDelimSplitter = wordDelimiter.delimiter || wordDelimiter;
     wordDelimString = wordDelimiter.replaceWith || "";
@@ -123,6 +123,10 @@ let gsap, _fonts, _splitProp = typeof Symbol === "function" ? Symbol() : "_split
           }
           if (charWrapper) {
             curWordChars = _charSegmenter ? _stretchToFitSpecialChars([..._charSegmenter.segment(wordText)].map((s) => s.segment), specialCharsRegEx) : wordText.match(charSplitRegEx) || _emptyArray;
+            if (specialCharsRegEx) {
+              let p = wordText.match(specialCharsRegEx);
+              p && p.some((s) => curWordChars.indexOf(s) < 0) && (curWordChars = wordText.match(charSplitRegEx) || _emptyArray);
+            }
             for (k = 0; k < curWordChars.length; k++) {
               curWordEl.appendChild(curWordChars[k] === " " ? document.createTextNode(" ") : charWrapper(curWordChars[k]));
             }
@@ -130,7 +134,7 @@ let gsap, _fonts, _splitProp = typeof Symbol === "function" ? Symbol() : "_split
           if (deepSlice && isNested) {
             curTextContent = curNode.textContent = curTextContent.substring(wordText.length + 1, curTextContent.length);
             bounds = curWordEl.getBoundingClientRect();
-            if (bounds.top > lastBounds.top && bounds.left <= lastBounds.left) {
+            if (bounds.top > lastBounds.top && (rtl ? bounds.left >= lastBounds.left : bounds.left <= lastBounds.left)) {
               clonedNode = element.cloneNode();
               curSubNode = element.childNodes[0];
               while (curSubNode && curSubNode !== curWordEl) {
@@ -178,7 +182,7 @@ const _SplitText = class _SplitText {
       el[_splitProp] = this;
     });
     this._split = () => this.isSplit && this.split(this.vars);
-    let orig = [], timerId, checkWidths = () => {
+    let orig = [], checkWidths = () => {
       let i = orig.length, o;
       while (i--) {
         o = orig[i];
@@ -191,8 +195,8 @@ const _SplitText = class _SplitText {
       }
     };
     this._data = { orig, obs: typeof ResizeObserver !== "undefined" && new ResizeObserver(() => {
-      clearTimeout(timerId);
-      timerId = setTimeout(checkWidths, 200);
+      clearTimeout(this._data.t);
+      this._data.t = setTimeout(checkWidths, 200);
     }) };
     _context(this);
     this.split(config);
@@ -214,7 +218,7 @@ const _SplitText = class _SplitText {
           let chars = [], words = [], lines = [], charWrapper = splitCharacters ? _getWrapper("char", config, chars) : null, wordWrapper = _getWrapper("word", config, words), i, curWord, smartWrapSpan, nextSibling;
           _splitWordsAndCharsRecursively(element, config, wordWrapper, charWrapper, onlySplitCharacters, deepSlice && (splitLines || onlySplitCharacters), ignore, finalCharSplitRegEx, specialCharsRegEx, false);
           if (splitLines) {
-            let nodes = _toArray(element.childNodes), wrapLine = _getLineWrapper(element, nodes, config, lines), curNode, toRemove = [], lineStartIndex = 0, allBounds = nodes.map((n) => n.nodeType === 1 ? n.getBoundingClientRect() : _emptyBounds), lastBounds = _emptyBounds, curBounds;
+            let nodes = _toArray(element.childNodes), wrapLine = _getLineWrapper(element, nodes, config, lines), curNode, toRemove = [], lineStartIndex = 0, rtl = window.getComputedStyle(element).direction === "rtl", allBounds = nodes.map((n) => n.nodeType === 1 ? n.getBoundingClientRect() : _emptyBounds), lastBounds = _emptyBounds, curBounds;
             for (i = 0; i < nodes.length; i++) {
               curNode = nodes[i];
               if (curNode.nodeType === 1) {
@@ -227,7 +231,7 @@ const _SplitText = class _SplitText {
                   lastBounds = _findNextValidBounds(allBounds, i);
                 } else {
                   curBounds = allBounds[i];
-                  if (i && curBounds.top > lastBounds.top && curBounds.left < lastBounds.left + lastBounds.width - 1) {
+                  if (i && curBounds.top > lastBounds.top && (rtl ? curBounds.left + curBounds.width > lastBounds.left + 1 : curBounds.left < lastBounds.left + lastBounds.width - 1)) {
                     wrapLine(lineStartIndex, i);
                     lineStartIndex = i;
                   }
@@ -276,6 +280,7 @@ const _SplitText = class _SplitText {
           maskEl.appendChild(el);
           el.className && (maskEl.className = el.className.trim().split(" ").map((s) => s + "-mask").join(" "));
           maskEl.style.overflow = "clip";
+          maskEl.style.verticalAlign = "top";
           return maskEl;
         }));
       }
@@ -292,8 +297,9 @@ const _SplitText = class _SplitText {
     return this;
   }
   kill() {
-    let { obs } = this._data;
+    let { obs, t } = this._data;
     obs && obs.disconnect();
+    clearTimeout(t);
     _fonts == null ? void 0 : _fonts.removeEventListener("loadingdone", this._split);
   }
   revert() {
@@ -327,7 +333,9 @@ const _SplitText = class _SplitText {
     }
   }
 };
-_SplitText.version = "3.15.0";
+_SplitText.version = "3.15.1";
 let SplitText = _SplitText;
-
-export { SplitText, SplitText as default };
+export {
+  SplitText,
+  SplitText as default
+};

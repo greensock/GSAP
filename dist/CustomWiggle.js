@@ -5,7 +5,7 @@
 }(this, (function (exports) { 'use strict';
 
 	/*!
-	 * CustomWiggle 3.15.0
+	 * CustomWiggle 3.15.1
 	 * https://gsap.com
 	 *
 	 * @license Copyright 2008-2026, GreenSock. All rights reserved.
@@ -157,7 +157,7 @@
 	  return CustomWiggle;
 	}();
 	_getGSAP() && gsap.registerPlugin(CustomWiggle);
-	CustomWiggle.version = "3.15.0";
+	CustomWiggle.version = "3.15.1";
 
 	exports.CustomWiggle = CustomWiggle;
 	exports.default = CustomWiggle;

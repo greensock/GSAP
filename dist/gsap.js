@@ -19,7 +19,7 @@
   }
 
   /*!
-   * GSAP 3.15.0
+   * GSAP 3.15.1
    * https://gsap.com
    *
    * @license Copyright 2008-2026, GreenSock. All rights reserved.
@@ -416,7 +416,7 @@
   },
       _addToTimeline = function _addToTimeline(timeline, child, position, skipChecks) {
     child.parent && _removeFromParent(child);
-    child._start = _roundPrecise((_isNumber(position) ? position : position || timeline !== _globalTimeline ? _parsePosition(timeline, position, child) : timeline._time) + child._delay);
+    child._start = _roundPrecise((_isNumber(position) ? position : !position && _isFromOrFromStart(child) && (!timeline._last || timeline._last._start >= timeline._time) ? timeline._last ? timeline._last._start : timeline._time : position || timeline !== _globalTimeline ? _parsePosition(timeline, position, child) : timeline._time) + child._delay);
     child._end = _roundPrecise(child._start + (child.totalDuration() / Math.abs(child.timeScale()) || 0));
 
     _addLinkedListItem(timeline, child, "_first", "_last", timeline._sort ? "_start" : 0);
@@ -1233,7 +1233,7 @@
         frame = ++_self.frame;
         _delta = time - _self.time * 1000;
         _self.time = time = time / 1000;
-        _nextTime += overlap + (overlap >= _gap ? 4 : _gap - overlap);
+        _nextTime += overlap + (overlap >= _gap ? 0 : _gap - overlap);
         dispatch = 1;
       }
 
@@ -1621,10 +1621,12 @@
         return this;
       }
 
-      var tTime = this.parent && this._ts ? _parentToChildTotalTime(this.parent._time, this) : this._tTime;
+      var tTime = this.parent && this._ts ? _parentToChildTotalTime(this.parent._time, this) : this._tTime,
+          wasReversed = this._rts < 0;
       this._rts = +value || 0;
       this._ts = this._ps || value === -_tinyNum ? 0 : this._rts;
-      this.totalTime(_clamp(-Math.abs(this._delay), this.totalDuration(), tTime), suppressEvents !== false);
+      var tDur = this.totalDuration();
+      if (wasReversed !== this._rts < 0 || tTime > 0 && tTime < tDur) this.totalTime(_clamp(-Math.abs(this._delay), tDur, tTime), suppressEvents !== false);
 
       _setEnd(this);
 
@@ -1646,7 +1648,26 @@
           _wake();
 
           this._ts = this._rts;
-          this.totalTime(this.parent && !this.parent.smoothChildTiming ? this.rawTime() : this._tTime || this._pTime, this.progress() === 1 && Math.abs(this._zTime) !== _tinyNum && (this._tTime -= _tinyNum));
+
+          var tTime = this.parent && !this.parent.smoothChildTiming ? this.rawTime() : this._tTime || this._pTime,
+              suppress = this.progress() === 1 && Math.abs(this._zTime) !== _tinyNum,
+              child;
+
+          if (suppress) {
+            this._tTime -= _tinyNum;
+            child = this._first;
+
+            while (child) {
+              if (!child._dur && child._zTime < 0 && child._ts && child._start <= tTime + _tinyNum) {
+                suppress = false;
+                break;
+              }
+
+              child = child._next;
+            }
+          }
+
+          this.totalTime(tTime, suppress);
         }
       }
 
@@ -2915,6 +2936,7 @@
     return _staggerPropsToSkip[name] = 1;
   });
 
+  _staggerTweenProps = _staggerTweenProps.split(",");
   var Tween = function (_Animation2) {
     _inheritsLoose(Tween, _Animation2);
 
@@ -3730,6 +3752,11 @@
         while (i--) {
           _media[i].id === this.id && _media.splice(i, 1);
         }
+
+        this._mqs && this._mqs.forEach(function (mq) {
+          return mq.removeListener ? mq.removeListener(_onMediaChange) : mq.removeEventListener("change", _onMediaChange);
+        });
+        this._mqs = null;
       }
     };
 
@@ -3773,6 +3800,7 @@
             _media.indexOf(context) < 0 && _media.push(context);
             (cond[p] = mq.matches) && (active = 1);
             mq.addListener ? mq.addListener(_onMediaChange) : mq.addEventListener("change", _onMediaChange);
+            (context._mqs || (context._mqs = [])).push(mq);
           }
         }
       }
@@ -4128,7 +4156,7 @@
       }
     }
   }, _buildModifierPlugin("roundProps", _roundModifier), _buildModifierPlugin("modifiers"), _buildModifierPlugin("snap", snap)) || _gsap;
-  Tween.version = Timeline.version = gsap.version = "3.15.0";
+  Tween.version = Timeline.version = gsap.version = "3.15.1";
   _coreReady = 1;
   _windowExists() && _wake();
   var Power0 = _easeMap.Power0,
